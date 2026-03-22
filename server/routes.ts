@@ -4149,6 +4149,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const socketPlayerName = gameManager.getPlayerNameFromSocket(socket.id);
       const pending = (game as any).camilloPendingGift;
       if (!pending || pending.fromPlayer !== socketPlayerName) return;
+      // Server-side validation: targetPlayer must be in allowedOpponents
+      if (pending.allowedOpponents && !pending.allowedOpponents.includes(targetPlayer)) {
+        console.warn(`🚨 CAMILLO: ${socketPlayerName} attempted to gift to unauthorized player ${targetPlayer}`);
+        return;
+      }
+      // Validate targetPlayer is an actual player in this game (not attacker)
+      if (!game.players[targetPlayer] || targetPlayer === socketPlayerName) return;
       delete (game as any).camilloPendingGift;
       const targetChar = (gameManager as any).getPlayerActiveCharacter?.(game, targetPlayer);
       if (targetChar) {
@@ -4177,7 +4184,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const socketPlayerName2 = gameManager.getPlayerNameFromSocket(socket.id);
       const cardOnField = game.field.find((c: any) => c.owner === socketPlayerName2 && (c.frontImage || '').toLowerCase().includes('evil-fake'));
       if (!cardOnField) return;
-      const idsToAbsorb = (selectedIds || []).slice(0, 3);
+      // Server-side validation: only allow opponent graveyard personaggi (max 3)
+      const validGraveyardIds = new Set(
+        (game.graveyard || [])
+          .filter((c: any) => c.owner !== socketPlayerName2 && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))
+          .map((c: any) => c.id)
+      );
+      const validatedIds = (selectedIds || []).filter((id: string) => validGraveyardIds.has(id));
+      if (validatedIds.length === 0) return;
+      const idsToAbsorb = validatedIds.slice(0, 3);
       let totalPTI = 0, totalStars = 0;
       const absorbedNames: string[] = [];
       const absorbedEffects: string[] = [];
@@ -4225,6 +4240,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const geena = game.field.find((c: any) => c.owner === socketPlayerName3 && (c.frontImage || '').toLowerCase().includes('cyber-geena'));
       const target = game.field.find((c: any) => c.id === targetCardId);
       if (!geena || !target) return;
+      // Server-side validation: target must be an opponent's character on field
+      if (target.owner === socketPlayerName3) {
+        console.warn(`🚨 CYBER GEENA: ${socketPlayerName3} attempted to swap with own card`);
+        return;
+      }
+      if (target.type !== 'personaggi' && target.type !== 'personaggi_speciali') return;
       const geenaPTI = geena.pti ?? (gameManager as any).extractPTIFromNote?.(geena.text || '') ?? 0;
       const targetPTI = target.pti ?? (gameManager as any).extractPTIFromNote?.(target.text || '') ?? 0;
       geena.pti = targetPTI;
@@ -4249,9 +4270,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pending = (game as any).acchiapptPendingAttack;
       if (!pending) return;
       const socketPlayerName4 = gameManager.getPlayerNameFromSocket(socket.id);
-      if (socketPlayerName4 && !pending.responses[socketPlayerName4]) {
+      // Server-side validation: number must be 1-6 integer, player must be in this game
+      const validNum = typeof number === 'number' && Number.isInteger(number) && number >= 1 && number <= 6;
+      if (socketPlayerName4 && validNum && !pending.responses[socketPlayerName4] && game.players[socketPlayerName4]) {
         pending.responses[socketPlayerName4] = number;
-        console.log(`🎯 ACCHIAPPT CHESSA: ${socketPlayerName4} guessed ${number} (die: ${pending.diceResult})`);
+        console.log(`🎯 ACCHIAPPT CHESSA: ${socketPlayerName4} guessed ${number}`);
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-acchiappt-guess`, playerName: 'Sistema',
           message: `🎯 ${socketPlayerName4} ha scelto il numero ${number}!`,

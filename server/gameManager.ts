@@ -15408,6 +15408,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
    * the player when their last character dies.
    */
   private killAndCheck(gameId: string, cardId: string, owner: string, attacker: string): void {
+    // Capture preMortem PTI from field BEFORE moveToGraveyard zeroes it out
+    const gamePreKill = this.games.get(gameId);
+    const cardBeforeKill = gamePreKill?.field?.find((c: Card) => c.id === cardId);
+    const preMortemPTI = cardBeforeKill ? (cardBeforeKill.pti ?? this.extractPTIFromNote(cardBeforeKill.text || '')) : 0;
     const result = this.moveToGraveyard(gameId, cardId, owner, attacker);
     if (result.success) {
       // KILL TRIGGER BLOCK: if a bonus-66 effect is active, block the killer for N turns
@@ -15474,8 +15478,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       if (game && attacker && attacker !== 'SELF_DAMAGE' && attacker !== 'EFFETTO_CASUALE') {
         const attackerActiveCharCAM = this.getPlayerActiveCharacter(game, attacker);
         if (attackerActiveCharCAM && (attackerActiveCharCAM.frontImage || '').toLowerCase().includes('camillo')) {
-          const deadCardInGraveyard = game.graveyard.find(c => c.id === cardId);
-          const deadCardPTI = deadCardInGraveyard ? (deadCardInGraveyard.pti ?? this.extractPTIFromNote(deadCardInGraveyard.text || '')) : 0;
+          // Use preMortemPTI captured before moveToGraveyard (card PTI is 0 after death)
+          const deadCardPTI = preMortemPTI;
           if (deadCardPTI > 0) {
             const halfPTI = Math.floor(deadCardPTI / 2);
             const camPTI = attackerActiveCharCAM.pti ?? this.extractPTIFromNote(attackerActiveCharCAM.text || '');
@@ -15499,9 +15503,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 message: `🎭 CAMILLO ha ucciso! Assorbe ${halfPTI} PTI e deve scegliere a chi dare gli altri ${halfPTI} PTI (−1 stella)!`,
                 timestamp: Date.now()
               });
-              (game as any).camilloPendingGift = { halfPTI, fromPlayer: attacker };
+              (game as any).camilloPendingGift = { halfPTI, fromPlayer: attacker, allowedOpponents: opponents };
             }
-            console.log(`🎭 CAMILLO: gained ${halfPTI} PTI from kill, pending gift choice`);
+            console.log(`🎭 CAMILLO: gained ${halfPTI} PTI from kill (preMortemPTI: ${preMortemPTI}), pending gift choice`);
           }
         }
       }
@@ -21434,7 +21438,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         'ape', 'aragosta-irachena', 'avvoltoio', 'brian', 'bullox', 'cimice',
         'cinghiale-inferocito', 'crapa', 'crash-bandicoot', 'hippie', 'holly', 'horsy',
         'mosca', 'opossum-con-la-rabbia', 'parassita', 'pingu', 'procione-insatanato',
-        'riccio-pic', 'scimmia-strafatta', 'zanzara'
+        'riccio-pic', 'scimmia', 'strafatta', 'zanzara'
       ];
       const cinese = gameState.field.find((c: Card) =>
         (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
@@ -21948,6 +21952,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
           (gameState as any).controlledPlayer = null;
           (gameState as any).controllingPlayer = null;
+          (gameState as any).caifaPontiusControlActive = false;
         } else {
           (gameState as any).activeControlTurn = null;
         }
@@ -26819,6 +26824,38 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               message: `💪 ERNESTO ha ucciso! Puoi usare un'altra MOSSE in questo turno!`,
               timestamp: Date.now()
             });
+          }
+        }
+
+        // CAMILLO (MOSSE kill path): on-kill split PTI using currentPTI (the true pre-death PTI)
+        if (result.success && game && attackerName && attackerName !== 'SELF_DAMAGE' && attackerName !== 'EFFETTO_CASUALE') {
+          const camilloChar = this.getPlayerActiveCharacter(game, attackerName);
+          if (camilloChar && (camilloChar.frontImage || '').toLowerCase().includes('camillo') && currentPTI > 0) {
+            const halfPTI = Math.floor(currentPTI / 2);
+            const camPTI = camilloChar.pti ?? this.extractPTIFromNote(camilloChar.text || '');
+            camilloChar.pti = camPTI + halfPTI;
+            this.updateCardTextWithPTI(camilloChar);
+            const opponents = Object.keys(game.players).filter(p => p !== attackerName);
+            const ioCAM = (global as any).io || io;
+            if (ioCAM && opponents.length > 0) {
+              const camPlayerData = game.players[attackerName];
+              if (camPlayerData?.socketId) {
+                ioCAM.to(camPlayerData.socketId).emit('camillo-kill-choice', {
+                  halfPTI,
+                  opponents: opponents.map(p => {
+                    const opChar = this.getPlayerActiveCharacter(game, p);
+                    return { playerName: p, charId: opChar?.id, charName: opChar?.name || p, charImage: opChar?.frontImage || '' };
+                  })
+                });
+              }
+              ioCAM.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-camillo-kill`, playerName: 'Sistema',
+                message: `🎭 CAMILLO ha ucciso! Assorbe ${halfPTI} PTI e deve scegliere a chi dare gli altri ${halfPTI} PTI (−1⭐)!`,
+                timestamp: Date.now()
+              });
+            }
+            (game as any).camilloPendingGift = { halfPTI, fromPlayer: attackerName, allowedOpponents: opponents };
+            console.log(`🎭 CAMILLO (MOSSE path): gained ${halfPTI} PTI from kill (original PTI: ${currentPTI})`);
           }
         }
       }
