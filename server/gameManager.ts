@@ -20905,13 +20905,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     (gameState as any).globalTurnCount = ((gameState as any).globalTurnCount || 0) + 1;
     const currentGlobalTurn: number = (gameState as any).globalTurnCount;
 
-    // GIANNI GIGANTI: decrement blocked turns
+    // GIANNI GIGANTI: decrement blocked turns (only on owner's own turn-end)
     if (gameState.field) {
       const ioGG = (global as any).io;
       for (const fc of gameState.field) {
-        if ((fc as any).blockedForTurns > 0 && (fc.frontImage || '').toLowerCase().includes('gianni-giganti')) {
+        if ((fc as any).blockedForTurns > 0 && (fc.frontImage || '').toLowerCase().includes('gianni-giganti') && fc.owner === playerName) {
           (fc as any).blockedForTurns--;
-          console.log(`😴 GIANNI GIGANTI: blockedForTurns → ${(fc as any).blockedForTurns}`);
+          console.log(`😴 GIANNI GIGANTI: blockedForTurns → ${(fc as any).blockedForTurns} (owner ${playerName} turn-end)`);
           if ((fc as any).blockedForTurns === 0 && ioGG) {
             ioGG.to(gameId).emit('chat-message', {
               id: `${Date.now()}-gianni-unblocked`, playerName: 'Sistema',
@@ -20932,9 +20932,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (turnsElapsed >= 3) {
           const gheller = gameState.field.find((c: Card) => c.id === trap.ghellerId);
           if (gheller) {
-            const atkChar = this.getPlayerActiveCharacter(gameState as any, trap.attackerName);
+            // Use stored attacker card ID (not current active char) for accurate targeting
+            const atkChar = trap.attackerCharId
+              ? gameState.field.find((c: Card) => c.id === trap.attackerCharId)
+              : this.getPlayerActiveCharacter(gameState as any, trap.attackerName);
             if (atkChar) {
-              console.log(`👹 GHELLER: trap fires! Killing ${atkChar.name} (${trap.attackerName})`);
+              console.log(`👹 GHELLER: trap fires! Killing ${atkChar.name} (stored char ${trap.attackerCharId}, owner ${trap.attackerName})`);
               this.moveToGraveyard(gameId, atkChar.id, trap.attackerName, 'GHELLER_TRAP');
               if (ioGH) {
                 ioGH.to(gameId).emit('chat-message', {
@@ -20943,6 +20946,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                   timestamp: Date.now()
                 });
               }
+            } else {
+              console.log(`👹 GHELLER: trap fired but attacker char ${trap.attackerCharId} no longer on field`);
             }
           }
         } else {
@@ -20985,10 +20990,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (gameState.players) {
       for (const pName of Object.keys(gameState.players)) {
         const pp = gameState.players[pName] as any;
-        // Unconditionally clear the block each turn (block is per-turn only)
-        if (pp.daddy_conte_blocked_char_id) {
+        // Clear the block only at end of the DADDY CONTE owner's own turn
+        if (pName === playerName && pp.daddy_conte_blocked_char_id) {
           pp.daddy_conte_blocked_char_id = null;
-          console.log(`🤵 DADDY CONTE: blocking reset for ${pName}`);
+          console.log(`🤵 DADDY CONTE: blocking reset for ${pName} (own turn-end)`);
         }
         // Reset all choice-pending flags at each turn change
         if (pp.pendingDaddyConteChoice) {
