@@ -25782,7 +25782,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           timestamp: Date.now()
         });
         if (fedNewPTI <= 0) {
-          const fedResult = this.moveToGraveyard(gameId, fedesimo.id, attackerName, attackerName);
+          const fedResult = this.moveToGraveyard(gameId, fedesimo.id, attackerName, 'SELF_DAMAGE');
           if (fedResult.eliminationCheck) this.processEliminationAfterDeath(gameId, attackerName, io, 'FEDESIMO_SELF');
         }
       }

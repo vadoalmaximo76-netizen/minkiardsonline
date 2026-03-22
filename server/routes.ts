@@ -5757,6 +5757,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const isCPUPlayer = playerData?.isCPU || attackerName.startsWith('CPU-');
         
         // ERNESTO: CPU can use extra MOSSE if extraMosseAllowed is set after a kill
+        // (flag consumption happens engine-side in executeMossaAttack after all block checks)
         const ernestoExtra = !!(playerData?.extraMosseAllowed);
         if (isCPUPlayer && !ernestoExtra && gameManager.hasCardTypeBeenUsed(gameId, mosseCard.frontImage, attackerName)) {
           console.log(`${attackerName} attempted to reuse MOSSE card type ${mosseCard.frontImage} - attack blocked (CPU restriction)`);
@@ -5765,11 +5766,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             cardId: mosseCardId 
           });
           return;
-        }
-        // Consume extra MOSSE flag after it was used to bypass restriction
-        if (ernestoExtra && isCPUPlayer) {
-          if (playerData) playerData.extraMosseAllowed = false;
-          console.log(`💪 ERNESTO CPU: extra MOSSE slot consumed for ${attackerName}`);
         }
         
         // PRESERVE: Mark card type as used for CPU players
