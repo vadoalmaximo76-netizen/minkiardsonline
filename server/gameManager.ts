@@ -25706,6 +25706,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           console.log(`PTI ABSORPTION SKIPPED: Invalid data (absorbedPTI=${absorbedPTI}, newPTI=${newAttackerPTI})`);
         }
       } else if (noKillBonusActive && newPTI <= 0) {
+        // Consume the flag (one-time suppression per kill)
+        attackerCharacters.filter((c: Card) => c.noKillBonusPending).forEach((c: Card) => {
+          c.noKillBonusPending = undefined;
+        });
         console.log(`👊 NO KILL BONUS: PTI absorption suppressed for ${attackerName} — attacker was hit by CAZZOTTO IN TESTA`);
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-no-kill-bonus`,
