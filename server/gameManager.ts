@@ -11527,6 +11527,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return { success: false, error: 'Il tuo personaggio è stordito! Non può attaccare questo turno.' };
     }
 
+    // CATAPULTA INFERNALE: server-side damage override (field char stars + first hand char stars)
+    if ((mosseCard.frontImage || '').includes('catapulta-infernale')) {
+      const fieldStars = attackerCharacter ? (attackerCharacter.stars ?? this.extractStarsFromNote(attackerCharacter.text || '')) : 1;
+      const handChars = (game.players[attackerName]?.hand || []).filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      const firstHandChar = handChars[0];
+      const handStars = firstHandChar ? (firstHandChar.stars ?? this.extractStarsFromNote(firstHandChar.text || '')) : 0;
+      const totalStars = fieldStars + handStars;
+      damageValue = 150 * totalStars;
+      console.log(`🪨 CATAPULTA INFERNALE (server): campo=${fieldStars} + mano(primo)=${handStars} = ${totalStars} stelle → danno=${damageValue}`);
+    }
+
     // Find target card - either on field OR in hand (for ATTACCO DISONESTO)
     let targetCard: any;
     let targetOwnerName: string = '';
@@ -17363,6 +17374,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // Emit result to all players
     const io = (global as any).io;
     if (io) {
+      io.to(gameId).emit('dice-rolled', { result: diceResult, playerName: diceRollingPlayer });
       io.to(gameId).emit('dice-roll-result', {
         result: diceResult,
         winners: winners.map(w => ({ name: w.name, effect: w.effect })),
@@ -23278,6 +23290,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           });
 
           const diceValue = Math.floor(Math.random() * 6) + 1;
+          io.to(gameId).emit('dice-rolled', { result: diceValue, playerName: defender });
           io.to(gameId).emit('dice-roll', { value: diceValue, playerName: defender, gameId });
           io.to(gameId).emit('chat-message', {
             id: `${Date.now()}-folata-dice`,
@@ -25092,6 +25105,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           if (!game) break;
           const diceRoll = Math.floor(Math.random() * 6) + 1;
           const isEven = diceRoll % 2 === 0;
+          io.to(gameId).emit('dice-rolled', { result: diceRoll, playerName: attackerName });
           io.to(gameId).emit('chat-message', {
             id: `${Date.now()}-dice-split-roll`,
             playerName: 'Sistema',
