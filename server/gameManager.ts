@@ -11833,15 +11833,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
-    // DON EMILIO: only DON GIULIANO LEELLEE can attack when he is on field
+    // DON EMILIO: only the player whose attacking character IS DON GIULIANO LEELLEE can attack
     if (!isHandTarget && (targetCard.frontImage || '').toLowerCase().includes('don-emilio')) {
-      const donGiuliano = game.field.find((c: Card) =>
+      const isDonGiulianoInField = game.field.some((c: Card) =>
         (c.frontImage || '').toLowerCase().includes('don-giuliano-leellee') &&
         (c.type === 'personaggi' || c.type === 'personaggi_speciali')
       );
-      if (donGiuliano && donGiuliano.owner !== attackerName) {
-        console.log(`🛡️ DON EMILIO: ${attackerName} blocked — only DON GIULIANO LEELLEE can attack`);
-        return { success: false, error: '🛡️ DON EMILIO è protetto! Solo DON GIULIANO LEELLEE può attaccarlo mentre è in campo.' };
+      if (isDonGiulianoInField) {
+        const attackerIsDonGiuliano = (attackerCharacter.frontImage || '').toLowerCase().includes('don-giuliano-leellee');
+        if (!attackerIsDonGiuliano) {
+          console.log(`🛡️ DON EMILIO: attack blocked — attacker char is not DON GIULIANO LEELLEE`);
+          return { success: false, error: '🛡️ DON EMILIO è protetto! Solo DON GIULIANO LEELLEE può attaccarlo mentre è in campo.' };
+        }
       }
     }
 
@@ -15082,22 +15085,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
         }
       }
-      // EMIS KILLA: gains +1 star on kill
+      // EMIS KILLA: gains +1 star on kill — only when EMIS KILLA is the active attacking character
       if (game && attacker && attacker !== 'SELF_DAMAGE' && attacker !== 'EFFETTO_CASUALE') {
-        const emisKilla = game.field.find((c: Card) =>
-          c.owner === attacker &&
-          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
-          (c.frontImage || '').toLowerCase().includes('emis-killa')
-        );
-        if (emisKilla) {
-          const oldStars = emisKilla.stars ?? this.extractStarsFromNote(emisKilla.text || '');
+        const attackerActiveChar = this.getPlayerActiveCharacter(game, attacker);
+        if (attackerActiveChar && (attackerActiveChar.frontImage || '').toLowerCase().includes('emis-killa')) {
+          const oldStars = attackerActiveChar.stars ?? this.extractStarsFromNote(attackerActiveChar.text || '');
           const newStars = oldStars + 1;
-          emisKilla.stars = newStars;
-          if (emisKilla.text) {
-            emisKilla.text = emisKilla.text.replace(/Stelle:\s*\d+/i, `Stelle: ${newStars}`);
+          attackerActiveChar.stars = newStars;
+          if (attackerActiveChar.text) {
+            attackerActiveChar.text = attackerActiveChar.text.replace(/Stelle:\s*\d+/i, `Stelle: ${newStars}`);
           }
-          this.updateCardTextWithPTI(emisKilla);
-          const emisName = emisKilla.name || this.getCardNameFromUrl(emisKilla.frontImage || '');
+          this.updateCardTextWithPTI(attackerActiveChar);
           console.log(`🎤 EMIS KILLA: gained +1 star on kill (${oldStars} → ${newStars})`);
           const ioEK = (global as any).io;
           if (ioEK) {
@@ -15110,14 +15108,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
       }
 
-      // ERNESTO: gains extra MOSSE slot after a kill
+      // ERNESTO: gains extra MOSSE slot after a kill — only when ERNESTO is the active attacking character
       if (game && attacker && attacker !== 'SELF_DAMAGE' && attacker !== 'EFFETTO_CASUALE') {
-        const ernesto = game.field.find((c: Card) =>
-          c.owner === attacker &&
-          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
-          (c.frontImage || '').toLowerCase().includes('ernesto')
-        );
-        if (ernesto) {
+        const attackerActiveChar2 = this.getPlayerActiveCharacter(game, attacker);
+        if (attackerActiveChar2 && (attackerActiveChar2.frontImage || '').toLowerCase().includes('ernesto')) {
           if (game.players[attacker]) {
             game.players[attacker].extraMosseAllowed = true;
           }
