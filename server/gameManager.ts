@@ -25397,19 +25397,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
-    // GIANNI GIGANTI: instakill — damage equals target's full PTI; then block GIANNI for 3 turns
+    // GIANNI GIGANTI: instakill — must bypass ALL damage reducers (SHIELD, DEMINKIATORE, etc.)
+    // isGianniInstakill is declared here and used later to force forceInstantDeath=true before newPTI
+    let isGianniInstakill = false;
     if (!isVoodooReflection && !isHandTarget && game) {
       const ggChar = this.getPlayerActiveCharacter(game, attackerName);
       if (ggChar && (ggChar.frontImage || '').toLowerCase().includes('gianni-giganti')) {
-        const ggPti = targetCard.pti || effectiveDamage;
-        console.log(`💥 GIANNI GIGANTI: instakill — damage set to ${ggPti} (was ${effectiveDamage})`);
-        effectiveDamage = ggPti;
+        isGianniInstakill = true;
         (ggChar as any).blockedForTurns = 4; // 4 so that after same-turn-end decrement → 3 blocked turns
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-gianni-giganti-kill`, playerName: 'Sistema',
           message: `💥 GIANNI GIGANTI: kill istantaneo! Ma ora è esausto per 3 turni`,
           timestamp: Date.now()
         });
+        console.log(`💥 GIANNI GIGANTI: isGianniInstakill=true — forceInstantDeath will be set before newPTI`);
       }
     }
 
@@ -26034,6 +26035,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const totalStarsToRemove = starsToRemove + additionalStarsToRemove;
     // ========== END MOSSE SPECIAL EFFECT HANDLING ==========
     
+    // GIANNI GIGANTI instakill: override forceInstantDeath to bypass ALL reducers (shield, halve, etc.)
+    if (isGianniInstakill) {
+      forceInstantDeath = true;
+      console.log(`💥 GIANNI GIGANTI: forceInstantDeath=true — target will die regardless of reducers`);
+    }
+
     // PRESERVE: Calculate new PTI after damage (using effective damage after shield)
     // If instant death effect, set newPTI to 0
     const newPTI = forceInstantDeath ? 0 : Math.max(0, currentPTI - effectiveDamage);
