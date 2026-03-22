@@ -4192,6 +4192,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       const validatedIds = (selectedIds || []).filter((id: string) => validGraveyardIds.has(id));
       if (validatedIds.length === 0) return;
+      // Mark effect as used now that we have confirmed valid targets
+      (cardOnField as any).evilFakeUsed = true;
       const idsToAbsorb = validatedIds.slice(0, 3);
       let totalPTI = 0, totalStars = 0;
       const absorbedNames: string[] = [];
@@ -4246,6 +4248,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
       if (target.type !== 'personaggi' && target.type !== 'personaggi_speciali') return;
+      // Mark effect as used now that we have confirmed valid target
+      (geena as any).cyberGeenaUsed = true;
       const geenaPTI = geena.pti ?? (gameManager as any).extractPTIFromNote?.(geena.text || '') ?? 0;
       const targetPTI = target.pti ?? (gameManager as any).extractPTIFromNote?.(target.text || '') ?? 0;
       geena.pti = targetPTI;

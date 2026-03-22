@@ -7076,12 +7076,32 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           this.updateCardTextWithPTI(replacementCard);
 
           // FABIO FAUZO: self-taroccatura automatically after any transformation
+          // Uses the existing applyModificationToCard pipeline, respecting the card's own modification if present
           if (oldImage.toLowerCase().includes('fabio-fauzo') || (activeChar.frontImage || '').toLowerCase().includes('fabio-fauzo')) {
-            const fabioBonus = Math.floor((replacementCard.pti || 500) * 0.25);
-            const fabioStarBonus = 1;
-            replacementCard.pti = (replacementCard.pti || 500) + fabioBonus;
-            replacementCard.stars = (replacementCard.stars || 1) + fabioStarBonus;
+            // Try to apply the card's stored taroccatura modification first; fall back to a stat boost
+            let tarocMod = mod ? { ...mod } : null;
+            if (!tarocMod || (tarocMod.pti === null && tarocMod.pti === undefined)) {
+              // No stored taroccatura — build a synthetic one matching the taroccatura format
+              const basePTI = replacementCard.pti || 500;
+              const baseStars = replacementCard.stars || 1;
+              tarocMod = {
+                pti: Math.floor(basePTI * 1.25),
+                stars: baseStars + 1
+              };
+            } else {
+              // Boost the stored taroccatura by 25% PTI + 1 star
+              tarocMod = {
+                ...tarocMod,
+                pti: Math.floor((tarocMod.pti || replacementCard.pti || 500) * 1.25),
+                stars: (tarocMod.stars || replacementCard.stars || 1) + 1
+              };
+            }
+            const fabioBasePTI = replacementCard.pti || 500;
+            const fabioBaseStars = replacementCard.stars || 1;
+            this.applyModificationToCard(replacementCard, tarocMod);
             this.updateCardTextWithPTI(replacementCard);
+            const fabioBonus = (replacementCard.pti || 0) - fabioBasePTI;
+            const fabioStarBonus = (replacementCard.stars || 0) - fabioBaseStars;
             const ioFF = (global as any).io;
             if (ioFF) {
               ioFF.to(gameId).emit('chat-message', {
@@ -7090,7 +7110,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 timestamp: Date.now()
               });
             }
-            console.log(`🎸 FABIO FAUZO: self-taroccatura applied (+${fabioBonus} PTI, +${fabioStarBonus} star) on transformation`);
+            console.log(`🎸 FABIO FAUZO: self-taroccatura applied via pipeline (+${fabioBonus} PTI, +${fabioStarBonus} star) on transformation`);
           }
 
           const typeLabel = type === 'evolution' ? 'EVOLUZIONE' : type === 'transformation' ? 'TRASFORMAZIONE' : 'TAROCCATA';
@@ -11921,10 +11941,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 message: `🎯 ACCHIAPPT CHESSA — Dado: ${diceResult}! ${results.join(' | ')}`,
                 timestamp: Date.now()
               });
-              const updatedAC = this.getSanitizedGameState(gameId);
-              ioResolve.to(gameId).emit('game-state-update', updatedAC);
+            }
+            // MOSSE card lifecycle: return to deck (same as normal processMosseDamage path)
+            if (pending.mosseCardId) {
+              this.returnToDeck(gameId, pending.mosseCardId, pending.attackerName);
+              console.log(`🎯 ACCHIAPPT CHESSA: MOSSE card ${pending.mosseCardId} returned to deck after mini-game`);
             }
             delete (gameNow as any).acchiapptPendingAttack;
+            const updatedAC = this.getSanitizedGameState(gameId);
+            if (ioResolve) {
+              ioResolve.to(gameId).emit('game-state-update', updatedAC);
+            }
           }, 12000)
         };
         if (ioAC) {
@@ -18547,8 +18574,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         });
         return;
       }
-      // Only set used flag once we know there are valid targets
-      (card as any).evilFakeUsed = true;
+      // Note: evilFakeUsed flag is set server-side in routes.ts after the player confirms their choice
       const playerData = game.players[playerName];
       if (playerData?.socketId) {
         io.to(playerData.socketId).emit('evil-fake-choice', {
@@ -18591,8 +18617,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         });
         return;
       }
-      // Only set used flag once we know there are valid targets
-      (card as any).cyberGeenaUsed = true;
+      // Note: cyberGeenaUsed flag is set server-side in routes.ts after the player confirms their choice
       const playerDataCG = game.players[playerName];
       if (playerDataCG?.socketId) {
         io.to(playerDataCG.socketId).emit('cyber-geena-choice', {
