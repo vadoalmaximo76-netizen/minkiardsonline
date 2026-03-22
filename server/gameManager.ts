@@ -14429,7 +14429,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       console.log(`PR converted to PTI for card ${cardId}: ${prAmount} PR -> +${prAmount} PTI (total: ${newPTI}). Player ${playerName} spent: ${alreadySpent + actualPRSpent}${giovaniGranaActive ? ' (GIOVANNI GRANA: half cost)' : ''}`);
       
-      return { success: true, newPTI, prSpent: alreadySpent + prAmount };
+      return { success: true, newPTI, prSpent: alreadySpent + actualPRSpent };
 
     } catch (error) {
       console.error('Error adding PR to card:', error);
@@ -15210,6 +15210,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const duelCurrentTurn = duel.currentTurn; // Save before endDuel clears it
           console.log(`⚔️ DUELLO (moveToGraveyard): Character ${cardId} died - ending duel. Winner: ${winnerPlayer}`);
           this.endDuel(gameId, `Character death in moveToGraveyard (${cardId})`);
+          // CIRO/MOHAMED: clear auto-duel flag so trigger can fire again on next coexistence
+          if ((game as any).ciroMohamedDuelActive) {
+            (game as any).ciroMohamedDuelActive = false;
+            console.log(`🍕 CIRO/MOHAMED: duelActive flag cleared after card death (${cardId})`);
+          }
           const ioGlobal = (global as any).io;
           if (ioGlobal) {
             ioGlobal.to(gameId).emit('chat-message', {
@@ -21303,11 +21308,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
 
     // ERNESTO: Reset extraMosseAllowed at end of turn
+    // GOLDEN FREEZER: Reset consecutiveAttacksLeft at end of turn (attacks only valid within the same turn)
     if (gameState.players) {
       for (const pName of Object.keys(gameState.players)) {
         if (gameState.players[pName].extraMosseAllowed) {
           gameState.players[pName].extraMosseAllowed = false;
           console.log(`💪 ERNESTO: extraMosseAllowed reset for ${pName} at end of turn`);
+        }
+        if ((gameState.players[pName] as any).consecutiveAttacksLeft > 0) {
+          (gameState.players[pName] as any).consecutiveAttacksLeft = 0;
+          console.log(`❄️ GOLDEN FREEZER: consecutiveAttacksLeft reset for ${pName} at end of turn`);
         }
       }
     }
@@ -27330,6 +27340,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     console.log(`⚔️ DUELLO ended: ${reason}`);
     game.activeDuel = undefined;
+    // CIRO/MOHAMED: clear auto-duel flag so trigger can fire again on next coexistence
+    if ((game as any).ciroMohamedDuelActive) {
+      (game as any).ciroMohamedDuelActive = false;
+      console.log(`🍕 CIRO/MOHAMED: duelActive flag cleared in endDuel`);
+    }
 
     // Clean up pending defense if it involved a duel participant
     if (game.pendingDefense) {
