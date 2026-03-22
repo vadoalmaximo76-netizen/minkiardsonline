@@ -5756,13 +5756,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const playerData = gameState?.players?.[attackerName];
         const isCPUPlayer = playerData?.isCPU || attackerName.startsWith('CPU-');
         
-        if (isCPUPlayer && gameManager.hasCardTypeBeenUsed(gameId, mosseCard.frontImage, attackerName)) {
+        // ERNESTO: CPU can use extra MOSSE if extraMosseAllowed is set after a kill
+        const ernestoExtra = !!(playerData?.extraMosseAllowed);
+        if (isCPUPlayer && !ernestoExtra && gameManager.hasCardTypeBeenUsed(gameId, mosseCard.frontImage, attackerName)) {
           console.log(`${attackerName} attempted to reuse MOSSE card type ${mosseCard.frontImage} - attack blocked (CPU restriction)`);
           socket.emit('attack-blocked', { 
             message: 'I CPU non possono riutilizzare la stessa carta MOSSE nello stesso turno!',
             cardId: mosseCardId 
           });
           return;
+        }
+        // Consume extra MOSSE flag after it was used to bypass restriction
+        if (ernestoExtra && isCPUPlayer) {
+          if (playerData) playerData.extraMosseAllowed = false;
+          console.log(`💪 ERNESTO CPU: extra MOSSE slot consumed for ${attackerName}`);
         }
         
         // PRESERVE: Mark card type as used for CPU players

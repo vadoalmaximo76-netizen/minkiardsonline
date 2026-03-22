@@ -135,6 +135,8 @@ interface Card {
   noKillBonusPending?: boolean; // Character won't grant +100 PTI to an attacker who kills it (flag on ATTACKER)
   // LELLELLELELLE field placement
   placedByLellelelle?: boolean; // True for mosse cards placed on field by LELLELLELELLE effect
+  // GIGI PROIETTILE — immediate attack when placed
+  canAttackImmediately?: boolean; // Can use MOSSE on the same turn they're placed
 }
 
 interface Player {
@@ -149,6 +151,7 @@ interface Player {
   eliminationCount?: number; // Track how many opponent personaggi cards this player has eliminated (for SOROS activation)
   avatar?: string; // Player's chosen avatar ID
   customAvatarUrl?: string; // Custom image URL (e.g. gym leader image)
+  extraMosseAllowed?: boolean; // ERNESTO: granted one extra MOSSE after a kill this turn
 }
 
 interface TransferRequest {
@@ -3810,6 +3813,20 @@ Rispondi SOLO in JSON:`;
       }
 
       game.field.push(card);
+
+      // GIGI PROIETTILE: can attack immediately when placed on field
+      if (isPersonaggio && (card.frontImage || '').toLowerCase().includes('gigi-proiettile')) {
+        card.canAttackImmediately = true;
+        const ioGP = (global as any).io;
+        if (ioGP) {
+          ioGP.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-gigi-proiettile`, playerName: 'Sistema',
+            message: `🚀 GIGI PROIETTILE! Può attaccare subito senza aspettare il turno!`,
+            timestamp: Date.now()
+          });
+        }
+        console.log(`🚀 GIGI PROIETTILE: canAttackImmediately = true for ${playerName}`);
+      }
 
       // Gym mode: send leader message when CPU plays a card
       if (game.isGymMode && game.gymLeaderCpuName && playerName === game.gymLeaderCpuName) {
@@ -9557,9 +9574,23 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           console.log(`🔗 FUSION ENEMY: No active character found for ${playerName}`);
           break;
         }
-        
-        const enemyCharsForFusion = game.field.filter(c => 
-          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+
+        // FOREVER ALONE: cannot participate in any fusion
+        if ((fusionPlayerChar.frontImage || '').toLowerCase().includes('forever-alone')) {
+          console.log(`💔 FOREVER ALONE: ${playerName}'s active char cannot fuse`);
+          const ioFA = (global as any).io;
+          if (ioFA) ioFA.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-forever-alone-fuse`, playerName: 'Sistema',
+            message: `💔 FOREVER ALONE non può partecipare a una FUSIONE!`,
+            timestamp: Date.now()
+          });
+          break;
+        }
+
+        const enemyCharsForFusion = game.field.filter(c =>
+          c.owner !== playerName &&
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+          !(c.frontImage || '').toLowerCase().includes('forever-alone')
         );
         
         if (enemyCharsForFusion.length === 0) {
@@ -9619,14 +9650,28 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           break;
         }
 
+        // FOREVER ALONE: cannot participate in any fusion
+        if ((fusionActiveChar.frontImage || '').toLowerCase().includes('forever-alone')) {
+          console.log(`💔 FOREVER ALONE: ${playerName}'s active char cannot fuse`);
+          const ioFA2 = (global as any).io;
+          if (ioFA2) ioFA2.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-forever-alone-fuse2`, playerName: 'Sistema',
+            message: `💔 FOREVER ALONE non può partecipare a una FUSIONE!`,
+            timestamp: Date.now()
+          });
+          break;
+        }
+
         const ownFieldChars = game.field.filter((c: Card) =>
           c.id !== fusionActiveChar.id &&
           c.owner === playerName &&
-          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+          !(c.frontImage || '').toLowerCase().includes('forever-alone')
         );
         const playerData = game.players[playerName];
         const ownHandChars = playerData ? playerData.hand.filter((c: Card) =>
-          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+          !(c.frontImage || '').toLowerCase().includes('forever-alone')
         ) : [];
 
         const fusionTargets = [
@@ -11775,6 +11820,56 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
+    // ===================== CHARACTER PASSIVE ATTACK RESTRICTIONS =====================
+
+    // BERLUSCONI ↔ TIZIO MAFIOSO: bidirectional immunity
+    if (!isHandTarget) {
+      const atkImg = (attackerCharacter.frontImage || '').toLowerCase();
+      const tgtImg = (targetCard.frontImage || '').toLowerCase();
+      if ((atkImg.includes('berlusconi') && tgtImg.includes('tizio-mafioso')) ||
+          (atkImg.includes('tizio-mafioso') && tgtImg.includes('berlusconi'))) {
+        console.log(`🤝 BERLUSCONI/TIZIO MAFIOSO: bidirectional immunity — attack blocked`);
+        return { success: false, error: '🤝 BERLUSCONI e TIZIO MAFIOSO non possono attaccarsi reciprocamente!' };
+      }
+    }
+
+    // DON EMILIO: only DON GIULIANO LEELLEE can attack when he is on field
+    if (!isHandTarget && (targetCard.frontImage || '').toLowerCase().includes('don-emilio')) {
+      const donGiuliano = game.field.find((c: Card) =>
+        (c.frontImage || '').toLowerCase().includes('don-giuliano-leellee') &&
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      if (donGiuliano && donGiuliano.owner !== attackerName) {
+        console.log(`🛡️ DON EMILIO: ${attackerName} blocked — only DON GIULIANO LEELLEE can attack`);
+        return { success: false, error: '🛡️ DON EMILIO è protetto! Solo DON GIULIANO LEELLEE può attaccarlo mentre è in campo.' };
+      }
+    }
+
+    // BIGFOOT: automatic dice roll — even = attack proceeds, odd = attack cancelled
+    {
+      const atkImg = (attackerCharacter.frontImage || '').toLowerCase();
+      const tgtImg = (targetCard.frontImage || '').toLowerCase();
+      if (atkImg.includes('bigfoot') || (!isHandTarget && tgtImg.includes('bigfoot'))) {
+        const diceRoll = Math.floor(Math.random() * 6) + 1;
+        const isEven = diceRoll % 2 === 0;
+        const ioBF = (global as any).io;
+        if (ioBF) {
+          ioBF.to(gameId).emit('dice-rolled', { value: diceRoll, playerName: attackerName });
+          ioBF.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-bigfoot-dice`, playerName: 'Sistema',
+            message: `🦶 BIGFOOT! Dado: ${diceRoll} (${isEven ? 'pari ✅ — attacco va a segno!' : 'dispari ❌ — attacco annullato!'})`,
+            timestamp: Date.now()
+          });
+        }
+        console.log(`🦶 BIGFOOT dice: ${diceRoll} (${isEven ? 'EVEN — attack proceeds' : 'ODD — attack cancelled'})`);
+        if (!isEven) {
+          return { success: false, error: `🦶 BIGFOOT! Dado ${diceRoll} (dispari) — l'attacco non va a segno!` };
+        }
+      }
+    }
+
+    // ===================== END CHARACTER PASSIVE ATTACK RESTRICTIONS =====================
+
     // SAGOME INTERCEPTION: If target owner has active sagome, absorb the attack on a sagoma
     if (!isHandTarget) {
       const sagomeState = (game as any).sagome as Record<string, { count: number; ptiEach: number }> | undefined;
@@ -13652,6 +13747,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         return { success: false, message: 'Only PERSONAGGI and PERSONAGGI_SPECIALI cards can be fused' };
       }
 
+      // FOREVER ALONE: cannot participate in any fusion
+      if ((leaderCard.frontImage || '').toLowerCase().includes('forever-alone') ||
+          (targetCard.frontImage || '').toLowerCase().includes('forever-alone')) {
+        const ioFA3 = (global as any).io;
+        if (ioFA3) ioFA3.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-forever-alone-fuse3`, playerName: 'Sistema',
+          message: `💔 FOREVER ALONE non può partecipare a nessuna fusione!`,
+          timestamp: Date.now()
+        });
+        return { success: false, message: '💔 FOREVER ALONE non può partecipare a nessuna fusione!' };
+      }
+
       // VALIDATION: Prevent fusing cards that are already in the same fusion group
       const leaderFusionId = leaderCard.fusionLeader || leaderCardId;
       const targetFusionId = targetCard.fusionLeader || targetCardId;
@@ -14947,6 +15054,57 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
         }
       }
+      // EMIS KILLA: gains +1 star on kill
+      if (game && attacker && attacker !== 'SELF_DAMAGE' && attacker !== 'EFFETTO_CASUALE') {
+        const emisKilla = game.field.find((c: Card) =>
+          c.owner === attacker &&
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+          (c.frontImage || '').toLowerCase().includes('emis-killa')
+        );
+        if (emisKilla) {
+          const oldStars = emisKilla.stars ?? this.extractStarsFromNote(emisKilla.text || '');
+          const newStars = oldStars + 1;
+          emisKilla.stars = newStars;
+          if (emisKilla.text) {
+            emisKilla.text = emisKilla.text.replace(/Stelle:\s*\d+/i, `Stelle: ${newStars}`);
+          }
+          this.updateCardTextWithPTI(emisKilla);
+          const emisName = emisKilla.name || this.getCardNameFromUrl(emisKilla.frontImage || '');
+          console.log(`🎤 EMIS KILLA: gained +1 star on kill (${oldStars} → ${newStars})`);
+          const ioEK = (global as any).io;
+          if (ioEK) {
+            ioEK.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-emis-killa-star`, playerName: 'Sistema',
+              message: `🎤 EMIS KILLA ha ucciso! +1 stella 🌟 (Stelle: ${oldStars} → ${newStars})`,
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
+
+      // ERNESTO: gains extra MOSSE slot after a kill
+      if (game && attacker && attacker !== 'SELF_DAMAGE' && attacker !== 'EFFETTO_CASUALE') {
+        const ernesto = game.field.find((c: Card) =>
+          c.owner === attacker &&
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+          (c.frontImage || '').toLowerCase().includes('ernesto')
+        );
+        if (ernesto) {
+          if (game.players[attacker]) {
+            game.players[attacker].extraMosseAllowed = true;
+          }
+          console.log(`💪 ERNESTO: extraMosseAllowed set for ${attacker} after kill`);
+          const ioEr = (global as any).io;
+          if (ioEr) {
+            ioEr.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-ernesto-extra`, playerName: 'Sistema',
+              message: `💪 ERNESTO ha ucciso! Puoi usare un'altra MOSSE in questo turno!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
+
       if (result.eliminationCheck) {
         const io = (global as any).io;
         if (io) {
@@ -20603,6 +20761,26 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       (gameState as any).stateSnapshots = (gameState as any).stateSnapshots.slice(-10);
     }
 
+    // ERNESTO: Reset extraMosseAllowed at end of turn
+    if (gameState.players) {
+      for (const pName of Object.keys(gameState.players)) {
+        if (gameState.players[pName].extraMosseAllowed) {
+          gameState.players[pName].extraMosseAllowed = false;
+          console.log(`💪 ERNESTO: extraMosseAllowed reset for ${pName} at end of turn`);
+        }
+      }
+    }
+
+    // GIGI PROIETTILE: Reset canAttackImmediately after it was used this turn
+    if (gameState.field) {
+      for (const fc of gameState.field) {
+        if (fc.canAttackImmediately) {
+          fc.canAttackImmediately = false;
+          console.log(`🚀 GIGI PROIETTILE: canAttackImmediately reset for ${fc.owner}`);
+        }
+      }
+    }
+
     // Decrement attackBlocks (bonus-32)
     if ((gameState as any).attackBlocks) {
       const blocks = (gameState as any).attackBlocks as Record<string, { blockedFrom: string; turnsLeft: number }>;
@@ -24800,7 +24978,58 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // ========== END PERSONAGGI SPECIALI SPECIAL MOVES ==========
 
     // ========== CUSTOM EFFECT INTEGRATION: SHIELD, REFLECT, COUNTER, LIFESTEAL ==========
+
+    // FRA MARTINO: when attacked, immediately returns to owner's deck (no damage)
+    if (!isHandTarget && !isVoodooReflection && (targetCard.frontImage || '').toLowerCase().includes('fra-martino')) {
+      const fraName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '');
+      this.returnToDeck(gameId, targetCardId, targetOwner);
+      const ioFM = (global as any).io || io;
+      ioFM.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-fra-martino`, playerName: 'Sistema',
+        message: `🙏 FRA MARTINO! ${fraName} è tornato nel mazzo invece di subire danno!`,
+        timestamp: Date.now()
+      });
+      console.log(`🙏 FRA MARTINO: ${fraName} returned to deck instead of taking damage`);
+      const fmState = this.getSanitizedGameState(gameId);
+      ioFM.to(gameId).emit('game-state-update', fmState);
+      return;
+    }
+
     let effectiveDamage = damageValue;
+
+    // DONALD TRUMP: 2× damage against KIM JONG UN and OBAMA
+    if (!isVoodooReflection) {
+      const attackerChars = game?.field?.filter((c: Card) =>
+        c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      ) || [];
+      const hasTrump = attackerChars.some((c: Card) => (c.frontImage || '').toLowerCase().includes('donald-trump'));
+      if (hasTrump) {
+        const tgtImg = (targetCard.frontImage || '').toLowerCase();
+        if (tgtImg.includes('kim-jong-un') || tgtImg.includes('obama')) {
+          effectiveDamage = effectiveDamage * 2;
+          console.log(`🦅 TRUMP: doubled damage to ${effectiveDamage} against ${tgtImg}`);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-trump-double`, playerName: 'Sistema',
+            message: `🦅 DONALD TRUMP! Danno raddoppiato contro il bersaglio: ${effectiveDamage} PTI!`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    }
+
+    // CARMINE: reduces all incoming MOSSE damage by 10 (min 0)
+    if (!isVoodooReflection && (targetCard.frontImage || '').toLowerCase().includes('carmine')) {
+      const carmineDmg = effectiveDamage;
+      effectiveDamage = Math.max(0, effectiveDamage - 10);
+      if (carmineDmg !== effectiveDamage) {
+        console.log(`🛡️ CARMINE: damage reduced from ${carmineDmg} to ${effectiveDamage}`);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-carmine-shield`, playerName: 'Sistema',
+          message: `🛡️ CARMINE! Il danno è stato ridotto di 10 PTI (${carmineDmg} → ${effectiveDamage})!`,
+          timestamp: Date.now()
+        });
+      }
+    }
 
     // DEMINKIATORE check: halve damage if target has this flag
     if ((targetCard as any).halveNextAttack) {
@@ -25513,7 +25742,33 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (fieldCard) fieldCard.stars = newStarsAfterRemoval;
       }
     }
-    
+
+    // FEDESIMO: self-inflicts the same damage it dealt when attacking
+    if (!isHandTarget && !isVoodooReflection && game) {
+      const fedesimo = game.field.find((c: Card) =>
+        c.owner === attackerName &&
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+        (c.frontImage || '').toLowerCase().includes('fedesimo')
+      );
+      if (fedesimo) {
+        const fedPTI = fedesimo.pti ?? this.extractPTIFromNote(fedesimo.text || '');
+        const fedNewPTI = Math.max(0, fedPTI - effectiveDamage);
+        fedesimo.pti = fedNewPTI;
+        this.updateCardTextWithPTI(fedesimo);
+        const fedName = fedesimo.name || this.getCardNameFromUrl(fedesimo.frontImage || '');
+        console.log(`😵 FEDESIMO: self-inflicts ${effectiveDamage} PTI damage (${fedPTI} → ${fedNewPTI})`);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-fedesimo-self`, playerName: 'Sistema',
+          message: `😵 FEDESIMO si autoinfligge ${effectiveDamage} PTI di danno! (${fedPTI} → ${fedNewPTI})`,
+          timestamp: Date.now()
+        });
+        if (fedNewPTI <= 0) {
+          const fedResult = this.moveToGraveyard(gameId, fedesimo.id, attackerName, attackerName);
+          if (fedResult.eliminationCheck) this.processEliminationAfterDeath(gameId, attackerName, io, 'FEDESIMO_SELF');
+        }
+      }
+    }
+
     console.log(`${isHandTarget ? '🎯 ATTACCO DISONESTO: ' : ''}${targetOwner}'s ${targetCard.frontImage} took ${damageValue} damage: ${currentPTI} → ${newPTI} PTI${starsToRemove > 0 ? `, -${starsToRemove} stars` : ''}`);
     
     // PRESERVE: Mark action as completed for CPU turn flow
