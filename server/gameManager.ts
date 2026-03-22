@@ -11534,8 +11534,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const firstHandChar = handChars[0];
       const handStars = firstHandChar ? (firstHandChar.stars ?? this.extractStarsFromNote(firstHandChar.text || '')) : 0;
       const totalStars = fieldStars + handStars;
-      damageValue = 150 * totalStars;
-      console.log(`🪨 CATAPULTA INFERNALE (server): campo=${fieldStars} + mano(primo)=${handStars} = ${totalStars} stelle → danno=${damageValue}`);
+      const catapultaBase = (mosseCard as any).mosseDamageValue ?? 150;
+      damageValue = catapultaBase * totalStars;
+      console.log(`🪨 CATAPULTA INFERNALE (server): base=${catapultaBase} × (campo=${fieldStars} + mano=${handStars}) = ${totalStars} stelle → danno=${damageValue}`);
     }
 
     // Find target card - either on field OR in hand (for ATTACCO DISONESTO)
