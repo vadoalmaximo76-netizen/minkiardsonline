@@ -3987,6 +3987,26 @@ Rispondi SOLO in JSON:`;
         console.log(`💰 GIOVANNI GRANA: PR spending halved for ${playerName}`);
       }
 
+      // GOLDEN FREEZER: mark card.effect so "Attiva Effetto" button appears in RoundTable
+      if (isPersonaggio && (card.frontImage || '').toLowerCase().includes('golden-freezer') && !card.effect) {
+        card.effect = 'Attiva: lancia il dado e ottieni attacchi MOSSE consecutivi pari al risultato (una volta per partita).';
+      }
+
+      // EVIL FAKE: mark card.effect so "Attiva Effetto" button appears in RoundTable
+      if (isPersonaggio && (card.frontImage || '').toLowerCase().includes('evil-fake') && !card.effect) {
+        card.effect = 'Attiva: assorbe fino a 3 personaggi dai cimiteri avversari, copiandone statistiche ed effetti (una volta per partita).';
+      }
+
+      // CYBER GEENA: mark card.effect so "Attiva Effetto" button appears in RoundTable
+      if (isPersonaggio && (card.frontImage || '').toLowerCase().includes('cyber-geena') && !card.effect) {
+        card.effect = 'Attiva: scambia i PTI di questo personaggio con quelli di un personaggio avversario in campo (una volta per partita).';
+      }
+
+      // IL PELUX (Stella Nera): mark card.effect so "Attiva Effetto" button appears in RoundTable
+      if (isPersonaggio && (card.frontImage || '').toLowerCase().includes('il-pelux') && !card.effect) {
+        card.effect = 'Attiva: carica la Stella Nera — il prossimo attacco MOSSE eliminerà istantaneamente il bersaglio (una volta per partita).';
+      }
+
       // ========== END TASK-24 PLAY-CARD HOOKS ==========
 
       // Gym mode: send leader message when CPU plays a card
@@ -11892,8 +11912,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
-    // ACCHIAPPT CHESSA: when attacking, trigger a number-guess mini-game for all characters on field
-    if (!isHandTarget && !isDuelAttack && attackerCharacter && (attackerCharacter.frontImage || '').toLowerCase().includes('acchiappt-chessa') && !(game as any).acchiapptPendingAttack) {
+    // ACCHIAPPT CHESSA: when attacking with this MOSSE card, trigger a number-guess mini-game for all characters on field
+    if (!isHandTarget && !isDuelAttack && mosseCard && (mosseCard.frontImage || '').toLowerCase().includes('acchiappt-chessa') && !(game as any).acchiapptPendingAttack) {
       const fieldCharsAC = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
       if (fieldCharsAC.length > 0) {
         const attackId = `acchiappt-${Date.now()}`;
