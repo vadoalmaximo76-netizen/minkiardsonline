@@ -273,6 +273,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [blockTypeSelection, setBlockTypeSelection] = useState<{ visible: boolean; options: string[]; turns: number } | null>(null);
   const [daddyConteDialog, setDaddyConteDialog] = useState<{ visible: boolean; characters: Array<{id: string; name: string; frontImage: string; owner: string}> } | null>(null);
   const [fabrizioDialog, setFabrizioDialog] = useState<{ visible: boolean; characterName: string; characterId: string; currentPti: number } | null>(null);
+  const [camilloDialog, setCamilloDialog] = useState<{ visible: boolean; halfPTI: number; opponents: Array<{playerName: string; charId?: string; charName: string; charImage: string}> } | null>(null);
+  const [evilFakeDialog, setEvilFakeDialog] = useState<{ visible: boolean; graveyard: Array<{id: string; name: string; frontImage: string; owner: string; pti: number; stars: number}>; selected: string[] } | null>(null);
+  const [cyberGeenaDialog, setCyberGeenaDialog] = useState<{ visible: boolean; myCardId: string; myPTI: number; opponents: Array<{id: string; name: string; frontImage: string; owner: string; pti: number}> } | null>(null);
+  const [acchiapptDialog, setAcchiapptDialog] = useState<{ visible: boolean; attackId: string; diceResult: number; damageValue: number; characters: Array<{id: string; name: string; owner: string; frontImage: string}>; chosenNumber: number | null } | null>(null);
   const [controlTurnPanel, setControlTurnPanel] = useState<{ visible: boolean; controlledPlayer: string; availableTypes: string[]; possibleTargets: string[]; selectedType: string | null; selectedTarget: string | null }>({ visible: false, controlledPlayer: '', availableTypes: [], possibleTargets: [], selectedType: null, selectedTarget: null });
   const [controlTurnTargetPanel, setControlTurnTargetPanel] = useState<{ visible: boolean; opponents: string[] }>({ visible: false, opponents: [] });
   const [cpuThinkingPlayer, setCpuThinkingPlayer] = useState<string | null>(null);
@@ -1094,6 +1098,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setFabrizioDialog({ visible: true, characterName: data.characterName, characterId: data.characterId, currentPti: data.currentPti });
     };
     socket.on('fabrizio-choice', handleFabrizioChoice);
+
+    const handleCamilloKillChoice = (data: { halfPTI: number; opponents: Array<{playerName: string; charId?: string; charName: string; charImage: string}> }) => {
+      setCamilloDialog({ visible: true, halfPTI: data.halfPTI, opponents: data.opponents });
+    };
+    socket.on('camillo-kill-choice', handleCamilloKillChoice);
+
+    const handleEvilFakeChoice = (data: { graveyard: Array<{id: string; name: string; frontImage: string; owner: string; pti: number; stars: number}> }) => {
+      setEvilFakeDialog({ visible: true, graveyard: data.graveyard, selected: [] });
+    };
+    socket.on('evil-fake-choice', handleEvilFakeChoice);
+
+    const handleCyberGeenaChoice = (data: { myCardId: string; myPTI: number; opponents: Array<{id: string; name: string; frontImage: string; owner: string; pti: number}> }) => {
+      setCyberGeenaDialog({ visible: true, myCardId: data.myCardId, myPTI: data.myPTI, opponents: data.opponents });
+    };
+    socket.on('cyber-geena-choice', handleCyberGeenaChoice);
+
+    const handleAcchiapptNumberChoice = (data: { attackId: string; diceResult?: number; damageValue: number; characters: Array<{id: string; name: string; owner: string; frontImage: string}> }) => {
+      setAcchiapptDialog({ visible: true, attackId: data.attackId, diceResult: data.diceResult ?? 0, damageValue: data.damageValue, characters: data.characters, chosenNumber: null });
+    };
+    socket.on('acchiappt-number-choice', handleAcchiapptNumberChoice);
 
     const handleControlTurnChooseTarget = (data: { controllingPlayer: string; opponents: string[] }) => {
       if (data.controllingPlayer === playerName) {
@@ -2107,6 +2131,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('block-card-type-select', handleBlockCardTypeSelect);
       socket.off('daddy-conte-choice', handleDaddyConteChoice);
       socket.off('fabrizio-choice', handleFabrizioChoice);
+      socket.off('camillo-kill-choice', handleCamilloKillChoice);
+      socket.off('evil-fake-choice', handleEvilFakeChoice);
+      socket.off('cyber-geena-choice', handleCyberGeenaChoice);
+      socket.off('acchiappt-number-choice', handleAcchiapptNumberChoice);
       socket.off('control-turn-choose-target', handleControlTurnChooseTarget);
       socket.off('opponent-turn-control', handleControlTurnActive);
       socket.off('control-turn-resolved', handleControlTurnResolved);
@@ -4747,6 +4775,146 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   ⭐ +100 PTI a {fabrizioDialog.characterName} (ora: {fabrizioDialog.currentPti})
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {camilloDialog?.visible && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70">
+            <div className="bg-gradient-to-b from-orange-900 to-orange-800 rounded-xl p-6 shadow-2xl border border-orange-400/40 max-w-sm w-full mx-4">
+              <div className="text-center mb-4">
+                <span className="text-4xl">🎭</span>
+                <h3 className="text-white text-xl font-bold mt-2">CAMILLO</h3>
+                <p className="text-orange-200 text-sm mt-1">Scegli a chi donare <strong>{camilloDialog.halfPTI} PTI</strong> (−1⭐ all'avversario scelto)</p>
+              </div>
+              <div className="flex flex-col gap-3">
+                {camilloDialog.opponents.map((opp) => (
+                  <button
+                    key={opp.playerName}
+                    onClick={() => {
+                      socket.emit('camillo-kill-target-chosen', { gameId, targetPlayer: opp.playerName });
+                      setCamilloDialog(null);
+                    }}
+                    className="w-full px-4 py-3 bg-orange-700 hover:bg-orange-600 text-white font-bold rounded-lg transition-all flex items-center gap-3"
+                  >
+                    {opp.charImage && <img src={opp.charImage} alt={opp.charName} className="w-10 h-10 rounded object-cover" />}
+                    <span>{opp.charName} <span className="text-orange-200 text-xs">({opp.playerName})</span></span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {evilFakeDialog?.visible && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70">
+            <div className="bg-gradient-to-b from-red-950 to-gray-900 rounded-xl p-6 shadow-2xl border border-red-500/40 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
+              <div className="text-center mb-4">
+                <span className="text-4xl">😈</span>
+                <h3 className="text-white text-xl font-bold mt-2">EVIL FAKE</h3>
+                <p className="text-red-200 text-sm mt-1">Scegli fino a 3 personaggi dai cimiteri avversari da assorbire</p>
+                <p className="text-red-300 text-xs mt-1">Selezionati: {evilFakeDialog.selected.length}/3</p>
+              </div>
+              <div className="flex flex-col gap-2 mb-4">
+                {evilFakeDialog.graveyard.map((card) => {
+                  const isSelected = evilFakeDialog.selected.includes(card.id);
+                  return (
+                    <button
+                      key={card.id}
+                      onClick={() => {
+                        setEvilFakeDialog(prev => {
+                          if (!prev) return prev;
+                          const sel = prev.selected.includes(card.id)
+                            ? prev.selected.filter(id => id !== card.id)
+                            : prev.selected.length < 3 ? [...prev.selected, card.id] : prev.selected;
+                          return { ...prev, selected: sel };
+                        });
+                      }}
+                      className={`w-full px-3 py-2 rounded-lg font-bold transition-all flex items-center gap-2 border ${isSelected ? 'bg-red-600 border-red-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-200 hover:bg-gray-700'}`}
+                    >
+                      {card.frontImage && <img src={card.frontImage} alt={card.name} className="w-8 h-8 rounded object-cover" />}
+                      <span className="text-sm">{card.name} <span className="text-gray-400 text-xs">({card.owner}) — {card.pti} PTI ⭐{card.stars}</span></span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    socket.emit('evil-fake-chosen', { gameId, selectedIds: evilFakeDialog.selected });
+                    setEvilFakeDialog(null);
+                  }}
+                  className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg"
+                >
+                  😈 Assorbi {evilFakeDialog.selected.length} personaggi
+                </button>
+                <button onClick={() => setEvilFakeDialog(null)} className="py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white rounded-lg">✕</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {cyberGeenaDialog?.visible && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70">
+            <div className="bg-gradient-to-b from-blue-950 to-gray-900 rounded-xl p-6 shadow-2xl border border-blue-400/40 max-w-sm w-full mx-4">
+              <div className="text-center mb-4">
+                <span className="text-4xl">🤖</span>
+                <h3 className="text-white text-xl font-bold mt-2">CYBER GEENA</h3>
+                <p className="text-blue-200 text-sm mt-1">Scegli un personaggio con cui scambiare i PTI</p>
+                <p className="text-blue-300 text-xs mt-1">I tuoi PTI attuali: <strong>{cyberGeenaDialog.myPTI}</strong></p>
+              </div>
+              <div className="flex flex-col gap-3">
+                {cyberGeenaDialog.opponents.map((opp) => (
+                  <button
+                    key={opp.id}
+                    onClick={() => {
+                      socket.emit('cyber-geena-target-chosen', { gameId, targetCardId: opp.id });
+                      setCyberGeenaDialog(null);
+                    }}
+                    className="w-full px-4 py-3 bg-blue-700 hover:bg-blue-600 text-white font-bold rounded-lg transition-all flex items-center gap-3"
+                  >
+                    {opp.frontImage && <img src={opp.frontImage} alt={opp.name} className="w-10 h-10 rounded object-cover" />}
+                    <span>{opp.name} <span className="text-blue-200 text-xs">({opp.owner}) — {opp.pti} PTI</span></span>
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setCyberGeenaDialog(null)} className="mt-3 w-full py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm">✕ Annulla</button>
+            </div>
+          </div>
+        )}
+
+        {acchiapptDialog?.visible && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70">
+            <div className="bg-gradient-to-b from-yellow-900 to-gray-900 rounded-xl p-6 shadow-2xl border border-yellow-500/40 max-w-sm w-full mx-4">
+              <div className="text-center mb-4">
+                <span className="text-4xl">🎯</span>
+                <h3 className="text-white text-xl font-bold mt-2">ACCHIAPPT CHESSA</h3>
+                <p className="text-yellow-200 text-sm mt-1">Scegli un numero da 1 a 6!</p>
+                <p className="text-yellow-300 text-xs mt-1">Chi indovina il dado è immune. Chi sbaglia prende {acchiapptDialog.damageValue} danni!</p>
+              </div>
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {[1,2,3,4,5,6].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setAcchiapptDialog(prev => prev ? { ...prev, chosenNumber: n } : prev)}
+                    className={`py-3 rounded-lg font-bold text-xl transition-all border ${acchiapptDialog.chosenNumber === n ? 'bg-yellow-500 border-yellow-300 text-black scale-110' : 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'}`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <button
+                disabled={acchiapptDialog.chosenNumber === null}
+                onClick={() => {
+                  if (acchiapptDialog.chosenNumber !== null) {
+                    socket.emit('acchiappt-number-response', { gameId, number: acchiapptDialog.chosenNumber });
+                    setAcchiapptDialog(null);
+                  }
+                }}
+                className="w-full py-2 bg-yellow-600 hover:bg-yellow-500 disabled:bg-gray-700 text-white font-bold rounded-lg transition-all"
+              >
+                🎯 Conferma {acchiapptDialog.chosenNumber !== null ? `(hai scelto ${acchiapptDialog.chosenNumber})` : ''}
+              </button>
             </div>
           </div>
         )}

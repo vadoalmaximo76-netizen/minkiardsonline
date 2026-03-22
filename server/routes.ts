@@ -4140,6 +4140,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // TASK-24: CAMILLO kill PTI gift choice
+    socket.on('camillo-kill-target-chosen', ({ gameId: gId, targetPlayer }: { gameId: string; targetPlayer: string }) => {
+      const gameId = gId || gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = (gameManager as any).games?.get(gameId);
+      if (!game) return;
+      const socketPlayerName = gameManager.getPlayerNameFromSocket(socket.id);
+      const pending = (game as any).camilloPendingGift;
+      if (!pending || pending.fromPlayer !== socketPlayerName) return;
+      delete (game as any).camilloPendingGift;
+      const targetChar = (gameManager as any).getPlayerActiveCharacter?.(game, targetPlayer);
+      if (targetChar) {
+        const tPTI = targetChar.pti ?? (gameManager as any).extractPTIFromNote?.(targetChar.text || '') ?? 0;
+        const tStars = targetChar.stars ?? (gameManager as any).extractStarsFromNote?.(targetChar.text || '') ?? 1;
+        targetChar.pti = tPTI + pending.halfPTI;
+        targetChar.stars = Math.max(0, tStars - 1);
+        (gameManager as any).updateCardTextWithPTI?.(targetChar);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-camillo-gift`, playerName: 'Sistema',
+          message: `🎭 CAMILLO dona ${pending.halfPTI} PTI a ${targetPlayer} (ma gli toglie 1⭐)!`,
+          timestamp: Date.now()
+        });
+        console.log(`🎭 CAMILLO gift: ${pending.halfPTI} PTI → ${targetPlayer}, -1 star`);
+      }
+      const gs = gameManager.getSanitizedGameState(gameId);
+      emitImmediateGameState(io, gameId, gs);
+    });
+
+    // TASK-24: EVIL FAKE graveyard absorb
+    socket.on('evil-fake-chosen', ({ gameId: gId, selectedIds }: { gameId: string; selectedIds: string[] }) => {
+      const gameId = gId || gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = (gameManager as any).games?.get(gameId);
+      if (!game) return;
+      const socketPlayerName2 = gameManager.getPlayerNameFromSocket(socket.id);
+      const cardOnField = game.field.find((c: any) => c.owner === socketPlayerName2 && (c.frontImage || '').toLowerCase().includes('evil-fake'));
+      if (!cardOnField) return;
+      const idsToAbsorb = (selectedIds || []).slice(0, 3);
+      let totalPTI = 0, totalStars = 0;
+      for (const sid of idsToAbsorb) {
+        const gIdx = game.graveyard.findIndex((c: any) => c.id === sid);
+        if (gIdx < 0) continue;
+        const dead = game.graveyard.splice(gIdx, 1)[0];
+        const dPTI = dead.pti ?? (gameManager as any).extractPTIFromNote?.(dead.text || '') ?? 0;
+        const dStars = dead.stars ?? (gameManager as any).extractStarsFromNote?.(dead.text || '') ?? 1;
+        totalPTI += dPTI;
+        totalStars += dStars;
+      }
+      if (totalPTI > 0 || totalStars > 0) {
+        const efPTI = cardOnField.pti ?? (gameManager as any).extractPTIFromNote?.(cardOnField.text || '') ?? 0;
+        const efStars = cardOnField.stars ?? (gameManager as any).extractStarsFromNote?.(cardOnField.text || '') ?? 1;
+        cardOnField.pti = efPTI + totalPTI;
+        cardOnField.stars = efStars + totalStars;
+        (gameManager as any).updateCardTextWithPTI?.(cardOnField);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-evil-fake-absorb`, playerName: 'Sistema',
+          message: `😈 EVIL FAKE assorbe ${idsToAbsorb.length} personaggi! +${totalPTI} PTI +${totalStars}⭐!`,
+          timestamp: Date.now()
+        });
+      }
+      const gs2 = gameManager.getSanitizedGameState(gameId);
+      emitImmediateGameState(io, gameId, gs2);
+    });
+
+    // TASK-24: CYBER GEENA PTI swap
+    socket.on('cyber-geena-target-chosen', ({ gameId: gId, targetCardId }: { gameId: string; targetCardId: string }) => {
+      const gameId = gId || gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = (gameManager as any).games?.get(gameId);
+      if (!game) return;
+      const socketPlayerName3 = gameManager.getPlayerNameFromSocket(socket.id);
+      const geena = game.field.find((c: any) => c.owner === socketPlayerName3 && (c.frontImage || '').toLowerCase().includes('cyber-geena'));
+      const target = game.field.find((c: any) => c.id === targetCardId);
+      if (!geena || !target) return;
+      const geenaPTI = geena.pti ?? (gameManager as any).extractPTIFromNote?.(geena.text || '') ?? 0;
+      const targetPTI = target.pti ?? (gameManager as any).extractPTIFromNote?.(target.text || '') ?? 0;
+      geena.pti = targetPTI;
+      target.pti = geenaPTI;
+      (gameManager as any).updateCardTextWithPTI?.(geena);
+      (gameManager as any).updateCardTextWithPTI?.(target);
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-cyber-geena-swap`, playerName: 'Sistema',
+        message: `🤖 CYBER GEENA scambia PTI con ${target.name || target.id}! (${geenaPTI} ↔ ${targetPTI})`,
+        timestamp: Date.now()
+      });
+      const gs3 = gameManager.getSanitizedGameState(gameId);
+      emitImmediateGameState(io, gameId, gs3);
+    });
+
+    // TASK-24: ACCHIAPPT CHESSA number response
+    socket.on('acchiappt-number-response', ({ gameId: gId, number }: { gameId: string; number: number }) => {
+      const gameId = gId || gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = (gameManager as any).games?.get(gameId);
+      if (!game) return;
+      const pending = (game as any).acchiapptPendingAttack;
+      if (!pending) return;
+      const socketPlayerName4 = gameManager.getPlayerNameFromSocket(socket.id);
+      if (socketPlayerName4 && !pending.responses[socketPlayerName4]) {
+        pending.responses[socketPlayerName4] = number;
+        console.log(`🎯 ACCHIAPPT CHESSA: ${socketPlayerName4} guessed ${number} (die: ${pending.diceResult})`);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-acchiappt-guess`, playerName: 'Sistema',
+          message: `🎯 ${socketPlayerName4} ha scelto il numero ${number}!`,
+          timestamp: Date.now()
+        });
+      }
+    });
+
     // CUSTOM EFFECT: Handle manual activation of custom card effects
     socket.on('activate-custom-effect', async ({ cardId, playerName }: { cardId: string; playerName: string }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);

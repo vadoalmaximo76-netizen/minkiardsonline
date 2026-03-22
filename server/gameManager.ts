@@ -3882,6 +3882,112 @@ Rispondi SOLO in JSON:`;
         console.log(`🪆 BAMBOLA DEL DEMONIO: immuneToAttacks = true, enteredAtTurn = ${card.enteredAtTurn} for ${playerName}`);
       }
 
+      // ========== TASK-24 PLAY-CARD HOOKS ==========
+
+      // CIRO PIZZAIOLO DI SFIDUCIA + MOHAMED KEBABARO DI FIDUCIA: auto-duel when both on field
+      if (isPersonaggio) {
+        const fieldChars = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+        const ciroOnField = fieldChars.find(c => (c.frontImage || '').toLowerCase().includes('ciro-pizzaiolo-di-sfiducia'));
+        const mohamedOnField = fieldChars.find(c => (c.frontImage || '').toLowerCase().includes('mohamed-kebabbaro-di-fiducia'));
+        if (ciroOnField && mohamedOnField && !(game as any).ciroMohamedDuelActive) {
+          (game as any).ciroMohamedDuelActive = true;
+          game.activeDuel = {
+            duelCardId: card.id,
+            character1Id: ciroOnField.id,
+            character2Id: mohamedOnField.id,
+            player1: ciroOnField.owner,
+            player2: mohamedOnField.owner,
+            currentTurn: ciroOnField.owner,
+            consecutiveTurns: 0,
+            active: true
+          };
+          const ioCM = (global as any).io;
+          if (ioCM) {
+            ioCM.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-ciro-mohamed`, playerName: 'Sistema',
+              message: `🍕⚔️☪️ CIRO e MOHAMED si sfidano! Parte il duello automatico tra rivali storici!`,
+              timestamp: Date.now()
+            });
+          }
+          console.log(`🍕 CIRO vs MOHAMED: auto-duel started`);
+        }
+      }
+
+      // CAIFA + PONTIUS PILATUS: CAIFA controlla PONTIUS (come M DI MAJIN BU)
+      if (isPersonaggio) {
+        const fieldCharsP = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+        const caifaOnField = fieldCharsP.find(c => (c.frontImage || '').toLowerCase().includes('caifa'));
+        const pontiusOnField = fieldCharsP.find(c => (c.frontImage || '').toLowerCase().includes('pontius-pilatus'));
+        if (caifaOnField && pontiusOnField && !(game as any).caifaPontiusControlActive) {
+          if (caifaOnField.owner !== pontiusOnField.owner) {
+            (game as any).caifaPontiusControlActive = true;
+            (game as any).controlledPlayer = pontiusOnField.owner;
+            (game as any).controllingPlayer = caifaOnField.owner;
+            const ioCAP = (global as any).io;
+            if (ioCAP) {
+              ioCAP.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-caifa-pontius`, playerName: 'Sistema',
+                message: `✝️👑 CAIFA è in campo insieme a PONTIUS PILATUS! CAIFA controlla le azioni di PONTIUS per un turno!`,
+                timestamp: Date.now()
+              });
+              ioCAP.to(gameId).emit('control-turn-set', {
+                controllingPlayer: caifaOnField.owner,
+                controlledPlayer: pontiusOnField.owner
+              });
+            }
+            console.log(`✝️ CAIFA: controls PONTIUS PILATUS (${caifaOnField.owner} controls ${pontiusOnField.owner})`);
+          }
+        }
+      }
+
+      // IL PELUX + SILVER SILVIO: SILVER SILVIO esce dal campo
+      if (isPersonaggio) {
+        const fieldCharsPS = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+        const peluxOnField = fieldCharsPS.find(c => (c.frontImage || '').toLowerCase().includes('il-pelux'));
+        const silverSilvioOnField = fieldCharsPS.find(c => (c.frontImage || '').toLowerCase().includes('silver-silvio'));
+        if (peluxOnField && silverSilvioOnField) {
+          const ioPX = (global as any).io;
+          const ssIdx = game.field.findIndex(c => c.id === silverSilvioOnField.id);
+          if (ssIdx >= 0) {
+            game.field.splice(ssIdx, 1);
+            const ssOwner = silverSilvioOnField.owner;
+            if (game.players[ssOwner]) {
+              if (!game.players[ssOwner].hand) game.players[ssOwner].hand = [];
+              game.players[ssOwner].hand.push(silverSilvioOnField);
+            }
+            if (ioPX) {
+              ioPX.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-pelux-silver`, playerName: 'Sistema',
+                message: `⭐ IL PELUX è arrivato! SILVER SILVIO si ritira dal campo e torna in mano a ${ssOwner}!`,
+                timestamp: Date.now()
+              });
+            }
+            console.log(`⭐ IL PELUX: SILVER SILVIO forced off field back to ${ssOwner}'s hand`);
+          }
+        }
+      }
+
+      // GIOVANNI GRANA: raddoppia il budget PR (Rankiard) del giocatore
+      if (isPersonaggio && (card.frontImage || '').toLowerCase().includes('giovanni-grana') && !(game as any).giovaniGranaActive?.[playerName]) {
+        if (!(game as any).giovaniGranaActive) (game as any).giovaniGranaActive = {};
+        (game as any).giovaniGranaActive[playerName] = true;
+        const spentSoFar = game.prSpentThisGame.get(playerName) || 0;
+        if (spentSoFar > 0) {
+          game.prSpentThisGame.set(playerName, Math.floor(spentSoFar / 2));
+        }
+        const ioGG = (global as any).io;
+        if (ioGG) {
+          ioGG.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-giovanni-grana`, playerName: 'Sistema',
+            message: `💰 GIOVANNI GRANA in campo! I punti Rankiard (PR) di ${playerName} vengono raddoppiati! Il costo PR è dimezzato!`,
+            timestamp: Date.now()
+          });
+        }
+        console.log(`💰 GIOVANNI GRANA: PR spending halved for ${playerName}`);
+      }
+
+      // ========== END TASK-24 PLAY-CARD HOOKS ==========
+
       // Gym mode: send leader message when CPU plays a card
       if (game.isGymMode && game.gymLeaderCpuName && playerName === game.gymLeaderCpuName) {
         const ctype = card.type;
@@ -6967,6 +7073,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
           game.field[fieldIndex] = replacementCard;
           this.updateCardTextWithPTI(replacementCard);
+
+          // FABIO FAUZO: self-taroccatura automatically after any transformation
+          if (oldImage.toLowerCase().includes('fabio-fauzo') || (activeChar.frontImage || '').toLowerCase().includes('fabio-fauzo')) {
+            const fabioBonus = Math.floor((replacementCard.pti || 500) * 0.25);
+            const fabioStarBonus = 1;
+            replacementCard.pti = (replacementCard.pti || 500) + fabioBonus;
+            replacementCard.stars = (replacementCard.stars || 1) + fabioStarBonus;
+            this.updateCardTextWithPTI(replacementCard);
+            const ioFF = (global as any).io;
+            if (ioFF) {
+              ioFF.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-fabio-fauzo`, playerName: 'Sistema',
+                message: `🎸 FABIO FAUZO si auto-taroccatura! +${fabioBonus} PTI e +${fabioStarBonus}⭐ sulla sua nuova forma!`,
+                timestamp: Date.now()
+              });
+            }
+            console.log(`🎸 FABIO FAUZO: self-taroccatura applied (+${fabioBonus} PTI, +${fabioStarBonus} star) on transformation`);
+          }
 
           const typeLabel = type === 'evolution' ? 'EVOLUZIONE' : type === 'transformation' ? 'TRASFORMAZIONE' : 'TAROCCATA';
           const emoji = type === 'evolution' ? '🌟' : type === 'transformation' ? '🦋' : '🃏';
@@ -11700,6 +11824,97 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       targetOwnerName = targetCard.owner;
     }
 
+    // BUD SPENCER: first time attacked → TERENCE HILL enters field from owner's hand/deck
+    if (!isHandTarget && targetCard && (targetCard.frontImage || '').toLowerCase().includes('bud-spencer') && !(targetCard as any).firstAttackReceived) {
+      (targetCard as any).firstAttackReceived = true;
+      const budOwner = targetOwnerName;
+      const terenceInHand = (game.players[budOwner]?.hand || []).find((c: Card) => (c.frontImage || '').toLowerCase().includes('terence-hill'));
+      if (terenceInHand) {
+        const handIdx = game.players[budOwner].hand.findIndex((c: Card) => c.id === terenceInHand.id);
+        if (handIdx >= 0) game.players[budOwner].hand.splice(handIdx, 1);
+        terenceInHand.owner = budOwner;
+        game.field.push(terenceInHand);
+        this.updateCardTextWithPTI(terenceInHand);
+        const ioBud = (global as any).io;
+        if (ioBud) {
+          ioBud.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-bud-terence`, playerName: 'Sistema',
+            message: `💪👣 BUD SPENCER ha chiamato aiuto! TERENCE HILL entra in campo per difendere il suo amico!`,
+            timestamp: Date.now()
+          });
+        }
+        console.log(`💪 BUD SPENCER: TERENCE HILL enters field for ${budOwner}`);
+      } else {
+        const ioBud2 = (global as any).io;
+        if (ioBud2) {
+          ioBud2.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-bud-noterence`, playerName: 'Sistema',
+            message: `💪 BUD SPENCER subisce il primo attacco... ma TERENCE HILL non è in mano!`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    }
+
+    // ACCHIAPPT CHESSA: when attacking, trigger a number-guess mini-game for all characters on field
+    if (!isHandTarget && !isDuelAttack && attackerCharacter && (attackerCharacter.frontImage || '').toLowerCase().includes('acchiappt-chessa') && !(game as any).acchiapptPendingAttack) {
+      const fieldCharsAC = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      if (fieldCharsAC.length > 0) {
+        const attackId = `acchiappt-${Date.now()}`;
+        const diceResult = Math.floor(Math.random() * 6) + 1;
+        const ioAC = (global as any).io;
+        (game as any).acchiapptPendingAttack = {
+          attackId, diceResult, damageValue, attackerName, mosseCardId,
+          responses: {} as Record<string, number>,
+          resolveTimeout: setTimeout(() => {
+            const pending = (game as any).acchiapptPendingAttack;
+            if (!pending || pending.attackId !== attackId) return;
+            const gameNow = this.games.get(gameId);
+            if (!gameNow) return;
+            const fieldNow = gameNow.field.filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+            const results: string[] = [];
+            for (const ch of fieldNow) {
+              const playerChoice = pending.responses[ch.owner];
+              const guessed = playerChoice === diceResult;
+              if (!guessed) {
+                const oldPTI = ch.pti ?? this.extractPTIFromNote(ch.text || '');
+                const newPti = Math.max(0, oldPTI - damageValue);
+                ch.pti = newPti;
+                this.updateCardTextWithPTI(ch);
+                results.push(`${ch.name || ch.owner}: -${oldPTI - newPti} PTI${newPti === 0 ? ' 💀' : ''}`);
+                if (newPti === 0) {
+                  this.killAndCheck(gameId, ch.id, ch.owner, attackerName);
+                }
+              } else {
+                results.push(`${ch.name || ch.owner}: IMMUNE 🛡️ (ha indovinato ${diceResult}!)`);
+              }
+            }
+            if (ioAC) {
+              ioAC.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-acchiappt-result`, playerName: 'Sistema',
+                message: `🎯 ACCHIAPPT CHESSA — Dado: ${diceResult}! Risultati: ${results.join(' | ')}`,
+                timestamp: Date.now()
+              });
+            }
+            delete (gameNow as any).acchiapptPendingAttack;
+          }, 12000)
+        };
+        if (ioAC) {
+          ioAC.to(gameId).emit('acchiappt-number-choice', {
+            attackId,
+            damageValue, attackerName,
+            characters: fieldCharsAC.map(c => ({ id: c.id, name: c.name || '', owner: c.owner, frontImage: c.frontImage || '' }))
+          });
+          ioAC.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-acchiappt-start`, playerName: 'Sistema',
+            message: `🎯 ACCHIAPPT CHESSA attacca! Tutti i giocatori devono scegliere un numero da 1-6 entro 12 secondi! Il dado verrà lanciato alla fine!`,
+            timestamp: Date.now()
+          });
+        }
+        return { success: true, result: { acchiapptPending: true, attackId, diceResult } };
+      }
+    }
+
     // CORRUZIONE peace check: prevent attacks when peace restriction is active
     if ((game as any).peaceRestrictions) {
       const peaceList = (game as any).peaceRestrictions as Array<{protectedPlayer: string; restrictedPlayer: string; turnsRemaining: number}>;
@@ -14179,10 +14394,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // Update card notes with new PTI value
       card.text = `PTI: ${newPTI} | Stelle: ${currentStars}`;
       
-      // Track the PR spent for this game
-      game.prSpentThisGame.set(playerName, alreadySpent + prAmount);
+      // Track the PR spent for this game (GIOVANNI GRANA: halve actual cost if active)
+      const giovaniGranaActive = (game as any).giovaniGranaActive?.[playerName];
+      const actualPRSpent = giovaniGranaActive ? Math.floor(prAmount / 2) : prAmount;
+      game.prSpentThisGame.set(playerName, alreadySpent + actualPRSpent);
       
-      console.log(`PR converted to PTI for card ${cardId}: ${prAmount} PR -> +${prAmount} PTI (total: ${newPTI}). Player ${playerName} spent: ${alreadySpent + prAmount}`);
+      console.log(`PR converted to PTI for card ${cardId}: ${prAmount} PR -> +${prAmount} PTI (total: ${newPTI}). Player ${playerName} spent: ${alreadySpent + actualPRSpent}${giovaniGranaActive ? ' (GIOVANNI GRANA: half cost)' : ''}`);
       
       return { success: true, newPTI, prSpent: alreadySpent + prAmount };
 
@@ -15221,6 +15438,42 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               message: `💪 ERNESTO ha ucciso! Puoi usare un'altra MOSSE in questo turno!`,
               timestamp: Date.now()
             });
+          }
+        }
+      }
+
+      // CAMILLO: on kill → emit dialog: attacker gets half PTI, gives other half to chosen opponent (−1 star)
+      if (game && attacker && attacker !== 'SELF_DAMAGE' && attacker !== 'EFFETTO_CASUALE') {
+        const attackerActiveCharCAM = this.getPlayerActiveCharacter(game, attacker);
+        if (attackerActiveCharCAM && (attackerActiveCharCAM.frontImage || '').toLowerCase().includes('camillo')) {
+          const deadCardInGraveyard = game.graveyard.find(c => c.id === cardId);
+          const deadCardPTI = deadCardInGraveyard ? (deadCardInGraveyard.pti ?? this.extractPTIFromNote(deadCardInGraveyard.text || '')) : 0;
+          if (deadCardPTI > 0) {
+            const halfPTI = Math.floor(deadCardPTI / 2);
+            const camPTI = attackerActiveCharCAM.pti ?? this.extractPTIFromNote(attackerActiveCharCAM.text || '');
+            attackerActiveCharCAM.pti = camPTI + halfPTI;
+            this.updateCardTextWithPTI(attackerActiveCharCAM);
+            const opponents = Object.keys(game.players).filter(p => p !== attacker);
+            const ioCAM = (global as any).io;
+            if (ioCAM && opponents.length > 0) {
+              const camPlayerData = game.players[attacker];
+              if (camPlayerData?.socketId) {
+                ioCAM.to(camPlayerData.socketId).emit('camillo-kill-choice', {
+                  halfPTI,
+                  opponents: opponents.map(p => {
+                    const ch = this.getPlayerActiveCharacter(game, p);
+                    return { playerName: p, charId: ch?.id, charName: ch?.name || p, charImage: ch?.frontImage || '' };
+                  })
+                });
+              }
+              ioCAM.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-camillo-kill`, playerName: 'Sistema',
+                message: `🎭 CAMILLO ha ucciso! Assorbe ${halfPTI} PTI e deve scegliere a chi dare gli altri ${halfPTI} PTI (−1 stella)!`,
+                timestamp: Date.now()
+              });
+              (game as any).camilloPendingGift = { halfPTI, fromPlayer: attacker };
+            }
+            console.log(`🎭 CAMILLO: gained ${halfPTI} PTI from kill, pending gift choice`);
           }
         }
       }
@@ -18190,6 +18443,139 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return;
     }
 
+    // ========== TASK-24 CUSTOM EFFECT HANDLERS ==========
+
+    // IL PELUX: Usa Stella Nera — next MOSSE instakills target (once per game)
+    if ((card.frontImage || '').toLowerCase().includes('il-pelux')) {
+      if ((card as any).stellaNeraUsed) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-pelux-used`, playerName: 'Sistema',
+          message: `⭐ IL PELUX: la Stella Nera è già stata usata questa partita!`,
+          timestamp: Date.now()
+        });
+        return;
+      }
+      (card as any).stellaNeraActive = true;
+      (card as any).stellaNeraUsed = true;
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-pelux-stella`, playerName: 'Sistema',
+        message: `⭐ IL PELUX carica la STELLA NERA! Il prossimo attacco MOSSE eliminerà istantaneamente il bersaglio!`,
+        timestamp: Date.now()
+      });
+      console.log(`⭐ IL PELUX: stellaNeraActive=true, stellaNeraUsed=true for ${playerName}`);
+      return;
+    }
+
+    // GOLDEN FREEZER: dado → attacchi consecutivi
+    if ((card.frontImage || '').toLowerCase().includes('golden-freezer')) {
+      if ((card as any).goldenFreezerUsed) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-gf-used`, playerName: 'Sistema',
+          message: `❄️ GOLDEN FREEZER: effetto già usato questa partita!`,
+          timestamp: Date.now()
+        });
+        return;
+      }
+      const gfDice = Math.floor(Math.random() * 6) + 1;
+      (card as any).goldenFreezerUsed = true;
+      (game.players[playerName] as any).consecutiveAttacksLeft = gfDice;
+      io.to(gameId).emit('dice-rolled', { result: gfDice, playerName });
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-golden-freezer`, playerName: 'Sistema',
+        message: `❄️ GOLDEN FREEZER lancia il dado: ${gfDice}! ${playerName} può fare ${gfDice} attacchi MOSSE consecutivi questo turno!`,
+        timestamp: Date.now()
+      });
+      console.log(`❄️ GOLDEN FREEZER: dice=${gfDice}, consecutiveAttacksLeft=${gfDice} for ${playerName}`);
+      return;
+    }
+
+    // EVIL FAKE: una volta per partita, assorbe 3 personaggi dai cimiteri avversari
+    if ((card.frontImage || '').toLowerCase().includes('evil-fake')) {
+      if ((card as any).evilFakeUsed) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-ef-used`, playerName: 'Sistema',
+          message: `😈 EVIL FAKE: effetto già usato questa partita!`,
+          timestamp: Date.now()
+        });
+        return;
+      }
+      (card as any).evilFakeUsed = true;
+      const graveyardOpponents = game.graveyard.filter((c: Card) =>
+        c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      if (graveyardOpponents.length === 0) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-ef-empty`, playerName: 'Sistema',
+          message: `😈 EVIL FAKE: nessun personaggio nei cimiteri avversari!`,
+          timestamp: Date.now()
+        });
+        return;
+      }
+      const playerData = game.players[playerName];
+      if (playerData?.socketId) {
+        io.to(playerData.socketId).emit('evil-fake-choice', {
+          graveyard: graveyardOpponents.map((c: Card) => ({
+            id: c.id, name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+            frontImage: c.frontImage || '', owner: c.owner,
+            pti: c.pti ?? this.extractPTIFromNote(c.text || ''),
+            stars: c.stars ?? this.extractStarsFromNote(c.text || '')
+          }))
+        });
+      }
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-ef-start`, playerName: 'Sistema',
+        message: `😈 EVIL FAKE attiva il suo potere oscuro! ${playerName} deve scegliere fino a 3 personaggi dai cimiteri avversari da assorbire!`,
+        timestamp: Date.now()
+      });
+      console.log(`😈 EVIL FAKE: choice emitted to ${playerName} (${graveyardOpponents.length} options)`);
+      return;
+    }
+
+    // CYBER GEENA: scambia PTI con personaggio avversario (una volta per partita)
+    if ((card.frontImage || '').toLowerCase().includes('cyber-geena')) {
+      if ((card as any).cyberGeenaUsed) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-cg-used`, playerName: 'Sistema',
+          message: `🤖 CYBER GEENA: effetto già usato questa partita!`,
+          timestamp: Date.now()
+        });
+        return;
+      }
+      (card as any).cyberGeenaUsed = true;
+      const enemyCharsOnField = game.field.filter((c: Card) =>
+        c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      if (enemyCharsOnField.length === 0) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-cg-empty`, playerName: 'Sistema',
+          message: `🤖 CYBER GEENA: nessun personaggio avversario in campo!`,
+          timestamp: Date.now()
+        });
+        return;
+      }
+      const playerDataCG = game.players[playerName];
+      if (playerDataCG?.socketId) {
+        io.to(playerDataCG.socketId).emit('cyber-geena-choice', {
+          myCardId: card.id,
+          myPTI: card.pti ?? this.extractPTIFromNote(card.text || ''),
+          opponents: enemyCharsOnField.map((c: Card) => ({
+            id: c.id, name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+            frontImage: c.frontImage || '', owner: c.owner,
+            pti: c.pti ?? this.extractPTIFromNote(c.text || '')
+          }))
+        });
+      }
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-cg-start`, playerName: 'Sistema',
+        message: `🤖 CYBER GEENA connette i circuiti! ${playerName} deve scegliere un personaggio avversario per scambiare i PTI!`,
+        timestamp: Date.now()
+      });
+      console.log(`🤖 CYBER GEENA: choice emitted to ${playerName} (${enemyCharsOnField.length} options)`);
+      return;
+    }
+
+    // ========== END TASK-24 CUSTOM EFFECT HANDLERS ==========
+
     // Check for BERSAGLIO: scelta (target choice) - must select targets first
     const bersaglioMatch = combinedText.match(/\[BERSAGLIO:\s*scelta\]/i);
     if (bersaglioMatch) {
@@ -21007,6 +21393,52 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (pp.fabrizioChoiceConsumed) {
           pp.fabrizioChoiceConsumed = false;
           console.log(`🎭 FABRIZIO: fabrizioChoiceConsumed reset for ${pName}`);
+        }
+      }
+    }
+
+    // CINESE COMUNE: drena metà PTI e 1 stella dai 21 personaggi animali presenti in campo ogni turno
+    {
+      const CINESE_COMUNE_ANIMAL_SLUGS = [
+        'ape', 'aragosta-irachena', 'avvoltoio', 'brian', 'bullox', 'cimice',
+        'cinghiale-inferocito', 'crapa', 'crash-bandicoot', 'hippie', 'holly', 'horsy',
+        'mosca', 'opossum-con-la-rabbia', 'parassita', 'pingu', 'procione-insatanato',
+        'riccio-pic', 'scimmia-strafatta', 'zanzara'
+      ];
+      const cinese = gameState.field.find((c: Card) =>
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+        (c.frontImage || '').toLowerCase().includes('cinese-comune')
+      );
+      if (cinese) {
+        const ioCIN = (global as any).io;
+        for (const animal of gameState.field) {
+          if (animal.id === cinese.id) continue;
+          if (animal.type !== 'personaggi' && animal.type !== 'personaggi_speciali') continue;
+          const img = (animal.frontImage || '').toLowerCase();
+          const isAnimal = CINESE_COMUNE_ANIMAL_SLUGS.some(slug => img.includes(slug));
+          if (!isAnimal) continue;
+          const animalPTI = animal.pti ?? this.extractPTIFromNote(animal.text || '');
+          const animalStars = animal.stars ?? this.extractStarsFromNote(animal.text || '');
+          const drainPTI = Math.floor(animalPTI / 2);
+          const drainStars = Math.min(1, animalStars > 0 ? 1 : 0);
+          if (drainPTI > 0 || drainStars > 0) {
+            animal.pti = animalPTI - drainPTI;
+            animal.stars = Math.max(0, animalStars - drainStars);
+            this.updateCardTextWithPTI(animal);
+            const cinesePTI = cinese.pti ?? this.extractPTIFromNote(cinese.text || '');
+            const cineseStars = cinese.stars ?? this.extractStarsFromNote(cinese.text || '');
+            cinese.pti = cinesePTI + drainPTI;
+            cinese.stars = cineseStars + drainStars;
+            this.updateCardTextWithPTI(cinese);
+            if (ioCIN) {
+              ioCIN.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-cinese-drain-${animal.id}`, playerName: 'Sistema',
+                message: `🇨🇳 CINESE COMUNE drena da ${animal.name || 'animale'}: -${drainPTI} PTI -${drainStars}⭐ → CINESE +${drainPTI} PTI +${drainStars}⭐`,
+                timestamp: Date.now()
+              });
+            }
+            console.log(`🇨🇳 CINESE COMUNE: drained ${drainPTI} PTI + ${drainStars} star from ${animal.name || animal.id}`);
+          }
         }
       }
     }
@@ -26043,6 +26475,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       console.log(`💥 GIANNI GIGANTI: forceInstantDeath=true — target will die regardless of reducers`);
     }
 
+    // IL PELUX: stella nera — prossima MOSSE uccide istantaneamente (qualunque danno)
+    if (game) {
+      const peluxAttackerChar = this.getPlayerActiveCharacter(game, attackerName);
+      if (peluxAttackerChar && (peluxAttackerChar as any).stellaNeraActive) {
+        forceInstantDeath = true;
+        (peluxAttackerChar as any).stellaNeraActive = false;
+        const ioPN = (global as any).io || io;
+        if (ioPN) {
+          ioPN.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-pelux-stellanera`, playerName: 'Sistema',
+            message: `⭐💀 IL PELUX usa la STELLA NERA! ${targetCard?.name || 'Il bersaglio'} viene eliminato istantaneamente!`,
+            timestamp: Date.now()
+          });
+        }
+        console.log(`⭐ IL PELUX: stella nera activated — forceInstantDeath=true`);
+      }
+    }
+
     // PRESERVE: Calculate new PTI after damage (using effective damage after shield)
     // If instant death effect, set newPTI to 0
     const newPTI = forceInstantDeath ? 0 : Math.max(0, currentPTI - effectiveDamage);
@@ -26457,6 +26907,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           await this.processMosseDamage(gameId, attackerName, extraTarget.id, damageValue, mosseCardId, io, false, false, false, false, starsToRemove);
         }
       }
+    }
+
+    // GOLDEN FREEZER: decrement consecutive attacks counter
+    if (game && (game.players[attackerName] as any)?.consecutiveAttacksLeft > 0) {
+      (game.players[attackerName] as any).consecutiveAttacksLeft--;
+      const leftGF = (game.players[attackerName] as any).consecutiveAttacksLeft;
+      const ioGF = (global as any).io || io;
+      if (ioGF && leftGF > 0) {
+        ioGF.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-golden-freezer-attacks`, playerName: 'Sistema',
+          message: `❄️ GOLDEN FREEZER: ${attackerName} può ancora attaccare ${leftGF} volt${leftGF === 1 ? 'a' : 'e'}!`,
+          timestamp: Date.now()
+        });
+      }
+      console.log(`❄️ GOLDEN FREEZER: ${attackerName} consecutiveAttacksLeft=${leftGF}`);
     }
 
     // MOSSE return system: CPU auto-return with replacement, humans manual
