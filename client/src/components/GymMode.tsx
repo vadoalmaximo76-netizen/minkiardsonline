@@ -1,11 +1,19 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Shield, Star, Lock, CheckCircle, Swords, Trophy, ChevronRight, Sparkles, Heart } from 'lucide-react';
+import { ArrowLeft, Shield, Star, Lock, CheckCircle, Swords, Trophy, ChevronRight, Sparkles, Heart, Target, Users } from 'lucide-react';
 import { GameBoard } from './GameBoard';
 import { socket } from '../lib/socket';
 import { useGameState } from '../lib/stores/useGameState';
 import { CARD_DATA } from '../lib/cardData';
 import { pauseHomeMusic, resumeHomeMusic } from './SpotifyPlayer';
 import { InjuredPersonaggiDisclaimer } from './InjuredPersonaggiDisclaimer';
+
+interface CpuConfig {
+  name: string;
+  imageUrl: string;
+  cpuLevel: string;
+  customDeck: string[];
+  leaderMessages: Record<string, string[]>;
+}
 
 interface GymLeader {
   id: number;
@@ -26,6 +34,9 @@ interface GymLeader {
   rewardDescription: string | null;
   youtubeMusicUrl: string | null;
   leaderMessages: Record<string, string[]> | null;
+  cpuCount: number;
+  cpuConfigs: CpuConfig[];
+  attackMode: 'free_for_all' | 'hunt_human';
 }
 
 interface GymModeProps {
@@ -73,6 +84,12 @@ function extractYoutubeVideoId(url: string): string | null {
   return m ? m[1] : null;
 }
 
+const DIFFICULTY_LABEL: Record<string, { label: string; color: string }> = {
+  easy: { label: 'Facile', color: 'text-green-400' },
+  medium: { label: 'Medio', color: 'text-yellow-400' },
+  hard: { label: 'Difficile', color: 'text-red-400' },
+};
+
 export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) {
   const [leaders, setLeaders] = useState<GymLeader[]>([]);
   const [completedIds, setCompletedIds] = useState<number[]>([]);
@@ -94,6 +111,8 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
   const gameIdRef = useRef<string | null>(null);
   const battleStartingRef = useRef(false);
   const mapScrollRef = useRef<HTMLDivElement>(null);
+  const expectedCpusRef = useRef(0);
+  const cpusAddedRef = useRef(0);
 
   const { setGameId, setPlayerName, generateSessionId, clearSession: reset } = useGameState();
 
@@ -176,15 +195,23 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
       const leader = selectedLeaderRef.current;
       const gid = gameIdRef.current;
       if (!gid || !leader) return;
-      const livesLimit = leader.livesCount > 0 ? String(leader.livesCount) : '3';
-      console.log(`[GymMode] CPU added (${cpuName}), auto-starting game ${gid} with characterLimit=${livesLimit}`);
-      setTimeout(() => {
-        socket.emit('start-game', {
-          gameId: gid,
-          playerName,
-          characterLimit: livesLimit,
-        });
-      }, 400);
+
+      cpusAddedRef.current += 1;
+      const expected = expectedCpusRef.current;
+      console.log(`[GymMode] CPU added (${cpuName}) ${cpusAddedRef.current}/${expected}`);
+
+      // Start the game only after ALL CPUs have been added
+      if (cpusAddedRef.current >= expected) {
+        const livesLimit = leader.livesCount > 0 ? String(leader.livesCount) : '3';
+        console.log(`[GymMode] All ${expected} CPUs ready — starting game ${gid} characterLimit=${livesLimit}`);
+        setTimeout(() => {
+          socket.emit('start-game', {
+            gameId: gid,
+            playerName,
+            characterLimit: livesLimit,
+          });
+        }, 400);
+      }
     };
     socket.on('training-cpu-added', handleCpuAdded);
     return () => { socket.off('training-cpu-added', handleCpuAdded); };
@@ -202,7 +229,6 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     }
   }, [phase, justWon, selectedLeader, authToken]);
 
-  // Victory animation sequencing
   useEffect(() => {
     if (phase !== 'victory') { setVictoryStep(0); return; }
     setVictoryStep(1);
@@ -212,7 +238,6 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [phase]);
 
-  // Auto-scroll to current gym node when map loads
   useEffect(() => {
     if (phase === 'map' && !loading && mapScrollRef.current) {
       const node = mapScrollRef.current.querySelector('.current-gym-node') as HTMLElement | null;
@@ -222,13 +247,11 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     }
   }, [phase, loading, leaders]);
 
-  // Step 1: Fetch deck IDs and show the injured disclaimer before starting
   const startBattle = useCallback(async (leader: GymLeader) => {
-    battleStartingRef.current = false; // Reset guard for new battle attempt
+    battleStartingRef.current = false;
     setSelectedLeader(leader);
     selectedLeaderRef.current = leader;
 
-    // Always fetch the latest story deck fresh from server before each battle
     let currentDeckIds: string[] = [];
     if (authToken) {
       try {
@@ -243,7 +266,6 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
       } catch {}
     }
 
-    // Initialize with first-leader starting deck only if story deck is still empty
     if (authToken && currentDeckIds.length === 0 && leader.playerStartingDeck && leader.playerStartingDeck.length > 0) {
       try {
         const res = await fetch('/api/story-mode/deck/initialize', {
@@ -259,22 +281,16 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
       } catch {}
     }
 
-    // Show injured disclaimer (will auto-confirm if no injuries)
     setPendingBattle({ leader, deckIds: currentDeckIds });
   }, [authToken]);
 
-  // Step 2: Actually launch the battle with the filtered deck
   const doStartBattle = useCallback((leader: GymLeader, filteredDeckIds: string[]) => {
-    // Guard against double invocation (e.g. React StrictMode re-renders)
     if (battleStartingRef.current) return;
     battleStartingRef.current = true;
     setPendingBattle(null);
 
-    // Clear previous game state so GameBoard doesn't flash old data
     reset();
 
-    // Decrement injury counters: the player is now starting their "next game",
-    // so injured characters from last game recover after this one
     if (authToken) {
       fetch('/api/decrement-injured-personaggi', {
         method: 'POST',
@@ -290,6 +306,11 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     setPlayerName(playerName);
     generateSessionId();
 
+    // Count how many CPUs we'll add and reset the counter
+    const totalCpus = Math.max(1, leader.cpuCount || 1);
+    expectedCpusRef.current = totalCpus;
+    cpusAddedRef.current = 0;
+
     socket.emit('create-training-game', {
       gameId: newGameId,
       playerName,
@@ -301,6 +322,9 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
       livesCount: leader.livesCount || 3,
     });
 
+    const attackMode = leader.attackMode || 'free_for_all';
+
+    // Add primary boss CPU after 800ms
     setTimeout(() => {
       socket.emit('add-training-cpu', {
         gameId: newGameId,
@@ -310,10 +334,31 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
         leaderName: leader.name,
         leaderImageUrl: leader.leaderImageUrl || undefined,
         leaderMessages: leader.leaderMessages || undefined,
+        attackMode,
       });
     }, 800);
 
-    // YouTube battle music
+    // Add additional CPUs with 400ms spacing
+    if (totalCpus > 1 && Array.isArray(leader.cpuConfigs)) {
+      for (let i = 0; i < totalCpus - 1; i++) {
+        const cfg = leader.cpuConfigs[i];
+        if (!cfg) continue;
+        const delay = 800 + (i + 1) * 500;
+        setTimeout(() => {
+          socket.emit('add-training-cpu', {
+            gameId: newGameId,
+            isGymMode: true,
+            customDeck: cfg.customDeck && cfg.customDeck.length > 0 ? cfg.customDeck : undefined,
+            cpuLevel: cfg.cpuLevel || 'medium',
+            leaderName: cfg.name || `CPU ${i + 2}`,
+            leaderImageUrl: cfg.imageUrl || undefined,
+            leaderMessages: cfg.leaderMessages || undefined,
+            attackMode,
+          });
+        }, delay);
+      }
+    }
+
     const ytId = leader.youtubeMusicUrl ? extractYoutubeVideoId(leader.youtubeMusicUrl) : null;
     setBattleYoutubeVideoId(ytId);
 
@@ -325,9 +370,6 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     if (gameId) {
       socket.emit('leave-game', { gameId });
     }
-    // Change phase FIRST so GameBoard unmounts before reset() clears the game state.
-    // Calling reset() while GameBoard is still mounted causes a crash because GameBoard
-    // re-renders with null gameState before being unmounted.
     setGameIdLocal(null);
     setBattleYoutubeVideoId(null);
     setMusicActive(false);
@@ -335,7 +377,6 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     setSelectedLeader(null);
     resumeHomeMusic();
     fetchLeaders();
-    // Defer reset() to let React unmount GameBoard cleanly first
     setTimeout(() => reset(), 150);
   };
 
@@ -385,10 +426,10 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
 
   const currentLeader = leaders.find(l => getLeaderStatus(l) === 'available');
 
+  // ── BATTLE ────────────────────────────────────────────────────────────────
   if (phase === 'battle' && gameId && selectedLeader) {
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto">
-        {/* YouTube battle music – shown when user activates */}
         {battleYoutubeVideoId && musicActive && (
           <iframe
             key={battleYoutubeVideoId}
@@ -398,26 +439,37 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
             title="battle-music"
           />
         )}
-        {/* Floating battle header overlay */}
-        <div className="fixed top-4 left-4 z-[60] flex items-center gap-3 flex-wrap">
+        <div className="fixed top-4 left-4 z-[60] flex items-center gap-2 flex-wrap">
           <button
             onClick={handleBackFromBattle}
-            className="px-3 py-2 bg-black/70 hover:bg-black/90 text-white rounded-xl text-sm font-semibold flex items-center gap-2 border border-white/20 backdrop-blur-sm"
+            className="px-3 py-2 bg-black/80 hover:bg-black/95 text-white rounded-xl text-sm font-semibold flex items-center gap-2 border border-white/20 backdrop-blur-sm shadow-lg"
           >
             <ArrowLeft className="w-4 h-4" /> Abbandona
           </button>
-          <div className="bg-black/70 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2 flex items-center gap-2">
+          <div className="bg-black/80 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2 flex items-center gap-2 shadow-lg">
             {selectedLeader.leaderImageUrl ? (
               <img src={selectedLeader.leaderImageUrl} alt={selectedLeader.name} className="w-6 h-6 rounded-full object-cover border border-yellow-400/40" />
-            ) : selectedLeader.badgeImageUrl ? (
-              <img src={selectedLeader.badgeImageUrl} alt="" className="w-5 h-5 rounded-full" />
             ) : (
               <Shield className="w-4 h-4 text-yellow-400" />
             )}
-            <span className="text-white text-xs font-bold">{selectedLeader.gymName}</span>
-            <span className="text-white/50 text-xs">vs {selectedLeader.name}</span>
+            <div>
+              <span className="text-white text-xs font-black">{selectedLeader.gymName}</span>
+              <span className="text-white/40 text-xs ml-1.5">vs {selectedLeader.name}</span>
+            </div>
           </div>
-          <div className="bg-black/70 backdrop-blur-sm border border-red-500/30 rounded-xl px-3 py-2 flex items-center gap-1">
+          {(selectedLeader.cpuCount ?? 1) > 1 && (
+            <div className="bg-black/80 backdrop-blur-sm border border-purple-500/30 rounded-xl px-3 py-2 flex items-center gap-1.5 shadow-lg">
+              <Users className="w-3.5 h-3.5 text-purple-400" />
+              <span className="text-white text-xs font-bold">{selectedLeader.cpuCount} CPU</span>
+            </div>
+          )}
+          {selectedLeader.attackMode === 'hunt_human' && (
+            <div className="bg-black/80 backdrop-blur-sm border border-red-500/30 rounded-xl px-2.5 py-2 flex items-center gap-1 shadow-lg">
+              <Target className="w-3.5 h-3.5 text-red-400" />
+              <span className="text-red-300 text-[10px] font-black">TUTTI vs TE</span>
+            </div>
+          )}
+          <div className="bg-black/80 backdrop-blur-sm border border-red-500/30 rounded-xl px-3 py-2 flex items-center gap-1 shadow-lg">
             {Array.from({ length: selectedLeader.livesCount || 3 }).map((_, i) => (
               <Heart key={i} className="w-3.5 h-3.5 text-red-400 fill-red-400" />
             ))}
@@ -425,11 +477,11 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
           {battleYoutubeVideoId && (
             <button
               onClick={() => setMusicActive(a => !a)}
-              title={musicActive ? 'Disattiva musica battaglia' : 'Attiva musica battaglia'}
-              className={`px-3 py-2 rounded-xl text-sm font-semibold border backdrop-blur-sm transition-colors ${
+              title={musicActive ? 'Disattiva musica' : 'Attiva musica'}
+              className={`px-3 py-2 rounded-xl text-sm font-semibold border backdrop-blur-sm transition-colors shadow-lg ${
                 musicActive
                   ? 'bg-red-600/80 hover:bg-red-700/90 text-white border-red-400/40'
-                  : 'bg-black/70 hover:bg-black/90 text-white/60 hover:text-white border-white/20'
+                  : 'bg-black/80 hover:bg-black/95 text-white/60 hover:text-white border-white/20'
               }`}
             >
               {musicActive ? '🎵 On' : '🎵 Off'}
@@ -441,6 +493,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     );
   }
 
+  // ── CARD PICK ─────────────────────────────────────────────────────────────
   if (phase === 'card-pick' && selectedLeader && selectedLeader.customDeck && selectedLeader.customDeck.length > 0) {
     const pickableCards = selectedLeader.customDeck;
     return (
@@ -448,7 +501,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
         className="fixed inset-0 z-50 flex flex-col"
         style={{
           background: selectedLeader.backgroundImageUrl
-            ? `linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0.96)), url(${selectedLeader.backgroundImageUrl}) center/cover`
+            ? `linear-gradient(to bottom, rgba(0,0,0,0.85), rgba(0,0,0,0.97)), url(${selectedLeader.backgroundImageUrl}) center/cover`
             : 'linear-gradient(135deg, #1a0a2e 0%, #0a1a2e 100%)',
         }}
       >
@@ -456,12 +509,9 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
           <div className="text-5xl mb-2">✨</div>
           <h2 className="text-yellow-300 font-black text-2xl mb-1">Scegli una carta!</h2>
           <p className="text-white/60 text-sm">
-            Hai sconfitto <span className="text-yellow-300 font-bold">{selectedLeader.name}</span>!
-            Scegli una carta del Capopalestra da aggiungere al tuo mazzo Story Mode.
+            Hai sconfitto il Boss <span className="text-yellow-300 font-bold">{selectedLeader.name}</span> dello Stage <span className="text-yellow-200 font-bold">{selectedLeader.gymName}</span>!
           </p>
-          <p className="text-white/40 text-xs mt-2">
-            Il tuo mazzo: {storyDeckIds.length} carte
-          </p>
+          <p className="text-white/40 text-xs mt-2">Scegli una carta da aggiungere al tuo mazzo Story Mode • {storyDeckIds.length} carte nel mazzo</p>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-6">
@@ -474,7 +524,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
                   key={`${cardId}-${idx}`}
                   onClick={() => handlePickCard(cardId)}
                   disabled={cardPickLoading}
-                  className="relative rounded-xl overflow-hidden border-2 border-white/20 hover:border-yellow-400 transition-all group disabled:opacity-50 disabled:cursor-not-allowed aspect-[2/3] bg-gray-900"
+                  className="relative rounded-xl overflow-hidden border-2 border-white/20 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all group disabled:opacity-50 disabled:cursor-not-allowed aspect-[2/3] bg-gray-900"
                 >
                   {imgUrl ? (
                     <img
@@ -506,6 +556,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     );
   }
 
+  // ── VICTORY ───────────────────────────────────────────────────────────────
   if (phase === 'victory' && selectedLeader) {
     const pickedImgUrl = pickedCardId ? getCardImageFromId(pickedCardId) : null;
     const pickedLabel = pickedCardId ? getCardDeckLabel(pickedCardId) : null;
@@ -519,21 +570,20 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
         }}
       >
         <div className="min-h-full flex flex-col items-center justify-center px-6 py-12 gap-6">
-
-          {/* Step 1 — Header */}
           <div
             className="text-center transition-all duration-700"
             style={{ opacity: victoryStep >= 1 ? 1 : 0, transform: victoryStep >= 1 ? 'translateY(0)' : 'translateY(-30px)' }}
           >
             <div className="text-7xl mb-3">🏆</div>
             <h2 className="text-yellow-300 font-black text-4xl tracking-wide drop-shadow-lg">VITTORIA!</h2>
-            <p className="text-white/60 mt-2 text-sm">Hai sconfitto <span className="text-yellow-200 font-bold">{selectedLeader.name}</span> della {selectedLeader.gymName}!</p>
+            <p className="text-white/60 mt-2 text-sm">
+              Hai sconfitto <span className="text-yellow-200 font-bold">{selectedLeader.name}</span> dello Stage <span className="text-yellow-200 font-bold">{selectedLeader.gymName}</span>!
+            </p>
             <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl px-5 py-2 mt-3 inline-block">
               <p className="text-yellow-300 font-black text-xl">+{selectedLeader.rewardCredits} Rankiard</p>
             </div>
           </div>
 
-          {/* Step 2 — Badge animation */}
           <div
             className="flex flex-col items-center text-center transition-all duration-700"
             style={{ opacity: victoryStep >= 2 ? 1 : 0, transform: victoryStep >= 2 ? 'scale(1)' : 'scale(0.3)' }}
@@ -557,488 +607,383 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
                   style={{ boxShadow: victoryStep >= 2 ? '0 0 40px 12px rgba(234,179,8,0.5)' : 'none', transition: 'box-shadow 0.8s ease' }}>
                   <Star className="w-12 h-12 text-yellow-300" />
                 </div>
-                <p className="text-yellow-300 font-black text-lg">⭐ Palestra completata!</p>
+                <p className="text-yellow-300 font-black text-lg">⭐ Stage completato!</p>
               </div>
             )}
           </div>
 
-          {/* Step 3 — Conquered card animation */}
-          {pickedCardId && (
+          {pickedImgUrl && (
             <div
               className="flex flex-col items-center text-center transition-all duration-700"
-              style={{ opacity: victoryStep >= 3 ? 1 : 0, transform: victoryStep >= 3 ? 'translateY(0) scale(1)' : 'translateY(60px) scale(0.8)' }}
+              style={{ opacity: victoryStep >= 3 ? 1 : 0, transform: victoryStep >= 3 ? 'translateY(0)' : 'translateY(20px)' }}
             >
-              <p className="text-white/70 text-sm mb-3 font-semibold uppercase tracking-widest">Carta conquistata</p>
-              <div
-                className="w-36 rounded-xl overflow-hidden border-2 border-yellow-400/80"
-                style={{
-                  aspectRatio: '2/3',
-                  boxShadow: victoryStep >= 3 ? '0 0 30px 8px rgba(234,179,8,0.5), 0 8px 32px rgba(0,0,0,0.6)' : 'none',
-                  transition: 'box-shadow 0.8s ease',
-                }}
-              >
-                {pickedImgUrl ? (
-                  <img src={pickedImgUrl} alt={pickedLabel || 'carta'} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                    <Shield className="w-10 h-10 text-white/20" />
-                  </div>
-                )}
+              <p className="text-white/50 text-xs mb-2">Carta ottenuta</p>
+              <div className="w-20 h-28 rounded-xl overflow-hidden border-2 border-yellow-400/60 shadow-lg shadow-yellow-400/20">
+                <img src={pickedImgUrl} alt={pickedLabel || ''} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
               </div>
-              {pickedLabel && <p className="text-yellow-400/80 text-xs font-bold mt-2 uppercase">{pickedLabel}</p>}
-              <p className="text-blue-300 text-xs mt-1">📖 Aggiunta al tuo mazzo Story Mode ({storyDeckIds.length} carte)</p>
+              <p className="text-yellow-300 text-xs font-bold mt-1">{pickedLabel}</p>
             </div>
           )}
 
-          {/* Step 4 — Continue button */}
           <div
-            className="transition-all duration-500"
-            style={{ opacity: victoryStep >= 4 ? 1 : 0, transform: victoryStep >= 4 ? 'translateY(0)' : 'translateY(20px)' }}
+            className="transition-all duration-700"
+            style={{ opacity: victoryStep >= 4 ? 1 : 0, transform: victoryStep >= 4 ? 'translateY(0)' : 'translateY(10px)' }}
           >
             <button
-              onClick={() => {
-                resumeHomeMusic();
-                setPickedCardId(null);
-                setVictoryStep(0);
-                setPhase('map');
-                setSelectedLeader(null);
-                fetchLeaders();
-                fetchStoryDeck();
-              }}
-              className="px-10 py-4 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-lg rounded-2xl transition-all shadow-lg shadow-yellow-500/30"
+              onClick={() => { setPhase('map'); setSelectedLeader(null); fetchLeaders(); fetchUserCredits(); }}
+              className="px-8 py-3.5 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-lg rounded-2xl transition-all shadow-xl shadow-yellow-500/30 active:scale-95"
             >
-              🗺️ Continua Story Mode
+              Torna alla Mappa
             </button>
           </div>
-
         </div>
       </div>
     );
   }
 
+  // ── DEFEAT ────────────────────────────────────────────────────────────────
   if (phase === 'defeat' && selectedLeader) {
     return (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        style={{ background: 'linear-gradient(135deg, #1a0505 0%, #0a0a1a 100%)' }}
-      >
-        <div className="text-center max-w-sm w-full">
-          <div className="text-7xl mb-4">💀</div>
-          <h2 className="text-red-400 font-black text-3xl mb-2">SCONFITTO!</h2>
-          <p className="text-white/70 mb-6">{selectedLeader.name} era troppo forte. Allenati e riprova!</p>
-
-          <div className="flex flex-col gap-3">
-            <button
-              onClick={() => startBattle(selectedLeader)}
-              className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-2xl transition-all text-lg"
-            >
-              🔄 Rivincita
-            </button>
-            <button
-              onClick={() => { resumeHomeMusic(); setPhase('map'); setSelectedLeader(null); }}
-              className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-2xl transition-all"
-            >
-              🗺️ Continua Story Mode
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (phase === 'intro' && selectedLeader) {
-    // If pendingBattle is set (user pressed SFIDA from intro), show disclaimer as full overlay
-    if (pendingBattle) {
-      return (
-        <InjuredPersonaggiDisclaimer
-          authToken={authToken || ''}
-          relevantCardIds={pendingBattle.deckIds.filter(id => id.startsWith('personaggi'))}
-          userCredits={userCredits}
-          onCreditsUpdated={setUserCredits}
-          onConfirm={(availableIds) => {
-            const nonPersonaggi = pendingBattle.deckIds.filter(id => !id.startsWith('personaggi'));
-            doStartBattle(pendingBattle.leader, [...availableIds, ...nonPersonaggi]);
-          }}
-          onCancel={() => { setPendingBattle(null); battleStartingRef.current = false; }}
-        />
-      );
-    }
-    return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6"
         style={{
           background: selectedLeader.backgroundImageUrl
-            ? `linear-gradient(to bottom, rgba(0,0,0,0.6), rgba(0,0,0,0.9)), url(${selectedLeader.backgroundImageUrl}) center/cover`
-            : 'linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 100%)',
+            ? `linear-gradient(to bottom, rgba(0,0,0,0.88), rgba(20,0,0,0.97)), url(${selectedLeader.backgroundImageUrl}) center/cover`
+            : 'linear-gradient(135deg, #1a0000 0%, #0a000e 100%)',
         }}
       >
-        <div className="max-w-sm w-full text-center">
-          <button onClick={() => setPhase('map')} className="absolute top-6 left-6 text-white/50 hover:text-white flex items-center gap-2 text-sm">
-            <ArrowLeft className="w-4 h-4" /> Indietro
-          </button>
-
-          {selectedLeader.leaderImageUrl ? (
-            <img src={selectedLeader.leaderImageUrl} alt={selectedLeader.name} className="w-28 h-28 object-cover rounded-full mx-auto border-4 border-yellow-400/60 mb-5 shadow-2xl" />
-          ) : (
-            <div className="w-28 h-28 bg-gray-800 rounded-full mx-auto border-4 border-white/20 mb-5 flex items-center justify-center">
-              <Shield className="w-12 h-12 text-white/30" />
-            </div>
-          )}
-
-          <p className="text-white/50 text-xs uppercase tracking-widest mb-1">Palestra #{selectedLeader.orderIndex}</p>
-          <h2 className="text-white font-black text-2xl mb-1">{selectedLeader.gymName}</h2>
-          <p className="text-white/70 text-lg mb-3">Capopalestra <span className="text-yellow-300 font-bold">{selectedLeader.name}</span></p>
-
-          {selectedLeader.specialty && (
-            <div className="inline-block bg-yellow-900/40 border border-yellow-600/30 text-yellow-300 text-xs font-bold px-3 py-1.5 rounded-full mb-4">
-              ⚡ {selectedLeader.specialty}
-            </div>
-          )}
-
-          {selectedLeader.description && (
-            <p className="text-white/50 text-sm mb-6 leading-relaxed italic">"{selectedLeader.description}"</p>
-          )}
-
-          <div className="bg-white/5 border border-white/10 rounded-2xl px-5 py-3 mb-4 flex items-center justify-center gap-4 flex-wrap">
-            <div className="text-center">
-              <div className={`text-xs font-bold px-2 py-1 rounded-full mb-1 ${
-                selectedLeader.cpuLevel === 'easy' ? 'bg-green-900/50 text-green-300'
-                : selectedLeader.cpuLevel === 'medium' ? 'bg-yellow-900/50 text-yellow-300'
-                : 'bg-red-900/50 text-red-300'
-              }`}>
-                {selectedLeader.cpuLevel === 'easy' ? '🟢 Facile' : selectedLeader.cpuLevel === 'medium' ? '🟡 Medio' : '🔴 Difficile'}
-              </div>
-              <p className="text-white/40 text-[10px]">Difficoltà</p>
-            </div>
-            <div className="w-px h-8 bg-white/10" />
-            <div className="text-center">
-              <div className="flex items-center gap-0.5 justify-center mb-1">
-                {Array.from({ length: selectedLeader.livesCount || 3 }).map((_, i) => (
-                  <Heart key={i} className="w-4 h-4 text-red-400 fill-red-400" />
-                ))}
-              </div>
-              <p className="text-white/40 text-[10px]">Vite</p>
-            </div>
-            <div className="w-px h-8 bg-white/10" />
-            <div className="text-center">
-              <p className="text-yellow-300 font-black text-lg">+{selectedLeader.rewardCredits}</p>
-              <p className="text-white/40 text-[10px]">Rankiard</p>
-            </div>
-            {selectedLeader.badgeImageUrl && (
-              <>
-                <div className="w-px h-8 bg-white/10" />
-                <div className="text-center">
-                  <img src={selectedLeader.badgeImageUrl} alt="badge" className="w-8 h-8 object-cover rounded-full border border-yellow-400/50 mx-auto" />
-                  <p className="text-white/40 text-[10px] mt-0.5">Medaglia</p>
-                </div>
-              </>
-            )}
-          </div>
-
-          {storyDeckIds.length > 0 && (
-            <div className="bg-blue-900/20 border border-blue-500/20 rounded-xl px-4 py-2 mb-4 text-left">
-              <p className="text-blue-300 text-xs font-semibold">📖 Mazzo Story Mode: {storyDeckIds.length} carte</p>
-              <p className="text-blue-400/60 text-[10px] mt-0.5">Il tuo mazzo accumulato verrà usato in questa battaglia</p>
-            </div>
-          )}
-
-          <button
-            onClick={() => startBattle(selectedLeader)}
-            className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black font-black py-4 rounded-2xl text-lg transition-all shadow-lg shadow-orange-500/30 flex items-center justify-center gap-3"
-          >
-            <Swords className="w-5 h-5" /> SFIDA!
-          </button>
-        </div>
+        <div className="text-7xl mb-4">💀</div>
+        <h2 className="text-red-400 font-black text-4xl tracking-wide drop-shadow-lg mb-2">SCONFITTA</h2>
+        <p className="text-white/50 text-sm text-center mb-8">
+          Il Boss <span className="text-red-300 font-bold">{selectedLeader.name}</span> ti ha battuto.<br />Riprova!
+        </p>
+        <button
+          onClick={() => { setPhase('map'); setSelectedLeader(null); fetchLeaders(); }}
+          className="px-8 py-3.5 bg-gray-700 hover:bg-gray-600 text-white font-black text-lg rounded-2xl transition-all active:scale-95 shadow-xl"
+        >
+          Torna alla Mappa
+        </button>
       </div>
     );
   }
 
-  const completedCount = completedIds.length;
-  const totalCount = leaders.length;
+  // ── INTRO ─────────────────────────────────────────────────────────────────
+  if (phase === 'intro' && selectedLeader) {
+    const cpuCount = selectedLeader.cpuCount ?? 1;
+    return (
+      <div
+        className="fixed inset-0 z-50 flex flex-col"
+        style={{
+          background: selectedLeader.backgroundImageUrl
+            ? `linear-gradient(to bottom, rgba(0,0,0,0.75), rgba(0,0,0,0.96)), url(${selectedLeader.backgroundImageUrl}) center/cover`
+            : 'linear-gradient(135deg, #0d0820 0%, #0a1a2e 100%)',
+        }}
+      >
+        {/* InjuredPersonaggiDisclaimer with actual battle start callback */}
+        {pendingBattle ? (
+          <InjuredPersonaggiDisclaimer
+            authToken={authToken || ''}
+            relevantCardIds={pendingBattle.deckIds}
+            userCredits={userCredits}
+            onCreditsUpdated={(c) => setUserCredits(c)}
+            onConfirm={(filteredIds) => doStartBattle(pendingBattle.leader, filteredIds)}
+            onCancel={() => { setPendingBattle(null); setPhase('map'); setSelectedLeader(null); }}
+          />
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 text-center gap-5">
+            {/* Boss image */}
+            {selectedLeader.leaderImageUrl ? (
+              <div className="relative">
+                <img
+                  src={selectedLeader.leaderImageUrl}
+                  alt={selectedLeader.name}
+                  className="w-36 h-36 object-cover rounded-3xl border-4 border-yellow-400/40 shadow-2xl shadow-yellow-400/10"
+                />
+                <div className="absolute -bottom-2 -right-2 bg-orange-600 text-white text-[10px] font-black rounded-full px-2 py-0.5 border-2 border-gray-900">
+                  BOSS
+                </div>
+              </div>
+            ) : (
+              <div className="w-36 h-36 rounded-3xl bg-gray-800 border-4 border-yellow-400/30 flex items-center justify-center">
+                <Shield className="w-16 h-16 text-yellow-400/40" />
+              </div>
+            )}
+
+            {/* Stage name */}
+            <div>
+              <p className="text-yellow-400/70 text-xs font-black uppercase tracking-widest mb-1">Stage {selectedLeader.orderIndex}</p>
+              <h2 className="text-white font-black text-3xl mb-1">{selectedLeader.gymName}</h2>
+              <p className="text-white/50 text-sm">Boss: <span className="text-yellow-300 font-bold">{selectedLeader.name}</span></p>
+            </div>
+
+            {/* Tags */}
+            <div className="flex flex-wrap justify-center gap-2">
+              <span className={`text-xs px-3 py-1 rounded-full font-bold bg-gray-800/80 border border-white/10 ${DIFFICULTY_LABEL[selectedLeader.cpuLevel]?.color || 'text-white'}`}>
+                {selectedLeader.cpuLevel === 'easy' ? '🟢' : selectedLeader.cpuLevel === 'medium' ? '🟡' : '🔴'} {DIFFICULTY_LABEL[selectedLeader.cpuLevel]?.label || selectedLeader.cpuLevel}
+              </span>
+              {cpuCount > 1 && (
+                <span className="text-xs px-3 py-1 rounded-full font-bold bg-purple-900/40 border border-purple-500/30 text-purple-300 flex items-center gap-1">
+                  <Users className="w-3 h-3" /> {cpuCount} Avversari CPU
+                </span>
+              )}
+              {selectedLeader.attackMode === 'hunt_human' && (
+                <span className="text-xs px-3 py-1 rounded-full font-bold bg-red-900/40 border border-red-500/30 text-red-300 flex items-center gap-1">
+                  <Target className="w-3 h-3" /> Tutti contro di te
+                </span>
+              )}
+              <span className="text-xs px-3 py-1 rounded-full font-bold bg-gray-800/80 border border-red-500/20 text-red-300">
+                ❤️ {selectedLeader.livesCount} vite
+              </span>
+              <span className="text-xs px-3 py-1 rounded-full font-bold bg-yellow-900/30 border border-yellow-500/20 text-yellow-300">
+                +{selectedLeader.rewardCredits} Rankiard
+              </span>
+            </div>
+
+            {/* Specialty */}
+            {selectedLeader.specialty && (
+              <div className="bg-yellow-900/20 border border-yellow-500/20 rounded-xl px-4 py-2 max-w-xs">
+                <p className="text-yellow-300/80 text-xs">⚡ {selectedLeader.specialty}</p>
+              </div>
+            )}
+
+            {/* Description */}
+            {selectedLeader.description && (
+              <p className="text-white/40 text-sm max-w-xs leading-relaxed">{selectedLeader.description}</p>
+            )}
+
+            {/* Mazzo story */}
+            <div className="bg-gray-900/60 border border-white/10 rounded-xl px-4 py-3 text-sm max-w-xs w-full">
+              <p className="text-white/40 text-xs mb-1">Il tuo mazzo Story Mode</p>
+              <p className="text-white font-bold">
+                {storyDeckIds.length > 0 ? `${storyDeckIds.length} carte` : 'Mazzo non ancora iniziato'}
+              </p>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex flex-col gap-3 w-full max-w-xs">
+              <button
+                onClick={() => startBattle(selectedLeader)}
+                className="py-4 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-black text-lg rounded-2xl transition-all shadow-xl shadow-orange-900/40 active:scale-95 flex items-center justify-center gap-2"
+              >
+                <Swords className="w-5 h-5" /> INIZIA LA BATTAGLIA!
+              </button>
+              <button
+                onClick={() => { setPhase('map'); setSelectedLeader(null); }}
+                className="py-2.5 text-white/40 hover:text-white/70 text-sm transition-colors"
+              >
+                Torna alla mappa
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── MAP ───────────────────────────────────────────────────────────────────
+  const activeLeaders = leaders.filter(l => l.isActive).sort((a, b) => a.orderIndex - b.orderIndex);
+  const completedCount = activeLeaders.filter(l => completedIds.includes(l.id)).length;
+  const totalCount = activeLeaders.length;
+  const progressPct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'linear-gradient(180deg, #03050d 0%, #070b1a 40%, #0a1028 100%)' }}>
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes gymNodeGlow {
-          0%, 100% { box-shadow: 0 0 20px 6px rgba(124,58,237,0.45), 0 0 10px 2px rgba(234,179,8,0.3), inset 0 0 10px rgba(124,58,237,0.35); }
-          50% { box-shadow: 0 0 35px 14px rgba(124,58,237,0.7), 0 0 18px 6px rgba(234,179,8,0.5), inset 0 0 18px rgba(124,58,237,0.55); }
-        }
-        .gym-node-glow { animation: gymNodeGlow 2s cubic-bezier(0.4,0,0.6,1) infinite; }
-        @keyframes gymCompletedPulse {
-          0%, 100% { box-shadow: 0 0 8px 2px rgba(34,197,94,0.3); }
-          50% { box-shadow: 0 0 14px 5px rgba(34,197,94,0.55); }
-        }
-        .gym-completed-glow { animation: gymCompletedPulse 3s ease-in-out infinite; }
-      ` }} />
-
-      {/* Injured Personaggi Disclaimer — shown before battle starts */}
-      {pendingBattle && (
-        <InjuredPersonaggiDisclaimer
-          authToken={authToken || ''}
-          relevantCardIds={pendingBattle.deckIds.filter(id => id.startsWith('personaggi'))}
-          userCredits={userCredits}
-          onCreditsUpdated={setUserCredits}
-          onConfirm={(availableIds) => {
-            const nonPersonaggi = pendingBattle.deckIds.filter(id => !id.startsWith('personaggi'));
-            doStartBattle(pendingBattle.leader, [...availableIds, ...nonPersonaggi]);
-          }}
-          onCancel={() => { setPendingBattle(null); battleStartingRef.current = false; }}
-        />
-      )}
-
-      {/* ── Header ── */}
-      <div className="flex-shrink-0 flex items-center gap-4 px-4 pt-safe py-4 border-b border-white/10 bg-black/30 backdrop-blur-sm">
-        <button onClick={onBack} className="p-2 text-white/60 hover:text-white transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center shadow-lg">
-            <Trophy className="w-5 h-5 text-black" />
+    <div className="fixed inset-0 z-40 flex flex-col" style={{ background: 'linear-gradient(180deg, #0a0515 0%, #05080f 50%, #0a0515 100%)' }}>
+      {/* Header */}
+      <div className="flex-shrink-0 border-b border-white/10" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)' }}>
+        <div className="flex items-center gap-3 px-4 py-3">
+          <button
+            onClick={onBack}
+            className="p-2 text-white/50 hover:text-white transition-colors hover:bg-white/10 rounded-xl"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="flex-1">
+            <h1 className="text-white font-black text-lg leading-tight">Story Mode</h1>
+            <p className="text-white/40 text-xs">Affronta gli Stage e colleziona carte</p>
           </div>
-          <div>
-            <h1 className="text-white font-black text-lg leading-none">Story Mode</h1>
-            <p className="text-white/40 text-xs mt-0.5">Percorso Palestre</p>
+          {/* Progress */}
+          <div className="text-right">
+            <p className="text-white font-bold text-sm">{completedCount}/{totalCount}</p>
+            <p className="text-white/40 text-xs">Stage</p>
           </div>
         </div>
-        <div className="ml-auto text-right">
-          <p className="text-yellow-300 font-black text-lg leading-none">{completedCount}/{totalCount}</p>
-          <p className="text-white/40 text-xs mt-0.5">palestre</p>
+        {/* Progress bar */}
+        {totalCount > 0 && (
+          <div className="px-4 pb-3">
+            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${progressPct}%`, background: 'linear-gradient(to right, #f59e0b, #ef4444)' }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Deck info bar */}
+      <div className="flex-shrink-0 px-4 py-2.5 flex items-center gap-3 border-b border-white/5" style={{ background: 'rgba(0,0,0,0.3)' }}>
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-yellow-600/20 border border-yellow-600/30 flex items-center justify-center">
+            <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
+          </div>
+          <div>
+            <p className="text-white text-xs font-bold">{storyDeckIds.length} carte nel mazzo</p>
+            <p className="text-white/30 text-[10px]">Mazzo Story Mode</p>
+          </div>
+        </div>
+        <div className="h-6 w-px bg-white/10" />
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-yellow-600/20 border border-yellow-600/30 flex items-center justify-center">
+            <Star className="w-3.5 h-3.5 text-yellow-400" />
+          </div>
+          <div>
+            <p className="text-white text-xs font-bold">{userCredits.toLocaleString()}</p>
+            <p className="text-white/30 text-[10px]">Rankiard</p>
+          </div>
         </div>
       </div>
 
-      {/* Story deck banner */}
-      {storyDeckIds.length > 0 && (
-        <div className="flex-shrink-0 px-4 py-2 bg-blue-900/20 border-b border-blue-500/20 flex items-center gap-2">
-          <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-          <p className="text-blue-300 text-xs font-semibold">Mazzo Story Mode: {storyDeckIds.length} carte accumulate</p>
-        </div>
-      )}
-
-      {/* Progress bar */}
-      {totalCount > 0 && (
-        <div className="flex-shrink-0 px-4 py-2 bg-black/20">
-          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{
-                width: `${(completedCount / totalCount) * 100}%`,
-                background: 'linear-gradient(to right, #7c3aed, #eab308)',
-              }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* ── Scrollable map area ── */}
-      <div ref={mapScrollRef} className="flex-1 overflow-y-auto relative">
+      {/* Stage list */}
+      <div ref={mapScrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {loading ? (
-          <div className="flex items-center justify-center h-64 text-white/40">
-            Caricamento percorso...
+          <div className="text-center py-16">
+            <div className="w-10 h-10 border-2 border-white/20 border-t-yellow-400 rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-white/30 text-sm">Caricamento Story Mode…</p>
           </div>
-        ) : leaders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-center px-8">
-            <Shield className="w-16 h-16 text-white/15 mb-4" />
-            <p className="text-white/40 text-lg font-semibold">Nessuna palestra disponibile</p>
-            <p className="text-white/25 text-sm mt-1">Le palestre verranno aggiunte presto!</p>
+        ) : activeLeaders.length === 0 ? (
+          <div className="text-center py-16">
+            <Shield className="w-16 h-16 text-white/10 mx-auto mb-4" />
+            <p className="text-white/30 text-sm">Nessuno stage disponibile</p>
+            <p className="text-white/20 text-xs mt-1">Gli stage verranno aggiunti presto</p>
           </div>
         ) : (
-          <div className="relative py-10 pb-24">
-            {/* Central vertical gradient line — violet → yellow only */}
-            <div
-              className="absolute top-10 bottom-24 rounded-full z-0 pointer-events-none"
-              style={{
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: 4,
-                background: 'linear-gradient(to bottom, #1e1b4b 0%, #7c3aed 45%, #eab308 100%)',
-                boxShadow: '0 0 16px rgba(124,58,237,0.4)',
-              }}
-            />
+          activeLeaders.map((leader, idx) => {
+            const status = getLeaderStatus(leader);
+            const isCompleted = status === 'completed';
+            const isAvailable = status === 'available';
+            const isLocked = status === 'locked';
+            const isCurrent = leader.id === currentLeader?.id;
+            const cpuCount = leader.cpuCount ?? 1;
 
-            {/* Nodes */}
-            <div className="flex flex-col gap-6 relative z-10 px-4 py-4">
-              {leaders.map((leader, idx) => {
-                const status = getLeaderStatus(leader);
-                const isCompleted = status === 'completed';
-                const isAvailable = status === 'available';
-                const isLocked = status === 'locked';
-                const isCurrent = leader.id === currentLeader?.id;
-
-                const borderColor = isCurrent
-                  ? 'rgba(124,58,237,0.8)'
-                  : isCompleted
-                  ? 'rgba(34,197,94,0.45)'
-                  : 'rgba(255,255,255,0.08)';
-
-                const cardBg = isCurrent
-                  ? 'rgba(15,8,40,0.75)'
-                  : isCompleted
-                  ? 'rgba(5,20,12,0.75)'
-                  : 'rgba(10,14,26,0.75)';
-
-                return (
-                  <div
-                    key={leader.id}
-                    className={`flex justify-center w-full relative ${isCurrent ? 'current-gym-node' : ''}`}
-                  >
-                    {/* Card */}
-                    <div
-                      className={`relative w-full overflow-hidden rounded-2xl border transition-all ${isCurrent ? 'gym-node-glow active:scale-[0.98]' : ''} ${isLocked ? 'opacity-60' : ''}`}
-                      style={{
-                        maxWidth: 420,
-                        minHeight: isCurrent ? 150 : 100,
-                        borderColor,
-                        backdropFilter: 'blur(12px)',
-                        cursor: isCurrent ? 'pointer' : isCompleted ? 'pointer' : 'default',
-                      }}
-                      onClick={isCurrent || isCompleted ? () => handleChallengeLeader(leader) : undefined}
-                    >
-                      {/* ── Background image at 50% opacity ── */}
-                      {leader.backgroundImageUrl && (
-                        <img
-                          src={leader.backgroundImageUrl}
-                          alt=""
-                          className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
-                          style={{ opacity: 0.5 }}
-                        />
-                      )}
-                      {/* Dark overlay for readability */}
-                      <div
-                        className="absolute inset-0 pointer-events-none"
-                        style={{ background: cardBg }}
-                      />
-
-                      {/* ── Content ── */}
-                      <div className="relative z-10 flex items-stretch">
-
-                        {/* Leader portrait */}
-                        <div
-                          className="flex-shrink-0 relative overflow-hidden"
-                          style={{ width: isCurrent ? 96 : 72 }}
-                        >
-                          {leader.leaderImageUrl ? (
-                            <img
-                              src={leader.leaderImageUrl}
-                              alt={leader.name}
-                              className="w-full h-full object-cover object-top"
-                              style={{
-                                opacity: isLocked ? 0.25 : 1,
-                                minHeight: isCurrent ? 150 : 100,
-                              }}
-                            />
-                          ) : (
-                            <div
-                              className="w-full flex items-center justify-center font-black text-3xl text-white/40"
-                              style={{ minHeight: isCurrent ? 150 : 100 }}
-                            >
-                              {leader.gymName.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          {/* Status overlay on portrait */}
-                          {isLocked && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                              <span style={{ fontSize: 20 }}>🔒</span>
-                            </div>
-                          )}
-                          {isCompleted && (
-                            <div className="absolute bottom-0 inset-x-0 flex items-center justify-center pb-1.5"
-                              style={{ background: 'linear-gradient(to top, rgba(0,60,20,0.85), transparent)' }}>
-                              <CheckCircle className="text-green-400" style={{ width: 18, height: 18 }} />
-                            </div>
-                          )}
-                          {isCurrent && (
-                            <div className="absolute bottom-0 inset-x-0 flex items-center justify-center pb-1.5"
-                              style={{ background: 'linear-gradient(to top, rgba(80,20,150,0.85), transparent)' }}>
-                              <Swords className="text-yellow-300" style={{ width: 14, height: 14 }} />
-                            </div>
-                          )}
-                          {/* Vertical separator */}
-                          <div className="absolute top-0 right-0 bottom-0 w-px"
-                            style={{ background: borderColor }} />
-                        </div>
-
-                        {/* Info side */}
-                        <div className="flex-1 flex flex-col justify-center p-3 gap-0.5">
-                          {/* Order + status */}
-                          <p className="font-black text-[10px] leading-tight tracking-wider"
-                            style={{ color: isCurrent ? '#a78bfa' : isCompleted ? '#4ade80' : 'rgba(255,255,255,0.25)' }}>
-                            {isCurrent ? '⚔️' : isCompleted ? '✓' : '🔒'} PALESTRA #{leader.orderIndex}
-                          </p>
-
-                          {/* Gym name */}
-                          <h3 className="font-black text-sm leading-tight"
-                            style={{ color: isLocked ? 'rgba(255,255,255,0.3)' : 'white' }}>
-                            {leader.gymName}
-                          </h3>
-
-                          {/* Leader name */}
-                          <p className="text-xs truncate"
-                            style={{ color: isLocked ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.55)' }}>
-                            {leader.name}
-                          </p>
-
-                          {/* Specialty */}
-                          {leader.specialty && !isLocked && (
-                            <p className="text-[10px] truncate" style={{ color: 'rgba(234,179,8,0.8)' }}>
-                              ⚡ {leader.specialty}
-                            </p>
-                          )}
-
-                          {/* Badge image (completed) */}
-                          {isCompleted && leader.badgeImageUrl && (
-                            <div className="flex items-center gap-1.5 mt-1">
-                              <img src={leader.badgeImageUrl} alt="badge" className="rounded-full border border-yellow-400/60 object-cover" style={{ width: 20, height: 20 }} />
-                              <span className="text-yellow-300/70 text-[10px] font-bold">Badge ottenuto</span>
-                            </div>
-                          )}
-
-                          {/* Current leader: hearts + credits + button */}
-                          {isCurrent && (
-                            <>
-                              <div className="flex items-center gap-0.5 mt-1">
-                                {Array.from({ length: leader.livesCount || 3 }).map((_, i) => (
-                                  <Heart key={i} className="text-red-400 fill-red-400" style={{ width: 10, height: 10 }} />
-                                ))}
-                                <span className="ml-auto text-yellow-300 font-black text-[10px]">+{leader.rewardCredits}⭐</span>
-                              </div>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleChallengeLeader(leader); }}
-                                className="mt-2 py-1.5 rounded-xl font-black text-xs text-white active:scale-95 transition-transform"
-                                style={{ background: 'linear-gradient(to right, #7c3aed, #eab308)' }}
-                              >
-                                ⚔️ SFIDA!
-                              </button>
-                            </>
-                          )}
-
-                          {/* Completed: replay button */}
-                          {isCompleted && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleChallengeLeader(leader); }}
-                              className="mt-1.5 flex items-center gap-0.5 transition-colors"
-                              style={{ color: 'rgba(74,222,128,0.6)', fontSize: 10, fontWeight: 700 }}
-                            >
-                              <ChevronRight style={{ width: 10, height: 10 }} /> Rigioca
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+            return (
+              <div
+                key={leader.id}
+                className={`relative rounded-2xl border transition-all overflow-hidden ${
+                  isCompleted
+                    ? 'border-green-500/20 bg-green-900/10'
+                    : isAvailable
+                    ? `border-yellow-500/40 bg-gray-800/80 shadow-lg ${isCurrent ? 'shadow-yellow-500/10 current-gym-node' : ''}`
+                    : 'border-white/5 bg-gray-900/40 opacity-50'
+                }`}
+                style={isAvailable && leader.backgroundImageUrl ? {
+                  backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.92), rgba(0,0,0,0.75)), url(${leader.backgroundImageUrl})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                } : {}}
+              >
+                {isCurrent && (
+                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
+                )}
+                <div className="flex items-center gap-3 p-4">
+                  {/* Stage number */}
+                  <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm border-2 ${
+                    isCompleted ? 'bg-green-900/30 border-green-500/40 text-green-300'
+                    : isAvailable ? 'bg-yellow-900/30 border-yellow-500/40 text-yellow-300'
+                    : 'bg-gray-800/50 border-white/10 text-white/20'
+                  }`}>
+                    {isCompleted ? <CheckCircle className="w-5 h-5" /> : isLocked ? <Lock className="w-4 h-4" /> : idx + 1}
                   </div>
-                );
-              })}
 
-              {/* All completed banner */}
-              {completedCount === totalCount && totalCount > 0 && (
-                <div className="text-center py-8">
-                  <div className="text-5xl mb-3">🏆</div>
-                  <p className="text-yellow-300 font-black text-xl">Campione delle Palestre!</p>
-                  <p className="text-white/40 text-sm mt-1">Hai completato tutte le palestre disponibili</p>
-                  <div className="flex items-center justify-center gap-1 mt-2">
-                    {[...Array(5)].map((_, i) => <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />)}
+                  {/* Leader image */}
+                  <div className="relative flex-shrink-0">
+                    {leader.leaderImageUrl ? (
+                      <img
+                        src={leader.leaderImageUrl}
+                        alt={leader.name}
+                        className={`w-14 h-14 rounded-xl object-cover border-2 ${
+                          isCompleted ? 'border-green-500/40' : isAvailable ? 'border-yellow-500/40' : 'border-white/10'
+                        }`}
+                      />
+                    ) : (
+                      <div className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center ${
+                        isCompleted ? 'bg-green-900/20 border-green-500/20' : isAvailable ? 'bg-yellow-900/20 border-yellow-500/20' : 'bg-gray-800/30 border-white/5'
+                      }`}>
+                        <Shield className={`w-6 h-6 ${isCompleted ? 'text-green-400/40' : isAvailable ? 'text-yellow-400/40' : 'text-white/10'}`} />
+                      </div>
+                    )}
+                    {leader.badgeImageUrl && isCompleted && (
+                      <img src={leader.badgeImageUrl} alt="badge" className="absolute -bottom-1.5 -right-1.5 w-7 h-7 rounded-full border-2 border-gray-900 object-cover shadow-lg" onError={e => (e.currentTarget.style.display = 'none')} />
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                      <p className={`font-black text-base truncate ${isCompleted ? 'text-green-300' : isAvailable ? 'text-white' : 'text-white/30'}`}>
+                        {leader.gymName}
+                      </p>
+                      {isCurrent && !isCompleted && (
+                        <span className="text-[9px] font-black bg-yellow-500 text-black px-1.5 py-0.5 rounded-full uppercase">Prossimo</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className={`text-xs ${isCompleted ? 'text-green-400/60' : isAvailable ? 'text-white/50' : 'text-white/20'}`}>
+                        Boss: <span className={`font-bold ${isCompleted ? 'text-green-300/70' : 'text-white/60'}`}>{leader.name}</span>
+                      </p>
+                      {cpuCount > 1 && (
+                        <span className="text-purple-400/70 text-[10px] bg-purple-900/20 border border-purple-500/20 rounded-full px-1.5 py-0.5 font-bold flex items-center gap-0.5">
+                          <Users className="w-2.5 h-2.5" />{cpuCount}
+                        </span>
+                      )}
+                      {leader.attackMode === 'hunt_human' && (
+                        <span className="text-red-400/70 text-[10px] bg-red-900/20 border border-red-500/20 rounded-full px-1.5 py-0.5 font-bold flex items-center gap-0.5">
+                          <Target className="w-2.5 h-2.5" />vs te
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className={`text-[10px] font-bold ${DIFFICULTY_LABEL[leader.cpuLevel]?.color || 'text-white/40'}`}>
+                        {leader.cpuLevel === 'easy' ? '🟢' : leader.cpuLevel === 'medium' ? '🟡' : '🔴'} {DIFFICULTY_LABEL[leader.cpuLevel]?.label}
+                      </span>
+                      <span className={`text-[10px] ${isAvailable ? 'text-white/30' : 'text-white/15'}`}>❤️ {leader.livesCount}</span>
+                      <span className={`text-[10px] ${isAvailable ? 'text-yellow-400/50' : 'text-white/15'}`}>+{leader.rewardCredits}⭐</span>
+                    </div>
+
+                    {/* Available: Challenge button */}
+                    {isAvailable && (
+                      <button
+                        onClick={() => handleChallengeLeader(leader)}
+                        className="mt-2 px-4 py-1.5 rounded-xl font-black text-xs text-white active:scale-95 transition-transform shadow-lg flex items-center gap-1.5"
+                        style={{ background: 'linear-gradient(to right, #9333ea, #f59e0b)' }}
+                      >
+                        <Swords className="w-3 h-3" /> SFIDA!
+                      </button>
+                    )}
+
+                    {/* Completed: replay */}
+                    {isCompleted && (
+                      <button
+                        onClick={() => handleChallengeLeader(leader)}
+                        className="mt-1.5 flex items-center gap-0.5 text-green-400/50 hover:text-green-400/80 transition-colors text-[10px] font-bold"
+                      >
+                        <ChevronRight className="w-3 h-3" /> Rigioca
+                      </button>
+                    )}
                   </div>
                 </div>
-              )}
+              </div>
+            );
+          })
+        )}
+
+        {/* All completed banner */}
+        {completedCount === totalCount && totalCount > 0 && (
+          <div className="text-center py-8">
+            <div className="text-5xl mb-3">🏆</div>
+            <p className="text-yellow-300 font-black text-xl">Campione della Story Mode!</p>
+            <p className="text-white/40 text-sm mt-1">Hai completato tutti gli stage disponibili</p>
+            <div className="flex items-center justify-center gap-1 mt-2">
+              {[...Array(5)].map((_, i) => <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />)}
             </div>
           </div>
         )}

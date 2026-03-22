@@ -2051,7 +2051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Add CPU player to training game
-    socket.on('add-training-cpu', async ({ gameId, isGymMode, customDeck, cpuLevel, leaderName, leaderImageUrl, leaderMessages }) => {
+    socket.on('add-training-cpu', async ({ gameId, isGymMode, customDeck, cpuLevel, leaderName, leaderImageUrl, leaderMessages, attackMode }) => {
       try {
         // Use leader name as CPU name for gym mode, otherwise auto-generate
         const cpuName = (isGymMode && leaderName)
@@ -2127,6 +2127,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             );
             if (hasMsgs) {
               cpuPlayer.cpuInstance.setLeaderMessages(resolvedMsgs!);
+            }
+            // Set attack mode (hunt_human = only target the human player)
+            if (attackMode === 'hunt_human') {
+              cpuPlayer.cpuInstance.setAttackMode('hunt_human');
+              console.log(`🎯 Gym mode: attack mode = hunt_human for CPU ${cpuName}`);
             }
             // Use custom gameStart message if available, otherwise default greeting
             const startMsgs = resolvedMsgs?.gameStart;
@@ -10839,7 +10844,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const user = (req as any).user;
       const isAdmin = await checkAdminAccess(user);
       if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
-      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive } = req.body;
+      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive, cpuCount, cpuConfigs, attackMode } = req.body;
       if (!name || !gymName) return res.status(400).json({ success: false, error: 'name e gymName obbligatori' });
       const [created] = await db.insert(gymLeaders).values({
         name, gymName,
@@ -10859,6 +10864,9 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         leaderMessages: leaderMessages && typeof leaderMessages === 'object' ? leaderMessages : null,
         orderIndex: orderIndex ?? 1,
         isActive: isActive !== false,
+        cpuCount: cpuCount ?? 1,
+        cpuConfigs: Array.isArray(cpuConfigs) ? cpuConfigs : [],
+        attackMode: attackMode || 'free_for_all',
       }).returning();
       res.json({ success: true, gymLeader: created });
     } catch (e) {
@@ -10875,7 +10883,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const isAdmin = await checkAdminAccess(user);
       if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
       const id = parseInt(req.params.id);
-      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive } = req.body;
+      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive, cpuCount, cpuConfigs, attackMode } = req.body;
       const [updated] = await db.update(gymLeaders).set({
         name, gymName,
         description: description || null,
@@ -10894,8 +10902,11 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         leaderMessages: leaderMessages && typeof leaderMessages === 'object' ? leaderMessages : null,
         orderIndex: orderIndex ?? 1,
         isActive: isActive !== false,
+        cpuCount: cpuCount ?? 1,
+        cpuConfigs: Array.isArray(cpuConfigs) ? cpuConfigs : [],
+        attackMode: attackMode || 'free_for_all',
       }).where(eq(gymLeaders.id, id)).returning();
-      if (!updated) return res.status(404).json({ success: false, error: 'Palestra non trovata' });
+      if (!updated) return res.status(404).json({ success: false, error: 'Stage non trovato' });
       res.json({ success: true, gymLeader: updated });
     } catch (e) {
       console.error('Error updating gym leader:', e);

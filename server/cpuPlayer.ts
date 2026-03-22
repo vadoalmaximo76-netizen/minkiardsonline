@@ -82,6 +82,11 @@ export class CPUPlayer {
   
   private openaiApiKey: string | undefined;
   private gymLeaderMessages: Record<string, string[]> | null = null;
+  private attackMode: 'free_for_all' | 'hunt_human' = 'free_for_all';
+
+  setAttackMode(mode: 'free_for_all' | 'hunt_human') {
+    this.attackMode = mode;
+  }
 
   constructor(playerName: string, gameId: string, socketEmitter?: any) {
     this.playerName = playerName;
@@ -235,12 +240,24 @@ export class CPUPlayer {
     const gameState = this.gameManager.getGameState(this.gameId);
     if (!gameState) return null;
 
-    const enemies = gameState.field.filter((card: any) => 
+    let enemies = gameState.field.filter((card: any) => 
       (card.type === 'personaggi' || card.type === 'personaggi_speciali') && 
       card.owner !== this.playerName && 
       !card.eliminatedBy && 
       !card.faceDown
     );
+
+    // Hunt-human mode: CPU targets only human players, ignoring other CPUs
+    if (this.attackMode === 'hunt_human') {
+      const humanEnemies = enemies.filter((card: any) => {
+        const player = gameState.players?.[card.owner];
+        return player && !player.isCPU;
+      });
+      if (humanEnemies.length > 0) {
+        enemies = humanEnemies;
+        console.log(`🎯 [hunt_human] CPU ${this.playerName} targeting human-only (${humanEnemies.length} targets)`);
+      }
+    }
 
     if (enemies.length === 0) return null;
 

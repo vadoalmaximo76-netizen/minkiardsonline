@@ -807,6 +807,9 @@ export const gymLeaders = pgTable("gym_leaders", {
   rewardDescription: text("reward_description"),
   youtubeMusicUrl: text("youtube_music_url"),
   leaderMessages: jsonb("leader_messages").default({}),
+  cpuCount: integer("cpu_count").notNull().default(1),
+  cpuConfigs: jsonb("cpu_configs").default([]),
+  attackMode: text("attack_mode").notNull().default("free_for_all"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
