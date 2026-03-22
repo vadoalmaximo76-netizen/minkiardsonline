@@ -4184,6 +4184,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const socketPlayerName2 = gameManager.getPlayerNameFromSocket(socket.id);
       const cardOnField = game.field.find((c: any) => c.owner === socketPlayerName2 && (c.frontImage || '').toLowerCase().includes('evil-fake'));
       if (!cardOnField) return;
+      // Server-side consume-once guard: must have a pending token and effect must not have been used already
+      const efPending = (game as any).evilFakePending;
+      if (!efPending || efPending.playerName !== socketPlayerName2 || efPending.cardId !== cardOnField.id) {
+        console.warn(`🚨 EVIL FAKE: unsolicited or replayed event from ${socketPlayerName2} — no valid pending token`);
+        return;
+      }
+      if ((cardOnField as any).evilFakeUsed) {
+        console.warn(`🚨 EVIL FAKE: already used by ${socketPlayerName2}, blocking re-use`);
+        delete (game as any).evilFakePending;
+        return;
+      }
       // Server-side validation: only allow opponent graveyard personaggi (max 3)
       const validGraveyardIds = new Set(
         (game.graveyard || [])
@@ -4192,8 +4203,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       const validatedIds = (selectedIds || []).filter((id: string) => validGraveyardIds.has(id));
       if (validatedIds.length === 0) return;
-      // Mark effect as used now that we have confirmed valid targets
+      // Mark effect as used and consume the pending token (one-time)
       (cardOnField as any).evilFakeUsed = true;
+      delete (game as any).evilFakePending;
       const idsToAbsorb = validatedIds.slice(0, 3);
       let totalPTI = 0, totalStars = 0;
       const absorbedNames: string[] = [];
@@ -4248,14 +4260,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const geena = game.field.find((c: any) => c.owner === socketPlayerName3 && (c.frontImage || '').toLowerCase().includes('cyber-geena'));
       const target = game.field.find((c: any) => c.id === targetCardId);
       if (!geena || !target) return;
+      // Server-side consume-once guard: must have a pending token and effect must not have been used already
+      const cgPending = (game as any).cyberGeenaPending;
+      if (!cgPending || cgPending.playerName !== socketPlayerName3 || cgPending.cardId !== geena.id) {
+        console.warn(`🚨 CYBER GEENA: unsolicited or replayed event from ${socketPlayerName3} — no valid pending token`);
+        return;
+      }
+      if ((geena as any).cyberGeenaUsed) {
+        console.warn(`🚨 CYBER GEENA: already used by ${socketPlayerName3}, blocking re-use`);
+        delete (game as any).cyberGeenaPending;
+        return;
+      }
       // Server-side validation: target must be an opponent's character on field
       if (target.owner === socketPlayerName3) {
         console.warn(`🚨 CYBER GEENA: ${socketPlayerName3} attempted to swap with own card`);
         return;
       }
       if (target.type !== 'personaggi' && target.type !== 'personaggi_speciali') return;
-      // Mark effect as used now that we have confirmed valid target
+      // Mark effect as used and consume the pending token (one-time)
       (geena as any).cyberGeenaUsed = true;
+      delete (game as any).cyberGeenaPending;
       const geenaPTI = geena.pti ?? (gameManager as any).extractPTIFromNote?.(geena.text || '') ?? 0;
       const targetPTI = target.pti ?? (gameManager as any).extractPTIFromNote?.(target.text || '') ?? 0;
       geena.pti = targetPTI;
@@ -4282,14 +4306,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const socketPlayerName4 = gameManager.getPlayerNameFromSocket(socket.id);
       // Server-side validation: number must be 1-6 integer, player must be in this game
       const validNum = typeof number === 'number' && Number.isInteger(number) && number >= 1 && number <= 6;
-      if (socketPlayerName4 && validNum && !pending.responses[socketPlayerName4] && game.players[socketPlayerName4]) {
-        pending.responses[socketPlayerName4] = number;
-        console.log(`🎯 ACCHIAPPT CHESSA: ${socketPlayerName4} guessed ${number}`);
-        io.to(gameId).emit('chat-message', {
-          id: `${Date.now()}-acchiappt-guess`, playerName: 'Sistema',
-          message: `🎯 ${socketPlayerName4} ha scelto il numero ${number}!`,
-          timestamp: Date.now()
-        });
+      if (socketPlayerName4 && validNum && game.players[socketPlayerName4]) {
+        // Key response by active character ID (per-character, not per-player, to support multi-char games)
+        const activeCharAC = (gameManager as any).getPlayerActiveCharacter?.(game, socketPlayerName4);
+        const charKey = activeCharAC?.id || socketPlayerName4; // fallback to player name if no active char
+        if (!pending.responses[charKey]) {
+          pending.responses[charKey] = number;
+          console.log(`🎯 ACCHIAPPT CHESSA: ${socketPlayerName4} (char: ${charKey}) guessed ${number}`);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-acchiappt-guess`, playerName: 'Sistema',
+            message: `🎯 ${socketPlayerName4} ha scelto il numero ${number}!`,
+            timestamp: Date.now()
+          });
+        }
       }
     });
 

@@ -11915,8 +11915,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             const fieldNow = gameNow.field.filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
             const results: string[] = [];
             for (const ch of fieldNow) {
-              // Random fallback for players who did not respond in time
-              let playerChoice = pending.responses[ch.owner];
+              // Responses are keyed by character ID (one response per character on field)
+              let playerChoice = pending.responses[ch.id];
               if (playerChoice === undefined) {
                 playerChoice = Math.floor(Math.random() * 6) + 1;
                 results.push(`${ch.name || ch.owner}: (nessuna risposta → ${playerChoice} casuale)`);
@@ -18588,6 +18588,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         return;
       }
       // Note: evilFakeUsed flag is set server-side in routes.ts after the player confirms their choice
+      // Create a server-side pending token so the handler can verify this activation was legitimate
+      (game as any).evilFakePending = { cardId: card.id, playerName, nonce: Date.now() };
       const playerData = game.players[playerName];
       if (playerData?.socketId) {
         io.to(playerData.socketId).emit('evil-fake-choice', {
@@ -18631,6 +18633,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         return;
       }
       // Note: cyberGeenaUsed flag is set server-side in routes.ts after the player confirms their choice
+      // Create a server-side pending token so the handler can verify this activation was legitimate
+      (game as any).cyberGeenaPending = { cardId: card.id, playerName, nonce: Date.now() };
       const playerDataCG = game.players[playerName];
       if (playerDataCG?.socketId) {
         io.to(playerDataCG.socketId).emit('cyber-geena-choice', {
