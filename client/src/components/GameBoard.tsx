@@ -271,6 +271,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [deathEffectKey, setDeathEffectKey] = useState(0);
   const [choosingNotification, setChoosingNotification] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
   const [blockTypeSelection, setBlockTypeSelection] = useState<{ visible: boolean; options: string[]; turns: number } | null>(null);
+  const [daddyConteDialog, setDaddyConteDialog] = useState<{ visible: boolean; characters: Array<{id: string; name: string; frontImage: string; owner: string}> } | null>(null);
+  const [fabrizioDialog, setFabrizioDialog] = useState<{ visible: boolean; characterName: string; characterId: string; currentPti: number } | null>(null);
   const [controlTurnPanel, setControlTurnPanel] = useState<{ visible: boolean; controlledPlayer: string; availableTypes: string[]; possibleTargets: string[]; selectedType: string | null; selectedTarget: string | null }>({ visible: false, controlledPlayer: '', availableTypes: [], possibleTargets: [], selectedType: null, selectedTarget: null });
   const [controlTurnTargetPanel, setControlTurnTargetPanel] = useState<{ visible: boolean; opponents: string[] }>({ visible: false, opponents: [] });
   const [cpuThinkingPlayer, setCpuThinkingPlayer] = useState<string | null>(null);
@@ -1082,6 +1084,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       }
     };
     socket.on('block-card-type-select', handleBlockCardTypeSelect);
+
+    const handleDaddyConteChoice = (data: { characters: Array<{id: string; name: string; frontImage: string; owner: string}> }) => {
+      setDaddyConteDialog({ visible: true, characters: data.characters });
+    };
+    socket.on('daddy-conte-choice', handleDaddyConteChoice);
+
+    const handleFabrizioChoice = (data: { characterName: string; characterId: string; currentPti: number }) => {
+      setFabrizioDialog({ visible: true, characterName: data.characterName, characterId: data.characterId, currentPti: data.currentPti });
+    };
+    socket.on('fabrizio-choice', handleFabrizioChoice);
 
     const handleControlTurnChooseTarget = (data: { controllingPlayer: string; opponents: string[] }) => {
       if (data.controllingPlayer === playerName) {
@@ -2093,6 +2105,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('next-turn', handleCpuDoneThinking);
       socket.off('control-turn-set', handleControlTurnSet);
       socket.off('block-card-type-select', handleBlockCardTypeSelect);
+      socket.off('daddy-conte-choice', handleDaddyConteChoice);
+      socket.off('fabrizio-choice', handleFabrizioChoice);
       socket.off('control-turn-choose-target', handleControlTurnChooseTarget);
       socket.off('opponent-turn-control', handleControlTurnActive);
       socket.off('control-turn-resolved', handleControlTurnResolved);
@@ -4671,6 +4685,64 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                     {option}
                   </button>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {daddyConteDialog?.visible && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70">
+            <div className="bg-gradient-to-b from-gray-900 to-gray-800 rounded-xl p-6 shadow-2xl border border-yellow-500/40 max-w-sm w-full mx-4">
+              <div className="text-center mb-4">
+                <span className="text-4xl">🤵</span>
+                <h3 className="text-white text-xl font-bold mt-2">DADDY CONTE</h3>
+                <p className="text-yellow-200 text-sm mt-1">Scegli quale personaggio NON può attaccarti questo turno</p>
+              </div>
+              <div className="flex flex-col gap-3">
+                {daddyConteDialog.characters.map((char) => (
+                  <button
+                    key={char.id}
+                    onClick={() => {
+                      socket.emit('daddy-conte-chosen', { gameId: gameId, characterId: char.id });
+                      setDaddyConteDialog(null);
+                    }}
+                    className="w-full px-4 py-3 bg-yellow-700 hover:bg-yellow-600 text-white font-bold rounded-lg transition-all duration-200 hover:scale-105 border border-yellow-500/30 flex items-center gap-3"
+                  >
+                    {char.frontImage && (
+                      <img src={char.frontImage} alt={char.name} className="w-10 h-10 rounded object-cover" />
+                    )}
+                    <span>{char.name || char.id} <span className="text-yellow-300 text-xs">({char.owner})</span></span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {fabrizioDialog?.visible && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70">
+            <div className="bg-gradient-to-b from-green-900 to-green-800 rounded-xl p-6 shadow-2xl border border-green-400/40 max-w-sm w-full mx-4">
+              <div className="text-center mb-4">
+                <span className="text-4xl">🎭</span>
+                <h3 className="text-white text-xl font-bold mt-2">FABRIZIO</h3>
+                <p className="text-green-200 text-sm mt-1">Scegli la tua azione bonus di inizio turno</p>
+              </div>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => setFabrizioDialog(null)}
+                  className="w-full px-4 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition-all duration-200 hover:scale-105 border border-green-400/30"
+                >
+                  🃏 Gioca una carta normalmente
+                </button>
+                <button
+                  onClick={() => {
+                    socket.emit('fabrizio-pti-choice', { gameId: gameId });
+                    setFabrizioDialog(null);
+                  }}
+                  className="w-full px-4 py-3 bg-yellow-600 hover:bg-yellow-500 text-white font-bold rounded-lg transition-all duration-200 hover:scale-105 border border-yellow-400/30"
+                >
+                  ⭐ +100 PTI a {fabrizioDialog.characterName} (ora: {fabrizioDialog.currentPti})
+                </button>
               </div>
             </div>
           </div>

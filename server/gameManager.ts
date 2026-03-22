@@ -137,6 +137,11 @@ interface Card {
   placedByLellelelle?: boolean; // True for mosse cards placed on field by LELLELLELELLE effect
   // GIGI PROIETTILE — immediate attack when placed
   canAttackImmediately?: boolean; // Can use MOSSE on the same turn they're placed
+  // BAMBOLA DEL DEMONIO — 3-turn immunity then field reset
+  enteredAtTurn?: number;
+  immuneToAttacks?: boolean;
+  // GIANNI GIGANTI — blocked for N turns after kill
+  blockedForTurns?: number;
 }
 
 interface Player {
@@ -152,6 +157,7 @@ interface Player {
   avatar?: string; // Player's chosen avatar ID
   customAvatarUrl?: string; // Custom image URL (e.g. gym leader image)
   extraMosseAllowed?: boolean; // ERNESTO: granted one extra MOSSE after a kill this turn
+  daddy_conte_blocked_char_id?: string; // DADDY CONTE: blocked character ID for this turn
 }
 
 interface TransferRequest {
@@ -3826,6 +3832,21 @@ Rispondi SOLO in JSON:`;
           });
         }
         console.log(`🚀 GIGI PROIETTILE: canAttackImmediately = true for ${playerName}`);
+      }
+
+      // BAMBOLA DEL DEMONIO: 3-turn immunity on entry
+      if (isPersonaggio && (card.frontImage || '').toLowerCase().includes('bambola-del-demonio')) {
+        card.immuneToAttacks = true;
+        card.enteredAtTurn = (game as any).globalTurnCount || 0;
+        const ioBD = (global as any).io;
+        if (ioBD) {
+          ioBD.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-bambola-entry`, playerName: 'Sistema',
+            message: `🪆 BAMBOLA DEL DEMONIO in campo! Immune agli attacchi per 3 turni!`,
+            timestamp: Date.now()
+          });
+        }
+        console.log(`🪆 BAMBOLA DEL DEMONIO: immuneToAttacks = true, enteredAtTurn = ${card.enteredAtTurn} for ${playerName}`);
       }
 
       // Gym mode: send leader message when CPU plays a card
@@ -11899,6 +11920,27 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (game.players[attackerName]?.extraMosseAllowed) {
       game.players[attackerName].extraMosseAllowed = false;
       console.log(`💪 ERNESTO: extraMosseAllowed consumed for ${attackerName} — attack commits`);
+    }
+
+    // GIANNI GIGANTI: if blocked for turns, cannot attack
+    if (!isHandTarget && attackerCharacter && (attackerCharacter as any).blockedForTurns > 0 &&
+        (attackerCharacter.frontImage || '').toLowerCase().includes('gianni-giganti')) {
+      const turnsLeft = (attackerCharacter as any).blockedForTurns;
+      console.log(`😴 GIANNI GIGANTI: blocked for ${turnsLeft} more turns`);
+      return { success: false, error: `😴 GIANNI GIGANTI è esausto! Ancora ${turnsLeft} turni di riposo.` };
+    }
+
+    // DADDY CONTE: if the attacker's character is blocked by target owner's DADDY CONTE
+    if (!isHandTarget && !isDuelAttack && attackerCharacter) {
+      const ioTgtOwn = targetOwnerName;
+      const dadyConteOwner = ioTgtOwn && game.players[ioTgtOwn];
+      if (dadyConteOwner) {
+        const blockedId = (dadyConteOwner as any).daddy_conte_blocked_char_id;
+        if (blockedId && attackerCharacter.id === blockedId) {
+          console.log(`🤵 DADDY CONTE: attack blocked — attacker char ${attackerCharacter.id} is on the block list`);
+          return { success: false, error: '🤵 DADDY CONTE ha bloccato questo personaggio dagli attacchi per questo turno!' };
+        }
+      }
     }
 
     // SAGOME INTERCEPTION: If target owner has active sagome, absorb the attack on a sagoma
@@ -20803,6 +20845,97 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
+    // Increment global turn counter (used by GHELLER, BAMBOLA DEL DEMONIO, etc.)
+    (gameState as any).globalTurnCount = ((gameState as any).globalTurnCount || 0) + 1;
+    const currentGlobalTurn: number = (gameState as any).globalTurnCount;
+
+    // GIANNI GIGANTI: decrement blocked turns
+    if (gameState.field) {
+      const ioGG = (global as any).io;
+      for (const fc of gameState.field) {
+        if ((fc as any).blockedForTurns > 0 && (fc.frontImage || '').toLowerCase().includes('gianni-giganti')) {
+          (fc as any).blockedForTurns--;
+          console.log(`😴 GIANNI GIGANTI: blockedForTurns → ${(fc as any).blockedForTurns}`);
+          if ((fc as any).blockedForTurns === 0 && ioGG) {
+            ioGG.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-gianni-unblocked`, playerName: 'Sistema',
+              message: `💪 GIANNI GIGANTI è tornato in forze! Può attaccare di nuovo!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
+    }
+
+    // GHELLER: check traps — kill attacker's current character if GHELLER survived 3 turns
+    if ((gameState as any).gheller_traps && (gameState as any).gheller_traps.length > 0) {
+      const ioGH = (global as any).io;
+      const aliveTraps: any[] = [];
+      for (const trap of (gameState as any).gheller_traps as any[]) {
+        const turnsElapsed = currentGlobalTurn - trap.attackedAtTurn;
+        if (turnsElapsed >= 3) {
+          const gheller = gameState.field.find((c: Card) => c.id === trap.ghellerId);
+          if (gheller) {
+            const atkChar = this.getPlayerActiveCharacter(gameState as any, trap.attackerName);
+            if (atkChar) {
+              console.log(`👹 GHELLER: trap fires! Killing ${atkChar.name} (${trap.attackerName})`);
+              this.moveToGraveyard(gameId, atkChar.id, trap.attackerName, 'GHELLER_TRAP');
+              if (ioGH) {
+                ioGH.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-gheller-fire`, playerName: 'Sistema',
+                  message: `👹 GHELLER vendetta! ${atkChar.name || trap.attackerName} viene eliminato per aver attaccato GHELLER 3 turni fa!`,
+                  timestamp: Date.now()
+                });
+              }
+            }
+          }
+        } else {
+          aliveTraps.push(trap);
+        }
+      }
+      (gameState as any).gheller_traps = aliveTraps;
+    }
+
+    // BAMBOLA DEL DEMONIO: check 3-turn immunity — all to 1 PTI then return to deck
+    if (gameState.field) {
+      const ioBD = (global as any).io;
+      for (const fc of [...gameState.field]) {
+        if ((fc as any).immuneToAttacks && (fc.frontImage || '').toLowerCase().includes('bambola-del-demonio')) {
+          const turnsInField = currentGlobalTurn - ((fc as any).enteredAtTurn || 0);
+          if (turnsInField >= 3) {
+            console.log(`🪆 BAMBOLA DEL DEMONIO: 3 turns elapsed — resetting all PTI to 1 and returning to deck`);
+            for (const fld of gameState.field) {
+              if (fld.type === 'personaggi' || fld.type === 'personaggi_speciali') {
+                fld.pti = 1;
+                this.updateCardTextWithPTI(fld);
+              }
+            }
+            const bambolaOwner = fc.owner;
+            this.returnToDeck(gameId, fc.id, bambolaOwner);
+            if (ioBD) {
+              ioBD.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-bambola-trigger`, playerName: 'Sistema',
+                message: `💀 BAMBOLA DEL DEMONIO ha completato la sua mossa oscura! Tutti i personaggi sono ridotti a 1 PTI!`,
+                timestamp: Date.now()
+              });
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    // DADDY CONTE: reset blocked character at end of DADDY CONTE owner's turn
+    if (gameState.players && (gameState.players[playerName] as any)?.daddy_conte_blocked_char_id) {
+      const hasDaddyConte = gameState.field.some((c: Card) =>
+        c.owner === playerName && (c.frontImage || '').toLowerCase().includes('daddy-conte')
+      );
+      if (hasDaddyConte) {
+        (gameState.players[playerName] as any).daddy_conte_blocked_char_id = null;
+        console.log(`🤵 DADDY CONTE: blocking reset for ${playerName}`);
+      }
+    }
+
     // Decrement attackBlocks (bonus-32)
     if ((gameState as any).attackBlocks) {
       const blocks = (gameState as any).attackBlocks as Record<string, { blockedFrom: string; turnsLeft: number }>;
@@ -25001,6 +25134,74 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     // ========== CUSTOM EFFECT INTEGRATION: SHIELD, REFLECT, COUNTER, LIFESTEAL ==========
 
+    // CACCIATORE STRABICO: dice roll redirects the target before any damage
+    if (!isVoodooReflection && !isHandTarget && game) {
+      const csAttackerChar = this.getPlayerActiveCharacter(game, attackerName);
+      if (csAttackerChar && (csAttackerChar.frontImage || '').toLowerCase().includes('cacciatore-strabico')) {
+        const csRoll = Math.floor(Math.random() * 6) + 1;
+        const ioCS = (global as any).io || io;
+        ioCS.to(gameId).emit('dice-rolled', { value: csRoll, playerName: attackerName });
+        let csMsg = `🎲 CACCIATORE STRABICO: dado = ${csRoll}`;
+        if (csRoll <= 2 || csRoll >= 5) {
+          const tOwnIdx = game.turnOrder.indexOf(targetOwner);
+          if (tOwnIdx !== -1) {
+            const shift = csRoll <= 2 ? -1 : 1;
+            const newOwnIdx = (tOwnIdx + shift + game.turnOrder.length) % game.turnOrder.length;
+            const newOwner = game.turnOrder[newOwnIdx];
+            const newTgt = game.field.find((c: Card) =>
+              c.owner === newOwner && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+            );
+            if (newTgt && newOwner !== attackerName) {
+              targetCard = newTgt;
+              targetOwner = newOwner;
+              csMsg += `, bersaglio deviato a ${newTgt.name || this.getCardNameFromUrl(newTgt.frontImage || '')}!`;
+              console.log(`🎲 CACCIATORE STRABICO: dado ${csRoll} — redirected to ${newTgt.name} (${newOwner})`);
+            } else {
+              csMsg += ` (nessun bersaglio valido, attacco normale)`;
+            }
+          }
+        } else {
+          csMsg += ` — bersaglio normale`;
+        }
+        ioCS.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-cacciatore-strabico`, playerName: 'Sistema',
+          message: csMsg, timestamp: Date.now()
+        });
+      }
+    }
+
+    // BAMBOLA DEL DEMONIO: immune to attacks for 3 turns
+    if (!isVoodooReflection && (targetCard as any).immuneToAttacks &&
+        (targetCard.frontImage || '').toLowerCase().includes('bambola-del-demonio')) {
+      const ioImm = (global as any).io || io;
+      ioImm.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-bambola-immune`, playerName: 'Sistema',
+        message: `🛡️ BAMBOLA DEL DEMONIO è immune agli attacchi!`,
+        timestamp: Date.now()
+      });
+      console.log(`🪆 BAMBOLA DEL DEMONIO: attack blocked (immuneToAttacks = true)`);
+      return;
+    }
+
+    // GHELLER: register trap when attacked (check at end of turn if GHELLER still alive)
+    if (!isVoodooReflection && !isHandTarget &&
+        (targetCard.frontImage || '').toLowerCase().includes('gheller')) {
+      if (!(game as any).gheller_traps) (game as any).gheller_traps = [];
+      (game as any).gheller_traps.push({
+        attackerName,
+        attackerCharId: (this.getPlayerActiveCharacter(game, attackerName))?.id || '',
+        attackedAtTurn: (game as any).globalTurnCount || 0,
+        ghellerId: targetCard.id,
+        ghellerOwner: targetOwner
+      });
+      console.log(`👹 GHELLER: trap registered for attacker ${attackerName} at turn ${(game as any).globalTurnCount || 0}`);
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-gheller-trap`, playerName: 'Sistema',
+        message: `👹 GHELLER ha registrato l'attacco! Se sopravvive 3 turni, chi ha attaccato verrà eliminato!`,
+        timestamp: Date.now()
+      });
+    }
+
     // FRA MARTINO: when attacked, immediately returns to owner's deck (no damage)
     if (!isHandTarget && !isVoodooReflection && (targetCard.frontImage || '').toLowerCase().includes('fra-martino')) {
       const fraName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '');
@@ -25045,6 +25246,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-carmine-shield`, playerName: 'Sistema',
           message: `🛡️ CARMINE! Il danno è stato ridotto di 10 PTI (${carmineDmg} → ${effectiveDamage})!`,
+          timestamp: Date.now()
+        });
+      }
+    }
+
+    // GIANNI GIGANTI: instakill — damage equals target's full PTI; then block GIANNI for 3 turns
+    if (!isVoodooReflection && !isHandTarget && game) {
+      const ggChar = this.getPlayerActiveCharacter(game, attackerName);
+      if (ggChar && (ggChar.frontImage || '').toLowerCase().includes('gianni-giganti')) {
+        const ggPti = targetCard.pti || effectiveDamage;
+        console.log(`💥 GIANNI GIGANTI: instakill — damage set to ${ggPti} (was ${effectiveDamage})`);
+        effectiveDamage = ggPti;
+        (ggChar as any).blockedForTurns = 3;
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-gianni-giganti-kill`, playerName: 'Sistema',
+          message: `💥 GIANNI GIGANTI: kill istantaneo! Ma ora è esausto per 3 turni`,
           timestamp: Date.now()
         });
       }
