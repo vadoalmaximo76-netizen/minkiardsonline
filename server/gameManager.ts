@@ -25932,6 +25932,42 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (result.eliminationCheck) {
           this.processEliminationAfterDeath(gameId, targetOwner, io, 'MOSSE_DAMAGE');
         }
+
+        // EMIS KILLA: +1 star when EMIS KILLA is the active attacking character and gets a kill
+        if (result.success && game) {
+          const emisKillaChar = this.getPlayerActiveCharacter(game, attackerName);
+          if (emisKillaChar && (emisKillaChar.frontImage || '').toLowerCase().includes('emis-killa')) {
+            const oldStars = emisKillaChar.stars ?? this.extractStarsFromNote(emisKillaChar.text || '');
+            const newStars = oldStars + 1;
+            emisKillaChar.stars = newStars;
+            if (emisKillaChar.text) {
+              emisKillaChar.text = emisKillaChar.text.replace(/Stelle:\s*\d+/i, `Stelle: ${newStars}`);
+            }
+            this.updateCardTextWithPTI(emisKillaChar);
+            console.log(`🎤 EMIS KILLA: +1 star on MOSSE kill (${oldStars} → ${newStars})`);
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-emis-killa-star`, playerName: 'Sistema',
+              message: `🎤 EMIS KILLA ha ucciso! +1 stella 🌟 (Stelle: ${oldStars} → ${newStars})`,
+              timestamp: Date.now()
+            });
+          }
+        }
+
+        // ERNESTO: grant extra MOSSE slot when ERNESTO is the active attacking character and gets a kill
+        if (result.success && game) {
+          const ernestoChar = this.getPlayerActiveCharacter(game, attackerName);
+          if (ernestoChar && (ernestoChar.frontImage || '').toLowerCase().includes('ernesto')) {
+            if (game.players[attackerName]) {
+              game.players[attackerName].extraMosseAllowed = true;
+            }
+            console.log(`💪 ERNESTO: extraMosseAllowed set for ${attackerName} after MOSSE kill`);
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-ernesto-extra`, playerName: 'Sistema',
+              message: `💪 ERNESTO ha ucciso! Puoi usare un'altra MOSSE in questo turno!`,
+              timestamp: Date.now()
+            });
+          }
+        }
       }
       
       // PRESERVE: PTI ABSORPTION SYSTEM (exact legacy implementation)
