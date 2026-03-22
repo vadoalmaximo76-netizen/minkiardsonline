@@ -7195,81 +7195,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // OSTAGGIO: Process hostage turn countdown - counts ALL turns (any player ending), not just captor's turns
         gameManager.processHostageTurns(gameId, playerName, io);
 
-        // ===== TURN-START PERSONAGGI EFFECTS for nextPlayer =====
-        {
-          const tsGs = gameManager.getGameState(gameId);
-          const tsNextPlayer = nextPlayer;
-          if (tsGs && tsNextPlayer) {
-            const tsNextPlayerData = tsGs.players[tsNextPlayer];
-            const tsIsHuman = tsNextPlayerData && !tsNextPlayerData.isCPU && !tsNextPlayer.startsWith('CPU-');
-
-            // DON DOMENICO CERRONE: automatic dice at start of turn — odd=halve PTI, even=double PTI
-            const domenicoCards = tsGs.field.filter((c: any) =>
-              c.owner === tsNextPlayer &&
-              (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
-              (c.frontImage || '').toLowerCase().includes('don-domenico-cerrone')
-            );
-            for (const domCard of domenicoCards) {
-              const domRoll = Math.floor(Math.random() * 6) + 1;
-              const domEven = domRoll % 2 === 0;
-              const oldPti = domCard.pti || 0;
-              domCard.pti = domEven ? oldPti * 2 : Math.max(1, Math.floor(oldPti / 2));
-              (gameManager as any).updateCardTextWithPTI?.(domCard);
-              io.to(gameId).emit('dice-rolled', { value: domRoll, playerName: tsNextPlayer });
-              io.to(gameId).emit('chat-message', {
-                id: `${Date.now()}-don-domenico`, playerName: 'Sistema',
-                message: `🎲 DON DOMENICO CERRONE: dado = ${domRoll} (${domEven ? 'pari' : 'dispari'}) — PTI ${oldPti} → ${domCard.pti}!`,
-                timestamp: Date.now()
-              });
-              console.log(`🎲 DON DOMENICO CERRONE: roll=${domRoll} (${domEven ? 'even' : 'odd'}), PTI ${oldPti} → ${domCard.pti}`);
-            }
-
-            // DADDY CONTE: emit choice to next human player to choose blocked character
-            if (tsIsHuman && tsNextPlayerData?.socketId) {
-              const daddyConte = tsGs.field.find((c: any) =>
-                c.owner === tsNextPlayer &&
-                (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
-                (c.frontImage || '').toLowerCase().includes('daddy-conte')
-              );
-              if (daddyConte) {
-                const enemyChars = tsGs.field.filter((c: any) =>
-                  c.owner !== tsNextPlayer &&
-                  (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-                );
-                if (enemyChars.length > 0) {
-                  (tsNextPlayerData as any).pendingDaddyConteChoice = true;
-                  io.to(tsNextPlayerData.socketId).emit('daddy-conte-choice', {
-                    characters: enemyChars.map((c: any) => ({
-                      id: c.id,
-                      name: c.name || '',
-                      frontImage: c.frontImage || '',
-                      owner: c.owner
-                    }))
-                  });
-                  console.log(`🤵 DADDY CONTE: emitting choice to ${tsNextPlayer} with ${enemyChars.length} enemy chars (pendingDaddyConteChoice=true)`);
-                }
-              }
-            }
-
-            // FABRIZIO: emit choice to next human player (play card or +100 PTI)
-            if (tsIsHuman && tsNextPlayerData?.socketId) {
-              const fabrizioCard = tsGs.field.find((c: any) =>
-                c.owner === tsNextPlayer &&
-                (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
-                (c.frontImage || '').toLowerCase().includes('fabrizio')
-              );
-              if (fabrizioCard) {
-                (tsNextPlayerData as any).pendingFabrizioChoice = true;
-                io.to(tsNextPlayerData.socketId).emit('fabrizio-choice', {
-                  characterName: fabrizioCard.name || 'FABRIZIO',
-                  characterId: fabrizioCard.id,
-                  currentPti: fabrizioCard.pti || 0
-                });
-                console.log(`🎭 FABRIZIO: emitting choice to ${tsNextPlayer} (pendingFabrizioChoice=true)`);
-              }
-            }
-          }
-        }
+        // NOTE: DON DOMENICO, DADDY CONTE, FABRIZIO turn-start effects are now handled
+        // inside gameManager.endTurn() so they fire on ALL turn transitions.
 
         // Send game state update after hostage processing
         emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));

@@ -11955,16 +11955,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       console.log(`💪 ERNESTO: extraMosseAllowed consumed for ${attackerName} — attack commits`);
     }
 
-    // GIANNI GIGANTI: if blocked for turns, cannot attack
-    if (!isHandTarget && attackerCharacter && (attackerCharacter as any).blockedForTurns > 0 &&
+    // GIANNI GIGANTI: if blocked for turns, cannot attack (applies to ALL attack paths)
+    if (attackerCharacter && (attackerCharacter as any).blockedForTurns > 0 &&
         (attackerCharacter.frontImage || '').toLowerCase().includes('gianni-giganti')) {
       const turnsLeft = (attackerCharacter as any).blockedForTurns;
       console.log(`😴 GIANNI GIGANTI: blocked for ${turnsLeft} more turns`);
       return { success: false, error: `😴 GIANNI GIGANTI è esausto! Ancora ${turnsLeft} turni di riposo.` };
     }
 
-    // DADDY CONTE / FABRIZIO: attacker must resolve their pending choice before acting
-    if (!isHandTarget) {
+    // DADDY CONTE / FABRIZIO: attacker must resolve their pending choice before acting (applies to ALL attack paths)
+    {
       const attackerPlayer = game.players[attackerName];
       if (attackerPlayer) {
         if ((attackerPlayer as any).pendingDaddyConteChoice) {
@@ -21561,6 +21561,76 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         // Start inactivity timer for the next human player
         this.startTurnTimer(gameId, nextPlayer);
+
+        // ===== TURN-START PERSONAGGI EFFECTS (DON DOMENICO, DADDY CONTE, FABRIZIO) =====
+        // These run here so they fire on ALL turn transitions (not just the socket end-turn path).
+        const tsIo = (global as any).io;
+        if (tsIo) {
+          // DON DOMENICO CERRONE: automatic dice at start of turn — even=PTI×2, odd=PTI÷2
+          const domenicoCards = gameState.field.filter((c: Card) =>
+            c.owner === nextPlayer &&
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+            (c.frontImage || '').toLowerCase().includes('don-domenico-cerrone')
+          );
+          for (const domCard of domenicoCards) {
+            const domRoll = Math.floor(Math.random() * 6) + 1;
+            const domEven = domRoll % 2 === 0;
+            const oldPti = domCard.pti || 0;
+            domCard.pti = domEven ? oldPti * 2 : Math.max(1, Math.floor(oldPti / 2));
+            (this as any).updateCardTextWithPTI?.(domCard);
+            tsIo.to(gameId).emit('dice-rolled', { value: domRoll, playerName: nextPlayer });
+            tsIo.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-don-domenico`, playerName: 'Sistema',
+              message: `🎲 DON DOMENICO CERRONE: dado = ${domRoll} (${domEven ? 'pari' : 'dispari'}) — PTI ${oldPti} → ${domCard.pti}!`,
+              timestamp: Date.now()
+            });
+            console.log(`🎲 DON DOMENICO CERRONE (endTurn): roll=${domRoll}, PTI ${oldPti} → ${domCard.pti}`);
+          }
+
+          // DADDY CONTE & FABRIZIO: emit choices only for human players
+          const tsNextPlayerData = gameState.players[nextPlayer] as any;
+          const tsNextIsHuman = tsNextPlayerData && !tsNextPlayerData.isCPU && !nextPlayer.startsWith('CPU-');
+          if (tsNextIsHuman && tsNextPlayerData?.socketId) {
+            // DADDY CONTE
+            const daddyConte = gameState.field.find((c: Card) =>
+              c.owner === nextPlayer &&
+              (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+              (c.frontImage || '').toLowerCase().includes('daddy-conte')
+            );
+            if (daddyConte) {
+              const enemyChars = gameState.field.filter((c: Card) =>
+                c.owner !== nextPlayer &&
+                (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+              );
+              if (enemyChars.length > 0) {
+                tsNextPlayerData.pendingDaddyConteChoice = true;
+                tsIo.to(tsNextPlayerData.socketId).emit('daddy-conte-choice', {
+                  characters: enemyChars.map((c: Card) => ({
+                    id: c.id, name: c.name || '', frontImage: c.frontImage || '', owner: c.owner
+                  }))
+                });
+                console.log(`🤵 DADDY CONTE (endTurn): emitting choice to ${nextPlayer} (pendingDaddyConteChoice=true)`);
+              }
+            }
+            // FABRIZIO
+            const fabrizioCard = gameState.field.find((c: Card) =>
+              c.owner === nextPlayer &&
+              (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+              (c.frontImage || '').toLowerCase().includes('fabrizio')
+            );
+            if (fabrizioCard) {
+              tsNextPlayerData.pendingFabrizioChoice = true;
+              tsIo.to(tsNextPlayerData.socketId).emit('fabrizio-choice', {
+                characterName: fabrizioCard.name || 'FABRIZIO',
+                characterId: fabrizioCard.id,
+                currentPti: fabrizioCard.pti || 0
+              });
+              console.log(`🎭 FABRIZIO (endTurn): emitting choice to ${nextPlayer} (pendingFabrizioChoice=true)`);
+            }
+          }
+        }
+        // =======================================================================
+
         return nextPlayer;
       }
       
@@ -25334,7 +25404,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const ggPti = targetCard.pti || effectiveDamage;
         console.log(`💥 GIANNI GIGANTI: instakill — damage set to ${ggPti} (was ${effectiveDamage})`);
         effectiveDamage = ggPti;
-        (ggChar as any).blockedForTurns = 3;
+        (ggChar as any).blockedForTurns = 4; // 4 so that after same-turn-end decrement → 3 blocked turns
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-gianni-giganti-kill`, playerName: 'Sistema',
           message: `💥 GIANNI GIGANTI: kill istantaneo! Ma ora è esausto per 3 turni`,
