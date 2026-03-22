@@ -128,6 +128,13 @@ interface Card {
   mosseCanCounter?: boolean; // True if this MOSSE can be used to counter-attack
   mosseCanBeCountered?: boolean; // True if this MOSSE can be countered when used to attack
   counterMosseOnField?: boolean; // True when MOSSE is temporarily on field after counter-attack
+  // CAPELLO SMITH clone-pair system
+  capelloSmithCloneGroup?: string; // Group ID shared by original and clone
+  capelloSmithNonCountedDeath?: boolean; // True for the first clone death (excluded from elimination count)
+  // CAZZOTTO IN TESTA kill-bonus suppression
+  noKillBonusPending?: boolean; // Character won't grant +100 PTI to an attacker who kills it (flag on ATTACKER)
+  // LELLELLELELLE field placement
+  placedByLellelelle?: boolean; // True for mosse cards placed on field by LELLELLELELLE effect
 }
 
 interface Player {
@@ -8660,7 +8667,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const isCapelloSmith = (cloneSelfActiveChar.frontImage || '').toLowerCase().includes('capello-smith');
           const cloneGroupId = isCapelloSmith ? `capello-smith-group-${Date.now()}` : undefined;
           if (isCapelloSmith && cloneGroupId) {
-            (cloneSelfActiveChar as any).capelloSmithCloneGroup = cloneGroupId;
+            cloneSelfActiveChar.capelloSmithCloneGroup = cloneGroupId;
           }
           const clonedCard: Card = {
             ...cloneSelfActiveChar,
@@ -8668,7 +8675,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             name: `${cloneSelfActiveChar.name} (Clone)`,
           };
           if (isCapelloSmith && cloneGroupId) {
-            (clonedCard as any).capelloSmithCloneGroup = cloneGroupId;
+            clonedCard.capelloSmithCloneGroup = cloneGroupId;
           }
           game.field.push(clonedCard);
           console.log(`🧬 CLONE SELF: Created clone of ${cloneSelfActiveChar.name} on the field!${isCapelloSmith ? ` (Capello Smith group: ${cloneGroupId})` : ''}`);
@@ -14764,23 +14771,23 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const graveyardCount = game.graveyard.filter(
         graveyardCard => graveyardCard.owner === cardOwner &&
           (graveyardCard.type === 'personaggi' || graveyardCard.type === 'personaggi_speciali') &&
-          !(graveyardCard as any).capelloSmithNonCountedDeath
+          !graveyardCard.capelloSmithNonCountedDeath
       ).length;
 
       // CAPELLO SMITH CLONE GROUP: when first clone dies, transform the survivor and skip elimination/counter
-      if ((card as any).capelloSmithCloneGroup) {
-        const groupId = (card as any).capelloSmithCloneGroup;
+      if (card.capelloSmithCloneGroup) {
+        const groupId = card.capelloSmithCloneGroup;
         const survivor = game.field.find((c: Card) =>
-          c.id !== card.id && (c as any).capelloSmithCloneGroup === groupId &&
+          c.id !== card.id && c.capelloSmithCloneGroup === groupId &&
           (c.type === 'personaggi' || c.type === 'personaggi_speciali')
         );
         if (survivor) {
           // Mark the dead clone in graveyard as non-counted so it doesn't inflate death counter
           const deadInGrave = game.graveyard.find((c: Card) => c.id === card.id);
-          if (deadInGrave) (deadInGrave as any).capelloSmithNonCountedDeath = true;
+          if (deadInGrave) deadInGrave.capelloSmithNonCountedDeath = true;
 
           // First clone death — transform survivor using existing mechanism if transformsInto is set
-          delete (survivor as any).capelloSmithCloneGroup;
+          survivor.capelloSmithCloneGroup = undefined;
           const survivorMod = jsonStorage.cardModifications.getByOriginalCardId(survivor.id.replace(/-clone-\d+$/, ''));
           const transformTarget = survivor.transformsInto || survivorMod?.transformsInto;
           if (transformTarget) {
@@ -24988,7 +24995,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
         case 'no_kill_bonus':
           // CAZZOTTO IN TESTA (mosse-18): mark target so attacker won't get the 100 PTI kill bonus
-          (targetCard as any).noKillBonusPending = true;
+          targetCard.noKillBonusPending = true;
           effectMessage = '👊 CAZZOTTO IN TESTA! Niente bonus PTI per l\'eliminazione!';
           console.log(`👊 NO KILL BONUS: Target ${targetCard.id} flagged — attacker won't gain +100 PTI on kill`);
           break;
@@ -25249,8 +25256,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             }
             llDrawn.push({ name: llDrawnName, dmg: llDrawnDmg });
             // Place drawn mosse on field (in campo, unused) — tagged so UI can show them
-            (llDrawnCard as any).placedByLellelelle = true;
-            (llDrawnCard as any).owner = llTargetOwner;
+            llDrawnCard.placedByLellelelle = true;
+            llDrawnCard.owner = llTargetOwner;
             game.field.push(llDrawnCard);
           }
           const llHasHighDmg = llDrawn.some(d => d.dmg >= 100);
@@ -25663,8 +25670,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       
       // PRESERVE: HARDENED PTI ABSORPTION (fixed: absorb when character dies regardless of previous PTI)
-      // CAZZOTTO IN TESTA: skip absorption if the ATTACKER was previously hit by no_kill_bonus mosse
-      if (attackerCharacter && newPTI <= 0 && !(attackerCharacter as any).noKillBonusPending) {
+      // CAZZOTTO IN TESTA: skip if ANY attacker character carries noKillBonusPending (covers multi-char edge cases)
+      const noKillBonusActive = attackerCharacters.some((c: Card) => c.noKillBonusPending);
+      if (attackerCharacter && newPTI <= 0 && !noKillBonusActive) {
         const attackerNotes = attackerCharacter.text || '';
         const attackerPtiMatch = attackerNotes.match(/PTI:\s*(\d+)/i);
         let attackerCurrentPTI = attackerPtiMatch ? parseInt(attackerPtiMatch[1]) : 100;
@@ -25697,7 +25705,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         } else {
           console.log(`PTI ABSORPTION SKIPPED: Invalid data (absorbedPTI=${absorbedPTI}, newPTI=${newAttackerPTI})`);
         }
-      } else if ((attackerCharacter as any)?.noKillBonusPending && newPTI <= 0) {
+      } else if (noKillBonusActive && newPTI <= 0) {
         console.log(`👊 NO KILL BONUS: PTI absorption suppressed for ${attackerName} — attacker was hit by CAZZOTTO IN TESTA`);
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-no-kill-bonus`,
