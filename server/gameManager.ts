@@ -11983,8 +11983,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       if (dadyConteOwner) {
         const blockedId = (dadyConteOwner as any).daddy_conte_blocked_char_id;
         if (blockedId && attackerCharacter.id === blockedId) {
-          console.log(`🤵 DADDY CONTE: attack blocked — attacker char ${attackerCharacter.id} is on the block list`);
-          return { success: false, error: '🤵 DADDY CONTE ha bloccato questo personaggio dagli attacchi per questo turno!' };
+          // Verify target owner still has DADDY CONTE on the field; clear stale block if not
+          const daddyConteActive = game.field.some((c: Card) =>
+            c.owner === ioTgtOwn && (c.frontImage || '').toLowerCase().includes('daddy-conte')
+          );
+          if (daddyConteActive) {
+            console.log(`🤵 DADDY CONTE: attack blocked — attacker char ${attackerCharacter.id} is on the block list`);
+            return { success: false, error: '🤵 DADDY CONTE ha bloccato questo personaggio dagli attacchi per questo turno!' };
+          } else {
+            // DADDY CONTE left the field — clear stale block
+            (dadyConteOwner as any).daddy_conte_blocked_char_id = null;
+            console.log(`🤵 DADDY CONTE: stale block cleared (DADDY CONTE no longer on field for ${ioTgtOwn})`);
+          }
         }
       }
     }
@@ -20971,18 +20981,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
-    // DADDY CONTE: reset blocked character + pending choice at end of DADDY CONTE owner's turn
+    // DADDY CONTE: reset blocked character + pending choice at end of each turn
     if (gameState.players) {
       for (const pName of Object.keys(gameState.players)) {
         const pp = gameState.players[pName] as any;
+        // Unconditionally clear the block each turn (block is per-turn only)
         if (pp.daddy_conte_blocked_char_id) {
-          const hasDaddyConte = gameState.field.some((c: Card) =>
-            c.owner === pName && (c.frontImage || '').toLowerCase().includes('daddy-conte')
-          );
-          if (hasDaddyConte && pName === playerName) {
-            pp.daddy_conte_blocked_char_id = null;
-            console.log(`🤵 DADDY CONTE: blocking reset for ${pName}`);
-          }
+          pp.daddy_conte_blocked_char_id = null;
+          console.log(`🤵 DADDY CONTE: blocking reset for ${pName}`);
         }
         // Reset all choice-pending flags at each turn change
         if (pp.pendingDaddyConteChoice) {
@@ -25218,6 +25224,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             if (newTgt && newOwner !== attackerName) {
               targetCard = newTgt;
               targetOwner = newOwner;
+              targetCardId = newTgt.id;
               csMsg += `, bersaglio deviato a ${newTgt.name || this.getCardNameFromUrl(newTgt.frontImage || '')}!`;
               console.log(`🎲 CACCIATORE STRABICO: dado ${csRoll} — redirected to ${newTgt.name} (${newOwner})`);
             } else {

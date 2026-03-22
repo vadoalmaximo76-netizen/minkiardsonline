@@ -4049,9 +4049,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!socketPlayerName) return;
       const currentPlayer = game.turnOrder[game.currentTurnIndex];
       if (currentPlayer !== socketPlayerName) return;
-      (game.players[socketPlayerName] as any).daddy_conte_blocked_char_id = characterId;
-      (game.players[socketPlayerName] as any).pendingDaddyConteChoice = false;
-      const chosenChar = game.field.find((c: any) => c.id === characterId);
+      const playerData = game.players[socketPlayerName] as any;
+      // Auth check 1: must have a pending choice
+      if (!playerData?.pendingDaddyConteChoice) {
+        console.log(`🤵 DADDY CONTE: rejected unauthorized daddy-conte-chosen from ${socketPlayerName} (no pendingDaddyConteChoice)`);
+        return;
+      }
+      // Auth check 2: DADDY CONTE must be on the caller's field
+      const hasDaddyConte = game.field.some((c: any) =>
+        c.owner === socketPlayerName && (c.frontImage || '').toLowerCase().includes('daddy-conte')
+      );
+      if (!hasDaddyConte) {
+        console.log(`🤵 DADDY CONTE: rejected — DADDY CONTE not on field for ${socketPlayerName}`);
+        playerData.pendingDaddyConteChoice = false;
+        return;
+      }
+      // Auth check 3: chosen characterId must belong to an opponent on the field
+      const chosenChar = game.field.find((c: any) =>
+        c.id === characterId && c.owner !== socketPlayerName &&
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      if (!chosenChar) {
+        console.log(`🤵 DADDY CONTE: rejected invalid target ${characterId} (not an enemy personaggio on field)`);
+        return;
+      }
+      playerData.daddy_conte_blocked_char_id = characterId;
+      playerData.pendingDaddyConteChoice = false;
       const charName = chosenChar?.name || characterId;
       io.to(gameId).emit('chat-message', {
         id: `${Date.now()}-daddy-conte-chosen`,
