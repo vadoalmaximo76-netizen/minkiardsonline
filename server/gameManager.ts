@@ -233,6 +233,7 @@ interface DelayedDamage {
   mosseCardId: string;
   turnsRemaining: number; // Countdown of defender's turns until damage is applied
   createdAt: number;
+  isAreaEffect?: boolean; // When true, hits ALL characters of defenderName at explosion time (not just targetCardId)
 }
 
 interface ParasiticAttachment {
@@ -6628,6 +6629,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             const handVariantName = targetCardId ? this.getCardNameFromCardId(targetCardId) : null;
             console.log(`🎲 VARIANTI EVOLUZIONE MANO: ${oldHandName} - Dado: ${handDiceRoll} → ${targetCardId || 'nessuno'}`);
             if (io) {
+              io.to(gameId).emit('dice-rolled', { result: handDiceRoll, playerName });
               io.to(gameId).emit('evolution-dice-roll', { playerName, characterName: oldHandName, diceResult: handDiceRoll, evolutionTarget: handVariantName, evolutionTargetId: targetCardId || null });
               io.to(gameId).emit('chat-message', { id: `${Date.now()}-evolution-dice-hand-${handCard.id}`, playerName: 'Sistema', message: targetCardId ? `🎲 DADO EVOLUZIONE! ${oldHandName} in mano di ${playerName} lancia il dado... esce ${handDiceRoll}! Si evolve in ${handVariantName}!` : `🎲 DADO EVOLUZIONE! ${oldHandName} in mano di ${playerName} lancia il dado... esce ${handDiceRoll}! Nessuna evoluzione configurata.`, timestamp: Date.now() });
             }
@@ -6800,6 +6802,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const variantTargetName = targetCardId ? this.getCardNameFromCardId(targetCardId) : null;
       
       if (io) {
+        io.to(gameId).emit('dice-rolled', { result: diceRoll, playerName });
         io.to(gameId).emit('evolution-dice-roll', {
           playerName,
           characterName: oldName,
@@ -13220,7 +13223,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     targetCardId: string,
     damageValue: number,
     mosseCardId: string,
-    turnsToDelay: number
+    turnsToDelay: number,
+    isAreaEffect: boolean = false
   ): boolean {
     const game = this.games.get(gameId);
     if (!game) return false;
@@ -13237,11 +13241,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       damageValue,
       mosseCardId,
       turnsRemaining: turnsToDelay,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      isAreaEffect
     };
     
     game.delayedDamages.push(delayedDamage);
-    console.log(`⏳ DELAYED DAMAGE: ${damageValue} PTI from ${attackerName} to ${defenderName}'s card, triggers in ${turnsToDelay} turns`);
+    console.log(`⏳ DELAYED DAMAGE${isAreaEffect ? ' (area)' : ''}: ${damageValue} PTI from ${attackerName} to ${defenderName}'s card, triggers in ${turnsToDelay} turns`);
     
     return true;
   }
@@ -13267,39 +13272,61 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       // If turns reached 0, apply the damage
       if (delayed.turnsRemaining <= 0) {
-        const targetCard = game.field.find(c => c.id === delayed.targetCardId);
-        
-        if (targetCard) {
+        // Determine which cards to hit: area effect hits ALL field chars of defender, otherwise just the stored card
+        const cardsToHit: Card[] = delayed.isAreaEffect
+          ? game.field.filter(c =>
+              c.owner === delayed.defenderName &&
+              (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+              !(c as any).isEliminated
+            )
+          : game.field.filter(c => c.id === delayed.targetCardId);
+
+        if (delayed.isAreaEffect && cardsToHit.length > 0) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-sveglia-boom`,
+            playerName: 'Sistema',
+            message: `💣 SVEGLIA PALESTINESE ESPLODE! ${delayed.damageValue} PTI a TUTTI i personaggi in campo di ${delayed.defenderName}!`,
+            timestamp: Date.now()
+          });
+        }
+
+        for (const targetCard of cardsToHit) {
           const currentPTI = this.extractPTIFromNote(targetCard.text || '');
           const newPTI = Math.max(0, currentPTI - delayed.damageValue);
           
-          // Update PTI
           const stars = this.extractStarsFromNote(targetCard.text || '');
           targetCard.text = `PTI: ${newPTI}${stars > 0 ? ` | Stelle: ${stars}` : ''}`;
           
-          appliedDamages.push({ targetCardId: delayed.targetCardId, damage: delayed.damageValue });
+          appliedDamages.push({ targetCardId: targetCard.id, damage: delayed.damageValue });
           
           const cardName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage);
           
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-delayed-damage`,
-            playerName: 'Sistema',
-            message: `⏳💥 DANNO RITARDATO! ${cardName} di ${playerName} subisce ${delayed.damageValue} PTI! (PTI: ${currentPTI} → ${newPTI})`,
-            timestamp: Date.now()
-          });
+          if (!delayed.isAreaEffect) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-delayed-damage-${targetCard.id}`,
+              playerName: 'Sistema',
+              message: `⏳💥 DANNO RITARDATO! ${cardName} di ${playerName} subisce ${delayed.damageValue} PTI! (PTI: ${currentPTI} → ${newPTI})`,
+              timestamp: Date.now()
+            });
+          } else {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-sveglia-hit-${targetCard.id}`,
+              playerName: 'Sistema',
+              message: `💥 ${cardName} subisce ${delayed.damageValue} PTI! (${currentPTI} → ${newPTI})`,
+              timestamp: Date.now()
+            });
+          }
           
           console.log(`⏳💥 DELAYED DAMAGE APPLIED: ${delayed.damageValue} PTI to ${cardName}, new PTI: ${newPTI}`);
           
-          // Check if character died
           if (newPTI <= 0) {
             io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-delayed-death`,
+              id: `${Date.now()}-delayed-death-${targetCard.id}`,
               playerName: 'Sistema',
-              message: `💀 ${cardName} di ${playerName} è stato eliminato dal danno ritardato!`,
+              message: `💀 ${cardName} di ${playerName} è stato eliminato!`,
               timestamp: Date.now()
             });
-            
-            this.killAndCheck(gameId, delayed.targetCardId, playerName, delayed.attackerName);
+            this.killAndCheck(gameId, targetCard.id, targetCard.owner, delayed.attackerName);
           }
         }
       }
@@ -24518,45 +24545,64 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const ptiMatch = currentNotes.match(/PTI:\s*(\d+)/i);
     let currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 0;
     
-    // FIX FOR ATTACCO DISONESTO: If card in hand has no PTI set, look it up from database
+    // FIX FOR ATTACCO DISONESTO: If card in hand has no PTI in text, resolve it
     if (isHandTarget && !ptiMatch) {
-      console.log(`🎯 ATTACCO DISONESTO: Target card ${targetCardId} has no PTI in text. Looking up from database...`);
-      
-      // Try to get PTI from database
-      const cardName = this.getCardNameFromUrl(targetCard.frontImage || '');
-      const dbData = await this.getPersonaggioFromDatabase(cardName);
-      
-      if (dbData && dbData.pti !== null) {
-        // Found in database - set the PTI and stars on the card
-        currentPTI = dbData.pti;
-        const starsValue = dbData.stars || 0;
+      console.log(`🎯 ATTACCO DISONESTO: Target card ${targetCardId} has no PTI in text. Resolving...`);
+
+      // Priority 1: card has a direct .pti property
+      if (targetCard.pti != null) {
+        currentPTI = targetCard.pti;
+        const starsValue = targetCard.stars ?? 0;
         targetCard.text = `PTI: ${currentPTI} | Stelle: ${starsValue}`;
         currentNotes = targetCard.text;
         updatedNotes = currentNotes;
-        
+        console.log(`✅ ATTACCO DISONESTO: Using .pti property - PTI: ${currentPTI}`);
+      } else {
+        // Priority 2: cache/database lookup by card name
+        const cardName = (targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '')).trim();
+        // Try sync cache first, then async db
+        let dbData = this.getPersonaggioFromDatabaseSync(cardName);
+        if (!dbData) {
+          dbData = await this.getPersonaggioFromDatabase(cardName);
+        }
+
+        if (dbData && dbData.pti !== null) {
+          currentPTI = dbData.pti;
+          const starsValue = dbData.stars || 0;
+          targetCard.text = `PTI: ${currentPTI} | Stelle: ${starsValue}`;
+          currentNotes = targetCard.text;
+          updatedNotes = currentNotes;
+          console.log(`✅ ATTACCO DISONESTO: Found "${cardName}" in cache/db - PTI: ${currentPTI}, Stelle: ${starsValue}`);
+        } else {
+          // Priority 3: try case-insensitive partial match
+          const cardNameUpper = cardName.toUpperCase();
+          const allCachedKeys = Object.keys((globalThis as any).__personaggiCache || {});
+          const fuzzyKey = allCachedKeys.find(k => k.toUpperCase().includes(cardNameUpper) || cardNameUpper.includes(k.toUpperCase()));
+          const fuzzyData = fuzzyKey ? this.getPersonaggioFromDatabaseSync(fuzzyKey) : null;
+
+          if (fuzzyData && fuzzyData.pti != null) {
+            currentPTI = fuzzyData.pti;
+            const starsValue = fuzzyData.stars || 0;
+            targetCard.text = `PTI: ${currentPTI} | Stelle: ${starsValue}`;
+            currentNotes = targetCard.text;
+            updatedNotes = currentNotes;
+            console.log(`✅ ATTACCO DISONESTO: Fuzzy match "${fuzzyKey}" - PTI: ${currentPTI}`);
+          } else {
+            console.warn(`⚠️ ATTACCO DISONESTO: "${cardName}" not found. Defaulting to PTI=100.`);
+            currentPTI = 100;
+            targetCard.text = `PTI: ${currentPTI} | Stelle: 0`;
+            currentNotes = targetCard.text;
+            updatedNotes = currentNotes;
+          }
+        }
+
         // Update the card in the player's hand
         const player = game?.players?.[targetOwner];
         if (player) {
           const handCardIndex = player.hand.findIndex((c: Card) => c.id === targetCardId);
           if (handCardIndex !== -1) {
             player.hand[handCardIndex].text = targetCard.text;
-          }
-        }
-        
-        console.log(`✅ ATTACCO DISONESTO: Found ${cardName} in database - PTI: ${currentPTI}, Stelle: ${starsValue}`);
-      } else {
-        console.log(`⚠️ ATTACCO DISONESTO: Card ${cardName} not found in database. Using default PTI of 100.`);
-        // Default PTI if not found in database
-        currentPTI = 100;
-        targetCard.text = `PTI: ${currentPTI} | Stelle: 0`;
-        currentNotes = targetCard.text;
-        updatedNotes = currentNotes;
-        
-        const player = game?.players?.[targetOwner];
-        if (player) {
-          const handCardIndex = player.hand.findIndex((c: Card) => c.id === targetCardId);
-          if (handCardIndex !== -1) {
-            player.hand[handCardIndex].text = targetCard.text;
+            if (targetCard.pti != null) player.hand[handCardIndex].pti = targetCard.pti;
           }
         }
       }
@@ -25140,14 +25186,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
 
         case 'delayed_damage': {
-          // mosse-84 (Sveglia Palestinese): il danno viene applicato dopo 2 turni
+          // mosse-84 (Sveglia Palestinese): il danno viene applicato dopo 2 turni a TUTTI i personaggi in campo del difensore
           if (!game) break;
           const originalDmg84 = effectiveDamage || 0;
           effectiveDamage = 0;
           const targetOwner84 = targetCard.owner;
-          this.addDelayedDamage(gameId, attackerName, targetOwner84, targetCardId, originalDmg84, mosseCardId || '', 2);
-          effectMessage = `⏳ SVEGLIA PALESTINESE: ${originalDmg84} PTI di danno verranno applicati tra 2 turni!`;
-          console.log(`⏳ DELAYED_DAMAGE: ${originalDmg84} PTI queued for ${targetOwner84}'s character (2 turns)`);
+          this.addDelayedDamage(gameId, attackerName, targetOwner84, targetCardId, originalDmg84, mosseCardId || '', 2, true);
+          effectMessage = `⏳ SVEGLIA PALESTINESE: ${originalDmg84} PTI di danno verranno applicati tra 2 turni a TUTTI i personaggi in campo!`;
+          console.log(`⏳ DELAYED_DAMAGE (area): ${originalDmg84} PTI queued for all of ${targetOwner84}'s characters (2 turns)`);
           break;
         }
 

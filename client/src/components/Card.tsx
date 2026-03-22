@@ -818,86 +818,82 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     );
   };
 
-  const handleConfirmTargetSelection = () => {
-    if (selectedTargets.length === 0) {
-      alert('Seleziona almeno un bersaglio!');
-      return;
-    }
-    
-    const allPersonaggi = gameState?.field?.filter(
-      (c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali'
-    ) || [];
-    
-    const targets = allPersonaggi.filter((c: any) => selectedTargets.includes(c.id));
+  const setupAttackWithTargets = (mosseCardArg: any, targets: any[]) => {
     setTargetCards(targets);
     setShowAttackTargetSelect(false);
-    
-    const mosseCardNameForFurto = selectedMosseCard ? getCardName(selectedMosseCard) : '';
+
+    const mosseCardNameForFurto = mosseCardArg ? getCardName(mosseCardArg) : '';
     const isFurto = mosseCardNameForFurto === 'FURTO' || mosseCardNameForFurto.includes('FURTO');
     setIsFurtoAttack(isFurto);
-    
-    const mosseCard = selectedMosseCard as any;
-    if (mosseCard) {
-      const attackerCard = gameState?.field?.find((c: any) => 
+
+    if (mosseCardArg) {
+      const attackerCard = gameState?.field?.find((c: any) =>
         c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
       );
       const attackerStars = parseStars(attackerCard?.text) ?? attackerCard?.stars ?? 1;
       const attackerName = attackerCard ? getCardName(attackerCard) : null;
-      // Use first target for character override check
       const firstTarget = targets[0];
       const targetName = firstTarget ? getCardName(firstTarget) : null;
-      
-      // Check for character-specific overrides
-      const charOverride = getCharacterOverride(mosseCard, attackerName, targetName);
-      
+
+      const charOverride = getCharacterOverride(mosseCardArg, attackerName, targetName);
+
       if (charOverride.overrideType) {
         if (charOverride.damageValue !== null) {
           const suggestedDamage = charOverride.damageValue * attackerStars;
           setDamageValue(suggestedDamage.toString());
           setMosseHasPreset(true);
-          console.log(`🎯 Multi-target override (${charOverride.overrideType}): ${charOverride.damageValue} × ${attackerStars} = ${suggestedDamage}`);
-        } else if (mosseCard.mosseDamageValue !== null && mosseCard.mosseDamageValue !== undefined) {
-          const suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
+          console.log(`🎯 Override (${charOverride.overrideType}): ${charOverride.damageValue} × ${attackerStars} = ${suggestedDamage}`);
+        } else if (mosseCardArg.mosseDamageValue !== null && mosseCardArg.mosseDamageValue !== undefined) {
+          const suggestedDamage = mosseCardArg.mosseDamageValue * attackerStars;
           setDamageValue(suggestedDamage.toString());
           setMosseHasPreset(true);
         } else {
           setDamageValue('');
           setMosseHasPreset(charOverride.effect !== null);
         }
-        setSelectedMosseEffect(charOverride.effect || mosseCard.mosseDamageEffect || null);
-      } else if (mosseCard.mosseDamageValue !== null && mosseCard.mosseDamageValue !== undefined) {
-        const suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
+        setSelectedMosseEffect(charOverride.effect || mosseCardArg.mosseDamageEffect || null);
+      } else if (mosseCardArg.mosseDamageValue !== null && mosseCardArg.mosseDamageValue !== undefined) {
+        let totalStars = attackerStars;
+        if ((mosseCardArg.frontImage || '').includes('catapulta-infernale')) {
+          const handChars = (gameState?.players as any)?.[playerName]?.hand?.filter(
+            (c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali'
+          ) || [];
+          const handStars = handChars.reduce((sum: number, c: any) => {
+            return sum + (parseStars(c.text) ?? (c.stars ?? 0));
+          }, 0);
+          totalStars = attackerStars + handStars;
+          console.log(`🪨 CATAPULTA INFERNALE: campo=${attackerStars} + mano=${handStars} = ${totalStars} stelle totali`);
+        }
+        const suggestedDamage = mosseCardArg.mosseDamageValue * totalStars;
         setDamageValue(suggestedDamage.toString());
         setMosseHasPreset(true);
-        setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
-        console.log(`🎯 Multi-target autofill: ${mosseCard.mosseDamageValue} × ${attackerStars} = ${suggestedDamage}`);
+        setSelectedMosseEffect(mosseCardArg.mosseDamageEffect || null);
+        console.log(`🎯 Autofill: ${mosseCardArg.mosseDamageValue} × ${totalStars} = ${suggestedDamage}`);
       } else {
-        const presetParsed = parsePresetDamageFromEffect(mosseCard.effect, mosseCard.name);
+        const presetParsed = parsePresetDamageFromEffect(mosseCardArg.effect, mosseCardArg.name);
         if (presetParsed.damage !== null) {
           setDamageValue(presetParsed.damage.toString());
           setMosseHasPreset(true);
-          setSelectedMosseEffect(presetParsed.effect || mosseCard.mosseDamageEffect || null);
+          setSelectedMosseEffect(presetParsed.effect || mosseCardArg.mosseDamageEffect || null);
         } else if (presetParsed.effect) {
           setDamageValue('0');
           setMosseHasPreset(true);
           setSelectedMosseEffect(presetParsed.effect);
         } else {
           setDamageValue('');
-          setMosseHasPreset(!!mosseCard.mosseDamageEffect);
-          setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
+          setMosseHasPreset(!!mosseCardArg.mosseDamageEffect);
+          setSelectedMosseEffect(mosseCardArg.mosseDamageEffect || null);
         }
       }
     }
-    
-    // CONTRATTAZIONE CLANDESTINA: skip damage dialog, emit mosse-attack directly
-    const currentMosseEffect = mosseCard?.mosseDamageEffect;
-    if (currentMosseEffect === 'contrattazione_clandestina') {
+
+    if (mosseCardArg?.mosseDamageEffect === 'contrattazione_clandestina') {
       const firstTarget = targets[0];
       if (firstTarget) {
         console.log(`🤝 CONTRATTAZIONE: emitting mosse-attack directly for ${firstTarget.owner}`);
         if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); }
         socket.emit('mosse-attack', {
-          mosseCardId: selectedMosseCard?.id,
+          mosseCardId: mosseCardArg?.id,
           targetCardId: firstTarget.id,
           attackerName: playerName,
           targetOwner: firstTarget.owner,
@@ -915,6 +911,18 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     }
 
     setShowDamageInput(true);
+  };
+
+  const handleConfirmTargetSelection = () => {
+    if (selectedTargets.length === 0) {
+      alert('Seleziona almeno un bersaglio!');
+      return;
+    }
+    const allPersonaggi = gameState?.field?.filter(
+      (c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali'
+    ) || [];
+    const targets = allPersonaggi.filter((c: any) => selectedTargets.includes(c.id));
+    setupAttackWithTargets(selectedMosseCard as any, targets);
   };
 
   const handleMultiTargetDamageConfirm = () => {
@@ -1730,10 +1738,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                   }
                   
                   if (autoTargets.length > 0) {
-                    // Set the selected targets and mosse card, then open target panel with pre-selected targets
                     setSelectedMosseCard(card);
-                    setSelectedTargets(autoTargets.map((t: any) => t.id));
-                    setShowAttackTargetSelect(true);
+                    setupAttackWithTargets(card as any, autoTargets);
                     return;
                   }
                 }
