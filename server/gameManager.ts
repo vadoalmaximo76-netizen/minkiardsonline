@@ -25019,13 +25019,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     let effectiveDamage = damageValue;
 
-    // DONALD TRUMP: 2× damage against KIM JONG UN and OBAMA
-    if (!isVoodooReflection) {
-      const attackerChars = game?.field?.filter((c: Card) =>
-        c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-      ) || [];
-      const hasTrump = attackerChars.some((c: Card) => (c.frontImage || '').toLowerCase().includes('donald-trump'));
-      if (hasTrump) {
+    // DONALD TRUMP: 2× damage when TRUMP is the active attacking character vs KIM JONG UN or OBAMA
+    if (!isVoodooReflection && game) {
+      const attackerChar = this.getPlayerActiveCharacter(game, attackerName);
+      if (attackerChar && (attackerChar.frontImage || '').toLowerCase().includes('donald-trump')) {
         const tgtImg = (targetCard.frontImage || '').toLowerCase();
         if (tgtImg.includes('kim-jong-un') || tgtImg.includes('obama')) {
           effectiveDamage = effectiveDamage * 2;
