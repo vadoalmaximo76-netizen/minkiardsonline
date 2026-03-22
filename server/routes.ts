@@ -4050,6 +4050,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentPlayer = game.turnOrder[game.currentTurnIndex];
       if (currentPlayer !== socketPlayerName) return;
       (game.players[socketPlayerName] as any).daddy_conte_blocked_char_id = characterId;
+      (game.players[socketPlayerName] as any).pendingDaddyConteChoice = false;
       const chosenChar = game.field.find((c: any) => c.id === characterId);
       const charName = chosenChar?.name || characterId;
       io.to(gameId).emit('chat-message', {
@@ -4058,7 +4059,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: `🤵 DADDY CONTE! ${socketPlayerName} ha bloccato ${charName} dagli attacchi per questo turno!`,
         timestamp: Date.now()
       });
-      console.log(`🤵 DADDY CONTE: ${socketPlayerName} blocked char ${characterId} (${charName})`);
+      console.log(`🤵 DADDY CONTE: ${socketPlayerName} blocked char ${characterId} (${charName}) — pendingDaddyConteChoice cleared`);
     });
 
     // FABRIZIO: player chose +100 PTI instead of playing a card
@@ -4071,6 +4072,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!socketPlayerName) return;
       const currentPlayer = game.turnOrder[game.currentTurnIndex];
       if (currentPlayer !== socketPlayerName) return;
+      const playerData = game.players[socketPlayerName] as any;
+      // Prevent repeated abuse: only allow once per turn when pending
+      if (!playerData?.pendingFabrizioChoice || playerData?.fabrizioChoiceConsumed) {
+        console.log(`🎭 FABRIZIO: rejected duplicate/unauthorized pti-choice from ${socketPlayerName}`);
+        return;
+      }
+      playerData.pendingFabrizioChoice = false;
+      playerData.fabrizioChoiceConsumed = true;
       const fabCard = game.field.find((c: any) =>
         c.owner === socketPlayerName &&
         (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
@@ -4088,6 +4097,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
         console.log(`🎭 FABRIZIO: +100 PTI for ${socketPlayerName}, total ${fabCard.pti}`);
+      }
+    });
+
+    // FABRIZIO: player chose to play a card (skip PTI bonus)
+    socket.on('fabrizio-skip', ({ gameId: gId }: { gameId: string }) => {
+      const gameId = gId || gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+      const socketPlayerName = gameManager.getPlayerNameFromSocket(socket.id);
+      if (!socketPlayerName) return;
+      const currentPlayer = game.turnOrder[game.currentTurnIndex];
+      if (currentPlayer !== socketPlayerName) return;
+      const playerData = game.players[socketPlayerName] as any;
+      if (playerData?.pendingFabrizioChoice) {
+        playerData.pendingFabrizioChoice = false;
+        console.log(`🎭 FABRIZIO: ${socketPlayerName} chose to play card (pendingFabrizioChoice cleared)`);
       }
     });
 
@@ -7188,6 +7214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   (c.type === 'personaggi' || c.type === 'personaggi_speciali')
                 );
                 if (enemyChars.length > 0) {
+                  (tsNextPlayerData as any).pendingDaddyConteChoice = true;
                   io.to(tsNextPlayerData.socketId).emit('daddy-conte-choice', {
                     characters: enemyChars.map((c: any) => ({
                       id: c.id,
@@ -7196,7 +7223,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       owner: c.owner
                     }))
                   });
-                  console.log(`🤵 DADDY CONTE: emitting choice to ${tsNextPlayer} with ${enemyChars.length} enemy chars`);
+                  console.log(`🤵 DADDY CONTE: emitting choice to ${tsNextPlayer} with ${enemyChars.length} enemy chars (pendingDaddyConteChoice=true)`);
                 }
               }
             }
@@ -7209,12 +7236,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 (c.frontImage || '').toLowerCase().includes('fabrizio')
               );
               if (fabrizioCard) {
+                (tsNextPlayerData as any).pendingFabrizioChoice = true;
                 io.to(tsNextPlayerData.socketId).emit('fabrizio-choice', {
                   characterName: fabrizioCard.name || 'FABRIZIO',
                   characterId: fabrizioCard.id,
                   currentPti: fabrizioCard.pti || 0
                 });
-                console.log(`🎭 FABRIZIO: emitting choice to ${tsNextPlayer}`);
+                console.log(`🎭 FABRIZIO: emitting choice to ${tsNextPlayer} (pendingFabrizioChoice=true)`);
               }
             }
           }

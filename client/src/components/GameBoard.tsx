@@ -4729,7 +4729,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               </div>
               <div className="flex flex-col gap-3">
                 <button
-                  onClick={() => setFabrizioDialog(null)}
+                  onClick={() => {
+                    socket.emit('fabrizio-skip', { gameId: gameId });
+                    setFabrizioDialog(null);
+                  }}
                   className="w-full px-4 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition-all duration-200 hover:scale-105 border border-green-400/30"
                 >
                   🃏 Gioca una carta normalmente

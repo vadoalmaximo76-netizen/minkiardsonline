@@ -158,6 +158,9 @@ interface Player {
   customAvatarUrl?: string; // Custom image URL (e.g. gym leader image)
   extraMosseAllowed?: boolean; // ERNESTO: granted one extra MOSSE after a kill this turn
   daddy_conte_blocked_char_id?: string; // DADDY CONTE: blocked character ID for this turn
+  pendingDaddyConteChoice?: boolean; // DADDY CONTE: must choose blocked char before acting
+  pendingFabrizioChoice?: boolean; // FABRIZIO: must choose (play card or +100 PTI) before acting
+  fabrizioChoiceConsumed?: boolean; // FABRIZIO: PTI choice already used this turn
 }
 
 interface TransferRequest {
@@ -3709,12 +3712,42 @@ Rispondi SOLO in JSON:`;
     }
 
     const player = game.players[playerName];
+
+    // DADDY CONTE / FABRIZIO: player must resolve pending start-of-turn choice before playing cards
+    if ((player as any).pendingDaddyConteChoice) {
+      console.log(`🤵 DADDY CONTE: ${playerName} must make their choice before playing cards`);
+      return {};
+    }
+    if ((player as any).pendingFabrizioChoice) {
+      console.log(`🎭 FABRIZIO: ${playerName} must make their start-of-turn choice before playing cards`);
+      return {};
+    }
+
     const cardIndex = player.hand.findIndex(card => card.id === cardId);
     
     if (cardIndex !== -1) {
       const card = player.hand[cardIndex];
       const isPersonaggio = card.type === 'personaggi' || card.type === 'personaggi_speciali';
-      
+
+      // GIANNI GIGANTI: if active character is GIANNI GIGANTI and exhausted, block all card plays
+      if (!game.activeDuel) {
+        const activeChar = this.getPlayerActiveCharacter(game, playerName);
+        if (activeChar && (activeChar as any).blockedForTurns > 0 &&
+            (activeChar.frontImage || '').toLowerCase().includes('gianni-giganti')) {
+          const turnsLeft = (activeChar as any).blockedForTurns;
+          console.log(`😴 GIANNI GIGANTI: ${playerName} cannot play cards — exhausted for ${turnsLeft} turns`);
+          const ioGG = (global as any).io;
+          if (ioGG) {
+            ioGG.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-gianni-blocked-play`, playerName: 'Sistema',
+              message: `😴 GIANNI GIGANTI è esausto! Nessuna carta può essere giocata ancora per ${turnsLeft} turni.`,
+              timestamp: Date.now()
+            });
+          }
+          return {};
+        }
+      }
+
       // DITTATURA check: enforce PTI restrictions BEFORE removing card from hand
       if (isPersonaggio && (game as any).cardPlayRestrictions) {
         const restrictions = (game as any).cardPlayRestrictions as Array<{type: string; threshold: number; turnsRemaining: number; imposedBy: string}>;
@@ -11928,6 +11961,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const turnsLeft = (attackerCharacter as any).blockedForTurns;
       console.log(`😴 GIANNI GIGANTI: blocked for ${turnsLeft} more turns`);
       return { success: false, error: `😴 GIANNI GIGANTI è esausto! Ancora ${turnsLeft} turni di riposo.` };
+    }
+
+    // DADDY CONTE / FABRIZIO: attacker must resolve their pending choice before acting
+    if (!isHandTarget) {
+      const attackerPlayer = game.players[attackerName];
+      if (attackerPlayer) {
+        if ((attackerPlayer as any).pendingDaddyConteChoice) {
+          return { success: false, error: '🤵 DADDY CONTE: devi scegliere quale personaggio bloccare prima di attaccare!' };
+        }
+        if ((attackerPlayer as any).pendingFabrizioChoice) {
+          return { success: false, error: '🎭 FABRIZIO: devi fare la tua scelta di inizio turno prima di attaccare!' };
+        }
+      }
     }
 
     // DADDY CONTE: if the attacker's character is blocked by target owner's DADDY CONTE
@@ -20925,14 +20971,32 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
-    // DADDY CONTE: reset blocked character at end of DADDY CONTE owner's turn
-    if (gameState.players && (gameState.players[playerName] as any)?.daddy_conte_blocked_char_id) {
-      const hasDaddyConte = gameState.field.some((c: Card) =>
-        c.owner === playerName && (c.frontImage || '').toLowerCase().includes('daddy-conte')
-      );
-      if (hasDaddyConte) {
-        (gameState.players[playerName] as any).daddy_conte_blocked_char_id = null;
-        console.log(`🤵 DADDY CONTE: blocking reset for ${playerName}`);
+    // DADDY CONTE: reset blocked character + pending choice at end of DADDY CONTE owner's turn
+    if (gameState.players) {
+      for (const pName of Object.keys(gameState.players)) {
+        const pp = gameState.players[pName] as any;
+        if (pp.daddy_conte_blocked_char_id) {
+          const hasDaddyConte = gameState.field.some((c: Card) =>
+            c.owner === pName && (c.frontImage || '').toLowerCase().includes('daddy-conte')
+          );
+          if (hasDaddyConte && pName === playerName) {
+            pp.daddy_conte_blocked_char_id = null;
+            console.log(`🤵 DADDY CONTE: blocking reset for ${pName}`);
+          }
+        }
+        // Reset all choice-pending flags at each turn change
+        if (pp.pendingDaddyConteChoice) {
+          pp.pendingDaddyConteChoice = false;
+          console.log(`🤵 DADDY CONTE: pendingChoice reset for ${pName}`);
+        }
+        if (pp.pendingFabrizioChoice) {
+          pp.pendingFabrizioChoice = false;
+          console.log(`🎭 FABRIZIO: pendingFabrizioChoice reset for ${pName}`);
+        }
+        if (pp.fabrizioChoiceConsumed) {
+          pp.fabrizioChoiceConsumed = false;
+          console.log(`🎭 FABRIZIO: fabrizioChoiceConsumed reset for ${pName}`);
+        }
       }
     }
 
