@@ -2160,7 +2160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Store and apply CPU difficulty level
             const resolvedLevel: 'easy' | 'medium' | 'hard' =
               (cpuLevel === 'easy' || cpuLevel === 'hard') ? cpuLevel : 'medium';
-            (cpuPlayer as any).cpuLevel = resolvedLevel;
+            cpuPlayer.cpuLevel = resolvedLevel;
             cpuPlayer.cpuInstance.setLevel(resolvedLevel);
             console.log(`📊 Gym mode: CPU ${cpuName} level = ${resolvedLevel}`);
             // Use custom gameStart message if available, otherwise default greeting

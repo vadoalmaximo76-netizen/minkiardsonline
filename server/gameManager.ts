@@ -161,6 +161,7 @@ interface Player {
   pendingDaddyConteChoice?: boolean; // DADDY CONTE: must choose blocked char before acting
   pendingFabrizioChoice?: boolean; // FABRIZIO: must choose (play card or +100 PTI) before acting
   fabrizioChoiceConsumed?: boolean; // FABRIZIO: PTI choice already used this turn
+  cpuLevel?: 'easy' | 'medium' | 'hard'; // Difficulty level for CPU players
 }
 
 interface TransferRequest {
@@ -3306,7 +3307,9 @@ Rispondi SOLO in JSON:`;
               socketId: player.socketId,
               isCPU: player.isCPU,
               avatar: player.avatar,
-              cpuLevel: (player as any).cpuLevel || 'medium',
+              cpuLevel: player.isCPU && player.cpuInstance
+                ? player.cpuInstance.getLevel()
+                : (player.cpuLevel || 'medium'),
               attackMode: player.isCPU && player.cpuInstance
                 ? player.cpuInstance.getAttackMode()
                 : 'free_for_all'
