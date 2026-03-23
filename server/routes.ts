@@ -2070,7 +2070,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Add CPU player to training game
-    socket.on('add-training-cpu', async ({ gameId, isGymMode, customDeck, cpuLevel, leaderName, leaderImageUrl, leaderMessages, attackMode }) => {
+    socket.on('add-training-cpu', async ({ gameId, isGymMode, customDeck, cpuLevel, leaderName, leaderImageUrl, leaderMessages, attackMode, gymLeaderId }) => {
       try {
         // Use leader name as CPU name for gym mode, otherwise auto-generate
         const cpuName = (isGymMode && leaderName)
@@ -2095,6 +2095,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             // Always set gym leader CPU name so eliminateEnemy/other hooks work
             game.gymLeaderCpuName = cpuName;
+            // Persist the DB id of this gym leader so it can be recovered after a restart
+            if (gymLeaderId) {
+              (game as any).gymLeaderId = typeof gymLeaderId === 'number' ? gymLeaderId : parseInt(gymLeaderId);
+            }
 
             // Load leader messages from DB (always authoritative) falling back to client payload
             let resolvedMessages: Record<string, string[]> | null = null;

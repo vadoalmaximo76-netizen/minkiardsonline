@@ -335,6 +335,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
         leaderImageUrl: leader.leaderImageUrl || undefined,
         leaderMessages: leader.leaderMessages || undefined,
         attackMode,
+        gymLeaderId: leader.id,
       });
     }, 800);
 

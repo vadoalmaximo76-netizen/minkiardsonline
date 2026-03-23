@@ -3282,6 +3282,7 @@ Rispondi SOLO in JSON:`;
         helpEnabled: game.helpEnabled || false,
         // Gym / Story Mode fields
         isGymMode: game.isGymMode || false,
+        gymLeaderId: (game as any).gymLeaderId || null,
         gymLeaderCpuName: game.gymLeaderCpuName || null,
         gymLeaderMessages: game.gymLeaderMessages || null,
         // Tournament fields
@@ -3354,20 +3355,13 @@ Rispondi SOLO in JSON:`;
   // Load all active games from database on server startup
   async loadActiveGamesFromDB(): Promise<void> {
     try {
+      // Only purge INACTIVE games that are also stale (>2 days old)
+      // Active games are never deleted by age — they survive indefinitely until explicitly ended
       await db
         .delete(gameStates)
-        .where(sql`${gameStates.lastUpdated} < NOW() - INTERVAL '2 days'`);
-
-      await db
-        .delete(gameStates)
-        .where(eq(gameStates.isActive, false));
-
-      await db
-        .update(gameStates)
-        .set({ isActive: false })
         .where(and(
-          eq(gameStates.isActive, true),
-          sql`${gameStates.lastUpdated} < NOW() - INTERVAL '1 day'`
+          eq(gameStates.isActive, false),
+          sql`${gameStates.lastUpdated} < NOW() - INTERVAL '2 days'`
         ));
       
       const activeGames = await db
@@ -3474,6 +3468,11 @@ Rispondi SOLO in JSON:`;
             // Last action
             lastAction: state.lastAction || undefined,
           };
+
+          // Restore gym leader DB id (dynamic property)
+          if (state.gymLeaderId) {
+            (gameState as any).gymLeaderId = state.gymLeaderId;
+          }
 
           // Restore dynamic properties not in GameState interface
           if (state.tournamentMatchId) {
