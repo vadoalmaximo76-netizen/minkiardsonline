@@ -1197,32 +1197,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const gameManager = new GameManager();
 
-  // Load active games from database on server startup
+  // Load active games from database on server startup, then begin periodic autosave
   gameManager.loadActiveGamesFromDB().then(() => {
     console.log('🎮 Active games loaded from database');
+
+    // Periodic autosave: persist all active in-memory games to DB every 30 seconds.
+    // Started only after initial load so the first tick never races with restore.
+    // Uses Promise.allSettled so one failing save does not block the others.
+    setInterval(async () => {
+      const activeIds = gameManager.getActiveGameIds();
+      if (activeIds.length === 0) return;
+      const results = await Promise.allSettled(
+        activeIds.map(gameId => gameManager.saveGameStateToDB(gameId))
+      );
+      const saved = results.filter(r => r.status === 'fulfilled').length;
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') {
+          console.error(`[autosave] Failed to save ${activeIds[i]}:`, r.reason);
+        }
+      });
+      if (saved > 0) {
+        console.log(`🕐 [autosave] Saved ${saved}/${activeIds.length} active games`);
+      }
+    }, 30_000);
   }).catch(err => {
     console.error('❌ Failed to load active games:', err);
   });
-
-  // Periodic autosave: persist all active in-memory games to DB every 30 seconds
-  // This guarantees a recent snapshot even when players are momentarily idle.
-  // Uses Promise.allSettled so one failing game does not block the others.
-  setInterval(async () => {
-    const activeIds = gameManager.getActiveGameIds();
-    if (activeIds.length === 0) return;
-    const results = await Promise.allSettled(
-      activeIds.map(gameId => gameManager.saveGameStateToDB(gameId))
-    );
-    const saved = results.filter(r => r.status === 'fulfilled').length;
-    results.forEach((r, i) => {
-      if (r.status === 'rejected') {
-        console.error(`[autosave] Failed to save ${activeIds[i]}:`, r.reason);
-      }
-    });
-    if (saved > 0) {
-      console.log(`🕐 [autosave] Saved ${saved}/${activeIds.length} active games`);
-    }
-  }, 30_000);
 
   // Track which users are actively viewing a conversation (key: userId, value: conversationId)
   const watchingConversations = new Map<number, number>();
