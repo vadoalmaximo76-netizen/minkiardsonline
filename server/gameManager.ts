@@ -3280,6 +3280,18 @@ Rispondi SOLO in JSON:`;
         playerDraftDecks: game.playerDraftDecks || {},
         fantaTournamentId: game.fantaTournamentId || null,
         helpEnabled: game.helpEnabled || false,
+        // Gym / Story Mode fields
+        isGymMode: game.isGymMode || false,
+        gymLeaderCpuName: game.gymLeaderCpuName || null,
+        gymLeaderMessages: game.gymLeaderMessages || null,
+        // Tournament fields
+        tournamentMatchId: game.tournamentMatchId || null,
+        tournamentCharacterLimit: (game as any).tournamentCharacterLimit || null,
+        tournamentCpuNames: (game as any).tournamentCpuNames || [],
+        // Last action (for UI continuity)
+        lastAction: game.lastAction || null,
+        // Kill-trigger block state
+        killTriggerBlock: (game as any).killTriggerBlock || null,
         // Store player info without cpuInstance
         players: Object.fromEntries(
           Object.entries(game.players).map(([name, player]) => [
@@ -3288,7 +3300,11 @@ Rispondi SOLO in JSON:`;
               name: player.name,
               socketId: player.socketId,
               isCPU: player.isCPU,
-              avatar: player.avatar
+              avatar: player.avatar,
+              cpuLevel: (player as any).cpuLevel || 'medium',
+              attackMode: player.isCPU && player.cpuInstance
+                ? player.cpuInstance.getAttackMode()
+                : 'free_for_all'
             }
           ])
         ),
@@ -3323,9 +3339,13 @@ Rispondi SOLO in JSON:`;
 
       console.log(`💾 Game state saved to DB for ${gameId} (${Object.keys(playerHands).length} players)`);
 
+      // Clean up only completed/stale games — never active ones regardless of count
       await db
         .delete(gameStates)
-        .where(sql`${gameStates.gameId} NOT IN (SELECT game_id FROM game_states ORDER BY last_updated DESC LIMIT 5)`);
+        .where(and(
+          eq(gameStates.isActive, false),
+          sql`${gameStates.lastUpdated} < NOW() - INTERVAL '2 days'`
+        ));
     } catch (error) {
       console.error(`❌ Failed to save game state for ${gameId}:`, error);
     }
@@ -3354,8 +3374,7 @@ Rispondi SOLO in JSON:`;
         .select()
         .from(gameStates)
         .where(eq(gameStates.isActive, true))
-        .orderBy(sql`${gameStates.lastUpdated} DESC`)
-        .limit(3);
+        .orderBy(sql`${gameStates.lastUpdated} DESC`);
 
       console.log(`📂 Found ${activeGames.length} active games in database`);
 
@@ -3394,6 +3413,12 @@ Rispondi SOLO in JSON:`;
               restoredPlayer.cpuInstance = new CPUPlayer(playerName, savedGame.gameId);
               restoredPlayer.cpuInstance.setGameManager(this);
               restoredPlayer.cpuInstance.completeOpeningSequence();
+              // Restore attack mode (hunt_human / free_for_all)
+              const savedAttackMode = (playerInfo as any).attackMode;
+              if (savedAttackMode && savedAttackMode !== 'free_for_all') {
+                restoredPlayer.cpuInstance.setAttackMode(savedAttackMode);
+                console.log(`🎯 Restored attackMode=${savedAttackMode} for CPU ${playerName} in ${savedGame.gameId}`);
+              }
               console.log(`🤖 Restored cpuInstance for ${playerName} in ${savedGame.gameId}`);
             }
             reconstructedPlayers[playerName] = restoredPlayer;
@@ -3440,10 +3465,38 @@ Rispondi SOLO in JSON:`;
             playerDraftDecks: state.playerDraftDecks || {},
             fantaTournamentId: state.fantaTournamentId || undefined,
             helpEnabled: state.helpEnabled || false,
+            // Gym / Story Mode fields
+            isGymMode: state.isGymMode || false,
+            gymLeaderCpuName: state.gymLeaderCpuName || undefined,
+            gymLeaderMessages: state.gymLeaderMessages || undefined,
+            // Tournament fields
+            tournamentMatchId: state.tournamentMatchId || undefined,
+            // Last action
+            lastAction: state.lastAction || undefined,
           };
 
+          // Restore dynamic properties not in GameState interface
+          if (state.tournamentMatchId) {
+            (gameState as any).tournamentCharacterLimit = state.tournamentCharacterLimit || 'unlimited';
+            (gameState as any).tournamentCpuNames = state.tournamentCpuNames || [];
+            console.log(`🏆 Restored tournament config for ${savedGame.gameId}: matchId=${state.tournamentMatchId}, limit=${state.tournamentCharacterLimit}`);
+          }
+          if (state.killTriggerBlock) {
+            (gameState as any).killTriggerBlock = state.killTriggerBlock;
+          }
+
           this.games.set(savedGame.gameId, gameState);
-          console.log(`✅ Restored game ${savedGame.gameId} with ${Object.keys(reconstructedPlayers).length} players`);
+
+          // Restore gym leader messages onto the primary CPU instance (if gym mode)
+          if (state.isGymMode && state.gymLeaderCpuName && state.gymLeaderMessages) {
+            const gymCpuPlayer = gameState.players[state.gymLeaderCpuName];
+            if (gymCpuPlayer?.cpuInstance) {
+              gymCpuPlayer.cpuInstance.setLeaderMessages(state.gymLeaderMessages);
+              console.log(`🗨️ Restored gym leader messages for ${state.gymLeaderCpuName} in ${savedGame.gameId}`);
+            }
+          }
+
+          console.log(`✅ Restored game ${savedGame.gameId} with ${Object.keys(reconstructedPlayers).length} players${state.isGymMode ? ' [GymMode]' : ''}${state.tournamentMatchId ? ' [Tournament]' : ''}`);
         } catch (err) {
           console.error(`❌ Failed to restore game ${savedGame.gameId}:`, err);
         }

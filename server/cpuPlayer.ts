@@ -88,6 +88,10 @@ export class CPUPlayer {
     this.attackMode = mode;
   }
 
+  getAttackMode(): 'free_for_all' | 'hunt_human' {
+    return this.attackMode;
+  }
+
   constructor(playerName: string, gameId: string, socketEmitter?: any) {
     this.playerName = playerName;
     this.gameId = gameId;

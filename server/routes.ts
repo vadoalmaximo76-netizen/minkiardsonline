@@ -1204,6 +1204,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.error('❌ Failed to load active games:', err);
   });
 
+  // Periodic autosave: persist all active in-memory games to DB every 30 seconds
+  // This guarantees a recent snapshot even when players are momentarily idle
+  setInterval(async () => {
+    const activeIds = gameManager.getActiveGameIds();
+    if (activeIds.length === 0) return;
+    let saved = 0;
+    for (const gameId of activeIds) {
+      try {
+        await gameManager.saveGameStateToDB(gameId);
+        saved++;
+      } catch (err) {
+        console.error(`[autosave] Failed to save ${gameId}:`, err);
+      }
+    }
+    if (saved > 0) {
+      console.log(`🕐 [autosave] Saved ${saved}/${activeIds.length} active games`);
+    }
+  }, 30_000);
+
   // Track which users are actively viewing a conversation (key: userId, value: conversationId)
   const watchingConversations = new Map<number, number>();
 
