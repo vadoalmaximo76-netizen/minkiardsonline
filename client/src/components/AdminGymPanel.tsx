@@ -992,11 +992,17 @@ export function AdminGymPanel({ onClose }: Props) {
                         </button>
                       ))}
                     </div>
+                    {!loadingCards && (
+                      <div className="text-white/30 text-xs px-0.5">
+                        {filteredCards.length} carte disponibili
+                        {cardSearch && ` (filtrate)`}
+                      </div>
+                    )}
                     {loadingCards ? (
                       <div className="text-center py-4 text-white/30 text-xs">Caricamento carte…</div>
                     ) : (
-                      <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-1.5 max-h-48 overflow-y-auto">
-                        {filteredCards.slice(0, 60).map((card) => {
+                      <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-1.5 max-h-72 overflow-y-auto">
+                        {filteredCards.map((card) => {
                           const isSelected = activeDeck.includes(card.id);
                           const displayName = card.name || card.originalName;
                           return (
