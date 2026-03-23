@@ -2657,7 +2657,15 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     const hand = cpuPlayer.hand || [];
     const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
     const enemies = gameState.field.filter((card: any) => card.owner !== this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
-    
+
+    // In hunt_human mode only human-owned characters count as valid attack targets
+    const effectiveEnemies = this.attackMode === 'hunt_human'
+      ? enemies.filter((e: any) => {
+          const ePlayer = gameState.players[e.owner];
+          return ePlayer && !ePlayer.isCPU;
+        })
+      : enemies;
+
     const myFieldCards = gameState.field.filter((card: any) => card.owner === this.playerName);
     const hasPersonaggioOnField = myFieldCards.some((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
     
@@ -2709,12 +2717,12 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       const currentStars = this.extractStarsFromCard(myCharacter);
       const isDead = currentPTI <= 0 || currentStars <= 0;
       
-      if (!isDead && enemies.length > 0) {
-        const weakestEnemy = enemies.reduce((w: any, e: any) => {
+      if (!isDead && effectiveEnemies.length > 0) {
+        const weakestEnemy = effectiveEnemies.reduce((w: any, e: any) => {
           const ePti = this.extractPtiFromCard(e);
           const wPti = this.extractPtiFromCard(w);
           return ePti < wPti ? e : w;
-        }, enemies[0]);
+        }, effectiveEnemies[0]);
         const weakestPti = this.extractPtiFromCard(weakestEnemy);
 
         const bestMosse = mosseInHand.length > 0 ? mosseInHand.reduce((best: any, c: any) => {

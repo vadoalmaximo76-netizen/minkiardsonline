@@ -23189,6 +23189,28 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           timestamp: Date.now()
         });
 
+        // GYM MODE: if the eliminated player is human, the game ends immediately (CPUs win)
+        if (game.isGymMode && game.players[playerName] && !game.players[playerName].isCPU) {
+          const cpuWinner = Object.keys(game.players).find(
+            p => game.players[p].isCPU && !game.eliminatedPlayers.has(p)
+          ) || game.gymLeaderCpuName || 'CPU';
+          console.log(`💀 [GymMode] Human ${playerName} eliminated → ${cpuWinner} wins immediately`);
+          const duration = Math.floor((Date.now() - game.startTime.getTime()) / 1000);
+          const statsMap: Record<string, any> = {};
+          for (const [pName, pStats] of game.playerStats.entries()) {
+            statsMap[pName] = pStats;
+          }
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-gym-defeat`,
+            playerName: 'Sistema',
+            message: `☠️ Il giocatore umano è stato sconfitto! La partita è terminata.`,
+            timestamp: Date.now()
+          });
+          io.to(gameId).emit('game-victory', { winner: cpuWinner, lastAction: game.lastAction || null, matchDuration: duration, playerStats: statsMap });
+          this.completeMatch(gameId, cpuWinner);
+          return true;
+        }
+
         const winner = this.checkForGameVictory(gameId);
         if (winner) {
           console.log(`🏆 Game won by: ${winner}`);
