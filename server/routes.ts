@@ -2098,7 +2098,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             game.gymLeaderCpuName = cpuName;
             // Persist the DB id of this gym leader so it can be recovered after a restart
             if (gymLeaderId) {
-              (game as any).gymLeaderId = typeof gymLeaderId === 'number' ? gymLeaderId : parseInt(gymLeaderId);
+              game.gymLeaderId = typeof gymLeaderId === 'number' ? gymLeaderId : parseInt(gymLeaderId);
             }
 
             // Load leader messages from DB (always authoritative) falling back to client payload

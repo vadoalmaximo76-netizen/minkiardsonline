@@ -457,6 +457,10 @@ interface GameState {
   playerDraftDecks?: Record<string, { personaggi: Card[], mosse: Card[], bonus: Card[] }>;
   gymLeaderMessages?: Record<string, string[]>;
   gymLeaderCpuName?: string;
+  gymLeaderId?: number;
+  tournamentCharacterLimit?: string;
+  tournamentCpuNames?: string[];
+  killTriggerBlock?: { turnsLeft: number; blockTurns: number; playedBy: string };
   fantaTournamentId?: string;
   helpEnabled?: boolean;
 }
@@ -3282,17 +3286,17 @@ Rispondi SOLO in JSON:`;
         helpEnabled: game.helpEnabled || false,
         // Gym / Story Mode fields
         isGymMode: game.isGymMode || false,
-        gymLeaderId: (game as any).gymLeaderId || null,
+        gymLeaderId: game.gymLeaderId || null,
         gymLeaderCpuName: game.gymLeaderCpuName || null,
         gymLeaderMessages: game.gymLeaderMessages || null,
         // Tournament fields
         tournamentMatchId: game.tournamentMatchId || null,
-        tournamentCharacterLimit: (game as any).tournamentCharacterLimit || null,
-        tournamentCpuNames: (game as any).tournamentCpuNames || [],
+        tournamentCharacterLimit: game.tournamentCharacterLimit || null,
+        tournamentCpuNames: game.tournamentCpuNames || [],
         // Last action (for UI continuity)
         lastAction: game.lastAction || null,
         // Kill-trigger block state
-        killTriggerBlock: (game as any).killTriggerBlock || null,
+        killTriggerBlock: game.killTriggerBlock || null,
         // Store player info without cpuInstance
         players: Object.fromEntries(
           Object.entries(game.players).map(([name, player]) => [
@@ -3475,19 +3479,19 @@ Rispondi SOLO in JSON:`;
             lastAction: state.lastAction || undefined,
           };
 
-          // Restore gym leader DB id (dynamic property)
+          // Restore gym leader DB id
           if (state.gymLeaderId) {
-            (gameState as any).gymLeaderId = state.gymLeaderId;
+            gameState.gymLeaderId = state.gymLeaderId;
           }
 
-          // Restore dynamic properties not in GameState interface
+          // Restore tournament config
           if (state.tournamentMatchId) {
-            (gameState as any).tournamentCharacterLimit = state.tournamentCharacterLimit || 'unlimited';
-            (gameState as any).tournamentCpuNames = state.tournamentCpuNames || [];
+            gameState.tournamentCharacterLimit = state.tournamentCharacterLimit || 'unlimited';
+            gameState.tournamentCpuNames = state.tournamentCpuNames || [];
             console.log(`🏆 Restored tournament config for ${savedGame.gameId}: matchId=${state.tournamentMatchId}, limit=${state.tournamentCharacterLimit}`);
           }
           if (state.killTriggerBlock) {
-            (gameState as any).killTriggerBlock = state.killTriggerBlock;
+            gameState.killTriggerBlock = state.killTriggerBlock;
           }
 
           this.games.set(savedGame.gameId, gameState);
