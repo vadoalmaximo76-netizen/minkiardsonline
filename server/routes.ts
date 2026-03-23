@@ -1205,19 +1205,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Periodic autosave: persist all active in-memory games to DB every 30 seconds
-  // This guarantees a recent snapshot even when players are momentarily idle
+  // This guarantees a recent snapshot even when players are momentarily idle.
+  // Uses Promise.allSettled so one failing game does not block the others.
   setInterval(async () => {
     const activeIds = gameManager.getActiveGameIds();
     if (activeIds.length === 0) return;
-    let saved = 0;
-    for (const gameId of activeIds) {
-      try {
-        await gameManager.saveGameStateToDB(gameId);
-        saved++;
-      } catch (err) {
-        console.error(`[autosave] Failed to save ${gameId}:`, err);
+    const results = await Promise.allSettled(
+      activeIds.map(gameId => gameManager.saveGameStateToDB(gameId))
+    );
+    const saved = results.filter(r => r.status === 'fulfilled').length;
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') {
+        console.error(`[autosave] Failed to save ${activeIds[i]}:`, r.reason);
       }
-    }
+    });
     if (saved > 0) {
       console.log(`🕐 [autosave] Saved ${saved}/${activeIds.length} active games`);
     }
