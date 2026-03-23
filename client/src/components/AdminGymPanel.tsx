@@ -227,7 +227,6 @@ export function AdminGymPanel({ onClose }: Props) {
   useEffect(() => { fetchLeaders(); }, [fetchLeaders]);
 
   const loadCards = useCallback(async () => {
-    if (availableCards.length > 0) return;
     setLoadingCards(true);
     try {
       const res = await fetch('/api/admin/existing-cards', {
@@ -237,7 +236,7 @@ export function AdminGymPanel({ onClose }: Props) {
       if (data.success) setAvailableCards(data.cards || []);
     } catch {}
     finally { setLoadingCards(false); }
-  }, [authToken, availableCards.length]);
+  }, [authToken]);
 
   const syncCpuConfigs = (count: number, existing: CpuConfig[]): CpuConfig[] => {
     const result: CpuConfig[] = [];
