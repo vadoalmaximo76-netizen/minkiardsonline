@@ -2156,6 +2156,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               cpuPlayer.cpuInstance.setAttackMode('hunt_human');
               console.log(`🎯 Gym mode: attack mode = hunt_human for CPU ${cpuName}`);
             }
+            // Store and apply CPU difficulty level
+            const resolvedLevel: 'easy' | 'medium' | 'hard' =
+              (cpuLevel === 'easy' || cpuLevel === 'hard') ? cpuLevel : 'medium';
+            (cpuPlayer as any).cpuLevel = resolvedLevel;
+            cpuPlayer.cpuInstance.setLevel(resolvedLevel);
+            console.log(`📊 Gym mode: CPU ${cpuName} level = ${resolvedLevel}`);
             // Use custom gameStart message if available, otherwise default greeting
             const startMsgs = resolvedMsgs?.gameStart;
             const customStart = Array.isArray(startMsgs) ? startMsgs.filter((m: string) => m?.trim()) : [];

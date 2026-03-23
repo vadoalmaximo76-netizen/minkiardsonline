@@ -83,6 +83,7 @@ export class CPUPlayer {
   private openaiApiKey: string | undefined;
   private gymLeaderMessages: Record<string, string[]> | null = null;
   private attackMode: 'free_for_all' | 'hunt_human' = 'free_for_all';
+  private level: 'easy' | 'medium' | 'hard' = 'medium';
 
   setAttackMode(mode: 'free_for_all' | 'hunt_human') {
     this.attackMode = mode;
@@ -90,6 +91,14 @@ export class CPUPlayer {
 
   getAttackMode(): 'free_for_all' | 'hunt_human' {
     return this.attackMode;
+  }
+
+  setLevel(level: 'easy' | 'medium' | 'hard') {
+    this.level = level;
+  }
+
+  getLevel(): 'easy' | 'medium' | 'hard' {
+    return this.level;
   }
 
   constructor(playerName: string, gameId: string, socketEmitter?: any) {

@@ -3413,6 +3413,12 @@ Rispondi SOLO in JSON:`;
                 restoredPlayer.cpuInstance.setAttackMode(savedAttackMode);
                 console.log(`🎯 Restored attackMode=${savedAttackMode} for CPU ${playerName} in ${savedGame.gameId}`);
               }
+              // Restore CPU difficulty level
+              const savedLevel = (playerInfo as any).cpuLevel as 'easy' | 'medium' | 'hard' | undefined;
+              if (savedLevel && savedLevel !== 'medium') {
+                restoredPlayer.cpuInstance.setLevel(savedLevel);
+                console.log(`📊 Restored cpuLevel=${savedLevel} for CPU ${playerName} in ${savedGame.gameId}`);
+              }
               console.log(`🤖 Restored cpuInstance for ${playerName} in ${savedGame.gameId}`);
             }
             reconstructedPlayers[playerName] = restoredPlayer;
