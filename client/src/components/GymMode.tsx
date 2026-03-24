@@ -44,7 +44,7 @@ interface GymModeProps {
   userId?: number;
   avatarId?: string | null;
   onBack: () => void;
-  pendingGymGame?: { gameId: string; gymLeaderCpuName?: string };
+  pendingGymGame?: { gameId: string; gymLeaderCpuName?: string; gymLeaderId?: number };
   onResumeGymGame?: (gameId: string) => void;
 }
 
@@ -846,8 +846,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         </div>
       </div>
 
-      {/* Riprendi partita banner */}
-      {pendingGymGame && onResumeGymGame && (
+      {/* Riprendi partita banner — shown only when the leader ID is unknown (fallback) */}
+      {pendingGymGame && onResumeGymGame && !pendingGymGame.gymLeaderId && (
         <div className="flex-shrink-0 mx-4 mt-3 flex items-center gap-3 bg-orange-900/30 border border-orange-500/40 rounded-2xl px-4 py-3">
           <Swords className="w-5 h-5 text-orange-400 flex-shrink-0" />
           <div className="flex-1 min-w-0">
@@ -971,8 +971,28 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                       <span className={`text-[10px] ${isAvailable ? 'text-yellow-400/50' : 'text-white/15'}`}>+{leader.rewardCredits}⭐</span>
                     </div>
 
-                    {/* Available: Challenge button */}
-                    {isAvailable && (
+                    {/* Riprendi partita — shown inline next to the specific interrupted stage */}
+                    {pendingGymGame?.gymLeaderId === leader.id && onResumeGymGame && (
+                      <div className="mt-2 flex items-center gap-2 flex-wrap">
+                        <button
+                          onClick={() => onResumeGymGame(pendingGymGame.gameId)}
+                          className="px-4 py-1.5 bg-orange-600 hover:bg-orange-500 text-white font-black text-xs rounded-xl transition-colors active:scale-95 flex items-center gap-1.5 shadow-lg shadow-orange-900/30"
+                        >
+                          <Swords className="w-3 h-3" /> Riprendi
+                        </button>
+                        {isAvailable && (
+                          <button
+                            onClick={() => handleChallengeLeader(leader)}
+                            className="px-3 py-1.5 rounded-xl font-bold text-[10px] text-white/50 hover:text-white/80 border border-white/10 hover:border-white/20 transition-all active:scale-95"
+                          >
+                            Nuova partita
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Available: Challenge button (only when no pending game for this stage) */}
+                    {isAvailable && pendingGymGame?.gymLeaderId !== leader.id && (
                       <button
                         onClick={() => handleChallengeLeader(leader)}
                         className="mt-2 px-4 py-1.5 rounded-xl font-black text-xs text-white active:scale-95 transition-transform shadow-lg flex items-center gap-1.5"
@@ -983,7 +1003,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                     )}
 
                     {/* Completed: replay */}
-                    {isCompleted && (
+                    {isCompleted && pendingGymGame?.gymLeaderId !== leader.id && (
                       <button
                         onClick={() => handleChallengeLeader(leader)}
                         className="mt-1.5 flex items-center gap-0.5 text-green-400/50 hover:text-green-400/80 transition-colors text-[10px] font-bold"

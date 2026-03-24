@@ -147,7 +147,7 @@ function App() {
     if (currentSection !== 'fanta') setFantaReturnId(null);
   }, [currentSection]);
 
-  const [pendingGymGame, setPendingGymGame] = useState<{ gameId: string; gymLeaderCpuName?: string } | null>(null);
+  const [pendingGymGame, setPendingGymGame] = useState<{ gameId: string; gymLeaderCpuName?: string; gymLeaderId?: number } | null>(null);
   const [pendingTournamentGame, setPendingTournamentGame] = useState<{ gameId: string } | null>(null);
   const [pendingFantaGame, setPendingFantaGame] = useState<{ gameId: string; fantaTournamentId?: string } | null>(null);
   const [resetPasswordToken, setResetPasswordToken] = useState<string | null>(() => getResetPasswordToken());
@@ -189,7 +189,7 @@ function App() {
 
         // Listen for active game found (after server restart)
         // Only rejoin if session was NOT already restored and we don't have an active game
-        socket.on('active-game-found', (data: { gameId: string; handCount: number; playerName: string; gameMode?: 'gym' | 'tournament' | 'fanta' | 'regular'; gymLeaderCpuName?: string; fantaTournamentId?: string }) => {
+        socket.on('active-game-found', (data: { gameId: string; handCount: number; playerName: string; gameMode?: 'gym' | 'tournament' | 'fanta' | 'regular'; gymLeaderCpuName?: string; gymLeaderId?: number; fantaTournamentId?: string }) => {
           console.log('Active game found on server:', data);
           
           // Skip if session was already successfully restored
@@ -226,8 +226,8 @@ function App() {
           // can choose to resume via a contextual "Riprendi partita" button inside the section.
           const mode = data.gameMode || 'regular';
           if (mode === 'gym') {
-            console.log(`[active-game-found] Pending gym game ${data.gameId} (${data.gymLeaderCpuName})`);
-            setPendingGymGame({ gameId: data.gameId, gymLeaderCpuName: data.gymLeaderCpuName });
+            console.log(`[active-game-found] Pending gym game ${data.gameId} (${data.gymLeaderCpuName}, leaderId=${data.gymLeaderId})`);
+            setPendingGymGame({ gameId: data.gameId, gymLeaderCpuName: data.gymLeaderCpuName, gymLeaderId: data.gymLeaderId });
             return;
           }
           if (mode === 'tournament') {

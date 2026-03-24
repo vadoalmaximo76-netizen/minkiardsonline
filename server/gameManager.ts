@@ -2992,7 +2992,7 @@ Rispondi SOLO in JSON:`;
   }
 
   // Get active game ID for a player by their name (used for reconnection after server restart)
-  getActiveGameByPlayerName(playerName: string, preferredGameId?: string): { gameId: string; handCount: number; gameMode: 'gym' | 'tournament' | 'fanta' | 'regular'; gymLeaderCpuName?: string; fantaTournamentId?: string } | null {
+  getActiveGameByPlayerName(playerName: string, preferredGameId?: string): { gameId: string; handCount: number; gameMode: 'gym' | 'tournament' | 'fanta' | 'regular'; gymLeaderCpuName?: string; gymLeaderId?: number; fantaTournamentId?: string } | null {
     const gamesArray = Array.from(this.games.entries());
 
     // Collect all candidate games for this player (non-ended)
@@ -3007,8 +3007,8 @@ Rispondi SOLO in JSON:`;
 
     if (candidates.length === 0) return null;
 
-    const getGameMode = (g: GameState): { gameMode: 'gym' | 'tournament' | 'fanta' | 'regular'; gymLeaderCpuName?: string; fantaTournamentId?: string } => {
-      if (g.isGymMode) return { gameMode: 'gym', gymLeaderCpuName: g.gymLeaderCpuName };
+    const getGameMode = (g: GameState): { gameMode: 'gym' | 'tournament' | 'fanta' | 'regular'; gymLeaderCpuName?: string; gymLeaderId?: number; fantaTournamentId?: string } => {
+      if (g.isGymMode) return { gameMode: 'gym', gymLeaderCpuName: g.gymLeaderCpuName, gymLeaderId: g.gymLeaderId };
       if (g.tournamentMatchId) return { gameMode: 'tournament' };
       if (g.fantaTournamentId) return { gameMode: 'fanta', fantaTournamentId: g.fantaTournamentId };
       return { gameMode: 'regular' };
@@ -3036,9 +3036,16 @@ Rispondi SOLO in JSON:`;
       }
     }
 
-    // Prefer: (1) player has live socket connection in this game, (2) actively playing,
-    // (3) more cards in hand, (4) insertion order
+    // Prefer: (1) special mode (gym/tournament/fanta) over regular, (2) live socket,
+    // (3) actively playing, (4) more cards in hand
+    const modePriority = (g: GameState): number => {
+      if (g.isGymMode || g.tournamentMatchId || g.fantaTournamentId) return 1;
+      return 0;
+    };
     candidates.sort((a, b) => {
+      const aPriority = modePriority(a.game);
+      const bPriority = modePriority(b.game);
+      if (bPriority !== aPriority) return bPriority - aPriority;
       const aSocketLive = (a.game.players[playerName]?.socketId != null) ? 1 : 0;
       const bSocketLive = (b.game.players[playerName]?.socketId != null) ? 1 : 0;
       if (bSocketLive !== aSocketLive) return bSocketLive - aSocketLive;
