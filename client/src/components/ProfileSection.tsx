@@ -82,6 +82,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [initialConversationId, setInitialConversationId] = useState<number | null>(null);
   const [showMatchHistory, setShowMatchHistory] = useState(false);
+  const [gymBadges, setGymBadges] = useState<Array<{ id: number; name: string; gymName: string; badgeImageUrl: string | null; leaderImageUrl: string | null; orderIndex: number }>>([]);
 
   const [offlineStats, setOfflineStats] = useState<{ cached: number; total: number; enabled: boolean } | null>(null);
   const [offlineDownloading, setOfflineDownloading] = useState(false);
@@ -117,10 +118,11 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
         const authToken = localStorage.getItem('authToken');
         if (!authToken) return;
 
-        const [profileRes, friendsRes, tradeHistRes] = await Promise.all([
+        const [profileRes, friendsRes, tradeHistRes, gymRes] = await Promise.all([
           fetch('/api/profile', { headers: { 'Authorization': `Bearer ${authToken}` } }),
           fetch('/api/friends', { headers: { 'Authorization': `Bearer ${authToken}` } }),
-          fetch('/api/marketplace/my-history', { headers: { 'Authorization': `Bearer ${authToken}` } })
+          fetch('/api/marketplace/my-history', { headers: { 'Authorization': `Bearer ${authToken}` } }),
+          fetch('/api/gym-leaders', { headers: { 'Authorization': `Bearer ${authToken}` } }),
         ]);
 
         let profileData = null;
@@ -139,6 +141,25 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
         if (tradeHistRes.ok) {
           const data = await tradeHistRes.json();
           setTradeHistory(Array.isArray(data) ? data : []);
+        }
+
+        if (gymRes.ok) {
+          const gymData = await gymRes.json();
+          if (gymData.success && Array.isArray(gymData.gymLeaders)) {
+            const completedIds: number[] = gymData.completedIds || [];
+            const earned = gymData.gymLeaders
+              .filter((l: any) => completedIds.includes(l.id) && l.isActive)
+              .sort((a: any, b: any) => a.orderIndex - b.orderIndex)
+              .map((l: any) => ({
+                id: l.id,
+                name: l.name,
+                gymName: l.gymName,
+                badgeImageUrl: l.badgeImageUrl || null,
+                leaderImageUrl: l.leaderImageUrl || null,
+                orderIndex: l.orderIndex,
+              }));
+            setGymBadges(earned);
+          }
         }
 
         if (profileData) {
@@ -507,6 +528,73 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
               </div>
               <p className="text-3xl font-bold text-white">{formatPlayTime(stats?.totalPlayTime || 0)}</p>
               <p className="text-white/70">Tempo totale trascorso a giocare</p>
+            </div>
+
+            {/* ── Medaglie Story Mode ── */}
+            <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-5 border border-yellow-500/20 shadow-lg">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 rounded-xl bg-yellow-500/15 border border-yellow-500/30 flex items-center justify-center">
+                  <span className="text-lg">🏅</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-white">Medaglie Story Mode</h3>
+                  <p className="text-white/50 text-xs">
+                    {gymBadges.length > 0
+                      ? `${gymBadges.length} medagli${gymBadges.length === 1 ? 'a' : 'e'} conquistat${gymBadges.length === 1 ? 'a' : 'e'}`
+                      : 'Completa gli stage per guadagnare medaglie'}
+                  </p>
+                </div>
+              </div>
+
+              {gymBadges.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-4">
+                  <div className="w-14 h-14 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center">
+                    <span className="text-2xl opacity-30">🏅</span>
+                  </div>
+                  <p className="text-white/30 text-sm">Nessuna medaglia ancora</p>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-3">
+                  {gymBadges.map((badge, i) => (
+                    <div key={badge.id} className="flex flex-col items-center gap-1 group relative" title={`${badge.gymName} — ${badge.name}`}>
+                      {/* Medal disc */}
+                      <div style={{
+                        width: 56, height: 56, borderRadius: '50%', position: 'relative',
+                        background: 'linear-gradient(135deg,#14532d,#052e16)',
+                        boxShadow: '0 0 14px rgba(74,222,128,0.35), 0 0 28px rgba(74,222,128,0.12)',
+                        border: '2.5px solid rgba(74,222,128,0.55)',
+                        overflow: 'hidden',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {badge.badgeImageUrl ? (
+                          <img src={badge.badgeImageUrl} alt={badge.gymName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : badge.leaderImageUrl ? (
+                          <img src={badge.leaderImageUrl} alt={badge.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <span style={{ fontSize: 24 }}>🏅</span>
+                        )}
+                        {/* Shine overlay */}
+                        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 30% 25%, rgba(255,255,255,0.18), transparent 60%)', pointerEvents: 'none' }} />
+                      </div>
+                      {/* Stage number */}
+                      <div style={{
+                        fontSize: 9, fontWeight: 900, color: 'rgba(74,222,128,0.8)',
+                        letterSpacing: '0.05em', textAlign: 'center',
+                        maxWidth: 58, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {badge.name}
+                      </div>
+                      {/* Tooltip on hover */}
+                      <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10 min-w-max">
+                        <div className="bg-slate-900/95 border border-green-500/40 rounded-lg px-2.5 py-1.5 text-xs text-center shadow-xl">
+                          <p className="font-bold text-green-300">{badge.gymName}</p>
+                          <p className="text-white/60">Boss: {badge.name}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Storico Partite */}

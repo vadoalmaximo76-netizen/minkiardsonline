@@ -938,6 +938,45 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         </div>
       </div>
 
+      {/* ── Badge strip: medaglie tappe completate ── */}
+      {completedIds.length > 0 && (
+        <div className="flex-shrink-0 border-b border-white/5" style={{ background: 'rgba(0,0,0,0.25)' }}>
+          <div className="px-4 py-2.5 flex items-center gap-2">
+            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,158,11,0.6)', flexShrink: 0 }}>
+              🏅 Medaglie
+            </span>
+            <div className="flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              {activeLeaders
+                .filter(l => completedIds.includes(l.id))
+                .sort((a, b) => a.orderIndex - b.orderIndex)
+                .map(leader => (
+                  <div key={leader.id} className="flex-shrink-0 flex flex-col items-center gap-0.5" title={`${leader.gymName} — ${leader.name}`}>
+                    <div style={{
+                      width: 34, height: 34, borderRadius: '50%',
+                      border: '2px solid rgba(74,222,128,0.6)',
+                      overflow: 'hidden', flexShrink: 0,
+                      background: 'linear-gradient(135deg,#052e16,#14532d)',
+                      boxShadow: '0 0 8px rgba(74,222,128,0.4)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {leader.badgeImageUrl ? (
+                        <img src={leader.badgeImageUrl} alt={leader.gymName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : leader.leaderImageUrl ? (
+                        <img src={leader.leaderImageUrl} alt={leader.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <span style={{ fontSize: 14 }}>🏅</span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 8, color: 'rgba(74,222,128,0.7)', fontWeight: 700, whiteSpace: 'nowrap', maxWidth: 38, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {leader.name}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Riprendi partita banner — shown only when the leader ID is unknown (fallback) */}
       {pendingGymGame && onResumeGymGame && !pendingGymGame.gymLeaderId && (
         <div className="flex-shrink-0 mx-4 mt-3 flex items-center gap-3 bg-orange-900/30 border border-orange-500/40 rounded-2xl px-4 py-3">
