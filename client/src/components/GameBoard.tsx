@@ -35,6 +35,7 @@ import AuctionOverlay from "./AuctionOverlay";
 import { HandModal } from "./HandModal";
 import { Dice3D } from "./Dice3D";
 import { CardShatter3D } from "./CardShatter3D";
+import { KOBanner } from "./KOBanner";
 import { AttackSlash3D } from "./AttackSlash3D";
 import { MusicPlayer } from "./MusicPlayer";
 import { VoiceChat } from "./VoiceChat";
@@ -266,6 +267,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const damageVignetteTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const [cinematicFlash, setCinematicFlash] = useState<{ visible: boolean; type: 'attack' | 'heal' }>({ visible: false, type: 'attack' });
   const [cardShatter3D, setCardShatter3D] = useState<{ visible: boolean; cardImage: string; cardName: string }>({ visible: false, cardImage: '', cardName: '' });
+  const [koBanner, setKoBanner] = useState<{ visible: boolean; cardName: string; cardOwner: string; cardImage: string }>({ visible: false, cardName: '', cardOwner: '', cardImage: '' });
   const [attackEffectKey, setAttackEffectKey] = useState(0);
   const [deathEffectVisible, setDeathEffectVisible] = useState(false);
   const [deadCharacterName, setDeadCharacterName] = useState<string>("");
@@ -748,7 +750,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       }
     };
 
-    const handleCardToGraveyard = ({ cardName, cardType }: { cardName: string, cardType?: string }) => {
+    const handleCardToGraveyard = ({ cardName, cardType, cardOwner, cardImage }: { cardName: string, cardType?: string, cardOwner?: string, cardImage?: string }) => {
       shake('medium');
       setCiaoCardName(cardName);
       setCiaoNotificationVisible(true);
@@ -763,6 +765,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         }, 10);
         setCardShatter3D({ visible: true, cardImage: '', cardName });
         playDeathSound();
+        /* K.O. banner — delay slightly so it appears after the initial flash */
+        setTimeout(() => {
+          setKoBanner({ visible: true, cardName, cardOwner: cardOwner || '???', cardImage: cardImage || '' });
+        }, 350);
       }
       
       setTimeout(() => {
@@ -4527,6 +4533,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             cardImage={cardShatter3D.cardImage || undefined}
             cardName={cardShatter3D.cardName}
             onComplete={() => setCardShatter3D({ visible: false, cardImage: '', cardName: '' })}
+          />
+        )}
+
+        {koBanner.visible && (
+          <KOBanner
+            cardName={koBanner.cardName}
+            cardOwner={koBanner.cardOwner}
+            cardImage={koBanner.cardImage}
+            onComplete={() => setKoBanner({ visible: false, cardName: '', cardOwner: '', cardImage: '' })}
           />
         )}
 
