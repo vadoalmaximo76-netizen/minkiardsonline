@@ -15382,6 +15382,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       game.graveyard.push(card);
       console.log(`Card ${cardId} moved to graveyard. Owner: ${cardOwner}, RequestedBy: ${playerName}, Killed by: ${attacker || 'Unknown'}`);
 
+      // Emit card-to-graveyard so client K.O. banner and death animations fire for every death path
+      const ioMtg = (global as any).io;
+      if (ioMtg) {
+        ioMtg.to(gameId).emit('card-to-graveyard', {
+          cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+          cardType: card.type || 'personaggi',
+          cardOwner,
+          cardImage: card.frontImage || '',
+          playerName: cardOwner,
+        });
+      }
+
       // Injured Personaggi: record injury for human player who lost this character
       if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.playerUserIds) {
         const ownerUserId = game.playerUserIds.get(cardOwner);
@@ -15633,19 +15645,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const preMortemPTI = cardBeforeKill ? (cardBeforeKill.pti ?? this.extractPTIFromNote(cardBeforeKill.text || '')) : 0;
     const result = this.moveToGraveyard(gameId, cardId, owner, attacker);
     if (result.success) {
-      // Emit card-to-graveyard so the client K.O. banner and death animations fire
-      const ioKill = (global as any).io;
-      if (ioKill) {
-        const cardName = cardBeforeKill?.name || this.getCardNameFromUrl(cardBeforeKill?.frontImage || result.cardImage || '');
-        ioKill.to(gameId).emit('card-to-graveyard', {
-          cardName,
-          cardType: cardBeforeKill?.type || result.cardType || 'personaggi',
-          cardOwner: cardBeforeKill?.owner || result.cardOwner || owner,
-          cardImage: cardBeforeKill?.frontImage || result.cardImage || '',
-          playerName: owner,
-        });
-      }
-
       // KILL TRIGGER BLOCK: if a bonus-66 effect is active, block the killer for N turns
       const game = this.games.get(gameId);
       if (game) {

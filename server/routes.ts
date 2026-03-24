@@ -4390,31 +4390,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const gameState = gameManager.getSanitizedGameState(gameId);
           emitImmediateGameState(io, gameId, gameState);
 
-          // Get card name from image URL for "Ciao ciao" notification
-          if (result.cardImage) {
-            const getCardNameFromUrl = (url: string) => {
-              const parts = url.split('/');
-              const filename = parts[parts.length - 1];
-              // Remove file extension and replace hyphens/underscores with spaces
-              return filename
-                .toLowerCase()
-                .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
-                .replace(/[-_]/g, ' ')
-                .split(' ')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(' ');
-            };
-            
-            const cardName = getCardNameFromUrl(result.cardImage);
-            
-            // Emit "Ciao ciao" notification with cardType for animation triggering
-            io.to(gameId).emit('card-to-graveyard', {
-              cardName,
-              playerName,
-              cardType: result.cardType || 'personaggi'
-            });
-          }
-
           // Check for SOROS activation
           if (result.sorosActivated) {
             io.to(gameId).emit('soros-activated', {
@@ -4783,30 +4758,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 
                 const updatedGameState = gameManager.getSanitizedGameState(gameId);
                 emitThrottledGameState(io, gameId, updatedGameState);
-
-                // Get card name from image URL for "Ciao ciao" notification
-                if (result.cardImage) {
-                  const getCardNameFromUrl = (url: string) => {
-                    const parts = url.split('/');
-                    const filename = parts[parts.length - 1];
-                    return filename
-                      .toLowerCase()
-                      .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
-                      .replace(/[-_]/g, ' ')
-                      .split(' ')
-                      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                      .join(' ');
-                  };
-                  
-                  const cardName = getCardNameFromUrl(result.cardImage);
-                  
-                  // Emit "Ciao ciao" notification with cardType for death animation
-                  io.to(gameId).emit('card-to-graveyard', {
-                    cardName,
-                    playerName: card.owner,
-                    cardType: card.type || 'personaggi'
-                  });
-                }
 
                 if (result.eliminationCheck) {
                   gameManager.processEliminationAfterDeath(gameId, card.owner, io, 'update-card-text');
@@ -7232,31 +7183,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const gameState = gameManager.getSanitizedGameState(gameId);
           emitThrottledGameState(io, gameId, gameState);
 
-          // Get card name from image URL for "Ciao ciao" notification
-          if (result.cardImage) {
-            const getCardNameFromUrl = (url: string) => {
-              const parts = url.split('/');
-              const filename = parts[parts.length - 1];
-              // Remove file extension and replace hyphens/underscores with spaces
-              return filename
-                .toLowerCase()
-                .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
-                .replace(/[-_]/g, ' ')
-                .split(' ')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(' ');
-            };
-            
-            const cardName = getCardNameFromUrl(result.cardImage);
-            
-            // Emit "Ciao ciao" notification with cardType for death animation
-            io.to(gameId).emit('card-to-graveyard', {
-              cardName,
-              playerName,
-              cardType: result.cardType || 'personaggi'
-            });
-          }
-          
           if (result.eliminationCheck) {
             gameManager.processEliminationAfterDeath(gameId, playerName, io, 'eliminate-personaggi');
           }
