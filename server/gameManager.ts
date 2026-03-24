@@ -15633,6 +15633,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const preMortemPTI = cardBeforeKill ? (cardBeforeKill.pti ?? this.extractPTIFromNote(cardBeforeKill.text || '')) : 0;
     const result = this.moveToGraveyard(gameId, cardId, owner, attacker);
     if (result.success) {
+      // Emit card-to-graveyard so the client K.O. banner and death animations fire
+      const ioKill = (global as any).io;
+      if (ioKill) {
+        const cardName = cardBeforeKill?.name || this.getCardNameFromUrl(cardBeforeKill?.frontImage || result.cardImage || '');
+        ioKill.to(gameId).emit('card-to-graveyard', {
+          cardName,
+          cardType: cardBeforeKill?.type || result.cardType || 'personaggi',
+          cardOwner: cardBeforeKill?.owner || result.cardOwner || owner,
+          cardImage: cardBeforeKill?.frontImage || result.cardImage || '',
+          playerName: owner,
+        });
+      }
+
       // KILL TRIGGER BLOCK: if a bonus-66 effect is active, block the killer for N turns
       const game = this.games.get(gameId);
       if (game) {
