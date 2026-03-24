@@ -2032,6 +2032,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
         
+        // Leave all other game rooms this socket is currently in to prevent
+        // cross-game event mixing (e.g., regular room + gym story mode game)
+        for (const roomId of socket.rooms) {
+          if (roomId === socket.id) continue; // skip socket's own room
+          if (roomId === gameId) continue;    // skip the new game (already handled)
+          socket.leave(roomId);
+          // Mark player as disconnected in the old game so it doesn't keep them active
+          const oldGame = gameManager.getGameState(roomId);
+          if (oldGame && oldGame.players[playerName]) {
+            oldGame.players[playerName].socketId = null;
+            oldGame.players[playerName].disconnectedAt = new Date();
+          }
+          console.log(`🔌 [create-training-game] ${playerName} left old room ${roomId} before joining gym game ${gameId}`);
+        }
+        // Clear stale socket→game mapping so the new game mapping takes effect cleanly
+        const staleGameId = gameManager.getGameIdBySocketId(socket.id);
+        if (staleGameId && staleGameId !== gameId) {
+          gameManager.cleanupOldSocketMapping(socket.id);
+        }
+
         socket.join(gameId);
         
         // Set avatar if provided
