@@ -128,10 +128,9 @@ const GYM_PATH_STYLES = `
   .gym-path-node-pop { animation: gymNodePop 0.42s cubic-bezier(0.34,1.56,0.64,1) both; }
 `;
 
-/* Node center as % from the nearest edge.
-   Even stages → node sits on the LEFT side of the card  (center at EDGE_PCT% from left)
-   Odd  stages → node sits on the RIGHT side of the card (center at EDGE_PCT% from right = (100-EDGE_PCT)% from left) */
-const GYM_NODE_EDGE_PCT = 22;
+/* x positions as percentages of container width — must match DOM calc() values */
+const GYM_NODE_PCT_RIGHT = 58; /* even stages → node center at 58% */
+const GYM_NODE_PCT_LEFT  = 42; /* odd  stages → node center at 42% */
 
 function GymPathSVG({ count }: { count: number }) {
   /* viewBox x: 0-100 (%) so SVG scales with container width.
@@ -139,7 +138,7 @@ function GymPathSVG({ count }: { count: number }) {
   const totalH = GYM_PATH_TOP_PAD + count * GYM_PATH_NODE_H + 24;
 
   const pts = Array.from({ length: count }, (_, i) => ({
-    x: i % 2 === 0 ? GYM_NODE_EDGE_PCT : 100 - GYM_NODE_EDGE_PCT,
+    x: i % 2 === 0 ? GYM_NODE_PCT_RIGHT : GYM_NODE_PCT_LEFT,
     y: GYM_PATH_TOP_PAD + i * GYM_PATH_NODE_H + GYM_PATH_NODE_H / 2,
   }));
 
@@ -1086,15 +1085,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
               );
 
               /* ── info card ── */
-              /* Full-width card: node overlaps on left (even) or right (odd).
-                 Content padding pushes text away from the node. */
-              const nodeHalf = nodeSize / 2 + 14;
-              const nodePadVal = `calc(${GYM_NODE_EDGE_PCT}% + ${nodeHalf}px)`;
-              const cardPad = side === 'right'
-                ? { paddingLeft: nodePadVal, paddingRight: '14px', paddingTop: '10px', paddingBottom: '10px' }
-                : { paddingLeft: '14px', paddingRight: nodePadVal, paddingTop: '10px', paddingBottom: '10px' };
-              const align = 'flex-start';
-              const txtAlign = 'left' as const;
+              const align = side === 'right' ? 'flex-start' : 'flex-end';
+              const txtAlign: 'left' | 'right' = side === 'right' ? 'left' : 'right';
               const bgImg = leader.backgroundImageUrl;
 
               const infoCard = isLocked ? (
@@ -1106,8 +1098,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                   opacity: 0.38,
                 }}>
                   <div style={{ position: 'absolute', inset: 0, background: 'rgba(5,5,15,0.92)' }} />
-                  <div style={{ position: 'relative', zIndex: 1, ...cardPad, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: txtAlign, boxSizing: 'border-box' }}>
-                    <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: '#374151', letterSpacing: '0.06em' }}>
+                  <div style={{ position: 'relative', zIndex: 1, padding: '10px 12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: txtAlign }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: '#374151', letterSpacing: '0.06em' }}>
                       STAGE {leader.orderIndex}
                     </p>
                     <p style={{ margin: '4px 0 0', fontSize: 10, color: '#1f2937', fontWeight: 700 }}>
@@ -1152,7 +1144,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                   )}
 
                   {/* Content */}
-                  <div style={{ position: 'relative', zIndex: 1, ...cardPad, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box' }}>
+                  <div style={{ position: 'relative', zIndex: 1, padding: '9px 11px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box' }}>
                     {/* Top: stage label + gym name + boss */}
                     <div>
                       <p style={{ margin: '0 0 2px', fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: isCurrent ? '#f59e0bcc' : isCompleted ? '#4ade8099' : 'rgba(255,255,255,0.28)', textAlign: txtAlign }}>
@@ -1223,29 +1215,35 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                 </div>
               );
 
-              /* Even stages (side='right'): node on LEFT at GYM_NODE_EDGE_PCT% from left.
-                 Odd  stages (side='left'):  node on RIGHT at (100-GYM_NODE_EDGE_PCT)% from left.
-                 Card is full-width; content has padding to avoid the node. */
-              const nodePctFromLeft = side === 'right' ? GYM_NODE_EDGE_PCT : 100 - GYM_NODE_EDGE_PCT;
+              /* node center at GYM_NODE_PCT_RIGHT% or GYM_NODE_PCT_LEFT% — matches SVG viewBox coords */
+              const nodePct = side === 'right' ? GYM_NODE_PCT_RIGHT : GYM_NODE_PCT_LEFT;
+              const GAP = 9; /* px gap between node edge and card */
+              const EDGE = 10; /* px margin from screen edge */
 
               return (
                 <div
                   key={leader.id}
                   style={{ position: 'absolute', top: nodeY, left: 0, right: 0, height: GYM_PATH_NODE_H }}
                 >
-                  {/* Full-width card behind the node */}
-                  <div style={{ position: 'absolute', top: 6, left: 8, right: 8, bottom: 6, zIndex: 1 }}>
-                    {infoCard}
-                  </div>
-
-                  {/* Node — overlaps the card on the left or right side */}
+                  {/* Node — absolutely placed at the SVG percentage position */}
                   <div style={{
                     position: 'absolute',
                     top: '50%', transform: 'translateY(-50%)',
-                    left: `calc(${nodePctFromLeft}% - ${nodeSize / 2}px)`,
-                    zIndex: 3,
+                    left: `calc(${nodePct}% - ${nodeSize / 2}px)`,
+                    zIndex: 2,
                   }}>
                     {leaderNode}
+                  </div>
+
+                  {/* Card — fills the row height on the opposite side of the node */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 6, bottom: 6,
+                    ...(side === 'right'
+                      ? { left: `calc(${nodePct}% + ${nodeSize / 2 + GAP}px)`, right: EDGE }
+                      : { left: EDGE, right: `calc(${100 - nodePct}% + ${nodeSize / 2 + GAP}px)` }),
+                  }}>
+                    {infoCard}
                   </div>
                 </div>
               );
