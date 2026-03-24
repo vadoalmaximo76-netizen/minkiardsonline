@@ -108,10 +108,12 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [victoryStep, setVictoryStep] = useState(0);
   const [pendingBattle, setPendingBattle] = useState<{ leader: GymLeader; deckIds: string[] } | null>(null);
   const [userCredits, setUserCredits] = useState(0);
+  const [isReplayBattle, setIsReplayBattle] = useState(false);
 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
   const battleStartingRef = useRef(false);
+  const isReplayBattleRef = useRef(false);
   const mapScrollRef = useRef<HTMLDivElement>(null);
   const expectedCpusRef = useRef(0);
   const cpusAddedRef = useRef(0);
@@ -179,7 +181,9 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
       if (actuallyWon) {
         setJustWon(true);
         const leader = selectedLeaderRef.current;
-        if (leader && leader.customDeck && leader.customDeck.length > 0) {
+        const isReplay = isReplayBattleRef.current;
+        // Card-pick reward only on FIRST win — skip it when replaying a completed stage
+        if (!isReplay && leader && leader.customDeck && leader.customDeck.length > 0) {
           setPhase('card-pick');
         } else {
           setPhase('victory');
@@ -384,6 +388,9 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   };
 
   const handleChallengeLeader = (leader: GymLeader) => {
+    const replay = completedIds.includes(leader.id);
+    isReplayBattleRef.current = replay;
+    setIsReplayBattle(replay);
     setSelectedLeader(leader);
     setPhase('intro');
   };
@@ -916,102 +923,118 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                     {isCompleted ? <CheckCircle className="w-5 h-5" /> : isLocked ? <Lock className="w-4 h-4" /> : idx + 1}
                   </div>
 
-                  {/* Leader image */}
-                  <div className="relative flex-shrink-0">
-                    {leader.leaderImageUrl ? (
-                      <img
-                        src={leader.leaderImageUrl}
-                        alt={leader.name}
-                        className={`w-14 h-14 rounded-xl object-cover border-2 ${
-                          isCompleted ? 'border-green-500/40' : isAvailable ? 'border-yellow-500/40' : 'border-white/10'
-                        }`}
-                      />
-                    ) : (
-                      <div className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center ${
-                        isCompleted ? 'bg-green-900/20 border-green-500/20' : isAvailable ? 'bg-yellow-900/20 border-yellow-500/20' : 'bg-gray-800/30 border-white/5'
-                      }`}>
-                        <Shield className={`w-6 h-6 ${isCompleted ? 'text-green-400/40' : isAvailable ? 'text-yellow-400/40' : 'text-white/10'}`} />
+                  {isLocked ? (
+                    /* ── LOCKED: hide all details ── */
+                    <>
+                      <div className="w-14 h-14 rounded-xl border-2 border-white/5 bg-gray-800/30 flex items-center justify-center flex-shrink-0">
+                        <Lock className="w-6 h-6 text-white/10" />
                       </div>
-                    )}
-                    {leader.badgeImageUrl && isCompleted && (
-                      <img src={leader.badgeImageUrl} alt="badge" className="absolute -bottom-1.5 -right-1.5 w-7 h-7 rounded-full border-2 border-gray-900 object-cover shadow-lg" onError={e => (e.currentTarget.style.display = 'none')} />
-                    )}
-                  </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-base text-white/20">Stage {leader.orderIndex}</p>
+                        <p className="text-white/15 text-xs mt-0.5">Completa gli stage precedenti per sbloccare</p>
+                      </div>
+                    </>
+                  ) : (
+                    /* ── AVAILABLE or COMPLETED: show full details ── */
+                    <>
+                      {/* Leader image */}
+                      <div className="relative flex-shrink-0">
+                        {leader.leaderImageUrl ? (
+                          <img
+                            src={leader.leaderImageUrl}
+                            alt={leader.name}
+                            className={`w-14 h-14 rounded-xl object-cover border-2 ${
+                              isCompleted ? 'border-green-500/40' : 'border-yellow-500/40'
+                            }`}
+                          />
+                        ) : (
+                          <div className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center ${
+                            isCompleted ? 'bg-green-900/20 border-green-500/20' : 'bg-yellow-900/20 border-yellow-500/20'
+                          }`}>
+                            <Shield className={`w-6 h-6 ${isCompleted ? 'text-green-400/40' : 'text-yellow-400/40'}`} />
+                          </div>
+                        )}
+                        {leader.badgeImageUrl && isCompleted && (
+                          <img src={leader.badgeImageUrl} alt="badge" className="absolute -bottom-1.5 -right-1.5 w-7 h-7 rounded-full border-2 border-gray-900 object-cover shadow-lg" onError={e => (e.currentTarget.style.display = 'none')} />
+                        )}
+                      </div>
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                      <p className={`font-black text-base truncate ${isCompleted ? 'text-green-300' : isAvailable ? 'text-white' : 'text-white/30'}`}>
-                        {leader.gymName}
-                      </p>
-                      {isCurrent && !isCompleted && (
-                        <span className="text-[9px] font-black bg-yellow-500 text-black px-1.5 py-0.5 rounded-full uppercase">Prossimo</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className={`text-xs ${isCompleted ? 'text-green-400/60' : isAvailable ? 'text-white/50' : 'text-white/20'}`}>
-                        Boss: <span className={`font-bold ${isCompleted ? 'text-green-300/70' : 'text-white/60'}`}>{leader.name}</span>
-                      </p>
-                      {cpuCount > 1 && (
-                        <span className="text-purple-400/70 text-[10px] bg-purple-900/20 border border-purple-500/20 rounded-full px-1.5 py-0.5 font-bold flex items-center gap-0.5">
-                          <Users className="w-2.5 h-2.5" />{cpuCount}
-                        </span>
-                      )}
-                      {leader.attackMode === 'hunt_human' && (
-                        <span className="text-red-400/70 text-[10px] bg-red-900/20 border border-red-500/20 rounded-full px-1.5 py-0.5 font-bold flex items-center gap-0.5">
-                          <Target className="w-2.5 h-2.5" />vs te
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <span className={`text-[10px] font-bold ${DIFFICULTY_LABEL[leader.cpuLevel]?.color || 'text-white/40'}`}>
-                        {leader.cpuLevel === 'easy' ? '🟢' : leader.cpuLevel === 'medium' ? '🟡' : '🔴'} {DIFFICULTY_LABEL[leader.cpuLevel]?.label}
-                      </span>
-                      <span className={`text-[10px] ${isAvailable ? 'text-white/30' : 'text-white/15'}`}>❤️ {leader.livesCount}</span>
-                      <span className={`text-[10px] ${isAvailable ? 'text-yellow-400/50' : 'text-white/15'}`}>+{leader.rewardCredits}⭐</span>
-                    </div>
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                          <p className={`font-black text-base truncate ${isCompleted ? 'text-green-300' : 'text-white'}`}>
+                            {leader.gymName}
+                          </p>
+                          {isCurrent && !isCompleted && (
+                            <span className="text-[9px] font-black bg-yellow-500 text-black px-1.5 py-0.5 rounded-full uppercase">Prossimo</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className={`text-xs ${isCompleted ? 'text-green-400/60' : 'text-white/50'}`}>
+                            Boss: <span className={`font-bold ${isCompleted ? 'text-green-300/70' : 'text-white/60'}`}>{leader.name}</span>
+                          </p>
+                          {cpuCount > 1 && (
+                            <span className="text-purple-400/70 text-[10px] bg-purple-900/20 border border-purple-500/20 rounded-full px-1.5 py-0.5 font-bold flex items-center gap-0.5">
+                              <Users className="w-2.5 h-2.5" />{cpuCount}
+                            </span>
+                          )}
+                          {leader.attackMode === 'hunt_human' && (
+                            <span className="text-red-400/70 text-[10px] bg-red-900/20 border border-red-500/20 rounded-full px-1.5 py-0.5 font-bold flex items-center gap-0.5">
+                              <Target className="w-2.5 h-2.5" />vs te
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className={`text-[10px] font-bold ${DIFFICULTY_LABEL[leader.cpuLevel]?.color || 'text-white/40'}`}>
+                            {leader.cpuLevel === 'easy' ? '🟢' : leader.cpuLevel === 'medium' ? '🟡' : '🔴'} {DIFFICULTY_LABEL[leader.cpuLevel]?.label}
+                          </span>
+                          <span className={`text-[10px] ${isAvailable ? 'text-white/30' : 'text-white/15'}`}>❤️ {leader.livesCount}</span>
+                          <span className={`text-[10px] ${isAvailable ? 'text-yellow-400/50' : 'text-white/15'}`}>+{leader.rewardCredits}⭐</span>
+                        </div>
 
-                    {/* Riprendi partita — shown inline next to the specific interrupted stage */}
-                    {pendingGymGame?.gymLeaderId === leader.id && onResumeGymGame && (
-                      <div className="mt-2 flex items-center gap-2 flex-wrap">
-                        <button
-                          onClick={() => onResumeGymGame(pendingGymGame.gameId)}
-                          className="px-4 py-1.5 bg-orange-600 hover:bg-orange-500 text-white font-black text-xs rounded-xl transition-colors active:scale-95 flex items-center gap-1.5 shadow-lg shadow-orange-900/30"
-                        >
-                          <Swords className="w-3 h-3" /> Riprendi
-                        </button>
-                        {isAvailable && (
+                        {/* Riprendi partita — shown inline next to the specific interrupted stage */}
+                        {pendingGymGame?.gymLeaderId === leader.id && onResumeGymGame && (
+                          <div className="mt-2 flex items-center gap-2 flex-wrap">
+                            <button
+                              onClick={() => onResumeGymGame(pendingGymGame.gameId)}
+                              className="px-4 py-1.5 bg-orange-600 hover:bg-orange-500 text-white font-black text-xs rounded-xl transition-colors active:scale-95 flex items-center gap-1.5 shadow-lg shadow-orange-900/30"
+                            >
+                              <Swords className="w-3 h-3" /> Riprendi
+                            </button>
+                            {isAvailable && (
+                              <button
+                                onClick={() => handleChallengeLeader(leader)}
+                                className="px-3 py-1.5 rounded-xl font-bold text-[10px] text-white/50 hover:text-white/80 border border-white/10 hover:border-white/20 transition-all active:scale-95"
+                              >
+                                Nuova partita
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Available: Challenge button (only when no pending game for this stage) */}
+                        {isAvailable && pendingGymGame?.gymLeaderId !== leader.id && (
                           <button
                             onClick={() => handleChallengeLeader(leader)}
-                            className="px-3 py-1.5 rounded-xl font-bold text-[10px] text-white/50 hover:text-white/80 border border-white/10 hover:border-white/20 transition-all active:scale-95"
+                            className="mt-2 px-4 py-1.5 rounded-xl font-black text-xs text-white active:scale-95 transition-transform shadow-lg flex items-center gap-1.5"
+                            style={{ background: 'linear-gradient(to right, #9333ea, #f59e0b)' }}
                           >
-                            Nuova partita
+                            <Swords className="w-3 h-3" /> SFIDA!
+                          </button>
+                        )}
+
+                        {/* Completed: replay */}
+                        {isCompleted && pendingGymGame?.gymLeaderId !== leader.id && (
+                          <button
+                            onClick={() => handleChallengeLeader(leader)}
+                            className="mt-1.5 flex items-center gap-0.5 text-green-400/50 hover:text-green-400/80 transition-colors text-[10px] font-bold"
+                          >
+                            <ChevronRight className="w-3 h-3" /> Rigioca
                           </button>
                         )}
                       </div>
-                    )}
-
-                    {/* Available: Challenge button (only when no pending game for this stage) */}
-                    {isAvailable && pendingGymGame?.gymLeaderId !== leader.id && (
-                      <button
-                        onClick={() => handleChallengeLeader(leader)}
-                        className="mt-2 px-4 py-1.5 rounded-xl font-black text-xs text-white active:scale-95 transition-transform shadow-lg flex items-center gap-1.5"
-                        style={{ background: 'linear-gradient(to right, #9333ea, #f59e0b)' }}
-                      >
-                        <Swords className="w-3 h-3" /> SFIDA!
-                      </button>
-                    )}
-
-                    {/* Completed: replay */}
-                    {isCompleted && pendingGymGame?.gymLeaderId !== leader.id && (
-                      <button
-                        onClick={() => handleChallengeLeader(leader)}
-                        className="mt-1.5 flex items-center gap-0.5 text-green-400/50 hover:text-green-400/80 transition-colors text-[10px] font-bold"
-                      >
-                        <ChevronRight className="w-3 h-3" /> Rigioca
-                      </button>
-                    )}
-                  </div>
+                    </>
+                  )}
                 </div>
               </div>
             );
