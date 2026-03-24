@@ -149,7 +149,7 @@ function App() {
 
   const [pendingGymGame, setPendingGymGame] = useState<{ gameId: string; gymLeaderCpuName?: string } | null>(null);
   const [pendingTournamentGame, setPendingTournamentGame] = useState<{ gameId: string } | null>(null);
-  const [pendingFantaGame, setPendingFantaGame] = useState<{ gameId: string } | null>(null);
+  const [pendingFantaGame, setPendingFantaGame] = useState<{ gameId: string; fantaTournamentId?: string } | null>(null);
   const [resetPasswordToken, setResetPasswordToken] = useState<string | null>(() => getResetPasswordToken());
   const [gameInvitation, setGameInvitation] = useState<{
     senderId: number;
@@ -189,7 +189,7 @@ function App() {
 
         // Listen for active game found (after server restart)
         // Only rejoin if session was NOT already restored and we don't have an active game
-        socket.on('active-game-found', (data: { gameId: string; handCount: number; playerName: string; gameMode?: 'gym' | 'tournament' | 'fanta' | 'regular'; gymLeaderCpuName?: string }) => {
+        socket.on('active-game-found', (data: { gameId: string; handCount: number; playerName: string; gameMode?: 'gym' | 'tournament' | 'fanta' | 'regular'; gymLeaderCpuName?: string; fantaTournamentId?: string }) => {
           console.log('Active game found on server:', data);
           
           // Skip if session was already successfully restored
@@ -236,8 +236,8 @@ function App() {
             return;
           }
           if (mode === 'fanta') {
-            console.log(`[active-game-found] Pending fanta game ${data.gameId}`);
-            setPendingFantaGame({ gameId: data.gameId });
+            console.log(`[active-game-found] Pending fanta game ${data.gameId} (fantaTournamentId=${data.fantaTournamentId})`);
+            setPendingFantaGame({ gameId: data.gameId, fantaTournamentId: data.fantaTournamentId });
             return;
           }
           
@@ -692,6 +692,25 @@ function App() {
     setCurrentSection('play');
   };
 
+  const handleResumeFantaGame = (pendingGame: { gameId: string; fantaTournamentId?: string }) => {
+    setPendingFantaGame(null);
+    if (pendingGame.fantaTournamentId) {
+      setFantaReturnId(pendingGame.fantaTournamentId);
+      setCurrentSection('fanta');
+    } else {
+      const pName = authenticatedUser?.username || playerName;
+      setGameId(pendingGame.gameId);
+      setPlayerName(pName);
+      generateSessionId();
+      socket.emit('rejoin-game', {
+        gameId: pendingGame.gameId,
+        playerName: pName,
+        authToken: localStorage.getItem('authToken'),
+      });
+      setCurrentSection('play');
+    }
+  };
+
   const handleUpdateProfile = (updates: { username?: string; avatar?: string }) => {
     if (updates.username) {
       setPlayerName(updates.username);
@@ -924,7 +943,7 @@ function App() {
           initialFantaId={fantaReturnId ?? undefined}
           onClose={handleGoHome}
           pendingFantaGame={pendingFantaGame ?? undefined}
-          onResumeFantaGame={(gameId) => handleResumeGame(gameId, authenticatedUser?.username || playerName)}
+          onResumeFantaGame={(gameId, fantaTournamentId) => handleResumeFantaGame({ gameId, fantaTournamentId })}
           onJoinFantaGame={(gameId: string) => {
             setGameId(gameId);
             const newUrl = `${window.location.origin}?game=${gameId}`;

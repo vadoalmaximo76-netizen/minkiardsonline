@@ -2992,7 +2992,7 @@ Rispondi SOLO in JSON:`;
   }
 
   // Get active game ID for a player by their name (used for reconnection after server restart)
-  getActiveGameByPlayerName(playerName: string, preferredGameId?: string): { gameId: string; handCount: number; gameMode: 'gym' | 'tournament' | 'fanta' | 'regular'; gymLeaderCpuName?: string } | null {
+  getActiveGameByPlayerName(playerName: string, preferredGameId?: string): { gameId: string; handCount: number; gameMode: 'gym' | 'tournament' | 'fanta' | 'regular'; gymLeaderCpuName?: string; fantaTournamentId?: string } | null {
     const gamesArray = Array.from(this.games.entries());
 
     // Collect all candidate games for this player (non-ended)
@@ -3007,10 +3007,10 @@ Rispondi SOLO in JSON:`;
 
     if (candidates.length === 0) return null;
 
-    const getGameMode = (g: GameState): { gameMode: 'gym' | 'tournament' | 'fanta' | 'regular'; gymLeaderCpuName?: string } => {
+    const getGameMode = (g: GameState): { gameMode: 'gym' | 'tournament' | 'fanta' | 'regular'; gymLeaderCpuName?: string; fantaTournamentId?: string } => {
       if (g.isGymMode) return { gameMode: 'gym', gymLeaderCpuName: g.gymLeaderCpuName };
       if (g.tournamentMatchId) return { gameMode: 'tournament' };
-      if (g.fantaTournamentId) return { gameMode: 'fanta' };
+      if (g.fantaTournamentId) return { gameMode: 'fanta', fantaTournamentId: g.fantaTournamentId };
       return { gameMode: 'regular' };
     };
 

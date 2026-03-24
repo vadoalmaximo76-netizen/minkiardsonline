@@ -77,8 +77,8 @@ interface Props {
   initialFantaId?: string;
   onClose: () => void;
   onJoinFantaGame?: (gameId: string) => void;
-  pendingFantaGame?: { gameId: string };
-  onResumeFantaGame?: (gameId: string) => void;
+  pendingFantaGame?: { gameId: string; fantaTournamentId?: string };
+  onResumeFantaGame?: (gameId: string, fantaTournamentId?: string) => void;
 }
 
 const TOTAL_CARDS = { personaggi: 207, mosse: 91, bonus: 172 };
@@ -1928,7 +1928,7 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
                 <p className="text-purple-400/70 text-xs">La tua partita è ancora attiva sul server</p>
               </div>
               <button
-                onClick={() => onResumeFantaGame(pendingFantaGame.gameId)}
+                onClick={() => onResumeFantaGame(pendingFantaGame.gameId, pendingFantaGame.fantaTournamentId)}
                 className="flex-shrink-0 px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs rounded-xl transition-colors active:scale-95"
               >
                 Riprendi
