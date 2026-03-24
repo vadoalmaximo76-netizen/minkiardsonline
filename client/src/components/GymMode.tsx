@@ -128,9 +128,10 @@ const GYM_PATH_STYLES = `
   .gym-path-node-pop { animation: gymNodePop 0.42s cubic-bezier(0.34,1.56,0.64,1) both; }
 `;
 
-/* x positions as percentages of container width — must match DOM calc() values */
-const GYM_NODE_PCT_RIGHT = 58; /* even stages → node center at 58% */
-const GYM_NODE_PCT_LEFT  = 42; /* odd  stages → node center at 42% */
+/* Node center as % from the nearest edge.
+   Even stages → node sits on the LEFT side of the card  (center at EDGE_PCT% from left)
+   Odd  stages → node sits on the RIGHT side of the card (center at EDGE_PCT% from right = (100-EDGE_PCT)% from left) */
+const GYM_NODE_EDGE_PCT = 22;
 
 function GymPathSVG({ count }: { count: number }) {
   /* viewBox x: 0-100 (%) so SVG scales with container width.
@@ -138,7 +139,7 @@ function GymPathSVG({ count }: { count: number }) {
   const totalH = GYM_PATH_TOP_PAD + count * GYM_PATH_NODE_H + 24;
 
   const pts = Array.from({ length: count }, (_, i) => ({
-    x: i % 2 === 0 ? GYM_NODE_PCT_RIGHT : GYM_NODE_PCT_LEFT,
+    x: i % 2 === 0 ? GYM_NODE_EDGE_PCT : 100 - GYM_NODE_EDGE_PCT,
     y: GYM_PATH_TOP_PAD + i * GYM_PATH_NODE_H + GYM_PATH_NODE_H / 2,
   }));
 
@@ -1085,8 +1086,15 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
               );
 
               /* ── info card ── */
-              const align = side === 'right' ? 'flex-start' : 'flex-end';
-              const txtAlign: 'left' | 'right' = side === 'right' ? 'left' : 'right';
+              /* Full-width card: node overlaps on left (even) or right (odd).
+                 Content padding pushes text away from the node. */
+              const nodeHalf = nodeSize / 2 + 14;
+              const nodePadVal = `calc(${GYM_NODE_EDGE_PCT}% + ${nodeHalf}px)`;
+              const cardPad = side === 'right'
+                ? { paddingLeft: nodePadVal, paddingRight: '14px', paddingTop: '10px', paddingBottom: '10px' }
+                : { paddingLeft: '14px', paddingRight: nodePadVal, paddingTop: '10px', paddingBottom: '10px' };
+              const align = 'flex-start';
+              const txtAlign = 'left' as const;
               const bgImg = leader.backgroundImageUrl;
 
               const infoCard = isLocked ? (
@@ -1098,8 +1106,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                   opacity: 0.38,
                 }}>
                   <div style={{ position: 'absolute', inset: 0, background: 'rgba(5,5,15,0.92)' }} />
-                  <div style={{ position: 'relative', zIndex: 1, padding: '10px 12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: txtAlign }}>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: '#374151', letterSpacing: '0.06em' }}>
+                  <div style={{ position: 'relative', zIndex: 1, ...cardPad, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: txtAlign, boxSizing: 'border-box' }}>
+                    <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: '#374151', letterSpacing: '0.06em' }}>
                       STAGE {leader.orderIndex}
                     </p>
                     <p style={{ margin: '4px 0 0', fontSize: 10, color: '#1f2937', fontWeight: 700 }}>
@@ -1144,48 +1152,48 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                   )}
 
                   {/* Content */}
-                  <div style={{ position: 'relative', zIndex: 1, padding: '9px 11px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box' }}>
-                    {/* Top: stage label + gym name */}
+                  <div style={{ position: 'relative', zIndex: 1, ...cardPad, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box' }}>
+                    {/* Top: stage label + gym name + boss */}
                     <div>
-                      <p style={{ margin: '0 0 2px', fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: isCurrent ? '#f59e0bcc' : isCompleted ? '#4ade8099' : 'rgba(255,255,255,0.28)', textAlign: txtAlign }}>
+                      <p style={{ margin: '0 0 2px', fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: isCurrent ? '#f59e0bcc' : isCompleted ? '#4ade8099' : 'rgba(255,255,255,0.28)', textAlign: txtAlign }}>
                         Stage {leader.orderIndex}
                       </p>
-                      <p style={{ margin: 0, fontSize: 14, fontWeight: 900, lineHeight: 1.15, color: isCurrent ? '#fde68a' : isCompleted ? '#86efac' : 'white', textAlign: txtAlign, letterSpacing: '0.01em' }}>
+                      <p style={{ margin: 0, fontSize: 17, fontWeight: 900, lineHeight: 1.15, color: isCurrent ? '#fde68a' : isCompleted ? '#86efac' : 'white', textAlign: txtAlign, letterSpacing: '0.01em' }}>
                         {leader.gymName}
                       </p>
-                      <p style={{ margin: '3px 0 0', fontSize: 11, fontWeight: 700, color: isCurrent ? 'rgba(253,230,138,0.7)' : isCompleted ? 'rgba(134,239,172,0.6)' : 'rgba(255,255,255,0.45)', textAlign: txtAlign }}>
-                        Boss: <span style={{ fontWeight: 900, color: isCurrent ? '#fde68a' : isCompleted ? '#86efac' : 'rgba(255,255,255,0.7)' }}>{leader.name}</span>
+                      <p style={{ margin: '4px 0 0', fontSize: 13, fontWeight: 700, color: isCurrent ? 'rgba(253,230,138,0.7)' : isCompleted ? 'rgba(134,239,172,0.6)' : 'rgba(255,255,255,0.45)', textAlign: txtAlign }}>
+                        Boss: <span style={{ fontWeight: 900, color: isCurrent ? '#fde68a' : isCompleted ? '#86efac' : 'rgba(255,255,255,0.75)' }}>{leader.name}</span>
                       </p>
                     </div>
 
                     {/* Bottom: stats + action */}
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', justifyContent: align, marginBottom: 5 }}>
-                        <span style={{ fontSize: 10, fontWeight: 800, color: leader.cpuLevel === 'easy' ? '#4ade80' : leader.cpuLevel === 'medium' ? '#facc15' : '#f87171' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: align, marginBottom: 6 }}>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: leader.cpuLevel === 'easy' ? '#4ade80' : leader.cpuLevel === 'medium' ? '#facc15' : '#f87171' }}>
                           {leader.cpuLevel === 'easy' ? '🟢' : leader.cpuLevel === 'medium' ? '🟡' : '🔴'} {DIFFICULTY_LABEL[leader.cpuLevel]?.label}
                         </span>
-                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>❤️ {leader.livesCount}</span>
+                        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontWeight: 700 }}>❤️ {leader.livesCount}</span>
                         {cpuCount > 1 && (
-                          <span style={{ fontSize: 10, color: '#c084fc', fontWeight: 800, background: 'rgba(168,85,247,0.18)', padding: '1px 6px', borderRadius: 99, display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <Users style={{ width: 10, height: 10 }} />{cpuCount}
+                          <span style={{ fontSize: 12, color: '#c084fc', fontWeight: 800, background: 'rgba(168,85,247,0.18)', padding: '2px 7px', borderRadius: 99, display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <Users style={{ width: 12, height: 12 }} />{cpuCount}
                           </span>
                         )}
-                        <span style={{ fontSize: 10, color: '#fbbf24', fontWeight: 800 }}>+{leader.rewardCredits}⭐</span>
+                        <span style={{ fontSize: 12, color: '#fbbf24', fontWeight: 800 }}>+{leader.rewardCredits}⭐</span>
                       </div>
 
                       {/* Actions */}
                       {pendingGymGame?.gymLeaderId === leader.id && onResumeGymGame ? (
-                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: align }}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: align }}>
                           <button
                             onClick={() => onResumeGymGame(pendingGymGame.gameId)}
-                            style={{ background: '#ea580c', border: 'none', borderRadius: 9, color: 'white', fontSize: 11, fontWeight: 900, padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                            style={{ background: '#ea580c', border: 'none', borderRadius: 10, color: 'white', fontSize: 13, fontWeight: 900, padding: '6px 13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
                           >
-                            <Swords style={{ width: 10, height: 10 }} /> Riprendi
+                            <Swords style={{ width: 12, height: 12 }} /> Riprendi
                           </button>
                           {isAvailable && (
                             <button
                               onClick={() => handleChallengeLeader(leader)}
-                              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 9, color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: 800, padding: '5px 9px', cursor: 'pointer' }}
+                              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: 800, padding: '6px 11px', cursor: 'pointer' }}
                             >
                               Nuova
                             </button>
@@ -1195,18 +1203,18 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                         <div style={{ display: 'flex', justifyContent: align }}>
                           <button
                             onClick={() => handleChallengeLeader(leader)}
-                            style={{ border: 'none', borderRadius: 10, color: 'white', fontSize: 12, fontWeight: 900, padding: '6px 12px', cursor: 'pointer', background: 'linear-gradient(to right,#9333ea,#f59e0b)', display: 'inline-flex', alignItems: 'center', gap: 5, letterSpacing: '0.04em', boxShadow: '0 2px 10px rgba(147,51,234,0.4)' }}
+                            style={{ border: 'none', borderRadius: 11, color: 'white', fontSize: 14, fontWeight: 900, padding: '7px 16px', cursor: 'pointer', background: 'linear-gradient(to right,#9333ea,#f59e0b)', display: 'inline-flex', alignItems: 'center', gap: 6, letterSpacing: '0.04em', boxShadow: '0 2px 12px rgba(147,51,234,0.45)' }}
                           >
-                            <Swords style={{ width: 11, height: 11 }} /> SFIDA!
+                            <Swords style={{ width: 13, height: 13 }} /> SFIDA!
                           </button>
                         </div>
                       ) : isCompleted ? (
                         <div style={{ display: 'flex', justifyContent: align }}>
                           <button
                             onClick={() => handleChallengeLeader(leader)}
-                            style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid #4ade8033', borderRadius: 9, color: '#4ade8099', fontSize: 11, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, padding: '4px 9px' }}
+                            style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid #4ade8033', borderRadius: 10, color: '#4ade8099', fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '5px 11px' }}
                           >
-                            <ChevronRight style={{ width: 11, height: 11 }} /> Rigioca
+                            <ChevronRight style={{ width: 13, height: 13 }} /> Rigioca
                           </button>
                         </div>
                       ) : null}
@@ -1215,35 +1223,29 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                 </div>
               );
 
-              /* node center at GYM_NODE_PCT_RIGHT% or GYM_NODE_PCT_LEFT% — matches SVG viewBox coords */
-              const nodePct = side === 'right' ? GYM_NODE_PCT_RIGHT : GYM_NODE_PCT_LEFT;
-              const GAP = 9; /* px gap between node edge and card */
-              const EDGE = 10; /* px margin from screen edge */
+              /* Even stages (side='right'): node on LEFT at GYM_NODE_EDGE_PCT% from left.
+                 Odd  stages (side='left'):  node on RIGHT at (100-GYM_NODE_EDGE_PCT)% from left.
+                 Card is full-width; content has padding to avoid the node. */
+              const nodePctFromLeft = side === 'right' ? GYM_NODE_EDGE_PCT : 100 - GYM_NODE_EDGE_PCT;
 
               return (
                 <div
                   key={leader.id}
                   style={{ position: 'absolute', top: nodeY, left: 0, right: 0, height: GYM_PATH_NODE_H }}
                 >
-                  {/* Node — absolutely placed at the SVG percentage position */}
+                  {/* Full-width card behind the node */}
+                  <div style={{ position: 'absolute', top: 6, left: 8, right: 8, bottom: 6, zIndex: 1 }}>
+                    {infoCard}
+                  </div>
+
+                  {/* Node — overlaps the card on the left or right side */}
                   <div style={{
                     position: 'absolute',
                     top: '50%', transform: 'translateY(-50%)',
-                    left: `calc(${nodePct}% - ${nodeSize / 2}px)`,
-                    zIndex: 2,
+                    left: `calc(${nodePctFromLeft}% - ${nodeSize / 2}px)`,
+                    zIndex: 3,
                   }}>
                     {leaderNode}
-                  </div>
-
-                  {/* Card — fills the row height on the opposite side of the node */}
-                  <div style={{
-                    position: 'absolute',
-                    top: 6, bottom: 6,
-                    ...(side === 'right'
-                      ? { left: `calc(${nodePct}% + ${nodeSize / 2 + GAP}px)`, right: EDGE }
-                      : { left: EDGE, right: `calc(${100 - nodePct}% + ${nodeSize / 2 + GAP}px)` }),
-                  }}>
-                    {infoCard}
                   </div>
                 </div>
               );
