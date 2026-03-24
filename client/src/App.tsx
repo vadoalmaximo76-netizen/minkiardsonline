@@ -693,22 +693,23 @@ function App() {
   };
 
   const handleResumeFantaGame = (pendingGame: { gameId: string; fantaTournamentId?: string }) => {
+    const pName = authenticatedUser?.username || playerName;
     setPendingFantaGame(null);
+    // active-game-found only fires for active card games, so fanta pending games are always
+    // match games. Emit rejoin-game and navigate to play to show the game board.
+    // Store fantaReturnId so the user can navigate back to the fanta section after the match.
     if (pendingGame.fantaTournamentId) {
       setFantaReturnId(pendingGame.fantaTournamentId);
-      setCurrentSection('fanta');
-    } else {
-      const pName = authenticatedUser?.username || playerName;
-      setGameId(pendingGame.gameId);
-      setPlayerName(pName);
-      generateSessionId();
-      socket.emit('rejoin-game', {
-        gameId: pendingGame.gameId,
-        playerName: pName,
-        authToken: localStorage.getItem('authToken'),
-      });
-      setCurrentSection('play');
     }
+    setGameId(pendingGame.gameId);
+    setPlayerName(pName);
+    generateSessionId();
+    socket.emit('rejoin-game', {
+      gameId: pendingGame.gameId,
+      playerName: pName,
+      authToken: localStorage.getItem('authToken'),
+    });
+    setCurrentSection('play');
   };
 
   const handleUpdateProfile = (updates: { username?: string; avatar?: string }) => {
