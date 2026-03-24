@@ -41,6 +41,8 @@ interface HomeScreenProps {
   userEmail?: string;
   initialShowTournaments?: boolean;
   onInitialShowTournamentsHandled?: () => void;
+  pendingTournamentGame?: { gameId: string };
+  onResumeTournamentGame?: (gameId: string) => void;
 }
 
 interface UserStats {
@@ -477,7 +479,7 @@ const PARTICLES = Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
   color: PARTICLE_COLORS[i % 7],
 }));
 
-export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMatch, userEmail, initialShowTournaments, onInitialShowTournamentsHandled }: HomeScreenProps) {
+export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMatch, userEmail, initialShowTournaments, onInitialShowTournamentsHandled, pendingTournamentGame, onResumeTournamentGame }: HomeScreenProps) {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [activeRoomsCount, setActiveRoomsCount] = useState(0);
   const [tickerQuotes, setTickerQuotes] = useState<string[]>([]);
@@ -1236,7 +1238,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       )}
 
       {showTournaments && (
-        <TournamentPanel userId={userId || 0} username={playerName} onClose={() => setShowTournaments(false)} onJoinMatch={onJoinTournamentMatch} />
+        <TournamentPanel userId={userId || 0} username={playerName} onClose={() => setShowTournaments(false)} onJoinMatch={onJoinTournamentMatch} pendingTournamentGame={pendingTournamentGame} onResumeGame={onResumeTournamentGame} />
       )}
       {showClubs && (
         <ClubPanel userId={userId || 0} username={playerName} onClose={() => setShowClubs(false)} />

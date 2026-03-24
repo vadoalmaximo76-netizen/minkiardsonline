@@ -146,6 +146,10 @@ function App() {
   useEffect(() => {
     if (currentSection !== 'fanta') setFantaReturnId(null);
   }, [currentSection]);
+
+  const [pendingGymGame, setPendingGymGame] = useState<{ gameId: string; gymLeaderCpuName?: string } | null>(null);
+  const [pendingTournamentGame, setPendingTournamentGame] = useState<{ gameId: string } | null>(null);
+  const [pendingFantaGame, setPendingFantaGame] = useState<{ gameId: string } | null>(null);
   const [resetPasswordToken, setResetPasswordToken] = useState<string | null>(() => getResetPasswordToken());
   const [gameInvitation, setGameInvitation] = useState<{
     senderId: number;
@@ -185,7 +189,7 @@ function App() {
 
         // Listen for active game found (after server restart)
         // Only rejoin if session was NOT already restored and we don't have an active game
-        socket.on('active-game-found', (data: { gameId: string; handCount: number; playerName: string }) => {
+        socket.on('active-game-found', (data: { gameId: string; handCount: number; playerName: string; gameMode?: 'gym' | 'tournament' | 'fanta' | 'regular'; gymLeaderCpuName?: string }) => {
           console.log('Active game found on server:', data);
           
           // Skip if session was already successfully restored
@@ -215,6 +219,25 @@ function App() {
           const appSection = (window as any).__minkAppSection;
           if (appSection === 'play' && currentGameId) {
             console.log('Already in play view — skipping active-game-found join-game, auto-rejoin handled by set-user-data');
+            return;
+          }
+
+          // For special modes (gym, tournament, fanta) — store as pending so the user
+          // can choose to resume via a contextual "Riprendi partita" button inside the section.
+          const mode = data.gameMode || 'regular';
+          if (mode === 'gym') {
+            console.log(`[active-game-found] Pending gym game ${data.gameId} (${data.gymLeaderCpuName})`);
+            setPendingGymGame({ gameId: data.gameId, gymLeaderCpuName: data.gymLeaderCpuName });
+            return;
+          }
+          if (mode === 'tournament') {
+            console.log(`[active-game-found] Pending tournament game ${data.gameId}`);
+            setPendingTournamentGame({ gameId: data.gameId });
+            return;
+          }
+          if (mode === 'fanta') {
+            console.log(`[active-game-found] Pending fanta game ${data.gameId}`);
+            setPendingFantaGame({ gameId: data.gameId });
             return;
           }
           
@@ -654,6 +677,21 @@ function App() {
     setCurrentSection('play');
   };
 
+  const handleResumeGame = (gameId: string, playerNameForResume: string) => {
+    setGameId(gameId);
+    setPlayerName(playerNameForResume);
+    generateSessionId();
+    socket.emit('rejoin-game', {
+      gameId,
+      playerName: playerNameForResume,
+      authToken: localStorage.getItem('authToken'),
+    });
+    setPendingGymGame(null);
+    setPendingTournamentGame(null);
+    setPendingFantaGame(null);
+    setCurrentSection('play');
+  };
+
   const handleUpdateProfile = (updates: { username?: string; avatar?: string }) => {
     if (updates.username) {
       setPlayerName(updates.username);
@@ -706,6 +744,8 @@ function App() {
             userEmail={authenticatedUser?.email || undefined}
             initialShowTournaments={openHomeTournaments}
             onInitialShowTournamentsHandled={() => setOpenHomeTournaments(false)}
+            pendingTournamentGame={pendingTournamentGame ?? undefined}
+            onResumeTournamentGame={(gameId) => handleResumeGame(gameId, authenticatedUser?.username || playerName)}
           />
         </div>
         <SpotifyPlayer disabled={false} />
@@ -883,6 +923,8 @@ function App() {
           isAdmin={authenticatedUser?.email === 'lucaforte94@gmail.com'}
           initialFantaId={fantaReturnId ?? undefined}
           onClose={handleGoHome}
+          pendingFantaGame={pendingFantaGame ?? undefined}
+          onResumeFantaGame={(gameId) => handleResumeGame(gameId, authenticatedUser?.username || playerName)}
           onJoinFantaGame={(gameId: string) => {
             setGameId(gameId);
             const newUrl = `${window.location.origin}?game=${gameId}`;
@@ -914,6 +956,8 @@ function App() {
           userId={authenticatedUser?.id}
           avatarId={authenticatedUser?.avatar}
           onBack={handleGoHome}
+          pendingGymGame={pendingGymGame ?? undefined}
+          onResumeGymGame={(gameId) => handleResumeGame(gameId, authenticatedUser?.username || playerName)}
         />
         <SpotifyPlayer disabled={false} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />

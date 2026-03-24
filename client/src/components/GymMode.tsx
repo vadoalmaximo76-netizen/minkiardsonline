@@ -44,6 +44,8 @@ interface GymModeProps {
   userId?: number;
   avatarId?: string | null;
   onBack: () => void;
+  pendingGymGame?: { gameId: string; gymLeaderCpuName?: string };
+  onResumeGymGame?: (gameId: string) => void;
 }
 
 type Phase = 'map' | 'intro' | 'battle' | 'victory' | 'defeat' | 'card-pick';
@@ -90,7 +92,7 @@ const DIFFICULTY_LABEL: Record<string, { label: string; color: string }> = {
   hard: { label: 'Difficile', color: 'text-red-400' },
 };
 
-export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) {
+export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, onResumeGymGame }: GymModeProps) {
   const [leaders, setLeaders] = useState<GymLeader[]>([]);
   const [completedIds, setCompletedIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
@@ -843,6 +845,25 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
           </div>
         </div>
       </div>
+
+      {/* Riprendi partita banner */}
+      {pendingGymGame && onResumeGymGame && (
+        <div className="flex-shrink-0 mx-4 mt-3 flex items-center gap-3 bg-orange-900/30 border border-orange-500/40 rounded-2xl px-4 py-3">
+          <Swords className="w-5 h-5 text-orange-400 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-orange-200 font-black text-sm leading-tight">Battaglia interrotta</p>
+            <p className="text-orange-400/70 text-xs truncate">
+              {pendingGymGame.gymLeaderCpuName ? `vs ${pendingGymGame.gymLeaderCpuName}` : 'Partita in corso sul server'}
+            </p>
+          </div>
+          <button
+            onClick={() => onResumeGymGame(pendingGymGame.gameId)}
+            className="flex-shrink-0 px-4 py-1.5 bg-orange-600 hover:bg-orange-500 text-white font-black text-xs rounded-xl transition-colors active:scale-95"
+          >
+            Riprendi
+          </button>
+        </div>
+      )}
 
       {/* Stage list */}
       <div ref={mapScrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">

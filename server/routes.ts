@@ -1276,8 +1276,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const alreadyJoinedGame = gameManager.getGameState(alreadyJoinedGameId);
           if (alreadyJoinedGame && !alreadyJoinedGame.gameEnded && alreadyJoinedGame.players[playerName]) {
             const handCount = alreadyJoinedGame.players[playerName].hand.length;
+            const gameMode: 'gym' | 'tournament' | 'fanta' | 'regular' =
+              alreadyJoinedGame.isGymMode ? 'gym'
+              : alreadyJoinedGame.tournamentMatchId ? 'tournament'
+              : alreadyJoinedGame.fantaTournamentId ? 'fanta'
+              : 'regular';
+            const gymLeaderCpuName = alreadyJoinedGame.gymLeaderCpuName;
             console.log(`🔒 Socket already in game ${alreadyJoinedGameId} (via set-user-data), returning it instead of hint ${lastGameId}`);
-            socket.emit('active-game-found', { gameId: alreadyJoinedGameId, handCount, playerName });
+            socket.emit('active-game-found', { gameId: alreadyJoinedGameId, handCount, playerName, gameMode, gymLeaderCpuName });
             return;
           }
         }

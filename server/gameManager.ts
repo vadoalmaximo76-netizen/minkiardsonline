@@ -2992,7 +2992,7 @@ Rispondi SOLO in JSON:`;
   }
 
   // Get active game ID for a player by their name (used for reconnection after server restart)
-  getActiveGameByPlayerName(playerName: string, preferredGameId?: string): { gameId: string; handCount: number } | null {
+  getActiveGameByPlayerName(playerName: string, preferredGameId?: string): { gameId: string; handCount: number; gameMode: 'gym' | 'tournament' | 'fanta' | 'regular'; gymLeaderCpuName?: string } | null {
     const gamesArray = Array.from(this.games.entries());
 
     // Collect all candidate games for this player (non-ended)
@@ -3006,7 +3006,15 @@ Rispondi SOLO in JSON:`;
     }
 
     if (candidates.length === 0) return null;
-    if (candidates.length === 1) return { gameId: candidates[0].gameId, handCount: candidates[0].handCount };
+
+    const getGameMode = (g: GameState): { gameMode: 'gym' | 'tournament' | 'fanta' | 'regular'; gymLeaderCpuName?: string } => {
+      if (g.isGymMode) return { gameMode: 'gym', gymLeaderCpuName: g.gymLeaderCpuName };
+      if (g.tournamentMatchId) return { gameMode: 'tournament' };
+      if (g.fantaTournamentId) return { gameMode: 'fanta' };
+      return { gameMode: 'regular' };
+    };
+
+    if (candidates.length === 1) return { gameId: candidates[0].gameId, handCount: candidates[0].handCount, ...getGameMode(candidates[0].game) };
 
     // If a preferredGameId hint was given, only honor it when the player does NOT have
     // a live socket connection in a different candidate game. This prevents the client's
@@ -3022,7 +3030,7 @@ Rispondi SOLO in JSON:`;
           return p && p.socketId !== null && p.socketId !== undefined;
         });
         if (!hasLiveSocketElsewhere) {
-          return { gameId: preferredGameId, handCount: preferred.players[playerName].hand.length };
+          return { gameId: preferredGameId, handCount: preferred.players[playerName].hand.length, ...getGameMode(preferred) };
         }
         // If there IS a live socket elsewhere, fall through to the sort-based selection
       }
@@ -3040,7 +3048,7 @@ Rispondi SOLO in JSON:`;
       return b.handCount - a.handCount;
     });
 
-    return { gameId: candidates[0].gameId, handCount: candidates[0].handCount };
+    return { gameId: candidates[0].gameId, handCount: candidates[0].handCount, ...getGameMode(candidates[0].game) };
   }
 
   // Clean up old socket mappings when player reconnects

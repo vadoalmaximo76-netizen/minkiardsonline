@@ -28,6 +28,9 @@ interface TournamentPanelProps {
   userId: number;
   username: string;
   onClose: () => void;
+  onJoinMatch?: (gameId: string, matchId: number, tournamentName: string) => void;
+  pendingTournamentGame?: { gameId: string };
+  onResumeGame?: (gameId: string) => void;
 }
 
 const PANEL_STYLES = `
@@ -63,7 +66,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export function TournamentPanel({ userId, username, onClose }: TournamentPanelProps) {
+export function TournamentPanel({ userId, username, onClose, onJoinMatch, pendingTournamentGame, onResumeGame }: TournamentPanelProps) {
   const [view, setView] = useState<'list' | 'create' | 'bracket'>('list');
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
@@ -246,6 +249,23 @@ export function TournamentPanel({ userId, username, onClose }: TournamentPanelPr
 
           {/* Content */}
           <div style={{ flex: 1, overflowY: 'auto', padding: 24, minHeight: 0 }}>
+
+            {/* Riprendi partita banner */}
+            {pendingTournamentGame && onResumeGame && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.35)', borderRadius: 16, padding: '12px 16px', marginBottom: 20 }}>
+                <Swords size={18} color="#60a5fa" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#bfdbfe', lineHeight: 1.2 }}>Match torneo interrotto</p>
+                  <p style={{ margin: 0, fontSize: 11, color: 'rgba(96,165,250,0.6)', marginTop: 2 }}>La tua partita è ancora attiva sul server</p>
+                </div>
+                <button
+                  onClick={() => onResumeGame(pendingTournamentGame.gameId)}
+                  style={{ flexShrink: 0, padding: '7px 14px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
+                >
+                  Riprendi
+                </button>
+              </div>
+            )}
 
             {/* ===== LIST VIEW ===== */}
             {view === 'list' && (

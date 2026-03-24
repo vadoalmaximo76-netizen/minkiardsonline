@@ -77,12 +77,14 @@ interface Props {
   initialFantaId?: string;
   onClose: () => void;
   onJoinFantaGame?: (gameId: string) => void;
+  pendingFantaGame?: { gameId: string };
+  onResumeFantaGame?: (gameId: string) => void;
 }
 
 const TOTAL_CARDS = { personaggi: 207, mosse: 91, bonus: 172 };
 const DEFAULT_DECK_SIZES = { personaggi: 20, mosse: 9, bonus: 15 };
 
-export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialFantaId, onClose, onJoinFantaGame }: Props) {
+export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialFantaId, onClose, onJoinFantaGame, pendingFantaGame, onResumeFantaGame }: Props) {
   const [view, setView] = useState<'list' | 'lobby' | 'waiting' | 'auction' | 'complete' | 'configure' | 'bracket'>('list');
   const [lobbySessions, setLobbySessions] = useState<SessionSummary[]>([]);
   const [currentSession, setCurrentSession] = useState<FantaSession | null>(null);
@@ -1918,6 +1920,21 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
 
       <div className="flex-1 overflow-y-auto p-4">
         <div className="max-w-2xl mx-auto">
+          {pendingFantaGame && onResumeFantaGame && (
+            <div className="flex items-center gap-3 bg-purple-900/30 border border-purple-500/40 rounded-2xl px-4 py-3 mb-4">
+              <span className="text-2xl flex-shrink-0">🎮</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-purple-200 font-black text-sm leading-tight">Partita FantaMinkiards interrotta</p>
+                <p className="text-purple-400/70 text-xs">La tua partita è ancora attiva sul server</p>
+              </div>
+              <button
+                onClick={() => onResumeFantaGame(pendingFantaGame.gameId)}
+                className="flex-shrink-0 px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs rounded-xl transition-colors active:scale-95"
+              >
+                Riprendi
+              </button>
+            </div>
+          )}
           <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 mb-5">
             <h2 className="text-white font-bold mb-1">Come funziona</h2>
             <p className="text-white/60 text-sm leading-relaxed">
