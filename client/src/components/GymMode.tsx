@@ -128,14 +128,17 @@ const GYM_PATH_STYLES = `
   .gym-path-node-pop { animation: gymNodePop 0.42s cubic-bezier(0.34,1.56,0.64,1) both; }
 `;
 
+/* x positions as percentages of container width — must match DOM calc() values */
+const GYM_NODE_PCT_RIGHT = 58; /* even stages → node center at 58% */
+const GYM_NODE_PCT_LEFT  = 42; /* odd  stages → node center at 42% */
+
 function GymPathSVG({ count }: { count: number }) {
-  const W = 390;
-  const cx = W / 2;
-  const amp = 26;
+  /* viewBox x: 0-100 (%) so SVG scales with container width.
+     preserveAspectRatio="none" lets x-scale with container while y stays in px. */
   const totalH = GYM_PATH_TOP_PAD + count * GYM_PATH_NODE_H + 24;
 
   const pts = Array.from({ length: count }, (_, i) => ({
-    x: cx + (i % 2 === 0 ? amp : -amp),
+    x: i % 2 === 0 ? GYM_NODE_PCT_RIGHT : GYM_NODE_PCT_LEFT,
     y: GYM_PATH_TOP_PAD + i * GYM_PATH_NODE_H + GYM_PATH_NODE_H / 2,
   }));
 
@@ -147,7 +150,12 @@ function GymPathSVG({ count }: { count: number }) {
   }
 
   return (
-    <svg width={W} height={totalH} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 0 }}>
+    <svg
+      width="100%" height={totalH}
+      viewBox={`0 0 100 ${totalH}`}
+      preserveAspectRatio="none"
+      style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 0 }}
+    >
       <defs>
         <linearGradient id="gymGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%"   stopColor="#4ade80" stopOpacity="0.9" />
@@ -155,14 +163,14 @@ function GymPathSVG({ count }: { count: number }) {
           <stop offset="100%" stopColor="#7c3aed" stopOpacity="0.35" />
         </linearGradient>
         <filter id="gymGlow">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b" />
+          <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="b" />
           <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
-      <path d={d} fill="none" stroke="rgba(245,158,11,0.05)" strokeWidth={26} strokeLinecap="round" />
+      <path d={d} fill="none" stroke="rgba(245,158,11,0.04)" strokeWidth={8} strokeLinecap="round" />
       <path
-        d={d} fill="none" stroke="url(#gymGrad)" strokeWidth={3.5}
-        strokeLinecap="round" strokeDasharray="13 9" filter="url(#gymGlow)"
+        d={d} fill="none" stroke="url(#gymGrad)" strokeWidth={1.4}
+        strokeLinecap="round" strokeDasharray="5 3.5" filter="url(#gymGlow)"
         style={{ animation: 'gymPathDraw 2s ease-out forwards', strokeDashoffset: 1600 }}
       />
     </svg>
@@ -1190,22 +1198,36 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                 </div>
               );
 
+              /* node center at GYM_NODE_PCT_RIGHT% or GYM_NODE_PCT_LEFT% — matches SVG viewBox coords */
+              const nodePct = side === 'right' ? GYM_NODE_PCT_RIGHT : GYM_NODE_PCT_LEFT;
+              const GAP = 9; /* px gap between node edge and card */
+              const EDGE = 10; /* px margin from screen edge */
+
               return (
                 <div
                   key={leader.id}
-                  style={{
-                    position: 'absolute',
-                    top: nodeY, left: 0, right: 0,
-                    height: GYM_PATH_NODE_H,
-                    display: 'flex', alignItems: 'center',
-                    padding: '0 12px', gap: 10, zIndex: 1,
-                  }}
+                  style={{ position: 'absolute', top: nodeY, left: 0, right: 0, height: GYM_PATH_NODE_H }}
                 >
-                  {side === 'left' ? (
-                    <>{infoCard}{leaderNode}<div style={{ flex: 1 }} /></>
-                  ) : (
-                    <><div style={{ flex: 1 }} />{leaderNode}{infoCard}</>
-                  )}
+                  {/* Node — absolutely placed at the SVG percentage position */}
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%', transform: 'translateY(-50%)',
+                    left: `calc(${nodePct}% - ${nodeSize / 2}px)`,
+                    zIndex: 2,
+                  }}>
+                    {leaderNode}
+                  </div>
+
+                  {/* Card — on the opposite side of the node */}
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%', transform: 'translateY(-50%)',
+                    ...(side === 'right'
+                      ? { left: `calc(${nodePct}% + ${nodeSize / 2 + GAP}px)`, right: EDGE }
+                      : { left: EDGE, right: `calc(${100 - nodePct}% + ${nodeSize / 2 + GAP}px)` }),
+                  }}>
+                    {infoCard}
+                  </div>
                 </div>
               );
             })}
