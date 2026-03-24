@@ -93,7 +93,7 @@ const DIFFICULTY_LABEL: Record<string, { label: string; color: string }> = {
 };
 
 /* ── Story-Mode path layout ──────────────────────────────────────── */
-const GYM_PATH_NODE_H = 118;
+const GYM_PATH_NODE_H = 138;
 const GYM_PATH_TOP_PAD = 14;
 
 const GYM_PATH_STYLES = `
@@ -1144,48 +1144,48 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                   )}
 
                   {/* Content */}
-                  <div style={{ position: 'relative', zIndex: 1, padding: '9px 11px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box' }}>
+                  <div style={{ position: 'relative', zIndex: 1, padding: '8px 10px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box', gap: 2 }}>
                     {/* Top: stage label + gym name + boss */}
-                    <div>
-                      <p style={{ margin: '0 0 2px', fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: isCurrent ? '#f59e0bcc' : isCompleted ? '#4ade8099' : 'rgba(255,255,255,0.28)', textAlign: txtAlign }}>
-                        Stage {leader.orderIndex}
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ margin: '0 0 1px', fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: isCurrent ? '#f59e0bcc' : isCompleted ? '#4ade8099' : 'rgba(255,255,255,0.25)', textAlign: txtAlign, whiteSpace: 'nowrap' }}>
+                        ⚡ Stage {leader.orderIndex}
                       </p>
-                      <p style={{ margin: 0, fontSize: 17, fontWeight: 900, lineHeight: 1.15, color: isCurrent ? '#fde68a' : isCompleted ? '#86efac' : 'white', textAlign: txtAlign, letterSpacing: '0.01em' }}>
+                      <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 900, lineHeight: 1.1, color: isCurrent ? '#fde68a' : isCompleted ? '#86efac' : 'white', textAlign: txtAlign, letterSpacing: '0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {leader.gymName}
                       </p>
-                      <p style={{ margin: '4px 0 0', fontSize: 13, fontWeight: 700, color: isCurrent ? 'rgba(253,230,138,0.7)' : isCompleted ? 'rgba(134,239,172,0.6)' : 'rgba(255,255,255,0.45)', textAlign: txtAlign }}>
-                        Boss: <span style={{ fontWeight: 900, color: isCurrent ? '#fde68a' : isCompleted ? '#86efac' : 'rgba(255,255,255,0.75)' }}>{leader.name}</span>
+                      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: isCurrent ? 'rgba(253,230,138,0.65)' : isCompleted ? 'rgba(134,239,172,0.55)' : 'rgba(255,255,255,0.4)', textAlign: txtAlign, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        👊 <span style={{ fontWeight: 900, color: isCurrent ? '#fde68a' : isCompleted ? '#86efac' : 'rgba(255,255,255,0.7)' }}>{leader.name}</span>
                       </p>
                     </div>
 
-                    {/* Bottom: stats + action */}
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: align, marginBottom: 6 }}>
-                        <span style={{ fontSize: 12, fontWeight: 800, color: leader.cpuLevel === 'easy' ? '#4ade80' : leader.cpuLevel === 'medium' ? '#facc15' : '#f87171' }}>
-                          {leader.cpuLevel === 'easy' ? '🟢' : leader.cpuLevel === 'medium' ? '🟡' : '🔴'} {DIFFICULTY_LABEL[leader.cpuLevel]?.label}
+                    {/* Middle: stats strip */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap', justifyContent: align, overflow: 'hidden' }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: leader.cpuLevel === 'easy' ? '#4ade80' : leader.cpuLevel === 'medium' ? '#facc15' : '#f87171', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        {leader.cpuLevel === 'easy' ? '🟢' : leader.cpuLevel === 'medium' ? '🟡' : '🔴'}
+                      </span>
+                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>❤️{leader.livesCount}</span>
+                      {cpuCount > 1 && (
+                        <span style={{ fontSize: 10, color: '#c084fc', fontWeight: 800, background: 'rgba(168,85,247,0.2)', padding: '1px 5px', borderRadius: 99, display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                          <Users style={{ width: 9, height: 9 }} />{cpuCount}
                         </span>
-                        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontWeight: 700 }}>❤️ {leader.livesCount}</span>
-                        {cpuCount > 1 && (
-                          <span style={{ fontSize: 12, color: '#c084fc', fontWeight: 800, background: 'rgba(168,85,247,0.18)', padding: '2px 7px', borderRadius: 99, display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <Users style={{ width: 12, height: 12 }} />{cpuCount}
-                          </span>
-                        )}
-                        <span style={{ fontSize: 12, color: '#fbbf24', fontWeight: 800 }}>+{leader.rewardCredits}⭐</span>
-                      </div>
+                      )}
+                      <span style={{ fontSize: 10, color: '#fbbf24', fontWeight: 800, whiteSpace: 'nowrap', flexShrink: 0 }}>⭐{leader.rewardCredits}</span>
+                    </div>
 
-                      {/* Actions */}
+                    {/* Bottom: action button */}
+                    <div>
                       {pendingGymGame?.gymLeaderId === leader.id && onResumeGymGame ? (
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: align }}>
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: align }}>
                           <button
                             onClick={() => onResumeGymGame(pendingGymGame.gameId)}
-                            style={{ background: '#ea580c', border: 'none', borderRadius: 10, color: 'white', fontSize: 13, fontWeight: 900, padding: '6px 13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
+                            style={{ background: 'linear-gradient(135deg,#ea580c,#c2410c)', border: 'none', borderRadius: 9, color: 'white', fontSize: 12, fontWeight: 900, padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, boxShadow: '0 2px 8px rgba(234,88,12,0.5)', whiteSpace: 'nowrap' }}
                           >
-                            <Swords style={{ width: 12, height: 12 }} /> Riprendi
+                            <Swords style={{ width: 11, height: 11 }} /> Riprendi
                           </button>
                           {isAvailable && (
                             <button
                               onClick={() => handleChallengeLeader(leader)}
-                              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: 800, padding: '6px 11px', cursor: 'pointer' }}
+                              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 9, color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: 800, padding: '5px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}
                             >
                               Nuova
                             </button>
@@ -1195,18 +1195,18 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                         <div style={{ display: 'flex', justifyContent: align }}>
                           <button
                             onClick={() => handleChallengeLeader(leader)}
-                            style={{ border: 'none', borderRadius: 11, color: 'white', fontSize: 14, fontWeight: 900, padding: '7px 16px', cursor: 'pointer', background: 'linear-gradient(to right,#9333ea,#f59e0b)', display: 'inline-flex', alignItems: 'center', gap: 6, letterSpacing: '0.04em', boxShadow: '0 2px 12px rgba(147,51,234,0.45)' }}
+                            style={{ border: 'none', borderRadius: 9, color: 'white', fontSize: 13, fontWeight: 900, padding: '6px 13px', cursor: 'pointer', background: 'linear-gradient(135deg,#9333ea,#f59e0b)', display: 'inline-flex', alignItems: 'center', gap: 5, letterSpacing: '0.04em', boxShadow: '0 2px 10px rgba(147,51,234,0.5)', whiteSpace: 'nowrap' }}
                           >
-                            <Swords style={{ width: 13, height: 13 }} /> SFIDA!
+                            <Swords style={{ width: 12, height: 12 }} /> SFIDA!
                           </button>
                         </div>
                       ) : isCompleted ? (
                         <div style={{ display: 'flex', justifyContent: align }}>
                           <button
                             onClick={() => handleChallengeLeader(leader)}
-                            style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid #4ade8033', borderRadius: 10, color: '#4ade8099', fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '5px 11px' }}
+                            style={{ background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 9, color: '#4ade80cc', fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, padding: '5px 10px', whiteSpace: 'nowrap' }}
                           >
-                            <ChevronRight style={{ width: 13, height: 13 }} /> Rigioca
+                            <ChevronRight style={{ width: 12, height: 12 }} /> Rigioca
                           </button>
                         </div>
                       ) : null}
