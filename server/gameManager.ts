@@ -459,6 +459,7 @@ interface GameState {
   gymLeaderMessages?: Record<string, string[]>;
   gymLeaderCpuName?: string;
   gymLeaderId?: number;
+  gymLeaderImageUrl?: string;
   tournamentCharacterLimit?: string;
   tournamentCpuNames?: string[];
   killTriggerBlock?: { turnsLeft: number; blockTurns: number; playedBy: string };
@@ -503,6 +504,7 @@ export class GameManager {
         message,
         timestamp: Date.now(),
         isGymLeader: true,
+        gymLeaderImageUrl: game.gymLeaderImageUrl,
       });
     }
   }
