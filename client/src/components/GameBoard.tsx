@@ -267,7 +267,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const damageVignetteTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const [cinematicFlash, setCinematicFlash] = useState<{ visible: boolean; type: 'attack' | 'heal' }>({ visible: false, type: 'attack' });
   const [cardShatter3D, setCardShatter3D] = useState<{ visible: boolean; cardImage: string; cardName: string }>({ visible: false, cardImage: '', cardName: '' });
-  const [koBanner, setKoBanner] = useState<{ visible: boolean; cardName: string; cardOwner: string; cardImage: string }>({ visible: false, cardName: '', cardOwner: '', cardImage: '' });
+  const [koBanner, setKoBanner] = useState<{ visible: boolean; cardName: string; cardOwner: string; cardImage: string; eliminationMode: boolean; isCurrentPlayer: boolean }>({ visible: false, cardName: '', cardOwner: '', cardImage: '', eliminationMode: false, isCurrentPlayer: false });
+  const [tekkenMode, setTekkenMode] = useState(false);
   const [attackEffectKey, setAttackEffectKey] = useState(0);
   const [deathEffectVisible, setDeathEffectVisible] = useState(false);
   const [deadCharacterName, setDeadCharacterName] = useState<string>("");
@@ -767,7 +768,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         playDeathSound();
         /* K.O. banner — delay slightly so it appears after the initial flash */
         setTimeout(() => {
-          setKoBanner({ visible: true, cardName, cardOwner: cardOwner || '???', cardImage: cardImage || '' });
+          setKoBanner({ visible: true, cardName, cardOwner: cardOwner || '???', cardImage: cardImage || '', eliminationMode: false, isCurrentPlayer: false });
         }, 350);
       }
       
@@ -1911,18 +1912,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
     const handlePlayerEliminated = ({ playerName: eliminatedPlayer }: { playerName: string }) => {
       playPlayerEliminated();
-      setPlayerEliminationNotification({
-        visible: true,
-        player: eliminatedPlayer
-      });
-      
-      // Don't clear session here - let game-victory and game-end-rewards handle the end flow
-      // The player will see the winner announcement and rewards panel before being redirected
-      
-      // Hide notification after 3 seconds
+
+      /* ── Tekken-style elimination effect ── */
+      const isMe = eliminatedPlayer === playerName;
+      /* 1. Immediately go B&W + slow-motion feel */
+      setTekkenMode(true);
+      /* 2. Brief freeze before the banner pops */
       setTimeout(() => {
-        setPlayerEliminationNotification({ visible: false, player: '' });
-      }, 3000);
+        setKoBanner({
+          visible: true,
+          cardName: '',
+          cardOwner: eliminatedPlayer,
+          cardImage: '',
+          eliminationMode: true,
+          isCurrentPlayer: isMe,
+        });
+      }, 420);
+      /* 3. When banner completes (~4.8s total), restore colour — handled by onComplete */
     };
 
     const handleGameVictory = ({ winner, lastAction, matchDuration, playerStats }: { winner: string; lastAction?: any; matchDuration?: number; playerStats?: Record<string, any> }) => {
@@ -2283,7 +2289,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   }, [youtubeVideoData?.visible]);
 
   return (
-    <div id="game-root" className="min-h-screen bg-arena-deep text-slate-100 p-4 relative overflow-hidden">
+    <div
+      id="game-root"
+      className="min-h-screen bg-arena-deep text-slate-100 p-4 relative overflow-hidden"
+    >
+      {/* Tekken B&W overlay — backdrop-filter so KO banner (z-index 9999) stays in colour */}
+      {tekkenMode && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9998, pointerEvents: 'none',
+          backdropFilter: 'grayscale(1) brightness(0.75)',
+          WebkitBackdropFilter: 'grayscale(1) brightness(0.75)',
+          transition: 'opacity 0.4s ease',
+        }} />
+      )}
       <div className="game-field-aurora" />
       <GameToastContainer />
       <ContextualTooltipLoader />
@@ -4541,7 +4559,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             cardName={koBanner.cardName}
             cardOwner={koBanner.cardOwner}
             cardImage={koBanner.cardImage}
-            onComplete={() => setKoBanner({ visible: false, cardName: '', cardOwner: '', cardImage: '' })}
+            eliminationMode={koBanner.eliminationMode}
+            isCurrentPlayer={koBanner.isCurrentPlayer}
+            onComplete={() => {
+              if (koBanner.eliminationMode) setTekkenMode(false);
+              setKoBanner({ visible: false, cardName: '', cardOwner: '', cardImage: '', eliminationMode: false, isCurrentPlayer: false });
+            }}
           />
         )}
 
