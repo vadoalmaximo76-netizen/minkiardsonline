@@ -5232,6 +5232,7 @@ Rispondi SOLO in JSON:`;
 
     // ============ RETURN TO HAND PATTERNS ============
     if (!actions.some(a => a.type === 'reset_all_to_decks') &&
+        !actions.some(a => a.type === 'return_on_death') &&
         (text.includes('ritorna') || text.includes('torna') || text.includes('rimetti') || text.includes('rimanda')) && 
         (text.includes('mano') || text.includes('hand'))) {
       const value = extractNumber(text, 1);
