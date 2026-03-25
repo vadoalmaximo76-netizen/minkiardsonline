@@ -1994,16 +1994,6 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         // Play the card DIRECTLY via gameManager (atomic)
         await this.gameManager?.playCard(this.gameId, cardToPlay.id, this.playerName);
         
-        // CRITICAL: Draw replacement MOSSE immediately after playing one from hand
-        if (this.gameManager) {
-          const replacementDrawn = await this.gameManager.pickCard(this.gameId, 'mosse', this.playerName);
-          if (replacementDrawn) {
-            console.log(`🎴 CPU ${this.playerName}: Drew replacement MOSSE after playing one`);
-          } else {
-            console.log(`⚠️ CPU ${this.playerName}: Could not draw replacement MOSSE (deck empty or already has one)`);
-          }
-        }
-        
         // Check if this MOSSE card has a custom effect that was already processed
         // during playCard() (e.g., [BERSAGLIO: scelta], [DADO:], timed effects, etc.)
         // If so, the effect IS the card's action - do NOT also try a regular MOSSE attack
