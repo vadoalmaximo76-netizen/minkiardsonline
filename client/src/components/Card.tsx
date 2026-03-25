@@ -1279,6 +1279,13 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     const r = s - Math.floor(s);
     return (r - 0.5) * 80 - 60;
   });
+  const [scatterRot] = useState(() => {
+    const cid = card.id || '0';
+    const seed = cid.split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0);
+    const s = Math.sin(seed * 3.1) * 10000;
+    const r = s - Math.floor(s);
+    return Math.round((r - 0.5) * 22); // -11 to +11 degrees base
+  });
 
   const removeFloatingNumber = (id: string) => {
     setFloatingNumbers(prev => prev.filter(n => n.id !== id));
@@ -1420,6 +1427,13 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           style={{ background: 'rgba(220, 50, 50, 0.65)', animation: 'card-damage-overlay 0.5s ease-out forwards' }}
         />
       )}
+      {/* Entry burst: bright flash when card first lands on field */}
+      {isNewlyPlaced && location === 'field' && (
+        <div
+          className="absolute inset-0 rounded-xl pointer-events-none z-[200]"
+          style={{ animation: 'card-entry-burst 0.5s ease-out forwards' }}
+        />
+      )}
       {/* Floating Numbers */}
       {floatingNumbers.map(num => (
         <FloatingNumber
@@ -1542,7 +1556,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       <div 
         className="relative"
         style={isEliminated && isPersonaggio ? {
-          '--tx': `translate(${scatterX}px, ${scatterY}px)`
+          '--tx': `translate(${scatterX}px, ${scatterY}px)`,
+          '--rot': `${scatterRot}deg`,
         } as React.CSSProperties : undefined}
       >
         {/* NEL RIFUGIO Label for protected characters */}

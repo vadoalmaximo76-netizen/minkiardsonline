@@ -232,6 +232,14 @@ export const NextTurnNotification: React.FC<NextTurnNotificationProps> = ({
           0% { transform: scale(0); opacity: 0.9; }
           100% { transform: scale(3); opacity: 0; }
         }
+        @keyframes ntScreenFlash {
+          0%   { opacity: 0.65; }
+          100% { opacity: 0; }
+        }
+        @keyframes ntSweep {
+          0%   { transform: translateX(-110%); }
+          100% { transform: translateX(110%); }
+        }
         @keyframes ntBorderPulse {
           0%, 100% { border-color: rgba(251, 191, 36, 0.4); }
           50% { border-color: rgba(251, 191, 36, 0.9); }
@@ -271,6 +279,39 @@ export const NextTurnNotification: React.FC<NextTurnNotificationProps> = ({
         >
           <X size={20} className="text-white" />
         </button>
+
+        {/* Full-screen flash at the moment the banner appears */}
+        {(phase === "enter" || phase === "show") && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: isMyTurn
+                ? 'rgba(251,191,36,0.22)'
+                : 'rgba(99,102,241,0.22)',
+              animation: 'ntScreenFlash 0.35s ease-out forwards',
+            }}
+          />
+        )}
+        {/* Horizontal sweep stripe */}
+        {(phase === "enter" || phase === "show") && (
+          <div
+            className="absolute inset-0 pointer-events-none overflow-hidden"
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: '35%',
+                left: 0,
+                right: 0,
+                height: '30%',
+                background: isMyTurn
+                  ? 'linear-gradient(90deg, transparent, rgba(251,191,36,0.35), transparent)'
+                  : 'linear-gradient(90deg, transparent, rgba(129,140,248,0.35), transparent)',
+                animation: 'ntSweep 0.55s cubic-bezier(0.4,0,0.2,1) forwards',
+              }}
+            />
+          </div>
+        )}
 
         {phase === "show" && (
           <div

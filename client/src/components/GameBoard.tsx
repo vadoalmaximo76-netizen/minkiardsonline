@@ -266,6 +266,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [attackEffectType, setAttackEffectType] = useState<AttackEffectType>('physical');
   const [attackSlash3D, setAttackSlash3D] = useState<{ visible: boolean; attackerName: string; targetName: string; damage: number }>({ visible: false, attackerName: '', targetName: '', damage: 0 });
   const [attackProjectile, setAttackProjectile] = useState<{ fromRect: DOMRect; toRect: DOMRect; damage: number; key: number } | null>(null);
+  const [cardsAddedToast, setCardsAddedToast] = useState<string | null>(null);
   const [damageVignetteVisible, setDamageVignetteVisible] = useState(false);
   const damageVignetteTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const [cinematicFlash, setCinematicFlash] = useState<{ visible: boolean; type: 'attack' | 'heal' }>({ visible: false, type: 'attack' });
@@ -803,8 +804,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       }, 4000);
     };
 
-    const handleCardsAdded = ({ playerName, deckLabel, count }: { playerName: string, deckLabel: string, count: number }) => {
-      alert(`${playerName} ha aggiunto ${count} carte al mazzo ${deckLabel}!`);
+    const handleCardsAdded = ({ playerName: addingPlayer, deckLabel, count }: { playerName: string, deckLabel: string, count: number }) => {
+      const msg = `${addingPlayer} ha aggiunto ${count} carte al mazzo ${deckLabel}!`;
+      setCardsAddedToast(msg);
+      setTimeout(() => setCardsAddedToast(null), 3500);
     };
 
     const handleBeeSound = ({ cardName, playerName }: { cardName: string, playerName: string }) => {
@@ -4567,6 +4570,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             onComplete={() => setAttackProjectile(null)}
           />
         )}
+
+        {/* Cards-added in-game toast (replaces browser alert) */}
+        <AnimatePresence>
+          {cardsAddedToast && (
+            <motion.div
+              key="cards-added-toast"
+              initial={{ opacity: 0, y: -32, scale: 0.92 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+              className="fixed top-6 left-1/2 z-[99999] pointer-events-none"
+              style={{ transform: 'translateX(-50%)' }}
+            >
+              <div className="flex items-center gap-3 px-5 py-3 rounded-2xl border border-amber-400/50 backdrop-blur-md shadow-2xl"
+                style={{ background: 'linear-gradient(135deg, rgba(30,20,5,0.95), rgba(60,40,5,0.92))', boxShadow: '0 0 24px rgba(251,191,36,0.35)' }}>
+                <span className="text-2xl">🃏</span>
+                <span className="text-amber-200 font-bold text-sm tracking-wide">{cardsAddedToast}</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {cardShatter3D.visible && (
           <CardShatter3D
