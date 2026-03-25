@@ -474,7 +474,11 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     setBattleYoutubeVideoId(ytId);
     pauseHomeMusic();
 
-    // Register listener FIRST before emitting, so we catch the game-state-update response
+    // CRITICAL FIX: Do NOT emit rejoin-game from GymMode!
+    // The App.tsx emit set-user-data (which triggers auto-rejoin) happens AFTER GymMode.tsx runs.
+    // If we emit rejoin-game now, it arrives BEFORE set-user-data, so socket is not yet authenticated.
+    // Instead: just listen for game-state-update from set-user-data's auto-rejoin.
+    
     let fallbackTimer: NodeJS.Timeout | null = null;
     let stateUpdateHandled = false;
 
@@ -482,7 +486,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
       if (!stateUpdateHandled) {
         stateUpdateHandled = true;
         if (fallbackTimer) clearTimeout(fallbackTimer);
-        console.log('[GymMode] Fresh game-state-update received after rejoin, switching to battle');
+        console.log('[GymMode] game-state-update received from server auto-rejoin (via set-user-data), switching to battle');
         setPhase('battle');
         socket.off('game-state-update', handleStateUpdate);
       }
@@ -490,39 +494,15 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
 
     socket.on('game-state-update', handleStateUpdate);
 
-    // Fallback: show battle after 4s even if game-state-update never arrives
+    // Fallback: show battle after 5s even if game-state-update never arrives
     fallbackTimer = setTimeout(() => {
       if (!stateUpdateHandled) {
         stateUpdateHandled = true;
-        console.warn('[GymMode] game-state-update not received in time, showing battle anyway');
+        console.warn('[GymMode] game-state-update not received in 5s, showing battle anyway');
         setPhase('battle');
         socket.off('game-state-update', handleStateUpdate);
       }
-    }, 4000);
-
-    // Emit rejoin after listener is registered
-    // IMPORTANT: Ensure socket is connected + authenticated before rejoin
-    if (socket.connected && socket.io.engine?.id) {
-      console.log('[GymMode] Socket ready, emitting rejoin-game');
-      socket.emit('rejoin-game', {
-        gameId: gameIdToResume,
-        playerName,
-        authToken: localStorage.getItem('authToken'),
-      });
-    } else {
-      // Socket not ready yet, wait for connect
-      console.log('[GymMode] Socket not ready, waiting for connect...');
-      const onConnect = () => {
-        console.log('[GymMode] Socket connected, now emitting rejoin-game');
-        socket.emit('rejoin-game', {
-          gameId: gameIdToResume,
-          playerName,
-          authToken: localStorage.getItem('authToken'),
-        });
-        socket.off('connect', onConnect);
-      };
-      socket.on('connect', onConnect);
-    }
+    }, 5000);
   }, [playerName, setGameId, setPlayerName, generateSessionId, setSelectedCard]);
 
   const handleBackFromBattle = () => {
