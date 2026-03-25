@@ -319,6 +319,42 @@ export class CPUPlayer {
     return 50;
   }
 
+  // Gather all targets based on targeting mode (all_enemies, all_characters, specific_count)
+  pickMultipleTargets(mode: string, count: number): { cardId: string; owner: string; name: string }[] {
+    if (!this.gameManager) return [];
+    const gameState = this.gameManager.getGameState(this.gameId);
+    if (!gameState) return [];
+
+    const allChars = gameState.field.filter((c: any) =>
+      (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+      !c.eliminatedBy && !c.faceDown
+    );
+    const enemies = allChars.filter((c: any) => c.owner !== this.playerName);
+
+    let pool: any[] = [];
+    if (mode === 'all_enemies') pool = enemies;
+    else if (mode === 'all_characters') pool = allChars;
+    else if (mode === 'specific_count') {
+      // pick the N best enemy targets
+      const sorted = [...enemies].sort((a, b) => {
+        const ptiA = this.extractPtiFromCard(a);
+        const ptiB = this.extractPtiFromCard(b);
+        return ptiB - ptiA; // highest PTI first
+      });
+      pool = sorted.slice(0, count || 1);
+    }
+
+    return pool.map((c: any) => {
+      let name = 'personaggio';
+      try {
+        const url = new URL(c.frontImage);
+        const filename = url.pathname.split('/').pop() || '';
+        name = filename.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase();
+      } catch {}
+      return { cardId: c.id, owner: c.owner, name };
+    });
+  }
+
   // NEW: Pick enemy character from HAND (for ATTACCO DISONESTO)
   pickEnemyHandTarget(): { cardId: string; owner: string; name: string; isHandCard: true } | null {
     if (!this.gameManager) {
@@ -2293,15 +2329,6 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           );
           
           if (attackResult.success) {
-            this.socketEmitter.to(this.gameId).emit('card-attacked', {
-              mosseCardId: cardId,
-              targetCardId: target.cardId,
-              attackerName: this.playerName,
-              targetOwner: target.owner,
-              damageValue: suggestedDamage,
-              timestamp: Date.now()
-            });
-            
             if (attackResult.result?.requiresDefenseResponse) {
               const pendingDefense = this.gameManager.getPendingDefense(this.gameId);
               if (pendingDefense) {
@@ -2443,7 +2470,39 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     // without requiring the game creator to manually confirm via the dialog
     if (suggestedDamage !== null && suggestedDamage !== undefined && this.gameManager) {
       console.log(`🎯 CPU ${this.playerName}: AUTO-SUBMITTING attack with pre-calculated damage ${suggestedDamage} (${effectiveDamageValue} × ${attackerStars} stars)`);
-      
+
+      // MULTI-TARGET: Handle all_enemies / all_characters / specific_count targeting modes
+      const multiMode = mosseCard.mosseTargetingMode as string | null;
+      const multiCount = mosseCard.mosseTargetCount as number | null;
+      const isMultiTarget = multiMode === 'all_enemies' || multiMode === 'all_characters' || multiMode === 'specific_count';
+      if (isMultiTarget) {
+        const allTargets = this.pickMultipleTargets(multiMode!, multiCount ?? 1);
+        if (allTargets.length > 0) {
+          const names = allTargets.map((t) => t.name).join(', ');
+          const effect = effectiveEffect ? ` [Effetto: ${effectiveEffect}]` : '';
+          this.sendChatMessage(`${mosseCardName} colpisce ${allTargets.length} bersagli: ${names}!${effect}`);
+          for (const t of allTargets) {
+            this.socketEmitter.to(this.gameId).emit('card-attacked', {
+              mosseCardId: mosseCard.id,
+              targetCardId: t.cardId,
+              attackerName: this.playerName,
+              targetOwner: t.owner,
+              damageValue: suggestedDamage,
+              timestamp: Date.now()
+            });
+            await this.gameManager.executeMossaAttack(
+              this.gameId, this.playerName, mosseCard.id, t.cardId,
+              suggestedDamage, false, undefined, 0, effectiveEffect || null
+            );
+          }
+          const updState = this.gameManager.getSanitizedGameState(this.gameId);
+          if (updState) this.socketEmitter.to(this.gameId).emit('game-state-update', updState);
+          this._setWaitingForAttackResolution(true);
+          return;
+        }
+      }
+
+      // SINGLE-TARGET path
       const chatMsg = effectiveEffect
         ? `Uso ${mosseCardName} su ${target.name}! Effetto: ${effectiveEffect === 'death' ? 'MORTE ISTANTANEA' : effectiveEffect === 'halve_pti' ? 'DIMEZZA PTI' : effectiveEffect}!`
         : `Attacco ${target.name} con ${mosseCardName}! Danno: ${suggestedDamage} PTI!`;
@@ -2474,15 +2533,6 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       
       if (attackResult.success) {
         console.log(`🎯 CPU ${this.playerName}: AUTO-ATTACK SUCCESS against ${target.name}`);
-        
-        this.socketEmitter.to(this.gameId).emit('card-attacked', {
-          mosseCardId: mosseCard.id,
-          targetCardId: target.cardId,
-          attackerName: this.playerName,
-          targetOwner: target.owner,
-          damageValue: suggestedDamage,
-          timestamp: Date.now()
-        });
 
         // BARRIERA HANDLING: If the attack was absorbed by a shield, apply damage and end turn
         if (attackResult.result?.barrieraAbsorbed) {

@@ -779,23 +779,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         console.log(`[MossaFlyer] using VIEWPORT FALLBACK fromRect: isCPU=${isCPUAttacker}, pos=(${Math.round(fx)},${Math.round(fy)})`);
       }
       let toRect = targetCardId ? cardRegistry.getRect(targetCardId) : null;
-      console.log(`[MossaFlyer] toRect=${!!toRect}, WILL_ANIMATE=${!!(fromRect && toRect)}`);
-
-      if (fromRect && toRect) {
-        // Show the MOSSA card flying toward the target; effects fire on landing
-        pendingAttackEffectsRef.current = triggerImpactEffects;
-        setMossaFlyer({
-          fromRect,
-          toRect,
-          cardImageSrc: cardImageSrc ?? undefined,
-          damage: dmg,
-          key: Date.now(),
-        });
-      } else {
-        // toRect unavailable (target destroyed before card-attacked?) — trigger effects immediately as fallback
-        console.log(`[MossaFlyer] toRect missing — no animation, triggering effects directly`);
-        triggerImpactEffects();
+      if (!toRect) {
+        // Fallback: target is on the opposite side of the attacker
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const isCPUAtk = !attackerName || attackerName !== playerName;
+        const tx = vw / 2;
+        const ty = isCPUAtk ? vh * 0.70 : vh * 0.20;
+        toRect = new DOMRect(tx - 30, ty - 42, 60, 84);
+        console.log(`[MossaFlyer] toRect VIEWPORT FALLBACK: isCPU=${isCPUAtk}, pos=(${Math.round(tx)},${Math.round(ty)})`);
       }
+      console.log(`[MossaFlyer] WILL_ANIMATE=true fromRect=(${Math.round(fromRect.x)},${Math.round(fromRect.y)}) toRect=(${Math.round(toRect.x)},${Math.round(toRect.y)})`);
+
+      // Always show the flying card animation; impact effects fire on landing
+      pendingAttackEffectsRef.current = triggerImpactEffects;
+      setMossaFlyer({
+        fromRect,
+        toRect,
+        cardImageSrc: cardImageSrc ?? undefined,
+        damage: dmg,
+        key: Date.now(),
+      });
     };
 
     const handleCardToGraveyard = ({ cardName, cardType, cardOwner, cardImage }: { cardName: string, cardType?: string, cardOwner?: string, cardImage?: string }) => {
