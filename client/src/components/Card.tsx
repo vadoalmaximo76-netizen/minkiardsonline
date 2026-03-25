@@ -170,6 +170,7 @@ interface CardProps {
   onCardPlayed?: () => void;
   cardIndexInHand?: number;
   totalHandCards?: number;
+  gameId?: string;
 }
 
 
@@ -607,14 +608,14 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   };
 
   const handlePlay = () => {
-    socket.emit('play-card', { cardId: card.id, playerName: effectivePlayerName });
+    socket.emit('play-card', { cardId: card.id, playerName: effectivePlayerName, gameId });
     if (onCardPlayed) {
       onCardPlayed();
     }
   };
 
   const handlePlayFaceDown = () => {
-    socket.emit('play-card-face-down', { cardId: card.id, playerName: effectivePlayerName });
+    socket.emit('play-card-face-down', { cardId: card.id, playerName: effectivePlayerName, gameId });
     if (onCardPlayed) {
       onCardPlayed();
     }

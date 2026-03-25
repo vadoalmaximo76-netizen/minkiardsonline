@@ -151,13 +151,13 @@ export const CardModal: React.FC = () => {
 
   const handlePlay = () => {
     playButtonClick();
-    socket.emit('play-card', { cardId: selectedCard.id, playerName: effectivePlayerName });
+    socket.emit('play-card', { cardId: selectedCard.id, playerName: effectivePlayerName, gameId });
     setSelectedCard(null);
     setHandModalOpen(false);
   };
 
   const handlePlayFaceDown = () => {
-    socket.emit('play-card-face-down', { cardId: selectedCard.id, playerName: effectivePlayerName });
+    socket.emit('play-card-face-down', { cardId: selectedCard.id, playerName: effectivePlayerName, gameId });
     setSelectedCard(null);
     setHandModalOpen(false);
   };

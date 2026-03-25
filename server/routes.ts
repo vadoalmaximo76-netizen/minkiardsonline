@@ -2930,10 +2930,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('play-card', async ({ cardId, playerName }) => {
-      const gameId = gameManager.getPlayerGameId(socket.id);
-      console.log(`[play-card-DEBUG] socket.id="${socket.id}" getPlayerGameId result="${gameId||'undefined'}" playerName="${playerName}"`);
-      console.log(`[play-card] playerName="${playerName}" cardId="${cardId}" gameId="${gameId||'NOT FOUND'}" socketId="${socket.id}"`);
+    socket.on('play-card', async ({ cardId, playerName, gameId: clientGameId }) => {
+      // Use gameId from client if provided, fallback to socket mapping
+      let gameId = clientGameId || gameManager.getPlayerGameId(socket.id);
+      console.log(`[play-card] playerName="${playerName}" cardId="${cardId}" gameId="${gameId||'NOT FOUND'}" socketId="${socket.id}" (client provided: ${!!clientGameId})`);
       if (gameId) {
         const result = await gameManager.playCard(gameId, cardId, playerName);
         
