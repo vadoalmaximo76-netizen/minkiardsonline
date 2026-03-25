@@ -474,25 +474,37 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     setBattleYoutubeVideoId(ytId);
     pauseHomeMusic();
 
-    // Emit rejoin and wait for the server's fresh game-state-update before showing GameBoard.
-    // This prevents GameBoard from rendering with stale localStorage state, which could cause
-    // isMyTurn / isOwner mismatches that block card plays.
+    // Register listener FIRST before emitting, so we catch the game-state-update response
+    let fallbackTimer: NodeJS.Timeout | null = null;
+    let stateUpdateHandled = false;
+
+    const handleStateUpdate = () => {
+      if (!stateUpdateHandled) {
+        stateUpdateHandled = true;
+        if (fallbackTimer) clearTimeout(fallbackTimer);
+        console.log('[GymMode] Fresh game-state-update received after rejoin, switching to battle');
+        setPhase('battle');
+        socket.off('game-state-update', handleStateUpdate);
+      }
+    };
+
+    socket.on('game-state-update', handleStateUpdate);
+
+    // Fallback: show battle after 4s even if game-state-update never arrives
+    fallbackTimer = setTimeout(() => {
+      if (!stateUpdateHandled) {
+        stateUpdateHandled = true;
+        console.warn('[GymMode] game-state-update not received in time, showing battle anyway');
+        setPhase('battle');
+        socket.off('game-state-update', handleStateUpdate);
+      }
+    }, 4000);
+
+    // Emit rejoin after listener is registered
     socket.emit('rejoin-game', {
       gameId: gameIdToResume,
       playerName,
       authToken: localStorage.getItem('authToken'),
-    });
-
-    // Fallback: show battle after 4s even if game-state-update never arrives
-    const fallbackTimer = setTimeout(() => {
-      console.warn('[GymMode] game-state-update not received in time, showing battle anyway');
-      setPhase('battle');
-    }, 4000);
-
-    socket.once('game-state-update', () => {
-      clearTimeout(fallbackTimer);
-      console.log('[GymMode] Fresh game-state-update received after rejoin, switching to battle');
-      setPhase('battle');
     });
   }, [playerName, setGameId, setPlayerName, generateSessionId, setSelectedCard]);
 
