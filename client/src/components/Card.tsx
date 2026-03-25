@@ -1419,6 +1419,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       <div style={tiltWrapperStyle} className={hitShake ? 'card-hit-shake' : undefined}>
     <div 
       ref={cardRef}
+      data-card-id={card.id}
       onMouseMove={handleMouseMove3D}
       className={`relative flex flex-col gap-2 ${location !== 'field' ? 'card-play-transition' : ''} card-3d-tilt ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? 'card-playable-glow' : ''} ${getFieldBreathClass()} ${location === 'field' && !isNewlyPlaced && !isEliminated ? 'card-levitate-field' : ''}`}
       style={{

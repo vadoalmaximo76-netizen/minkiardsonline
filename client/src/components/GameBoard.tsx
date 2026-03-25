@@ -758,16 +758,28 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         }
       };
 
-      // Try to get card rects for the MossaFlyer animation
-      // The MOSSE card may already be gone from the DOM (game-state-update arrives before card-attacked),
-      // so we fall back to the rect stored via cardRegistry.storePendingMosse() right before the emit.
+      // Try to get card rects for the MossaFlyer animation.
+      // Priority: 1) direct registry/DOM, 2) storePendingMosse fallback, 3) viewport position based on attacker side
       let fromRect = mosseCardId ? cardRegistry.getRect(mosseCardId) : null;
       let cardImageSrc = mosseCardId ? cardRegistry.getImageSrc(mosseCardId) : null;
+      console.log(`[MossaFlyer] card-attacked: mosseCardId=${mosseCardId}, targetCardId=${targetCardId}, fromRect(direct)=${!!fromRect}`);
       if (!fromRect) {
         const pending = cardRegistry.consumePendingMosse();
         if (pending) { fromRect = pending.rect; cardImageSrc = pending.imageSrc; }
+        console.log(`[MossaFlyer] after consumePendingMosse: fromRect=${!!fromRect}`);
       }
-      const toRect = targetCardId ? cardRegistry.getRect(targetCardId) : null;
+      // Last resort: synthesize a rect based on attacker side (CPU = top area, human = bottom area)
+      if (!fromRect) {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const isCPUAttacker = !attackerName || attackerName.startsWith('CPU-') || attackerName !== playerName;
+        const fx = vw / 2;
+        const fy = isCPUAttacker ? vh * 0.15 : vh * 0.80;
+        fromRect = new DOMRect(fx - 30, fy - 42, 60, 84);
+        console.log(`[MossaFlyer] using VIEWPORT FALLBACK fromRect: isCPU=${isCPUAttacker}, pos=(${Math.round(fx)},${Math.round(fy)})`);
+      }
+      let toRect = targetCardId ? cardRegistry.getRect(targetCardId) : null;
+      console.log(`[MossaFlyer] toRect=${!!toRect}, WILL_ANIMATE=${!!(fromRect && toRect)}`);
 
       if (fromRect && toRect) {
         // Show the MOSSA card flying toward the target; effects fire on landing
@@ -780,7 +792,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           key: Date.now(),
         });
       } else {
-        // Rects unavailable — trigger effects immediately as fallback
+        // toRect unavailable (target destroyed before card-attacked?) — trigger effects immediately as fallback
+        console.log(`[MossaFlyer] toRect missing — no animation, triggering effects directly`);
         triggerImpactEffects();
       }
     };
