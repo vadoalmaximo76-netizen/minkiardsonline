@@ -458,6 +458,29 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     setPhase('battle');
   }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId, authToken, reset]);
 
+  // Resume an already-existing gym game without re-creating it: just rejoin + show battle HUD
+  const handleInternalResume = useCallback((leader: GymLeader, gameIdToResume: string) => {
+    setSelectedLeader(leader);
+    selectedLeaderRef.current = leader;
+    setGameIdLocal(gameIdToResume);
+    gameIdRef.current = gameIdToResume;
+
+    setGameId(gameIdToResume);
+    setPlayerName(playerName);
+    generateSessionId();
+
+    socket.emit('rejoin-game', {
+      gameId: gameIdToResume,
+      playerName,
+      authToken: localStorage.getItem('authToken'),
+    });
+
+    const ytId = leader.youtubeMusicUrl ? extractYoutubeVideoId(leader.youtubeMusicUrl) : null;
+    setBattleYoutubeVideoId(ytId);
+    pauseHomeMusic();
+    setPhase('battle');
+  }, [playerName, setGameId, setPlayerName, generateSessionId]);
+
   const handleBackFromBattle = () => {
     if (gameId) {
       socket.emit('leave-game', { gameId });
@@ -978,7 +1001,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
       )}
 
       {/* Riprendi partita banner — shown only when the leader ID is unknown (fallback) */}
-      {pendingGymGame && onResumeGymGame && !pendingGymGame.gymLeaderId && (
+      {pendingGymGame && !pendingGymGame.gymLeaderId && (
         <div className="flex-shrink-0 mx-4 mt-3 flex items-center gap-3 bg-orange-900/30 border border-orange-500/40 rounded-2xl px-4 py-3">
           <Swords className="w-5 h-5 text-orange-400 flex-shrink-0" />
           <div className="flex-1 min-w-0">
@@ -988,7 +1011,16 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             </p>
           </div>
           <button
-            onClick={() => onResumeGymGame(pendingGymGame.gameId)}
+            onClick={() => {
+              const matchedLeader = leaders.find(
+                l => l.name === pendingGymGame.gymLeaderCpuName
+              );
+              if (matchedLeader) {
+                handleInternalResume(matchedLeader, pendingGymGame.gameId);
+              } else if (onResumeGymGame) {
+                onResumeGymGame(pendingGymGame.gameId);
+              }
+            }}
             className="flex-shrink-0 px-4 py-1.5 bg-orange-600 hover:bg-orange-500 text-white font-black text-xs rounded-xl transition-colors active:scale-95"
           >
             Riprendi
@@ -1213,10 +1245,10 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
 
                     {/* Bottom: action button */}
                     <div>
-                      {pendingGymGame?.gymLeaderId === leader.id && onResumeGymGame ? (
+                      {pendingGymGame?.gymLeaderId === leader.id ? (
                         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: align }}>
                           <button
-                            onClick={() => onResumeGymGame(pendingGymGame.gameId)}
+                            onClick={() => handleInternalResume(leader, pendingGymGame.gameId)}
                             style={{ background: 'linear-gradient(135deg,#ea580c,#c2410c)', border: 'none', borderRadius: 9, color: 'white', fontSize: 12, fontWeight: 900, padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, boxShadow: '0 2px 8px rgba(234,88,12,0.5)', whiteSpace: 'nowrap' }}
                           >
                             <Swords style={{ width: 11, height: 11 }} /> Riprendi
