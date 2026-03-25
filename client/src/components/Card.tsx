@@ -1344,9 +1344,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     setCardTilt({ rotateX: tiltX, rotateY: tiltY, glareX: x * 100, glareY: y * 100 });
   }, [location]);
 
-  // Register field cards in the global registry so GameBoard can get their DOM positions for attack animations
+  // Register ALL cards (hand + field) so attack animations can find their positions regardless of state
   useEffect(() => {
-    if (location !== 'field') return;
     const el = cardRef.current;
     if (el) cardRegistry.set(card.id, el);
     return () => { cardRegistry.set(card.id, null); };
