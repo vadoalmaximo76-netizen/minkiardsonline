@@ -22,8 +22,9 @@ socket.on('connect', () => {
   
   const authToken = localStorage.getItem('authToken');
   if (authToken) {
-    console.log('[socket] Sending set-user-data on connect');
-    socket.emit('set-user-data', { authToken });
+    const lastGameId = localStorage.getItem('mink_lastGameId') || undefined;
+    console.log('[socket] Sending set-user-data on connect, lastGameId:', lastGameId);
+    socket.emit('set-user-data', { authToken, lastGameId });
   }
 });
 

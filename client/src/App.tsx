@@ -322,7 +322,7 @@ function App() {
             
             // Register user with socket for targeted notifications (game invites)
             console.log('Emitting set-user-data after login validation');
-            socket.emit('set-user-data', { authToken });
+            socket.emit('set-user-data', { authToken, lastGameId: localStorage.getItem('mink_lastGameId') || undefined });
             
             if (hasActiveSession()) {
               console.log('Found active session, attempting to restore...');
@@ -568,7 +568,7 @@ function App() {
     const authToken = localStorage.getItem('authToken');
     if (authToken) {
       console.log('handleAuthSuccess: Emitting set-user-data, socket connected:', socket.connected);
-      socket.emit('set-user-data', { authToken });
+      socket.emit('set-user-data', { authToken, lastGameId: localStorage.getItem('mink_lastGameId') || undefined });
     }
     
     const urlParams = new URLSearchParams(window.location.search);
