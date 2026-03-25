@@ -1951,7 +1951,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           /dopo\s+\d+\s+turni/i.test(cardEffect) ||
           /tra\s+\d+\s+turni/i.test(cardEffect)
         );
-        const hasDamageValue = cardToPlay.mosseDamageValue !== null && cardToPlay.mosseDamageValue !== undefined && cardToPlay.mosseDamageValue > 0;
+        const hasDamageValue = (cardToPlay.mosseDamageValue !== null && cardToPlay.mosseDamageValue !== undefined && cardToPlay.mosseDamageValue > 0)
+          || (cardToPlay.mosseDamageEffect !== null && cardToPlay.mosseDamageEffect !== undefined && cardToPlay.mosseDamageEffect !== '');
         
         if (hasCustomEffect && !hasDamageValue) {
           console.log(`🎯 CPU ${this.playerName}: MOSSE card has custom effect (no damage value) - effect already processed, skipping regular attack`);
@@ -2405,8 +2406,9 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     
     let mosseCardName = this.getCardNameFromUrl(mosseCard.frontImage);
     const isHandTarget = (target as any).isHandCard === true;
+    const isFurto = mosseCardName.toUpperCase() === 'FURTO' || mosseCardName.toUpperCase().includes('FURTO');
     
-    console.log(`🎯 CPU ${this.playerName}: ATOMIC ATTACK EMISSION - card ${mosseCard.id} to ${target.name}${isHandTarget ? ' (HAND TARGET)' : ''}`);
+    console.log(`🎯 CPU ${this.playerName}: ATOMIC ATTACK EMISSION - card ${mosseCard.id} to ${target.name}${isHandTarget ? ' (HAND TARGET)' : ''}${isFurto ? ' [FURTO]' : ''}`);
     
     // Calculate suggested damage based on mosse card settings and attacker stars
     // CRITICAL: Use current stars from .stars property OR parse from text as fallback
@@ -2445,6 +2447,12 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
     } else if (mosseCard.mosseDamageValue) {
       suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
+    }
+
+    // FURTO: always use attacker stars as steal amount (overrides any prior suggestedDamage)
+    if (isFurto) {
+      suggestedDamage = attackerStars;
+      console.log(`🎯 CPU ${this.playerName}: ATOMIC FURTO - rubo ${suggestedDamage} stelle a ${targetName}`);
     }
 
     // PRESET FALLBACK: if no damage yet, try parsing it from the effect text or mosseDamageEffect
@@ -2528,7 +2536,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         isHandTarget,           // boolean: is this an ATTACCO DISONESTO (hand target)?
         undefined,              // defenseRequestEmitter: not needed, defense handled via socket
         0,                      // starsToRemove
-        effectiveEffect || null // mosseEffect
+        effectiveEffect || null,// mosseEffect
+        isFurto                 // isFurtoAttack: steal stars instead of dealing PTI damage
       );
       
       if (attackResult.success) {
