@@ -501,11 +501,28 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     }, 4000);
 
     // Emit rejoin after listener is registered
-    socket.emit('rejoin-game', {
-      gameId: gameIdToResume,
-      playerName,
-      authToken: localStorage.getItem('authToken'),
-    });
+    // IMPORTANT: Ensure socket is connected + authenticated before rejoin
+    if (socket.connected && socket.io.engine?.id) {
+      console.log('[GymMode] Socket ready, emitting rejoin-game');
+      socket.emit('rejoin-game', {
+        gameId: gameIdToResume,
+        playerName,
+        authToken: localStorage.getItem('authToken'),
+      });
+    } else {
+      // Socket not ready yet, wait for connect
+      console.log('[GymMode] Socket not ready, waiting for connect...');
+      const onConnect = () => {
+        console.log('[GymMode] Socket connected, now emitting rejoin-game');
+        socket.emit('rejoin-game', {
+          gameId: gameIdToResume,
+          playerName,
+          authToken: localStorage.getItem('authToken'),
+        });
+        socket.off('connect', onConnect);
+      };
+      socket.on('connect', onConnect);
+    }
   }, [playerName, setGameId, setPlayerName, generateSessionId, setSelectedCard]);
 
   const handleBackFromBattle = () => {
