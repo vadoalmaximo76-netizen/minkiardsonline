@@ -282,6 +282,7 @@ interface ClashBattle {
   startTime: number; // When clash started
   duration: number; // Duration in ms (10 seconds = 10000)
   active: boolean;
+  cpuTapHandles?: ReturnType<typeof setInterval>[]; // CPU auto-tap interval handles for cleanup
 }
 
 interface RifugioProtection {
@@ -24081,7 +24082,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             defenderTargetCardId: clashDefenderTargetCardId, // Attacker's character
             startTime: Date.now(),
             duration: 10000,
-            active: true
+            active: true,
+            cpuTapHandles: []
           };
 
           io.to(gameId).emit('clash-battle-start', {
@@ -24134,6 +24136,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 }
               }
             }, intervalMs + Math.random() * 50 - 25); // ±25ms jitter for realism
+            // Store handle for guaranteed cleanup in resolveClashBattle
+            const activeClash = this.games.get(gameId)?.activeClashBattle;
+            if (activeClash) activeClash.cpuTapHandles = [...(activeClash.cpuTapHandles || []), handle];
           };
 
           if (clashAttackerIsCPU) scheduleClashTaps(attacker);
@@ -24862,7 +24867,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         defenderTargetCardId, // Attacker's character
         startTime: Date.now(),
         duration: 10000, // 10 seconds
-        active: true
+        active: true,
+        cpuTapHandles: []
       };
 
       // Emit clash battle start to all players
@@ -24916,6 +24922,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             }
           }
         }, intervalMs + Math.random() * 50 - 25); // ±25ms jitter for realism
+        // Store handle for guaranteed cleanup in resolveClashBattle
+        const activeClash = this.games.get(gameId)?.activeClashBattle;
+        if (activeClash) activeClash.cpuTapHandles = [...(activeClash.cpuTapHandles || []), handle];
       };
 
       if (attackerIsCPU) scheduleClashTaps2(attacker);
@@ -25108,6 +25117,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     const clash = game.activeClashBattle;
     clash.active = false;
+
+    // Cancel all CPU auto-tap intervals immediately on resolution
+    if (clash.cpuTapHandles?.length) {
+      clash.cpuTapHandles.forEach(h => clearInterval(h));
+      console.log(`[CLASH] Cancelled ${clash.cpuTapHandles.length} CPU auto-tap interval(s) for ${clashId}`);
+      clash.cpuTapHandles = [];
+    }
 
     const { attacker, defender, attackerTaps, defenderTaps, damageValue, attackerMosseCardId, defenderMosseCardId, targetCardId, defenderTargetCardId } = clash;
 

@@ -977,6 +977,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         CONVERSATION CONTEXT: ${conversationContext || 'Nessuna conversazione precedente'}
       `;
 
+      console.log(`[CPU-STORY] ${this.playerName}: Invoking OpenAI for game decision (hand=${cpuPlayer.hand.length} cards, field enemies=${enemyCharacters.length})`);
       const response = await openai.chat.completions.create({
         model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
         messages: [
@@ -1056,21 +1057,28 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         max_tokens: 500
       });
 
-      const analysis = JSON.parse(response.choices[0].message.content || '{}');
+      const rawContent = response.choices[0].message.content || '{}';
+      const analysis = JSON.parse(rawContent);
+      const action = analysis.recommendedAction;
+      if (action) {
+        console.log(`[CPU-STORY] ${this.playerName}: OpenAI decision → type="${action.type}" reasoning="${(action.reasoning || '').substring(0, 80)}"`);
+      } else {
+        console.log(`[CPU-STORY] ${this.playerName}: OpenAI response missing recommendedAction — falling back to heuristic`);
+      }
       
       return {
         myCharacter,
         enemyCharacters,
         handCards: cpuPlayer.hand,
         fieldSituation: situationDesc,
-        recommendedAction: analysis.recommendedAction || {
+        recommendedAction: action || {
           type: 'play_card',
           reasoning: 'Default action - play first available card'
         }
       };
 
     } catch (error) {
-      console.error('Error analyzing game state:', error);
+      console.error(`[CPU-STORY] ${this.playerName}: OpenAI analyzeGameState FAILED — using heuristic fallback:`, error);
       // Fallback strategy
       return {
         myCharacter: null,
