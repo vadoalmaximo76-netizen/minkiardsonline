@@ -268,6 +268,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [mossaFlyer, setMossaFlyer] = useState<{ fromRect: DOMRect; toRect: DOMRect; cardImageSrc?: string; damage: number; key: number } | null>(null);
   const pendingAttackEffectsRef = React.useRef<(() => void) | null>(null);
   const [cardsAddedToast, setCardsAddedToast] = useState<string | null>(null);
+  const [gameToast, setGameToast] = useState<{ msg: string; emoji: string; type: 'info' | 'error' | 'success' } | null>(null);
+  const gameToastTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const showGameToast = React.useCallback((msg: string, emoji: string, type: 'info' | 'error' | 'success' = 'info', duration = 3500) => {
+    if (gameToastTimerRef.current) clearTimeout(gameToastTimerRef.current);
+    setGameToast({ msg, emoji, type });
+    gameToastTimerRef.current = setTimeout(() => setGameToast(null), duration);
+  }, []);
   const [damageVignetteVisible, setDamageVignetteVisible] = useState(false);
   const damageVignetteTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const [cinematicFlash, setCinematicFlash] = useState<{ visible: boolean; type: 'attack' | 'heal' }>({ visible: false, type: 'attack' });
@@ -482,7 +489,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const shareInviteLink = () => {
     const link = `${window.location.origin}?game=${gameId}`;
     navigator.clipboard.writeText(link);
-    alert("Invitation link copied to clipboard!");
+    showGameToast('Link di invito copiato!', '📋', 'success', 2500);
   };
 
   const handleOpenChat = () => {
@@ -501,7 +508,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
   const handleExecuteGameInstruction = () => {
     if (!gameInstruction.trim()) {
-      alert("Inserisci un'istruzione per modificare il gioco");
+      showGameToast("Inserisci un'istruzione per modificare il gioco", '⚠️', 'error', 3000);
       return;
     }
 
@@ -629,7 +636,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
   useEffect(() => {
     const handleGameReset = ({ message }: { message: string }) => {
-      alert(message);
+      showGameToast(message, '🔄', 'info');
     };
 
     const handlePlayerJoined = ({ playerName: newPlayer }: { playerName: string }) => {
@@ -661,7 +668,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
 
     const handleCardShowConfirmed = ({ message }: { message: string }) => {
-      alert(message);
+      showGameToast(message, '🃏', 'info');
     };
 
     const handleDiceRoll = ({ result, playerName }: { result: number, playerName: string }) => {
@@ -1900,7 +1907,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       playerName: string, instruction: string, result: string, timestamp: number 
     }) => {
       // Show notification to all players about the executed instruction
-      alert(`🎮 ISTRUZIONE ESEGUITA:\n${result}`);
+      showGameToast(result, '🎮', 'success', 5000);
       
       // Clear conversation mode since instruction was successful
       setConversationMode(false);
@@ -1927,8 +1934,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
 
     const handleInstructionError = ({ message }: { message: string }) => {
-      // Show error message to the instructor
-      alert(`❌ ${message}`);
+      showGameToast(message, '❌', 'error');
     };
 
     const handleInstructionQuestion = ({ playerName: instructorName, instruction, question, timestamp }: { 
@@ -1953,7 +1959,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     }) => {
       // Show to all players that there's a conversation happening
       if (instructorName !== playerName) {
-        alert(`💬 ${instructorName} sta dialogando con l'assistente:\n"${instruction}"\n\nAssistente: ${question}`);
+        showGameToast(`${instructorName} sta dialogando con l'assistente...`, '💬', 'info', 4000);
       }
     };
 
@@ -2049,12 +2055,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
     const handleFusionError = ({ message }: { message: string }) => {
       playErrorSound();
-      alert(`❌ ${message}`);
+      showGameToast(message, '❌', 'error');
     };
 
     const handleVoodooError = ({ message }: { message: string }) => {
       playErrorSound();
-      alert(`❌ ${message}`);
+      showGameToast(message, '❌', 'error');
     };
 
     socket.on('instruction-executed', handleInstructionExecuted);
@@ -4612,6 +4618,52 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             onComplete={() => setMossaFlyer(null)}
           />
         )}
+
+        {/* General in-game toast (replaces all browser alert() calls) */}
+        <AnimatePresence>
+          {gameToast && (
+            <motion.div
+              key="game-toast"
+              initial={{ opacity: 0, y: -40, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -24, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 460, damping: 30 }}
+              className="fixed top-16 left-1/2 z-[99999] pointer-events-none"
+              style={{ transform: 'translateX(-50%)' }}
+            >
+              <div
+                className="flex items-center gap-3 px-5 py-3 rounded-2xl border backdrop-blur-md shadow-2xl max-w-sm text-center"
+                style={{
+                  background: gameToast.type === 'error'
+                    ? 'linear-gradient(135deg, rgba(30,5,5,0.97), rgba(80,10,10,0.94))'
+                    : gameToast.type === 'success'
+                      ? 'linear-gradient(135deg, rgba(5,25,5,0.97), rgba(10,60,20,0.94))'
+                      : 'linear-gradient(135deg, rgba(5,10,30,0.97), rgba(15,30,70,0.94))',
+                  borderColor: gameToast.type === 'error'
+                    ? 'rgba(239,68,68,0.5)'
+                    : gameToast.type === 'success'
+                      ? 'rgba(34,197,94,0.5)'
+                      : 'rgba(99,102,241,0.5)',
+                  boxShadow: gameToast.type === 'error'
+                    ? '0 0 20px rgba(239,68,68,0.3)'
+                    : gameToast.type === 'success'
+                      ? '0 0 20px rgba(34,197,94,0.3)'
+                      : '0 0 20px rgba(99,102,241,0.3)',
+                }}
+              >
+                <span className="text-xl flex-shrink-0">{gameToast.emoji}</span>
+                <span
+                  className="font-bold text-sm tracking-wide"
+                  style={{
+                    color: gameToast.type === 'error' ? '#fca5a5' : gameToast.type === 'success' ? '#86efac' : '#a5b4fc'
+                  }}
+                >
+                  {gameToast.msg}
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Cards-added in-game toast (replaces browser alert) */}
         <AnimatePresence>

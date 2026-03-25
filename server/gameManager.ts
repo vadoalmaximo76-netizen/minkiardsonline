@@ -20530,6 +20530,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const cpuPlayer = game.players[cpuPlayerName];
     if (!cpuPlayer?.isCPU || !cpuPlayer.cpuInstance) return null;
 
+    const isStoryMode = !!(game as any).gymLeaderCpuName;
+    const cpuLevel = cpuPlayer.cpuInstance.getLevel?.() || cpuPlayer.cpuLevel || 'medium';
+    const attackMode = cpuPlayer.cpuInstance.getAttackMode?.() || 'default';
+
+    if (isStoryMode) {
+      console.log(`[CPU-STORY] ${cpuPlayerName} (${cpuLevel}/${attackMode}) — taking turn in gym game ${gameId}`);
+    }
+
     try {
       // Set socket emitter for chat functionality
       if (socketEmitter) {
@@ -20539,9 +20547,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       
       const action = await cpuPlayer.cpuInstance.takeTurn(game);
+
+      if (isStoryMode) {
+        if (action) {
+          console.log(`[CPU-STORY] ${cpuPlayerName} action → type="${action.type}" cardId="${action.data?.cardId ?? '—'}"`);
+        } else {
+          console.log(`[CPU-STORY] ${cpuPlayerName} → null action (waiting or no move available)`);
+        }
+      }
+
       return action;
     } catch (error) {
       console.error(`Error processing CPU turn for ${cpuPlayerName}:`, error);
+      if (isStoryMode) {
+        console.error(`[CPU-STORY] ${cpuPlayerName} — exception in takeTurn:`, error);
+      }
       return null;
     }
   }
@@ -24079,54 +24099,45 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             timestamp: Date.now()
           });
 
-          // CPU AUTO-TAP
-          const clashAttackerIsCPU = attacker.startsWith('CPU');
-          const clashDefenderIsCPU = defender.startsWith('CPU');
-          
-          if (clashAttackerIsCPU || clashDefenderIsCPU) {
-            const cpuTaps = Math.floor(Math.random() * 21) + 30;
-            const tapInterval = 10000 / cpuTaps;
-            
-            if (clashAttackerIsCPU) {
-              console.log(`🤖 CPU ${attacker} will auto-tap ${cpuTaps} times`);
-              for (let i = 0; i < cpuTaps; i++) {
-                setTimeout(() => {
-                  const result = this.handleClashTap(gameId, attacker);
-                  if (result.success) {
-                    io.to(gameId).emit('clash-tap-update', {
-                      clashId,
-                      attackerTaps: result.attackerTaps,
-                      defenderTaps: result.defenderTaps
-                    });
-                    const overwhelmCheck = this.checkClashOverwhelm(gameId);
-                    if (overwhelmCheck.winner) {
-                      this.resolveClashBattle(gameId, clashId, io);
-                    }
-                  }
-                }, Math.random() * tapInterval + (i * tapInterval * 0.8));
+          // CPU AUTO-TAP: detect via isCPU flag (not name prefix) and scale by difficulty
+          const clashAttackerIsCPU = !!game.players[attacker]?.isCPU;
+          const clashDefenderIsCPU = !!game.players[defender]?.isCPU;
+
+          const cpuTapsForPlayer = (playerName: string): number => {
+            const lvl = game.players[playerName]?.cpuInstance?.getLevel?.() || game.players[playerName]?.cpuLevel || 'medium';
+            if (lvl === 'easy') return Math.floor(Math.random() * 11) + 30;  // 30-40
+            if (lvl === 'hard') return Math.floor(Math.random() * 21) + 80;  // 80-100
+            return Math.floor(Math.random() * 21) + 50;                       // medium 50-70
+          };
+
+          const scheduleClashTaps = (cpuName: string) => {
+            const taps = cpuTapsForPlayer(cpuName);
+            const intervalMs = 10000 / taps;
+            console.log(`🤖 CPU ${cpuName} auto-tap: ${taps} taps over 10s (every ${intervalMs.toFixed(0)}ms)`);
+            const handle = setInterval(() => {
+              const currentClash = this.games.get(gameId)?.activeClashBattle;
+              if (!currentClash?.active || currentClash.id !== clashId) {
+                clearInterval(handle);
+                return;
               }
-            }
-            
-            if (clashDefenderIsCPU) {
-              console.log(`🤖 CPU ${defender} will auto-tap ${cpuTaps} times`);
-              for (let i = 0; i < cpuTaps; i++) {
-                setTimeout(() => {
-                  const result = this.handleClashTap(gameId, defender);
-                  if (result.success) {
-                    io.to(gameId).emit('clash-tap-update', {
-                      clashId,
-                      attackerTaps: result.attackerTaps,
-                      defenderTaps: result.defenderTaps
-                    });
-                    const overwhelmCheck = this.checkClashOverwhelm(gameId);
-                    if (overwhelmCheck.winner) {
-                      this.resolveClashBattle(gameId, clashId, io);
-                    }
-                  }
-                }, Math.random() * tapInterval + (i * tapInterval * 0.8));
+              const result = this.handleClashTap(gameId, cpuName);
+              if (result.success) {
+                io.to(gameId).emit('clash-tap-update', {
+                  clashId,
+                  attackerTaps: result.attackerTaps,
+                  defenderTaps: result.defenderTaps
+                });
+                const overwhelmCheck = this.checkClashOverwhelm(gameId);
+                if (overwhelmCheck.winner) {
+                  clearInterval(handle);
+                  this.resolveClashBattle(gameId, clashId, io);
+                }
               }
-            }
-          }
+            }, intervalMs + Math.random() * 50 - 25); // ±25ms jitter for realism
+          };
+
+          if (clashAttackerIsCPU) scheduleClashTaps(attacker);
+          if (clashDefenderIsCPU) scheduleClashTaps(defender);
 
           // Set timeout to resolve clash after 10 seconds
           setTimeout(async () => {
@@ -24870,59 +24881,45 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         timestamp: Date.now()
       });
 
-      // CPU AUTO-TAP: If either participant is CPU, automatically tap for them
-      const attackerIsCPU = attacker.startsWith('CPU');
-      const defenderIsCPU = defender.startsWith('CPU');
-      
-      if (attackerIsCPU || defenderIsCPU) {
-        // Generate random number of taps between 15-25
-        const cpuTaps = Math.floor(Math.random() * 21) + 30; // 30-50 taps
-        const tapInterval = 10000 / cpuTaps; // Spread taps over 10 seconds
-        
-        if (attackerIsCPU) {
-          console.log(`🤖 CPU ${attacker} will auto-tap ${cpuTaps} times`);
-          for (let i = 0; i < cpuTaps; i++) {
-            setTimeout(() => {
-              const result = this.handleClashTap(gameId, attacker);
-              if (result.success) {
-                io.to(gameId).emit('clash-tap-update', {
-                  clashId,
-                  attackerTaps: result.attackerTaps,
-                  defenderTaps: result.defenderTaps
-                });
-                
-                // Check for overwhelm (20 tap lead)
-                const overwhelmCheck = this.checkClashOverwhelm(gameId);
-                if (overwhelmCheck.winner) {
-                  this.resolveClashBattle(gameId, clashId, io);
-                }
-              }
-            }, Math.random() * tapInterval + (i * tapInterval * 0.8));
+      // CPU AUTO-TAP: detect via isCPU flag and scale by difficulty
+      const attackerIsCPU = !!game.players[attacker]?.isCPU;
+      const defenderIsCPU = !!game.players[defender]?.isCPU;
+
+      const cpuTapsFor2 = (playerName: string): number => {
+        const lvl = game.players[playerName]?.cpuInstance?.getLevel?.() || game.players[playerName]?.cpuLevel || 'medium';
+        if (lvl === 'easy') return Math.floor(Math.random() * 11) + 30;  // 30-40
+        if (lvl === 'hard') return Math.floor(Math.random() * 21) + 80;  // 80-100
+        return Math.floor(Math.random() * 21) + 50;                       // medium 50-70
+      };
+
+      const scheduleClashTaps2 = (cpuName: string) => {
+        const taps = cpuTapsFor2(cpuName);
+        const intervalMs = 10000 / taps;
+        console.log(`🤖 CPU ${cpuName} auto-tap: ${taps} taps over 10s (every ${intervalMs.toFixed(0)}ms)`);
+        const handle = setInterval(() => {
+          const currentClash = this.games.get(gameId)?.activeClashBattle;
+          if (!currentClash?.active || currentClash.id !== clashId) {
+            clearInterval(handle);
+            return;
           }
-        }
-        
-        if (defenderIsCPU) {
-          console.log(`🤖 CPU ${defender} will auto-tap ${cpuTaps} times`);
-          for (let i = 0; i < cpuTaps; i++) {
-            setTimeout(() => {
-              const result = this.handleClashTap(gameId, defender);
-              if (result.success) {
-                io.to(gameId).emit('clash-tap-update', {
-                  clashId,
-                  attackerTaps: result.attackerTaps,
-                  defenderTaps: result.defenderTaps
-                });
-                
-                // Check for overwhelm (20 tap lead)
-                const overwhelmCheck = this.checkClashOverwhelm(gameId);
-                if (overwhelmCheck.winner) {
-                  this.resolveClashBattle(gameId, clashId, io);
-                }
-              }
-            }, Math.random() * tapInterval + (i * tapInterval * 0.8));
+          const result = this.handleClashTap(gameId, cpuName);
+          if (result.success) {
+            io.to(gameId).emit('clash-tap-update', {
+              clashId,
+              attackerTaps: result.attackerTaps,
+              defenderTaps: result.defenderTaps
+            });
+            const overwhelmCheck = this.checkClashOverwhelm(gameId);
+            if (overwhelmCheck.winner) {
+              clearInterval(handle);
+              this.resolveClashBattle(gameId, clashId, io);
+            }
           }
-        }
-      }
+        }, intervalMs + Math.random() * 50 - 25); // ±25ms jitter for realism
+      };
+
+      if (attackerIsCPU) scheduleClashTaps2(attacker);
+      if (defenderIsCPU) scheduleClashTaps2(defender);
 
       // Set timeout to resolve clash after 10 seconds
       setTimeout(async () => {

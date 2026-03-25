@@ -58,10 +58,27 @@ export const NextTurnNotification: React.FC<NextTurnNotificationProps> = ({
 
   const bgOpacity = phase === "enter" ? "0" : phase === "show" ? "1" : "0";
 
+  const screenFlash = phase === "enter" ? (
+    <div
+      className="fixed inset-0 pointer-events-none z-[10001]"
+      style={{
+        background: isMyTurn
+          ? 'radial-gradient(ellipse at center, rgba(251,191,36,0.55) 0%, rgba(245,158,11,0.2) 50%, transparent 80%)'
+          : 'radial-gradient(ellipse at center, rgba(99,102,241,0.45) 0%, rgba(67,56,202,0.15) 50%, transparent 80%)',
+        animation: 'ntScreenFlash 0.5s ease-out forwards',
+      }}
+    />
+  ) : null;
+
   if (_isMobile) {
     return (
       <>
         <style>{`
+          @keyframes ntScreenFlash {
+            0% { opacity: 0; }
+            25% { opacity: 1; }
+            100% { opacity: 0; }
+          }
           @keyframes ntSlideIn {
             0% { transform: translateX(-120%) scale(0.8); opacity: 0; }
             40% { transform: translateX(8%) scale(1.05); opacity: 1; }
@@ -72,6 +89,7 @@ export const NextTurnNotification: React.FC<NextTurnNotificationProps> = ({
             100% { transform: translateX(120%) scale(0.7); opacity: 0; }
           }
         `}</style>
+        {screenFlash}
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden"
           style={{

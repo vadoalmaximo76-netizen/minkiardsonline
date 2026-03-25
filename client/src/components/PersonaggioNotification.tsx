@@ -14,35 +14,32 @@ export const PersonaggioNotification: React.FC<PersonaggioNotificationProps> = (
   cardImage
 }) => {
   const [animationPhase, setAnimationPhase] = useState(0);
-  
-  const particles = useMemo(() => 
-    [...Array(20)].map((_, i) => ({
-      left: Math.random() * 100,
-      delay: Math.random() * 2,
-      duration: 2 + Math.random() * 2,
-      size: 2 + Math.random() * 4
+
+  const embers = useMemo(() =>
+    [...Array(18)].map((_, i) => ({
+      left: (i * 37 + 11) % 100,
+      delay: (i * 23 % 200) / 100,
+      duration: 1.8 + (i * 17 % 30) / 10,
+      size: 2 + (i * 13 % 4),
+      drift: (i % 2 === 0 ? 1 : -1) * (10 + (i * 7 % 20)),
     })), []
   );
 
-  const glowParticles = useMemo(() =>
-    [...Array(12)].map((_, i) => ({
-      angle: (i / 12) * 360,
-      delay: i * 0.1,
-      distance: 60 + Math.random() * 40
+  const sparks = useMemo(() =>
+    [...Array(8)].map((_, i) => ({
+      angle: (i / 8) * 360,
+      delay: i * 0.08,
+      distance: 70 + (i * 19 % 40),
     })), []
   );
 
   useEffect(() => {
     if (isVisible) {
       setAnimationPhase(0);
-      const timer1 = setTimeout(() => setAnimationPhase(1), 100);
-      const timer2 = setTimeout(() => setAnimationPhase(2), 400);
-      const timer3 = setTimeout(() => setAnimationPhase(3), 700);
-      return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-        clearTimeout(timer3);
-      };
+      const t1 = setTimeout(() => setAnimationPhase(1), 80);
+      const t2 = setTimeout(() => setAnimationPhase(2), 350);
+      const t3 = setTimeout(() => setAnimationPhase(3), 650);
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
     }
   }, [isVisible]);
 
@@ -50,328 +47,260 @@ export const PersonaggioNotification: React.FC<PersonaggioNotificationProps> = (
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        style={{
-          animation: 'neon-backdrop-fade 0.5s ease-out forwards'
-        }}
-      />
-      
-      <div 
-        className="relative flex flex-col items-center gap-6"
-        style={{
-          animation: 'neon-container-enter 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
-        }}
-      >
-        <div className="absolute inset-0 -m-20 overflow-hidden pointer-events-none">
-          {particles.map((p, i) => (
-            <div
-              key={i}
-              className="absolute rounded-full"
-              style={{
-                left: `${p.left}%`,
-                bottom: '-10%',
-                width: `${p.size}px`,
-                height: `${p.size}px`,
-                background: i % 3 === 0 
-                  ? 'rgba(0, 255, 255, 0.8)' 
-                  : i % 3 === 1 
-                    ? 'rgba(255, 0, 255, 0.8)' 
-                    : 'rgba(139, 92, 246, 0.8)',
-                boxShadow: i % 3 === 0 
-                  ? '0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px rgba(0, 255, 255, 0.4)' 
-                  : i % 3 === 1 
-                    ? '0 0 10px rgba(255, 0, 255, 0.8), 0 0 20px rgba(255, 0, 255, 0.4)'
-                    : '0 0 10px rgba(139, 92, 246, 0.8), 0 0 20px rgba(139, 92, 246, 0.4)',
-                animation: `neon-particle-rise ${p.duration}s ease-out infinite`,
-                animationDelay: `${p.delay}s`
-              }}
-            />
-          ))}
-        </div>
 
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0"
+        style={{ animation: 'pgBackdropIn 0.45s ease-out forwards', background: 'rgba(0,0,0,0)' }}
+      />
+
+      {/* Ember particles rising from bottom */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {embers.map((e, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full"
+            style={{
+              left: `${e.left}%`,
+              bottom: '-5%',
+              width: `${e.size}px`,
+              height: `${e.size}px`,
+              background: i % 3 === 0
+                ? 'rgba(251,191,36,0.9)'
+                : i % 3 === 1
+                  ? 'rgba(245,158,11,0.85)'
+                  : 'rgba(252,211,77,0.8)',
+              boxShadow: i % 3 === 0
+                ? '0 0 8px rgba(251,191,36,0.8), 0 0 16px rgba(251,191,36,0.4)'
+                : i % 3 === 1
+                  ? '0 0 8px rgba(245,158,11,0.7), 0 0 16px rgba(245,158,11,0.3)'
+                  : '0 0 6px rgba(252,211,77,0.6)',
+              animation: `pgEmberRise ${e.duration}s ease-out infinite`,
+              animationDelay: `${e.delay}s`,
+              '--drift': `${e.drift}px`,
+            } as React.CSSProperties}
+          />
+        ))}
+      </div>
+
+      {/* Main container */}
+      <div
+        className="relative flex flex-col items-center gap-5"
+        style={{ animation: 'pgContainerEnter 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' }}
+      >
+
+        {/* Card with gold border */}
         {cardImage && (
-          <div 
+          <div
             className="relative"
             style={{
-              animation: animationPhase >= 1 
-                ? 'neon-card-reveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' 
-                : 'none',
-              opacity: animationPhase >= 1 ? 1 : 0
+              animation: animationPhase >= 1 ? 'pgCardReveal 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' : 'none',
+              opacity: animationPhase >= 1 ? 1 : 0,
             }}
           >
-            <div 
-              className="absolute -inset-3 rounded-xl opacity-75"
+            {/* Outer glow */}
+            <div
+              className="absolute -inset-4 rounded-xl"
               style={{
-                background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.4), rgba(255, 0, 255, 0.4), rgba(139, 92, 246, 0.4))',
-                filter: 'blur(15px)',
-                animation: 'neon-glow-pulse 2s ease-in-out infinite'
+                background: 'radial-gradient(ellipse at center, rgba(251,191,36,0.55) 0%, rgba(245,158,11,0.2) 50%, transparent 80%)',
+                filter: 'blur(12px)',
+                animation: 'pgGlowPulse 1.8s ease-in-out infinite',
               }}
             />
-            
-            <div 
-              className="absolute -inset-1 rounded-lg"
+
+            {/* Gold border ring */}
+            <div
+              className="absolute -inset-1 rounded-xl"
               style={{
-                background: 'linear-gradient(135deg, #00ffff, #ff00ff, #8b5cf6, #00ffff)',
-                backgroundSize: '300% 300%',
-                animation: 'neon-border-flow 3s linear infinite',
-                padding: '3px'
+                background: 'conic-gradient(from 0deg, #f59e0b, #fbbf24, #fde68a, #f59e0b, #b45309, #fbbf24, #f59e0b)',
+                animation: 'pgBorderSpin 4s linear infinite',
+                padding: '2px',
               }}
             >
-              <div className="w-full h-full bg-black rounded-lg" />
+              <div className="w-full h-full bg-gray-900 rounded-xl" />
             </div>
-            
+
             <img
               src={cardImage}
               alt={cardName}
-              className="relative w-40 h-56 rounded-lg object-contain z-10"
+              className="relative w-40 h-56 rounded-xl object-contain z-10"
               style={{
-                filter: 'drop-shadow(0 0 30px rgba(0, 255, 255, 0.6))',
-                animation: 'neon-card-float 3s ease-in-out infinite'
+                filter: 'drop-shadow(0 0 24px rgba(251,191,36,0.7)) drop-shadow(0 4px 12px rgba(0,0,0,0.8))',
+                animation: 'pgCardFloat 2.5s ease-in-out infinite',
               }}
-              onError={(e) => {
-                console.error('Failed to load card image:', cardImage);
-                e.currentTarget.style.display = 'none';
-              }}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
 
-            {glowParticles.map((gp, i) => (
+            {/* Orbiting sparks */}
+            {sparks.map((sp, i) => (
               <div
                 key={i}
-                className="absolute top-1/2 left-1/2 w-2 h-2 rounded-full"
+                className="absolute top-1/2 left-1/2 rounded-full"
                 style={{
-                  background: i % 2 === 0 ? '#00ffff' : '#ff00ff',
-                  boxShadow: i % 2 === 0 
-                    ? '0 0 10px #00ffff, 0 0 20px #00ffff' 
-                    : '0 0 10px #ff00ff, 0 0 20px #ff00ff',
-                  transform: `rotate(${gp.angle}deg) translateX(${gp.distance}px)`,
-                  animation: `neon-orbit 4s linear infinite`,
-                  animationDelay: `${gp.delay}s`,
-                  opacity: 0.8
+                  width: '5px',
+                  height: '5px',
+                  background: i % 2 === 0 ? '#fbbf24' : '#fde68a',
+                  boxShadow: i % 2 === 0
+                    ? '0 0 8px #fbbf24, 0 0 16px rgba(251,191,36,0.5)'
+                    : '0 0 8px #fde68a, 0 0 12px rgba(253,230,138,0.4)',
+                  transform: `rotate(${sp.angle}deg) translateX(${sp.distance}px)`,
+                  animation: `pgOrbit ${3 + i * 0.3}s linear infinite`,
+                  animationDelay: `${sp.delay}s`,
+                  opacity: 0.85,
                 }}
               />
             ))}
           </div>
         )}
 
-        <div 
+        {/* Text banner */}
+        <div
           className="relative overflow-hidden rounded-2xl"
           style={{
-            animation: animationPhase >= 2 
-              ? 'neon-text-reveal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' 
-              : 'none',
+            animation: animationPhase >= 2 ? 'pgTextReveal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' : 'none',
             opacity: animationPhase >= 2 ? 1 : 0,
-            transform: animationPhase >= 2 ? 'translateY(0)' : 'translateY(20px)'
           }}
         >
-          <div 
-            className="absolute -inset-1 rounded-2xl"
+          {/* Gold border */}
+          <div
+            className="absolute -inset-px rounded-2xl"
             style={{
-              background: 'linear-gradient(90deg, #00ffff, #ff00ff, #8b5cf6, #00ffff)',
-              backgroundSize: '300% 100%',
-              animation: 'neon-border-flow 2s linear infinite',
-              padding: '2px'
+              background: 'linear-gradient(135deg, #f59e0b, #fbbf24, #fde68a, #f59e0b, #b45309)',
+              backgroundSize: '300% 300%',
+              animation: 'pgBorderFlow 2.5s linear infinite',
             }}
+          />
+
+          <div
+            className="relative px-10 py-5 rounded-2xl"
+            style={{ background: 'linear-gradient(135deg, rgba(10,6,0,0.97), rgba(30,18,3,0.96))', backdropFilter: 'blur(16px)' }}
           >
-            <div className="w-full h-full bg-black/90 rounded-2xl backdrop-blur-xl" />
-          </div>
-          
-          <div 
-            className="relative px-12 py-6 rounded-2xl z-10"
-            style={{
-              background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(20, 10, 30, 0.95))',
-              backdropFilter: 'blur(20px)'
-            }}
-          >
-            <div 
-              className="absolute inset-0 opacity-20 pointer-events-none overflow-hidden rounded-2xl"
-              style={{
-                background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 255, 255, 0.03) 2px, rgba(0, 255, 255, 0.03) 4px)',
-                animation: 'neon-scanlines 8s linear infinite'
-              }}
+            {/* Top accent line */}
+            <div
+              className="absolute top-0 left-4 right-4 h-px"
+              style={{ background: 'linear-gradient(90deg, transparent, rgba(251,191,36,0.6), transparent)' }}
             />
 
-            <h2 
-              className="text-4xl md:text-5xl font-black text-center mb-3 tracking-wider relative"
+            <h2
+              className="text-4xl md:text-5xl font-black text-center mb-2 tracking-wider"
               style={{
-                background: 'linear-gradient(135deg, #00ffff, #ffffff, #ff00ff)',
+                background: 'linear-gradient(135deg, #fde68a, #fbbf24, #f59e0b, #fbbf24, #fde68a)',
                 backgroundClip: 'text',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
-                textShadow: '0 0 40px rgba(0, 255, 255, 0.5)',
-                filter: 'drop-shadow(0 0 10px rgba(0, 255, 255, 0.8))',
-                animation: 'neon-text-glow 2s ease-in-out infinite alternate'
+                textShadow: '0 2px 8px rgba(0,0,0,0.8)',
+                filter: 'drop-shadow(0 0 12px rgba(251,191,36,0.6))',
+                animation: animationPhase >= 3 ? 'pgTitleGlow 2s ease-in-out infinite alternate' : 'none',
               }}
             >
               {cardName}
             </h2>
-            
-            <p 
-              className="text-xl md:text-2xl font-bold text-center tracking-widest uppercase relative"
+
+            <p
+              className="text-lg md:text-xl font-bold text-center tracking-widest uppercase"
               style={{
-                color: '#ff00ff',
-                textShadow: '0 0 20px rgba(255, 0, 255, 0.8), 0 0 40px rgba(255, 0, 255, 0.4)',
-                animation: animationPhase >= 3 ? 'neon-message-pulse 1.5s ease-in-out infinite' : 'none'
+                color: '#fde68a',
+                textShadow: '0 0 12px rgba(251,191,36,0.6), 0 1px 4px rgba(0,0,0,0.9)',
+                animation: animationPhase >= 3 ? 'pgMessagePulse 1.8s ease-in-out infinite' : 'none',
               }}
             >
               {message}
             </p>
 
-            <div className="flex justify-center gap-2 mt-4">
+            {/* Decorative dots */}
+            <div className="flex justify-center gap-2 mt-3">
               {[...Array(5)].map((_, i) => (
                 <div
                   key={i}
-                  className="w-2 h-2 rounded-full"
+                  className="rounded-full"
                   style={{
-                    background: '#00ffff',
-                    boxShadow: '0 0 10px #00ffff, 0 0 20px #00ffff',
-                    animation: 'neon-dot-pulse 1s ease-in-out infinite',
-                    animationDelay: `${i * 0.15}s`
+                    width: i === 2 ? '10px' : '6px',
+                    height: i === 2 ? '10px' : '6px',
+                    background: '#fbbf24',
+                    boxShadow: '0 0 8px rgba(251,191,36,0.7), 0 0 16px rgba(251,191,36,0.3)',
+                    animation: 'pgDotPulse 1.2s ease-in-out infinite',
+                    animationDelay: `${i * 0.18}s`,
                   }}
                 />
               ))}
             </div>
+
+            {/* Bottom accent line */}
+            <div
+              className="absolute bottom-0 left-4 right-4 h-px"
+              style={{ background: 'linear-gradient(90deg, transparent, rgba(251,191,36,0.6), transparent)' }}
+            />
           </div>
         </div>
 
-        <div 
-          className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-64 h-1 rounded-full"
+        {/* Crown accent below */}
+        <div
+          className="w-48 h-px"
           style={{
-            background: 'linear-gradient(90deg, transparent, #00ffff, #ff00ff, #00ffff, transparent)',
-            boxShadow: '0 0 20px rgba(0, 255, 255, 0.6), 0 0 40px rgba(255, 0, 255, 0.4)',
-            animation: 'neon-line-pulse 2s ease-in-out infinite'
+            background: 'linear-gradient(90deg, transparent, #fbbf24, #fde68a, #fbbf24, transparent)',
+            boxShadow: '0 0 12px rgba(251,191,36,0.5)',
+            animation: 'pgLinePulse 2s ease-in-out infinite',
           }}
         />
       </div>
 
       <style>{`
-        @keyframes neon-backdrop-fade {
-          from { opacity: 0; }
-          to { opacity: 1; }
+        @keyframes pgBackdropIn {
+          from { background: rgba(0,0,0,0); }
+          to   { background: rgba(0,0,0,0.7); }
         }
-        
-        @keyframes neon-container-enter {
-          0% { 
-            opacity: 0; 
-            transform: scale(0.8) translateY(30px);
-          }
-          100% { 
-            opacity: 1; 
-            transform: scale(1) translateY(0);
-          }
+        @keyframes pgContainerEnter {
+          0%   { opacity: 0; transform: scale(0.82) translateY(28px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
         }
-        
-        @keyframes neon-card-reveal {
-          0% { 
-            opacity: 0; 
-            transform: scale(0.5) rotateY(90deg);
-          }
-          60% {
-            transform: scale(1.1) rotateY(-10deg);
-          }
-          100% { 
-            opacity: 1; 
-            transform: scale(1) rotateY(0deg);
-          }
+        @keyframes pgCardReveal {
+          0%   { opacity: 0; transform: scale(0.55) rotateY(80deg); }
+          60%  { transform: scale(1.08) rotateY(-8deg); }
+          100% { opacity: 1; transform: scale(1) rotateY(0deg); }
         }
-        
-        @keyframes neon-card-float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
+        @keyframes pgCardFloat {
+          0%, 100% { transform: translateY(0px); }
+          50%       { transform: translateY(-7px); }
         }
-        
-        @keyframes neon-glow-pulse {
-          0%, 100% { 
-            opacity: 0.6; 
-            transform: scale(1);
-          }
-          50% { 
-            opacity: 0.9; 
-            transform: scale(1.05);
-          }
+        @keyframes pgGlowPulse {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50%       { opacity: 0.9; transform: scale(1.06); }
         }
-        
-        @keyframes neon-border-flow {
-          0% { background-position: 0% 50%; }
+        @keyframes pgBorderSpin {
+          0%   { background-position: 0% 50%; transform: rotate(0deg); }
+          100% { background-position: 0% 50%; transform: rotate(360deg); }
+        }
+        @keyframes pgBorderFlow {
+          0%   { background-position: 0% 50%; }
           100% { background-position: 300% 50%; }
         }
-        
-        @keyframes neon-text-reveal {
-          0% { 
-            opacity: 0; 
-            transform: translateY(30px) scale(0.9);
-          }
-          100% { 
-            opacity: 1; 
-            transform: translateY(0) scale(1);
-          }
+        @keyframes pgOrbit {
+          0%   { transform: rotate(0deg) translateX(var(--d, 80px)) rotate(0deg); }
+          100% { transform: rotate(360deg) translateX(var(--d, 80px)) rotate(-360deg); }
         }
-        
-        @keyframes neon-text-glow {
-          0% { 
-            filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.8)) drop-shadow(0 0 20px rgba(0, 255, 255, 0.4));
-          }
-          100% { 
-            filter: drop-shadow(0 0 20px rgba(255, 0, 255, 0.8)) drop-shadow(0 0 40px rgba(255, 0, 255, 0.4));
-          }
+        @keyframes pgTextReveal {
+          0%   { opacity: 0; transform: translateY(24px) scale(0.92); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
         }
-        
-        @keyframes neon-message-pulse {
-          0%, 100% { 
-            opacity: 1;
-            transform: scale(1);
-          }
-          50% { 
-            opacity: 0.8;
-            transform: scale(1.02);
-          }
+        @keyframes pgTitleGlow {
+          0%   { filter: drop-shadow(0 0 8px rgba(251,191,36,0.5)); }
+          100% { filter: drop-shadow(0 0 20px rgba(251,191,36,0.9)) drop-shadow(0 0 40px rgba(245,158,11,0.4)); }
         }
-        
-        @keyframes neon-particle-rise {
-          0% { 
-            transform: translateY(0) scale(1);
-            opacity: 1;
-          }
-          100% { 
-            transform: translateY(-400px) scale(0);
-            opacity: 0;
-          }
+        @keyframes pgMessagePulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50%       { opacity: 0.82; transform: scale(1.02); }
         }
-        
-        @keyframes neon-orbit {
-          0% { 
-            transform: rotate(0deg) translateX(60px) rotate(0deg);
-          }
-          100% { 
-            transform: rotate(360deg) translateX(60px) rotate(-360deg);
-          }
+        @keyframes pgEmberRise {
+          0%   { transform: translateY(0) translateX(0) scale(1); opacity: 1; }
+          100% { transform: translateY(-380px) translateX(var(--drift, 15px)) scale(0.1); opacity: 0; }
         }
-        
-        @keyframes neon-scanlines {
-          0% { transform: translateY(0); }
-          100% { transform: translateY(100%); }
+        @keyframes pgDotPulse {
+          0%, 100% { opacity: 0.5; transform: scale(0.8); }
+          50%       { opacity: 1; transform: scale(1.25); }
         }
-        
-        @keyframes neon-dot-pulse {
-          0%, 100% { 
-            opacity: 0.4;
-            transform: scale(0.8);
-          }
-          50% { 
-            opacity: 1;
-            transform: scale(1.2);
-          }
-        }
-        
-        @keyframes neon-line-pulse {
-          0%, 100% { 
-            opacity: 0.6;
-            transform: translateX(-50%) scaleX(1);
-          }
-          50% { 
-            opacity: 1;
-            transform: translateX(-50%) scaleX(1.2);
-          }
+        @keyframes pgLinePulse {
+          0%, 100% { opacity: 0.6; transform: scaleX(1); }
+          50%       { opacity: 1; transform: scaleX(1.15); }
         }
       `}</style>
     </div>
