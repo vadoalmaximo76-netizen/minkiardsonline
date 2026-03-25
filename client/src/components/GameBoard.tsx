@@ -221,7 +221,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     visible: boolean;
     player: string;
   }>({ visible: false, player: '' });
-  const { handModalOpen, setHandModalOpen } = useGameState();
+  const { handModalOpen, setHandModalOpen, playerName: gbPlayerName, gameState: gbGameState } = useGameState();
   const [specialMoveOverlay, setSpecialMoveOverlay] = useState<{
     visible: boolean;
     moveName: string;
@@ -278,6 +278,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [damageVignetteVisible, setDamageVignetteVisible] = useState(false);
   const damageVignetteTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const [cinematicFlash, setCinematicFlash] = useState<{ visible: boolean; type: 'attack' | 'heal' }>({ visible: false, type: 'attack' });
+  const [turnPhaseFlash, setTurnPhaseFlash] = useState<{ visible: boolean; isMyTurn: boolean }>({ visible: false, isMyTurn: false });
   const [cardShatter3D, setCardShatter3D] = useState<{ visible: boolean; cardImage: string; cardName: string }>({ visible: false, cardImage: '', cardName: '' });
   const [koBanner, setKoBanner] = useState<{ visible: boolean; cardName: string; cardOwner: string; cardImage: string; eliminationMode: boolean; isCurrentPlayer: boolean }>({ visible: false, cardName: '', cardOwner: '', cardImage: '', eliminationMode: false, isCurrentPlayer: false });
   const [tekkenMode, setTekkenMode] = useState(false);
@@ -491,6 +492,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     navigator.clipboard.writeText(link);
     showGameToast('Link di invito copiato!', '📋', 'success', 2500);
   };
+
+  // Turn phase flash: brief color overlay when turn changes
+  useEffect(() => {
+    if (!nextTurnPlayer) return;
+    const isMe = nextTurnPlayer === gbPlayerName;
+    setTurnPhaseFlash({ visible: true, isMyTurn: isMe });
+    const timer = setTimeout(() => setTurnPhaseFlash({ visible: false, isMyTurn: isMe }), 500);
+    return () => clearTimeout(timer);
+  }, [nextTurnPlayer, gbPlayerName]);
 
   const handleOpenChat = () => {
     setChatOpen(true);
@@ -4711,6 +4721,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
         {cinematicFlash.visible && (
           <div className={cinematicFlash.type === 'attack' ? 'cinematic-attack-flash' : 'cinematic-heal-flash'} />
+        )}
+        {turnPhaseFlash.visible && (
+          <div className={turnPhaseFlash.isMyTurn ? 'turn-phase-flash-my-turn' : 'turn-phase-flash-enemy-turn'} />
         )}
 
         {/* Player Order Notification */}

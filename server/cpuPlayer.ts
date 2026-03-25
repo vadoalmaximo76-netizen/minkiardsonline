@@ -84,6 +84,8 @@ export class CPUPlayer {
   private gymLeaderMessages: Record<string, string[]> | null = null;
   private attackMode: 'free_for_all' | 'hunt_human' = 'free_for_all';
   private level: 'easy' | 'medium' | 'hard' = 'medium';
+  private mood: 'balanced' | 'aggressive' | 'defensive' | 'random' = 'balanced';
+  private moodTurnCount = 0;
 
   setAttackMode(mode: 'free_for_all' | 'hunt_human') {
     this.attackMode = mode;
@@ -119,6 +121,54 @@ export class CPUPlayer {
     const filtered = msgs.filter((m: string) => typeof m === 'string' && m.trim() !== '');
     if (filtered.length === 0) return null;
     return filtered[Math.floor(Math.random() * filtered.length)];
+  }
+
+  updateMood(): void {
+    const turnsPerChange = this.level === 'hard' ? 2 : this.level === 'medium' ? 3 : 5;
+    this.moodTurnCount++;
+    if (this.moodTurnCount < turnsPerChange) return;
+    this.moodTurnCount = 0;
+    const allMoods: Array<'balanced' | 'aggressive' | 'defensive' | 'random'> = ['balanced', 'aggressive', 'defensive', 'random'];
+    const hardMoods: Array<'balanced' | 'aggressive' | 'defensive'> = ['balanced', 'aggressive', 'defensive'];
+    const options = (this.level === 'hard' ? hardMoods : allMoods).filter(m => m !== this.mood);
+    const prevMood = this.mood;
+    this.mood = options[Math.floor(Math.random() * options.length)];
+    console.log(`🎭 CPU ${this.playerName} mood: ${prevMood} → ${this.mood}`);
+    if (!this.gymLeaderMessages) {
+      const moodMsg: Record<string, string> = {
+        aggressive: 'Ora basta difendersi! È il momento di attaccare!',
+        defensive: 'Devo giocare in modo più cauto...',
+        random: 'Proviamo qualcosa di imprevedibile!',
+        balanced: 'Torno alla mia strategia.',
+      };
+      this.sendChatMessage(moodMsg[this.mood] || '');
+    }
+  }
+
+  private sendAutoLeaderMessage(occasion: 'attack' | 'damaged' | 'low_health'): void {
+    if (this.gymLeaderMessages !== null) return;
+    const messages: Record<string, string[]> = {
+      attack: [
+        'Non avrai scampo dal mio attacco!',
+        'Prendi questo! La mia potenza è inarrestabile!',
+        'È il momento di attaccare!',
+        'Senti la forza del mio personaggio!',
+      ],
+      damaged: [
+        'Ah! Bel colpo... ma non basta per fermarmi!',
+        'Interessante mossa, ma non mi fermo qui!',
+        'Quello ha fatto male... ma resisto!',
+        'Mi hai colpito? Bene, ora tocca a me!',
+      ],
+      low_health: [
+        'Il mio personaggio è in pericolo... ma non mi arrendo!',
+        'PTI critici... devo stare attento!',
+        'Non è ancora finita finché non lo è davvero!',
+      ],
+    };
+    const list = messages[occasion];
+    if (!list) return;
+    this.sendChatMessage(list[Math.floor(Math.random() * list.length)]);
   }
 
   // Reset opening sequence for new game
@@ -843,7 +893,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       // Send chat message about the damage (use custom leader messages if available)
       if (newPTI > 0) {
         const customMsg = this.pickLeaderMessage('takeMossa');
-        this.sendChatMessage(customMsg ?? `Il mio personaggio ha subito ${totalDamage} danni! PTI rimanenti: ${newPTI}`);
+        if (customMsg) {
+          this.sendChatMessage(customMsg);
+        } else {
+          this.sendAutoLeaderMessage(newPTI < 30 ? 'low_health' : 'damaged');
+        }
       } else {
         const customMsg = this.pickLeaderMessage('ownPersonaggioDies');
         this.sendChatMessage(customMsg ?? `Nooo! Il mio personaggio è stato eliminato con ${totalDamage} danni!`);
@@ -1138,6 +1192,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
             this.sendChatMessage(`Uso FURTO per rubare ${cpuDamageValue} stelle a ${targetName}!`);
           } else {
             this.sendChatMessage(`Uso la carta MOSSE "${cardName}" per attaccare ${targetName}!`);
+            this.sendAutoLeaderMessage('attack');
           }
           
           if (this.socketEmitter) {
@@ -1501,6 +1556,9 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         this.waitingForResponse = false;
       }
       
+      // Update mood every N turns (based on difficulty)
+      this.updateMood();
+
       // Reset turn state if stale (from previous turn)
       if (this.turnState.phase !== 'draw_needed' || this.turnState.playedThisTurn) {
         console.log(`🔧 CPU ${this.playerName}: New turn detected - resetting stale state (phase=${this.turnState.phase}, played=${this.turnState.playedThisTurn})`);
@@ -2803,27 +2861,51 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           return dmg > bestDmg ? c : best;
         }, mosseInHand[0]) : null;
 
+        // Mood: random — pick any action card randomly
+        if (this.mood === 'random') {
+          const actionCards = [...mosseInHand, ...bonusInHand];
+          if (actionCards.length > 0) {
+            const pick = actionCards[Math.floor(Math.random() * actionCards.length)];
+            console.log(`🎭 CPU ${this.playerName} [MOOD:random] picked ${pick.type}`);
+            return pick;
+          }
+        }
+
         if (bestMosse) {
           const dmg = bestMosse.mosseDamageValue || 0;
           if (dmg >= weakestPti && weakestPti > 0) {
-            console.log(`🤖 CPU ${this.playerName}: MOSSE can kill (dmg=${dmg} ≥ enemy PTI=${weakestPti})`);
+            console.log(`🤖 CPU ${this.playerName}: MOSSE can kill (dmg=${dmg} ≥ enemy PTI=${weakestPti}) [MOOD:${this.mood}]`);
             return bestMosse;
           }
         }
 
-        if (currentPTI <= 50 && bonusInHand.length > 0) {
+        // Mood: defensive — heal at higher PTI threshold (70 vs 50), only attack if lethal
+        const healThreshold = this.mood === 'defensive' ? 70 : 50;
+        if (currentPTI <= healThreshold && bonusInHand.length > 0) {
           const healBonus = bonusInHand.find((c: any) => {
             const eff = (c.effect || '').toLowerCase();
             return eff.includes('aumenta') || eff.includes('pti') || eff.includes('cura') || eff.includes('stelle');
           });
           if (healBonus) {
-            console.log(`🤖 CPU ${this.playerName}: Low PTI (${currentPTI}), playing heal/buff BONUS`);
-            return healBonus;
+            // Mood: aggressive — skip heal unless critically low (< 20 PTI)
+            const skipHeal = this.mood === 'aggressive' && currentPTI >= 20;
+            if (!skipHeal) {
+              console.log(`🤖 CPU ${this.playerName}: Low PTI (${currentPTI}), playing heal/buff [MOOD:${this.mood}]`);
+              return healBonus;
+            }
+          }
+        }
+
+        // Mood: defensive — don't attack if can't kill
+        if (this.mood === 'defensive') {
+          if (bonusInHand.length > 0) {
+            console.log(`🤖 CPU ${this.playerName}: [MOOD:defensive] playing BONUS instead of risky MOSSE`);
+            return bonusInHand[0];
           }
         }
 
         if (bestMosse) {
-          console.log(`🤖 CPU ${this.playerName}: Playing MOSSE (dmg=${bestMosse.mosseDamageValue || '?'})`);
+          console.log(`🤖 CPU ${this.playerName}: Playing MOSSE (dmg=${bestMosse.mosseDamageValue || '?'}) [MOOD:${this.mood}]`);
           return bestMosse;
         }
       }

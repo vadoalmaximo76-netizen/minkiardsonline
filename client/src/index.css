@@ -1508,6 +1508,63 @@ input:focus, select:focus {
   }
 }
 
+/* RARITY-BASED ENTRY ANIMATIONS */
+@keyframes card-legendary-enter {
+  0% {
+    opacity: 0;
+    transform: perspective(1200px) scale(0.05) rotateY(200deg) rotateX(45deg) translateY(-300px) translateZ(-800px);
+    box-shadow: 0 0 0px rgba(255, 200, 0, 0);
+  }
+  30% {
+    opacity: 1;
+    transform: perspective(1200px) scale(1.5) rotateY(15deg) rotateX(-10deg) translateY(-50px) translateZ(80px);
+    box-shadow: 0 0 80px rgba(255, 200, 0, 1), 0 0 120px rgba(255, 165, 0, 0.8), 0 0 160px rgba(255, 215, 0, 0.5);
+  }
+  55% {
+    transform: perspective(1200px) scale(1.2) rotateY(-8deg) rotateX(5deg) translateY(15px) translateZ(30px);
+    box-shadow: 0 0 50px rgba(255, 200, 0, 0.7), 0 0 80px rgba(255, 165, 0, 0.5);
+  }
+  75% {
+    transform: perspective(1200px) scale(0.95) rotateY(3deg) rotateX(-2deg) translateY(-8px) translateZ(8px);
+    box-shadow: 0 0 30px rgba(255, 200, 0, 0.4);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(1200px) scale(1) rotateY(0deg) rotateX(0deg) translateY(0) translateZ(0);
+    box-shadow: 0 0 15px rgba(255, 200, 0, 0.3);
+  }
+}
+@keyframes legendary-golden-aura {
+  0% { box-shadow: 0 0 20px rgba(255, 200, 0, 0.4); }
+  50% { box-shadow: 0 0 80px rgba(255, 200, 0, 1), 0 0 120px rgba(255, 165, 0, 0.7), 0 0 160px rgba(255, 215, 0, 0.4); }
+  100% { box-shadow: 0 0 20px rgba(255, 200, 0, 0.4); }
+}
+.card-legendary-enter {
+  animation: card-legendary-enter 2s cubic-bezier(0.22, 1, 0.36, 1), legendary-golden-aura 1.2s ease-in-out 0.4s;
+}
+
+@keyframes card-rare-enter {
+  0% { opacity: 0; transform: scale(0.5) translateY(-80px) rotateZ(-8deg); }
+  60% { opacity: 1; transform: scale(1.08) translateY(6px) rotateZ(2deg); }
+  80% { transform: scale(0.97) translateY(-4px) rotateZ(-1deg); }
+  100% { opacity: 1; transform: scale(1) translateY(0) rotateZ(0deg); }
+}
+@keyframes rare-shimmer {
+  0%, 100% { box-shadow: 0 0 8px rgba(147, 51, 234, 0.3); }
+  50% { box-shadow: 0 0 30px rgba(147, 51, 234, 0.8), 0 0 50px rgba(192, 132, 252, 0.5); }
+}
+.card-rare-enter {
+  animation: card-rare-enter 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), rare-shimmer 0.5s ease-in-out;
+}
+
+@keyframes card-common-enter {
+  0% { opacity: 0; transform: scale(0.8) translateY(-30px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.card-common-enter {
+  animation: card-common-enter 0.2s ease-out;
+}
+
 /* Turn indicator animations */
 @keyframes turn-glow-pulse {
   0%, 100% { box-shadow: 0 0 8px rgba(74, 222, 128, 0.6), 0 0 16px rgba(74, 222, 128, 0.3); }
@@ -1890,6 +1947,22 @@ button.btn-action:active {
 .card-playable-glow {
   animation: playable-glow-pulse 3s ease-in-out infinite;
   border: 2px solid rgba(34, 211, 238, 0.4) !important;
+  will-change: box-shadow, border-color;
+}
+
+@keyframes priority-high-pulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(251, 191, 36, 0.6), 0 0 20px rgba(251, 191, 36, 0.3);
+    border-color: rgba(251, 191, 36, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(251, 191, 36, 1), 0 0 40px rgba(255, 165, 0, 0.6), 0 0 60px rgba(255, 200, 0, 0.3);
+    border-color: rgba(255, 200, 0, 1);
+  }
+}
+.card-playable-priority-high {
+  animation: priority-high-pulse 1.2s ease-in-out infinite;
+  border: 2px solid rgba(251, 191, 36, 0.7) !important;
   will-change: box-shadow, border-color;
 }
 
@@ -2367,6 +2440,28 @@ button.btn-action:active {
   animation: cinematic-flash 0.5s ease-out forwards;
 }
 
+@keyframes turn-phase-flash-anim {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.turn-phase-flash-my-turn {
+  position: fixed;
+  inset: 0;
+  z-index: 9997;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(250,204,21,0.22), rgba(250,204,21,0.08), transparent 70%);
+  animation: turn-phase-flash-anim 0.5s ease-out forwards;
+}
+.turn-phase-flash-enemy-turn {
+  position: fixed;
+  inset: 0;
+  z-index: 9997;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(99,102,241,0.18), rgba(99,102,241,0.06), transparent 70%);
+  animation: turn-phase-flash-anim 0.5s ease-out forwards;
+}
+
 /* Dramatic zoom on attacker card */
 @keyframes attack-zoom-pulse {
   0% { transform: scale(1); }
@@ -2592,6 +2687,16 @@ button.btn-action:active {
     box-shadow: 0 0 12px 3px rgba(34, 211, 238, 0.5) !important;
     border: 2px solid rgba(34, 211, 238, 0.6) !important;
   }
+  .card-playable-priority-high {
+    animation: none !important;
+    will-change: auto !important;
+    box-shadow: 0 0 14px 4px rgba(251, 191, 36, 0.7) !important;
+    border: 2px solid rgba(251, 191, 36, 0.8) !important;
+  }
+  /* Reduce legendary entry animation on mobile (shorter) */
+  .card-legendary-enter {
+    animation: card-epic-enter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
 
   /* Disable continuous box-shadow glow on premium hand cards */
   .card-bonus-premium,
@@ -2716,13 +2821,16 @@ button.btn-action:active {
   .card-field-alive-bonus,
   .card-field-alive-speciali,
   .card-playable-glow,
+  .card-playable-priority-high,
   .low-health-critical,
   .low-health-critical-overlay,
   .game-field-aurora,
   .card-draw-enter-enhanced,
   .card-attack-zoom,
   .cinematic-attack-flash,
-  .cinematic-heal-flash {
+  .cinematic-heal-flash,
+  .turn-phase-flash-my-turn,
+  .turn-phase-flash-enemy-turn {
     animation: none !important;
     will-change: auto !important;
   }

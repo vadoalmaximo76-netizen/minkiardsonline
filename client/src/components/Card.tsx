@@ -1237,16 +1237,46 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const isMosse = card.type === 'mosse';
   const isSpeciali = card.type === 'personaggi_speciali';
 
+  // Tactical play priority: 'high' when card can decisively turn the battle
+  const playPriority = useMemo<'high' | 'normal'>(() => {
+    if (!isPlayable) return 'normal';
+    const cardAny = card as any;
+    const field = gameState?.field || [];
+    if (isMosse && cardAny.mosseDamageValue != null && cardAny.mosseDamageValue > 0) {
+      const enemies = field.filter((c: any) =>
+        c.owner !== playerName && !c.eliminatedBy && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      if (enemies.length > 0) {
+        const weakestPTI = Math.min(...enemies.map((e: any) => parsePTI(e.text) ?? 9999));
+        if (cardAny.mosseDamageValue >= weakestPTI && weakestPTI > 0) return 'high';
+      }
+    }
+    if (isBonus) {
+      const myChar = field.find((c: any) =>
+        c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      const myPTI = myChar ? parsePTI(myChar.text) : null;
+      const eff = ((cardAny.effect as string) || '').toLowerCase();
+      if (myPTI !== null && myPTI < 40 && (eff.includes('aumenta') || eff.includes('pti') || eff.includes('cura'))) return 'high';
+    }
+    return 'normal';
+  }, [isPlayable, card, gameState?.field, playerName, isMosse, isBonus]);
+
   // Mobile detection — memoized to avoid recalculation on every render
   const isMobile = useMemo(() => typeof window !== 'undefined' && window.innerWidth <= 767, []);
   
-  // Get dramatic entry animation class based on card type
+  // Get dramatic entry animation class based on card type and rarity (star count for personaggi)
   const getEntryAnimationClass = () => {
     if (location !== 'field') return '';
-    if (isPersonaggio && !isSpeciali) return 'card-personaggi-enter';
     if (isMosse) return 'card-mosse-enter';
     if (isBonus) return 'card-bonus-enter';
-    if (isSpeciali) return 'card-speciali-enter';
+    if (isPersonaggio || isSpeciali) {
+      const stars = parseStars(card.text);
+      if (stars !== null && stars >= 5) return 'card-legendary-enter';
+      if (stars !== null && stars >= 4) return 'card-speciali-enter';
+      if (stars !== null && stars === 3) return 'card-rare-enter';
+      return 'card-common-enter';
+    }
     return 'card-epic-enter';
   };
   
@@ -1421,7 +1451,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       ref={cardRef}
       data-card-id={card.id}
       onMouseMove={handleMouseMove3D}
-      className={`relative flex flex-col gap-2 ${location !== 'field' ? 'card-play-transition' : ''} card-3d-tilt ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? 'card-playable-glow' : ''} ${getFieldBreathClass()} ${location === 'field' && !isNewlyPlaced && !isEliminated ? 'card-levitate-field' : ''}`}
+      className={`relative flex flex-col gap-2 ${location !== 'field' ? 'card-play-transition' : ''} card-3d-tilt ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? (playPriority === 'high' ? 'card-playable-priority-high' : 'card-playable-glow') : ''} ${getFieldBreathClass()} ${location === 'field' && !isNewlyPlaced && !isEliminated ? 'card-levitate-field' : ''}`}
       style={{
         animationPlayState: (isAttacking || hitFlash || damageFlash) ? 'paused' : undefined,
       }}
