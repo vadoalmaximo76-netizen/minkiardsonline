@@ -10,4 +10,13 @@ export const cardRegistry = {
     if (!el) return null;
     return el.getBoundingClientRect();
   },
+  getElement(id: string): HTMLElement | null {
+    return _registry.get(id) ?? null;
+  },
+  getImageSrc(id: string): string | null {
+    const el = _registry.get(id);
+    if (!el) return null;
+    const img = el.querySelector('img');
+    return img?.src ?? null;
+  },
 };

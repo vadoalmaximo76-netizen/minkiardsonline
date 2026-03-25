@@ -37,7 +37,7 @@ import { Dice3D } from "./Dice3D";
 import { CardShatter3D } from "./CardShatter3D";
 import { KOBanner } from "./KOBanner";
 import { AttackSlash3D } from "./AttackSlash3D";
-import { AttackProjectile } from "./AttackProjectile";
+import { MossaFlyer } from "./MossaFlyer";
 import { cardRegistry } from "../lib/cardRegistry";
 import { MusicPlayer } from "./MusicPlayer";
 import { VoiceChat } from "./VoiceChat";
@@ -265,7 +265,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [attackedCharacterName, setAttackedCharacterName] = useState<string>("");
   const [attackEffectType, setAttackEffectType] = useState<AttackEffectType>('physical');
   const [attackSlash3D, setAttackSlash3D] = useState<{ visible: boolean; attackerName: string; targetName: string; damage: number }>({ visible: false, attackerName: '', targetName: '', damage: 0 });
-  const [attackProjectile, setAttackProjectile] = useState<{ fromRect: DOMRect; toRect: DOMRect; damage: number; key: number } | null>(null);
+  const [mossaFlyer, setMossaFlyer] = useState<{ fromRect: DOMRect; toRect: DOMRect; cardImageSrc?: string; damage: number; key: number } | null>(null);
+  const pendingAttackEffectsRef = React.useRef<(() => void) | null>(null);
   const [cardsAddedToast, setCardsAddedToast] = useState<string | null>(null);
   const [damageVignetteVisible, setDamageVignetteVisible] = useState(false);
   const damageVignetteTimerRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -732,35 +733,49 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       const target = targetCardName || defender;
       const dmg = damageValue || 0;
       console.log(`${attacker} attacked ${defender}'s ${target} for ${dmg} damage`);
-      setAttackedCharacterName(target);
-      setAttackEffectType(getDamageEffectType(dmg));
-      setAttackEffectVisible(false);
-      setTimeout(() => {
-        setAttackEffectKey(prev => prev + 1);
-        setAttackEffectVisible(true);
-      }, 10);
-      setAttackSlash3D({ visible: true, attackerName: attacker, targetName: target, damage: dmg });
-      if (dmg >= 30) {
-        setCinematicFlash({ visible: true, type: 'attack' });
-        setTimeout(() => setCinematicFlash({ visible: false, type: 'attack' }), 700);
-      }
-      shake(dmg > 50 ? 'heavy' : dmg > 20 ? 'medium' : 'light');
-      playAttackSound();
-      playDamageSound();
-      // Screen damage vignette when the current player's card is hit
-      if (targetOwner === playerName && dmg > 0) {
-        if (damageVignetteTimerRef.current) clearTimeout(damageVignetteTimerRef.current);
-        setDamageVignetteVisible(true);
-        damageVignetteTimerRef.current = setTimeout(() => setDamageVignetteVisible(false), 700);
-      }
 
-      // Attack projectile: fly from MOSSE card to target PERSONAGGIO card
-      if (mosseCardId && targetCardId) {
-        const fromRect = cardRegistry.getRect(mosseCardId);
-        const toRect = cardRegistry.getRect(targetCardId);
-        if (fromRect && toRect) {
-          setAttackProjectile({ fromRect, toRect, damage: dmg, key: Date.now() });
+      // All visual/audio effects that should fire at the moment of IMPACT (after card lands)
+      const triggerImpactEffects = () => {
+        setAttackedCharacterName(target);
+        setAttackEffectType(getDamageEffectType(dmg));
+        setAttackEffectVisible(false);
+        setTimeout(() => {
+          setAttackEffectKey(prev => prev + 1);
+          setAttackEffectVisible(true);
+        }, 10);
+        setAttackSlash3D({ visible: true, attackerName: attacker, targetName: target, damage: dmg });
+        if (dmg >= 30) {
+          setCinematicFlash({ visible: true, type: 'attack' });
+          setTimeout(() => setCinematicFlash({ visible: false, type: 'attack' }), 700);
         }
+        shake(dmg > 50 ? 'heavy' : dmg > 20 ? 'medium' : 'light');
+        playAttackSound();
+        playDamageSound();
+        if (targetOwner === playerName && dmg > 0) {
+          if (damageVignetteTimerRef.current) clearTimeout(damageVignetteTimerRef.current);
+          setDamageVignetteVisible(true);
+          damageVignetteTimerRef.current = setTimeout(() => setDamageVignetteVisible(false), 700);
+        }
+      };
+
+      // Try to get card rects for the MossaFlyer animation
+      const fromRect = mosseCardId ? cardRegistry.getRect(mosseCardId) : null;
+      const toRect   = targetCardId ? cardRegistry.getRect(targetCardId) : null;
+
+      if (fromRect && toRect) {
+        // Show the MOSSA card flying toward the target; effects fire on landing
+        pendingAttackEffectsRef.current = triggerImpactEffects;
+        const cardImageSrc = mosseCardId ? cardRegistry.getImageSrc(mosseCardId) : null;
+        setMossaFlyer({
+          fromRect,
+          toRect,
+          cardImageSrc: cardImageSrc ?? undefined,
+          damage: dmg,
+          key: Date.now(),
+        });
+      } else {
+        // Rects unavailable (card not in DOM) — trigger effects immediately as fallback
+        triggerImpactEffects();
       }
     };
 
@@ -4560,14 +4575,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           />
         )}
 
-        {attackProjectile && (
-          <AttackProjectile
-            key={attackProjectile.key}
-            fromRect={attackProjectile.fromRect}
-            toRect={attackProjectile.toRect}
-            damage={attackProjectile.damage}
-            onImpact={() => {}}
-            onComplete={() => setAttackProjectile(null)}
+        {mossaFlyer && (
+          <MossaFlyer
+            key={mossaFlyer.key}
+            fromRect={mossaFlyer.fromRect}
+            toRect={mossaFlyer.toRect}
+            cardImageSrc={mossaFlyer.cardImageSrc}
+            damage={mossaFlyer.damage}
+            onImpact={() => {
+              pendingAttackEffectsRef.current?.();
+              pendingAttackEffectsRef.current = null;
+            }}
+            onComplete={() => setMossaFlyer(null)}
           />
         )}
 
