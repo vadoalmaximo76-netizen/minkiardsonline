@@ -446,11 +446,13 @@
 }
 
 @keyframes panel-slide-up {
-  0% { opacity: 0; transform: translateY(40px) scale(0.97); }
+  0%   { opacity: 0; transform: translateY(48px) scale(0.94); }
+  55%  { opacity: 1; transform: translateY(-6px) scale(1.01); }
+  78%  { transform: translateY(3px) scale(0.995); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 .animate-panel-slide-up {
-  animation: panel-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: panel-slide-up 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes panel-backdrop-fade {
@@ -1570,23 +1572,38 @@ input:focus, select:focus {
 }
 
 
-/* Impact hit-flash: pure white burst on defender at moment of hit */
+/* Impact hit-flash: bright white burst on defender at moment of hit */
 @keyframes card-hit-flash {
   0%   { opacity: 1; }
+  30%  { opacity: 0.9; }
+  70%  { opacity: 0.5; }
   100% { opacity: 0; }
 }
 .card-hit-flash {
-  animation: card-hit-flash 0.06s ease-out forwards;
+  animation: card-hit-flash 0.18s ease-out forwards;
 }
 
-/* Damage flash overlay: opacity-only animation — no filter, no transform.
-   Used by the absolutely-positioned overlay div instead of card-damage-flash.
-   Compositor-safe: only opacity changes → zero paint, zero transform conflict. */
+/* Damage flash overlay: red pulse that lingers before fading */
 @keyframes card-damage-overlay {
-  0%   { opacity: 0.8; }
-  25%  { opacity: 0.6; }
-  60%  { opacity: 0.45; }
+  0%   { opacity: 0.85; }
+  15%  { opacity: 0.75; }
+  45%  { opacity: 0.55; }
+  75%  { opacity: 0.3; }
   100% { opacity: 0; }
+}
+
+/* Card shake — triggers on hit, compositor-safe translateX only */
+@keyframes card-hit-shake {
+  0%   { transform: translateX(0); }
+  18%  { transform: translateX(-6px); }
+  36%  { transform: translateX(7px); }
+  54%  { transform: translateX(-5px); }
+  72%  { transform: translateX(4px); }
+  88%  { transform: translateX(-2px); }
+  100% { transform: translateX(0); }
+}
+.card-hit-shake {
+  animation: card-hit-shake 0.38s cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards;
 }
 
 /* 3D Attack lunge animation */

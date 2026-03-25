@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const _isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
 
@@ -13,130 +14,150 @@ interface FloatingNumberProps {
 
 let _floatingCounter = 0;
 
-export const FloatingNumber: React.FC<FloatingNumberProps> = ({ 
-  value, 
-  type, 
-  x, 
-  y, 
-  onComplete 
+export const FloatingNumber: React.FC<FloatingNumberProps> = ({
+  value,
+  type,
+  x,
+  y,
+  onComplete
 }) => {
   const [visible, setVisible] = useState(true);
-
   const isCritical = type === 'damage' && value >= 200;
+  const isHeavy = type === 'damage' && value >= 50;
 
   const offsetX = useMemo(() => {
     const seed = value * 7 + x * 3;
-    return (Math.sin(seed) * 30) - 15;
+    return (Math.sin(seed) * 36) - 18;
   }, [value, x]);
+
+  const DURATION = isCritical ? 1800 : isHeavy ? 1400 : 1100;
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setVisible(false);
-      onComplete();
-    }, 350);
-
+      setTimeout(onComplete, 200);
+    }, DURATION);
     return () => clearTimeout(timer);
-  }, [onComplete]);
+  }, [onComplete, DURATION]);
 
-  if (!visible) return null;
-
-  const getStyles = () => {
-    // On mobile: use 2D float animations (no translateZ/rotateX/perspective)
-    // and single textShadow layer (multiple layers force rasterization per frame).
+  const getConfig = () => {
     switch (type) {
       case 'damage':
         return {
-          color: isCritical ? '#ff2222' : '#ef4444',
+          color: isCritical ? '#ff2020' : isHeavy ? '#ff6020' : '#ef4444',
           text: `-${Math.abs(value)}`,
-          emoji: isCritical ? '💀' : '💥',
-          shadow: _isMobile
-            ? '1px 1px 0 #000'
-            : isCritical
-              ? '0 0 30px #ff0000, 0 0 60px #ff0000, 0 0 90px rgba(255,0,0,0.5)'
-              : '0 0 20px #ef4444, 0 0 40px #ef4444',
-          animation: _isMobile ? 'float-damage' : 'float-damage-3d',
-          size: isCritical ? 'text-6xl md:text-7xl' : 'text-4xl md:text-5xl',
+          emoji: isCritical ? '💀' : isHeavy ? '💥' : '🩸',
+          glowColor: isCritical ? '#ff0000' : '#ef4444',
+          fontSize: isCritical ? (_isMobile ? '3.2rem' : '5rem') : isHeavy ? (_isMobile ? '2.6rem' : '4rem') : (_isMobile ? '2rem' : '3rem'),
+          strokeColor: '#000',
+          strokeWidth: isCritical ? 3 : 2,
         };
       case 'heal':
         return {
           color: '#22c55e',
           text: `+${Math.abs(value)}`,
-          emoji: '✨',
-          shadow: _isMobile ? '1px 1px 0 #000' : '0 0 20px #22c55e, 0 0 40px #22c55e',
-          animation: _isMobile ? 'float-heal' : 'float-heal-3d',
-          size: value >= 200 ? 'text-5xl md:text-6xl' : 'text-4xl md:text-5xl',
+          emoji: '💚',
+          glowColor: '#22c55e',
+          fontSize: _isMobile ? '2rem' : '3rem',
+          strokeColor: '#000',
+          strokeWidth: 2,
         };
       case 'star-up':
         return {
           color: '#fbbf24',
           text: `+${Math.abs(value)}⭐`,
           emoji: '🌟',
-          shadow: _isMobile ? '1px 1px 0 #000' : '0 0 20px #fbbf24, 0 0 40px #fbbf24',
-          animation: _isMobile ? 'float-heal' : 'float-heal-3d',
-          size: 'text-4xl md:text-5xl',
+          glowColor: '#fbbf24',
+          fontSize: _isMobile ? '1.8rem' : '2.6rem',
+          strokeColor: '#000',
+          strokeWidth: 2,
         };
       case 'star-down':
         return {
           color: '#f97316',
           text: `-${Math.abs(value)}⭐`,
           emoji: '💫',
-          shadow: _isMobile ? '1px 1px 0 #000' : '0 0 20px #f97316, 0 0 40px #f97316',
-          animation: _isMobile ? 'float-damage' : 'float-damage-3d',
-          size: 'text-4xl md:text-5xl',
+          glowColor: '#f97316',
+          fontSize: _isMobile ? '1.8rem' : '2.6rem',
+          strokeColor: '#000',
+          strokeWidth: 2,
         };
     }
   };
 
-  const styles = getStyles();
+  const cfg = getConfig();
+
+  const damageY = isCritical ? -130 : isHeavy ? -100 : -80;
+  const scaleInitial = isCritical ? 1.6 : isHeavy ? 1.3 : 1.1;
+
+  const variants = {
+    initial: {
+      opacity: 0,
+      y: 0,
+      x: offsetX,
+      scale: scaleInitial,
+      rotate: isCritical ? -8 : (Math.sin(_floatingCounter) * 6),
+    },
+    animate: {
+      opacity: [0, 1, 1, 0.8, 0],
+      y: [0, damageY * 0.3, damageY * 0.65, damageY * 0.85, damageY],
+      scale: [scaleInitial, 1.0, 1.0, 0.95, 0.8],
+      rotate: isCritical ? [-8, 0, 3, 0] : 0,
+      transition: {
+        duration: DURATION / 1000,
+        times: [0, 0.15, 0.5, 0.8, 1],
+        ease: ['easeOut', 'linear', 'linear', 'easeIn'],
+      },
+    },
+  };
+
+  if (!visible) return null;
 
   return createPortal(
-    <>
-      <div
+    <AnimatePresence>
+      <motion.div
         className="fixed pointer-events-none z-[99999]"
-        style={{
-          left: x + offsetX,
-          top: y,
-          transform: 'translate(-50%, -50%)',
-          animation: `${styles.animation} 0.35s ease-out forwards`,
-        }}
+        style={{ left: x, top: y, transform: 'translate(-50%, -50%)' }}
+        initial="initial"
+        animate="animate"
+        variants={variants}
       >
         <div
-          className={`font-black ${styles.size}`}
+          className="font-black select-none"
           style={{
-            color: styles.color,
+            fontSize: cfg.fontSize,
+            color: cfg.color,
             textShadow: _isMobile
-              ? styles.shadow
-              : `${styles.shadow}, 3px 3px 0 #000, -1px -1px 0 #000`,
-            WebkitTextStroke: _isMobile ? undefined : (isCritical ? '3px #000' : '2px #000'),
+              ? `1px 1px 0 #000, -1px -1px 0 #000`
+              : `0 0 20px ${cfg.glowColor}, 0 0 40px ${cfg.glowColor}, 3px 3px 0 #000, -1px -1px 0 #000`,
+            WebkitTextStroke: `${cfg.strokeWidth}px ${cfg.strokeColor}`,
             letterSpacing: isCritical ? '2px' : undefined,
+            lineHeight: 1,
           }}
         >
-          {styles.emoji} {styles.text}
+          {cfg.emoji} {cfg.text}
         </div>
-      </div>
-      {isCritical && !_isMobile && (
-        <div
-          className="fixed pointer-events-none z-[99998]"
-          style={{
-            left: x,
-            top: y - 40,
-            transform: 'translate(-50%, -50%)',
-            animation: 'damage-critical 1.2s ease-out forwards',
-          }}
-        >
-          <div
-            className="font-black text-2xl md:text-3xl"
+
+        {isCritical && (
+          <motion.div
+            className="font-black text-center select-none"
             style={{
-              color: '#ff0',
-              textShadow: '0 0 20px #ff0, 0 0 40px #f90, 3px 3px 0 #000',
-              WebkitTextStroke: '2px #000',
+              fontSize: _isMobile ? '0.9rem' : '1.4rem',
+              color: '#ffdd00',
+              textShadow: '0 0 20px #ff0, 0 0 40px #f90, 2px 2px 0 #000',
+              WebkitTextStroke: '1px #000',
+              letterSpacing: '4px',
+              marginTop: '2px',
             }}
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: [0, 1, 1, 0], scale: [0.5, 1.2, 1.0, 0.8] }}
+            transition={{ duration: DURATION / 1000, times: [0, 0.2, 0.7, 1] }}
           >
             CRITICO!
-          </div>
-        </div>
-      )}
-    </>,
+          </motion.div>
+        )}
+      </motion.div>
+    </AnimatePresence>,
     document.body
   );
 };
@@ -152,11 +173,9 @@ export const useFloatingNumbers = () => {
 
   const addNumber = (value: number, type: 'damage' | 'heal' | 'star-up' | 'star-down', element?: HTMLElement) => {
     if (!element) return;
-    
     const rect = element.getBoundingClientRect();
     const x = rect.left + rect.width / 2;
     const y = rect.top + rect.height / 3;
-    
     const id = `fn-${Date.now()}-${++_floatingCounter}`;
     setNumbers(prev => [...prev, { id, value, type, x, y }]);
   };

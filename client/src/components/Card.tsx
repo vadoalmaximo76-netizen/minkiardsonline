@@ -215,6 +215,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [damageFlash, setDamageFlash] = useState(false);
   const [hitFlash, setHitFlash] = useState(false);
+  const [hitShake, setHitShake] = useState(false);
   const [isAttacking, setIsAttacking] = useState(false);
   const [isLowHealth, setIsLowHealth] = useState(false);
   const [cardTilt, setCardTilt] = useState({ rotateX: 0, rotateY: 0, glareX: 50, glareY: 50 });
@@ -334,8 +335,10 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           setStatGlowEffect('pti-down');
           setDamageFlash(true);
           setHitFlash(true);
-          setTimeout(() => { setDamageFlash(false); }, 220);
-          setTimeout(() => setHitFlash(false), 60);
+          setHitShake(true);
+          setTimeout(() => { setDamageFlash(false); }, 500);
+          setTimeout(() => setHitFlash(false), 180);
+          setTimeout(() => setHitShake(false), 400);
         }
         
         // Clear glow effect after animation
@@ -1348,10 +1351,16 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   // for attack use a simple scale tween instead of JS-driven spring with y movement.
   const motionAnimate = isMobile
     ? (isAttacking && location === 'field'
-        ? { scale: [1, 1.08, 1] as number[] }
+        ? {
+            scale: [1, 0.9, 1.18, 0.96, 1.0] as number[],
+            y: [0, 4, card.owner === playerName ? -12 : 12, -3, 0] as number[],
+          }
         : location === 'hand' ? { rotate: 0 } : {})
     : (isAttacking && location === 'field'
-        ? { scale: [1, 1.12, 0.95, 1.0], y: [0, card.owner === playerName ? -6 : 6, 0, 0] }
+        ? {
+            scale: [1, 0.88, 1.18, 0.97, 1.0],
+            y: [0, 5, card.owner === playerName ? -16 : 16, -4, 0],
+          }
         : isNewlyPlaced && location === 'field'
           ? { scale: [0.85, 1.05, 1.0] }
           : location === 'hand'
@@ -1360,10 +1369,10 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
 
   const motionTransition = isMobile
     ? (isAttacking && location === 'field'
-        ? { type: 'tween' as const, duration: 0.3, ease: 'easeOut' }
+        ? { type: 'tween' as const, duration: 0.4, ease: [0.34, 1.56, 0.64, 1], times: [0, 0.12, 0.45, 0.75, 1] }
         : { duration: 0 })
     : (isAttacking && location === 'field'
-        ? { type: 'spring' as const, stiffness: 400, damping: 20 }
+        ? { type: 'tween' as const, duration: 0.45, ease: [0.34, 1.56, 0.64, 1], times: [0, 0.1, 0.42, 0.75, 1] }
         : location === 'hand'
           ? { type: 'spring' as const, stiffness: 500, damping: 18 }
           : { type: 'spring' as const, stiffness: 700, damping: 25 });
@@ -1383,7 +1392,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       }
     >
       {/* Tilt wrapper: owns perspective + 3D tilt inline transform ONLY — never touched by Framer Motion */}
-      <div style={tiltWrapperStyle}>
+      <div style={tiltWrapperStyle} className={hitShake ? 'card-hit-shake' : undefined}>
     <div 
       ref={cardRef}
       onMouseMove={handleMouseMove3D}
@@ -1396,7 +1405,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       {damageFlash && (
         <div
           className="absolute inset-0 rounded-xl pointer-events-none z-[199]"
-          style={{ background: 'rgba(220, 50, 50, 0.6)', animation: 'card-damage-overlay 0.35s ease-out forwards' }}
+          style={{ background: 'rgba(220, 50, 50, 0.65)', animation: 'card-damage-overlay 0.5s ease-out forwards' }}
         />
       )}
       {/* Floating Numbers */}
@@ -1415,7 +1424,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       {hitFlash && (
         <div
           className="absolute inset-0 rounded-xl pointer-events-none z-[200]"
-          style={{ background: 'rgba(255,255,255,0.85)', animation: 'card-hit-flash 0.06s ease-out forwards' }}
+          style={{ background: 'rgba(255,255,255,0.92)', animation: 'card-hit-flash 0.18s ease-out forwards' }}
         />
       )}
 
