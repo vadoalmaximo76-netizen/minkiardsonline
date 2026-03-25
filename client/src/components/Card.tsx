@@ -158,6 +158,12 @@ interface CardProps {
     barrieraProtecting?: string;
     barrieraPTI?: number;
     appliedSkinUrl?: string | null;
+    stars?: number;
+    pti?: number;
+    mosseDamageValue?: number;
+    effect?: string;
+    isHostage?: boolean;
+    hostageTurnsRemaining?: number;
   };
   location: 'hand' | 'field' | 'graveyard';
   showBack?: boolean;
@@ -1111,8 +1117,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const isMinkiard300 = getCardName(card) === 'MINKIARD N 300';
   
   // OSTAGGIO: Hostage label visibility
-  const isHostage = (card as any).isHostage;
-  const hostageTurnsRemaining = (card as any).hostageTurnsRemaining;
+  const isHostage = card.isHostage;
+  const hostageTurnsRemaining = card.hostageTurnsRemaining;
   
   // Check if this is the MEDICINA bonus card
   const isMedicina = card.type === 'bonus' && getCardName(card).toUpperCase().includes('MEDICINA');
@@ -1240,23 +1246,23 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   // Tactical play priority: 'high' when card can decisively turn the battle
   const playPriority = useMemo<'high' | 'normal'>(() => {
     if (!isPlayable) return 'normal';
-    const cardAny = card as any;
-    const field = gameState?.field || [];
-    if (isMosse && cardAny.mosseDamageValue != null && cardAny.mosseDamageValue > 0) {
-      const enemies = field.filter((c: any) =>
+    type FieldCard = { id: string; type: string; owner: string; text?: string; eliminatedBy?: string };
+    const field: FieldCard[] = (gameState?.field as FieldCard[]) || [];
+    if (isMosse && card.mosseDamageValue != null && card.mosseDamageValue > 0) {
+      const enemies = field.filter(c =>
         c.owner !== playerName && !c.eliminatedBy && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
       );
       if (enemies.length > 0) {
-        const weakestPTI = Math.min(...enemies.map((e: any) => parsePTI(e.text) ?? 9999));
-        if (cardAny.mosseDamageValue >= weakestPTI && weakestPTI > 0) return 'high';
+        const weakestPTI = Math.min(...enemies.map(e => parsePTI(e.text) ?? 9999));
+        if (card.mosseDamageValue >= weakestPTI && weakestPTI > 0) return 'high';
       }
     }
     if (isBonus) {
-      const myChar = field.find((c: any) =>
+      const myChar = field.find(c =>
         c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
       );
       const myPTI = myChar ? parsePTI(myChar.text) : null;
-      const eff = ((cardAny.effect as string) || '').toLowerCase();
+      const eff = (card.effect ?? '').toLowerCase();
       if (myPTI !== null && myPTI < 40 && (eff.includes('aumenta') || eff.includes('pti') || eff.includes('cura'))) return 'high';
     }
     return 'normal';
