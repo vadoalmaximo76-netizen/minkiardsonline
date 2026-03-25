@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const _isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
 
@@ -21,7 +21,6 @@ export const FloatingNumber: React.FC<FloatingNumberProps> = ({
   y,
   onComplete
 }) => {
-  const [visible, setVisible] = useState(true);
   const isCritical = type === 'damage' && value >= 200;
   const isHeavy = type === 'damage' && value >= 50;
 
@@ -30,13 +29,13 @@ export const FloatingNumber: React.FC<FloatingNumberProps> = ({
     return (Math.sin(seed) * 36) - 18;
   }, [value, x]);
 
-  const DURATION = isCritical ? 1800 : isHeavy ? 1400 : 1100;
+  const DURATION = isCritical ? 1.8 : isHeavy ? 1.4 : 1.1;
 
   useEffect(() => {
+    const ms = DURATION * 1000 + 100;
     const timer = setTimeout(() => {
-      setVisible(false);
-      setTimeout(onComplete, 200);
-    }, DURATION);
+      onComplete();
+    }, ms);
     return () => clearTimeout(timer);
   }, [onComplete, DURATION]);
 
@@ -49,8 +48,6 @@ export const FloatingNumber: React.FC<FloatingNumberProps> = ({
           emoji: isCritical ? '💀' : isHeavy ? '💥' : '🩸',
           glowColor: isCritical ? '#ff0000' : '#ef4444',
           fontSize: isCritical ? (_isMobile ? '3.2rem' : '5rem') : isHeavy ? (_isMobile ? '2.6rem' : '4rem') : (_isMobile ? '2rem' : '3rem'),
-          strokeColor: '#000',
-          strokeWidth: isCritical ? 3 : 2,
         };
       case 'heal':
         return {
@@ -59,8 +56,6 @@ export const FloatingNumber: React.FC<FloatingNumberProps> = ({
           emoji: '💚',
           glowColor: '#22c55e',
           fontSize: _isMobile ? '2rem' : '3rem',
-          strokeColor: '#000',
-          strokeWidth: 2,
         };
       case 'star-up':
         return {
@@ -69,8 +64,6 @@ export const FloatingNumber: React.FC<FloatingNumberProps> = ({
           emoji: '🌟',
           glowColor: '#fbbf24',
           fontSize: _isMobile ? '1.8rem' : '2.6rem',
-          strokeColor: '#000',
-          strokeWidth: 2,
         };
       case 'star-down':
         return {
@@ -79,59 +72,43 @@ export const FloatingNumber: React.FC<FloatingNumberProps> = ({
           emoji: '💫',
           glowColor: '#f97316',
           fontSize: _isMobile ? '1.8rem' : '2.6rem',
-          strokeColor: '#000',
-          strokeWidth: 2,
         };
     }
   };
 
   const cfg = getConfig();
-
-  const damageY = isCritical ? -130 : isHeavy ? -100 : -80;
-  const scaleInitial = isCritical ? 1.6 : isHeavy ? 1.3 : 1.1;
-
-  const variants = {
-    initial: {
-      opacity: 0,
-      y: 0,
-      x: offsetX,
-      scale: scaleInitial,
-      rotate: isCritical ? -8 : (Math.sin(_floatingCounter) * 6),
-    },
-    animate: {
-      opacity: [0, 1, 1, 0.8, 0],
-      y: [0, damageY * 0.3, damageY * 0.65, damageY * 0.85, damageY],
-      scale: [scaleInitial, 1.0, 1.0, 0.95, 0.8],
-      rotate: isCritical ? [-8, 0, 3, 0] : 0,
-      transition: {
-        duration: DURATION / 1000,
-        times: [0, 0.15, 0.5, 0.8, 1],
-        ease: ['easeOut', 'linear', 'linear', 'easeIn'],
-      },
-    },
-  };
-
-  if (!visible) return null;
+  const riseAmount = isCritical ? -140 : isHeavy ? -110 : -85;
 
   return createPortal(
-    <AnimatePresence>
+    /* Outer div: pure CSS positioning, centered at card — no Framer transforms */
+    <div
+      className="fixed pointer-events-none z-[99999]"
+      style={{ left: x + offsetX, top: y, transform: 'translate(-50%, -50%)' }}
+    >
+      {/* Inner motion.div: handles animation transforms only */}
       <motion.div
-        className="fixed pointer-events-none z-[99999]"
-        style={{ left: x, top: y, transform: 'translate(-50%, -50%)' }}
-        initial="initial"
-        animate="animate"
-        variants={variants}
+        style={{ originX: '50%', originY: '50%' }}
+        initial={{ opacity: 0, y: 0, scale: isCritical ? 1.5 : isHeavy ? 1.25 : 1.05 }}
+        animate={{
+          opacity: [0, 1, 1, 1, 0],
+          y: [0, riseAmount * 0.2, riseAmount * 0.6, riseAmount * 0.85, riseAmount],
+          scale: [isCritical ? 1.5 : isHeavy ? 1.25 : 1.05, 1.0, 1.0, 0.95, 0.8],
+        }}
+        transition={{
+          duration: DURATION,
+          times: [0, 0.12, 0.45, 0.75, 1],
+          ease: 'easeOut',
+        }}
       >
         <div
-          className="font-black select-none"
+          className="font-black select-none whitespace-nowrap"
           style={{
             fontSize: cfg.fontSize,
             color: cfg.color,
             textShadow: _isMobile
               ? `1px 1px 0 #000, -1px -1px 0 #000`
               : `0 0 20px ${cfg.glowColor}, 0 0 40px ${cfg.glowColor}, 3px 3px 0 #000, -1px -1px 0 #000`,
-            WebkitTextStroke: `${cfg.strokeWidth}px ${cfg.strokeColor}`,
-            letterSpacing: isCritical ? '2px' : undefined,
+            WebkitTextStroke: `2px #000`,
             lineHeight: 1,
           }}
         >
@@ -140,24 +117,25 @@ export const FloatingNumber: React.FC<FloatingNumberProps> = ({
 
         {isCritical && (
           <motion.div
-            className="font-black text-center select-none"
+            className="font-black text-center select-none whitespace-nowrap"
             style={{
               fontSize: _isMobile ? '0.9rem' : '1.4rem',
               color: '#ffdd00',
               textShadow: '0 0 20px #ff0, 0 0 40px #f90, 2px 2px 0 #000',
               WebkitTextStroke: '1px #000',
               letterSpacing: '4px',
-              marginTop: '2px',
+              marginTop: '4px',
+              transform: 'translate(-50%, 0)',
             }}
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: [0, 1, 1, 0], scale: [0.5, 1.2, 1.0, 0.8] }}
-            transition={{ duration: DURATION / 1000, times: [0, 0.2, 0.7, 1] }}
+            initial={{ opacity: 0, scale: 0.4 }}
+            animate={{ opacity: [0, 1, 1, 0], scale: [0.4, 1.25, 1.0, 0.8] }}
+            transition={{ duration: DURATION, times: [0, 0.15, 0.6, 1], ease: 'easeOut' }}
           >
             CRITICO!
           </motion.div>
         )}
       </motion.div>
-    </AnimatePresence>,
+    </div>,
     document.body
   );
 };

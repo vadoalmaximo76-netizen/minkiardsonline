@@ -1349,17 +1349,20 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
 
   // On mobile: let CSS entry keyframes handle card placement (no double-animation conflict);
   // for attack use a simple scale tween instead of JS-driven spring with y movement.
+  // attackDir: player's card attacks UP (-1 = negative y), opponent's card attacks DOWN (+1)
+  const attackDir = card.owner === playerName ? -1 : 1;
   const motionAnimate = isMobile
     ? (isAttacking && location === 'field'
         ? {
-            scale: [1, 0.9, 1.18, 0.96, 1.0] as number[],
-            y: [0, 4, card.owner === playerName ? -12 : 12, -3, 0] as number[],
+            scale: [1, 0.88, 1.2, 0.97, 1.0] as number[],
+            // wind-up opposite of attack, then lunge in attack direction
+            y: [0, -5 * attackDir, 18 * attackDir, 4 * attackDir, 0] as number[],
           }
         : location === 'hand' ? { rotate: 0 } : {})
     : (isAttacking && location === 'field'
         ? {
-            scale: [1, 0.88, 1.18, 0.97, 1.0],
-            y: [0, 5, card.owner === playerName ? -16 : 16, -4, 0],
+            scale: [1, 0.84, 1.22, 0.97, 1.0],
+            y: [0, -6 * attackDir, 22 * attackDir, 5 * attackDir, 0],
           }
         : isNewlyPlaced && location === 'field'
           ? { scale: [0.85, 1.05, 1.0] }
@@ -1369,10 +1372,10 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
 
   const motionTransition = isMobile
     ? (isAttacking && location === 'field'
-        ? { type: 'tween' as const, duration: 0.4, ease: [0.34, 1.56, 0.64, 1], times: [0, 0.12, 0.45, 0.75, 1] }
+        ? { type: 'tween' as const, duration: 0.42, ease: 'easeInOut', times: [0, 0.12, 0.45, 0.78, 1] }
         : { duration: 0 })
     : (isAttacking && location === 'field'
-        ? { type: 'tween' as const, duration: 0.45, ease: [0.34, 1.56, 0.64, 1], times: [0, 0.1, 0.42, 0.75, 1] }
+        ? { type: 'tween' as const, duration: 0.46, ease: 'easeInOut', times: [0, 0.1, 0.42, 0.78, 1] }
         : location === 'hand'
           ? { type: 'spring' as const, stiffness: 500, damping: 18 }
           : { type: 'spring' as const, stiffness: 700, damping: 25 });
