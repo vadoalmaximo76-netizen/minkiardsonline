@@ -38,6 +38,7 @@ export const CardModal: React.FC = () => {
   
   // Check if player owns the card OR is master and card belongs to CPU
   const isOwner = selectedCard.owner === playerName || (isMaster && selectedCard.owner?.startsWith('CPU-'));
+  console.log(`[CardModal] card="${selectedCard.name||selectedCard.id}" owner="${selectedCard.owner}" playerName="${playerName}" isOwner=${isOwner} isMaster=${isMaster}`);
   // For CEDI: When transferring from another player's card, include current player as recipient option
   // When transferring from own card, exclude current player
   const cardOwner = selectedCard?.owner || '';

@@ -2932,6 +2932,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     socket.on('play-card', async ({ cardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
+      console.log(`[play-card] playerName="${playerName}" cardId="${cardId}" gameId="${gameId||'NOT FOUND'}" socketId="${socket.id}"`);
       if (gameId) {
         const result = await gameManager.playCard(gameId, cardId, playerName);
         

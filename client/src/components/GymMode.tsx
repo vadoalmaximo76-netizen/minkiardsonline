@@ -203,7 +203,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const expectedCpusRef = useRef(0);
   const cpusAddedRef = useRef(0);
 
-  const { setGameId, setPlayerName, generateSessionId, clearSession: reset } = useGameState();
+  const { setGameId, setPlayerName, generateSessionId, clearSession: reset, setSelectedCard } = useGameState();
 
   const authToken = localStorage.getItem('authToken');
 
@@ -468,18 +468,33 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     setGameId(gameIdToResume);
     setPlayerName(playerName);
     generateSessionId();
+    setSelectedCard(null);
 
+    const ytId = leader.youtubeMusicUrl ? extractYoutubeVideoId(leader.youtubeMusicUrl) : null;
+    setBattleYoutubeVideoId(ytId);
+    pauseHomeMusic();
+
+    // Emit rejoin and wait for the server's fresh game-state-update before showing GameBoard.
+    // This prevents GameBoard from rendering with stale localStorage state, which could cause
+    // isMyTurn / isOwner mismatches that block card plays.
     socket.emit('rejoin-game', {
       gameId: gameIdToResume,
       playerName,
       authToken: localStorage.getItem('authToken'),
     });
 
-    const ytId = leader.youtubeMusicUrl ? extractYoutubeVideoId(leader.youtubeMusicUrl) : null;
-    setBattleYoutubeVideoId(ytId);
-    pauseHomeMusic();
-    setPhase('battle');
-  }, [playerName, setGameId, setPlayerName, generateSessionId]);
+    // Fallback: show battle after 4s even if game-state-update never arrives
+    const fallbackTimer = setTimeout(() => {
+      console.warn('[GymMode] game-state-update not received in time, showing battle anyway');
+      setPhase('battle');
+    }, 4000);
+
+    socket.once('game-state-update', () => {
+      clearTimeout(fallbackTimer);
+      console.log('[GymMode] Fresh game-state-update received after rejoin, switching to battle');
+      setPhase('battle');
+    });
+  }, [playerName, setGameId, setPlayerName, generateSessionId, setSelectedCard]);
 
   const handleBackFromBattle = () => {
     if (gameId) {

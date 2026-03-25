@@ -3808,6 +3808,10 @@ Rispondi SOLO in JSON:`;
 
     const cardIndex = player.hand.findIndex(card => card.id === cardId);
     
+    if (cardIndex === -1) {
+      console.log(`[playCard] CARD NOT FOUND in hand — gameId="${gameId}" playerName="${playerName}" cardId="${cardId}" handIds=[${player.hand.map(c => c.id).join(',')}]`);
+    }
+
     if (cardIndex !== -1) {
       const card = player.hand[cardIndex];
       const isPersonaggio = card.type === 'personaggi' || card.type === 'personaggi_speciali';

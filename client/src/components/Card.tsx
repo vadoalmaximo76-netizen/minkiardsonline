@@ -599,6 +599,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       setSelectedMosseCard(null);
     } else if (location === 'hand') {
       // For cards in hand, open the modal window
+      const currentTurnDbg = gameState?.turnOrder?.[gameState?.currentTurnIndex ?? -1];
+      console.log(`[Card click] card="${(card as any).name||card.id}" owner="${card.owner}" playerName="${playerName}" currentTurnPlayer="${currentTurnDbg}" isMyTurn=${currentTurnDbg === playerName}`);
       setSelectedCard(card);
       setSelectedMosseCard(null);
     }
