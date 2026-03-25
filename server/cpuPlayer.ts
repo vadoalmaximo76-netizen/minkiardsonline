@@ -2918,6 +2918,14 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         }
       }
       
+      // CRITICAL FIX: If hunt_human mode has no valid human enemies left, still play cards
+      // This handles the case where human player is eliminated but CPU still has cards
+      if (!isDead && effectiveEnemies.length === 0 && enemies.length > 0 && this.attackMode === 'hunt_human') {
+        console.log(`🤖 CPU ${this.playerName}: hunt_human mode - no human enemies left, falling back to playing any card`);
+        if (bonusInHand.length > 0) return bonusInHand[0];
+        if (mosseInHand.length > 0) return mosseInHand[0];
+      }
+      
       if (!isDead && bonusInHand.length > 0) {
         return bonusInHand[0];
       }
