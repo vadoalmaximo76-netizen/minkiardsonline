@@ -474,35 +474,12 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     setBattleYoutubeVideoId(ytId);
     pauseHomeMusic();
 
-    // CRITICAL FIX: Do NOT emit rejoin-game from GymMode!
-    // The App.tsx emit set-user-data (which triggers auto-rejoin) happens AFTER GymMode.tsx runs.
-    // If we emit rejoin-game now, it arrives BEFORE set-user-data, so socket is not yet authenticated.
-    // Instead: just listen for game-state-update from set-user-data's auto-rejoin.
-    
-    let fallbackTimer: NodeJS.Timeout | null = null;
-    let stateUpdateHandled = false;
-
-    const handleStateUpdate = () => {
-      if (!stateUpdateHandled) {
-        stateUpdateHandled = true;
-        if (fallbackTimer) clearTimeout(fallbackTimer);
-        console.log('[GymMode] game-state-update received from server auto-rejoin (via set-user-data), switching to battle');
-        setPhase('battle');
-        socket.off('game-state-update', handleStateUpdate);
-      }
-    };
-
-    socket.on('game-state-update', handleStateUpdate);
-
-    // Fallback: show battle after 5s even if game-state-update never arrives
-    fallbackTimer = setTimeout(() => {
-      if (!stateUpdateHandled) {
-        stateUpdateHandled = true;
-        console.warn('[GymMode] game-state-update not received in 5s, showing battle anyway');
-        setPhase('battle');
-        socket.off('game-state-update', handleStateUpdate);
-      }
-    }, 5000);
+    // CRITICAL: Show battle IMMEDIATELY without waiting for game-state-update
+    // The server auto-rejoin (via set-user-data) happens in background and sends game-state-update
+    // But we don't need to wait for it - the game state is already in our local cache from GameBoard
+    // So we can show the battle UI immediately and let it sync asynchronously
+    console.log('[GymMode] Showing battle immediately for resumed game', gameIdToResume);
+    setPhase('battle');
   }, [playerName, setGameId, setPlayerName, generateSessionId, setSelectedCard]);
 
   const handleBackFromBattle = () => {
