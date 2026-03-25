@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useGameState } from '../lib/stores/useGameState';
 import { socket } from '../lib/socket';
 import { Swords } from 'lucide-react';
+import { cardRegistry } from '../lib/cardRegistry';
 
 interface DuelAutoAttackEvent {
   attackerName: string;
@@ -84,6 +85,7 @@ export const DuelDamageDialog: React.FC = () => {
         return;
       }
 
+      if (attackEvent.mosseCardId) cardRegistry.storePendingMosse(attackEvent.mosseCardId);
       socket.emit('mosse-attack', {
         mosseCardId: attackEvent.mosseCardId,
         targetCardId: attackEvent.targetCardId,

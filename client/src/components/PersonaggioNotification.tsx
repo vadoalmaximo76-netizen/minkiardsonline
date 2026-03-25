@@ -13,199 +13,367 @@ export const PersonaggioNotification: React.FC<PersonaggioNotificationProps> = (
   message,
   cardImage
 }) => {
-  const [phase, setPhase] = useState<'hidden' | 'in' | 'hold' | 'out'>('hidden');
+  const [animationPhase, setAnimationPhase] = useState(0);
+  
+  const particles = useMemo(() => 
+    [...Array(20)].map((_, i) => ({
+      left: Math.random() * 100,
+      delay: Math.random() * 2,
+      duration: 2 + Math.random() * 2,
+      size: 2 + Math.random() * 4
+    })), []
+  );
 
-  const particles = useMemo(() =>
-    Array.from({ length: 22 }, (_, i) => ({
-      left: ((i * 97 + 13) % 100),
-      delay: ((i * 37 + 7) % 200) / 100,
-      duration: 2.2 + ((i * 17) % 20) / 10,
-      size: 3 + (i % 4),
-      color: i % 3 === 0 ? '#fbbf24' : i % 3 === 1 ? '#f59e0b' : '#ffffff',
+  const glowParticles = useMemo(() =>
+    [...Array(12)].map((_, i) => ({
+      angle: (i / 12) * 360,
+      delay: i * 0.1,
+      distance: 60 + Math.random() * 40
     })), []
   );
 
   useEffect(() => {
-    if (!isVisible) { setPhase('hidden'); return; }
-    setPhase('in');
-    const t1 = setTimeout(() => setPhase('hold'), 550);
-    const t2 = setTimeout(() => setPhase('out'), 3500);
-    const t3 = setTimeout(() => setPhase('hidden'), 4100);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    if (isVisible) {
+      setAnimationPhase(0);
+      const timer1 = setTimeout(() => setAnimationPhase(1), 100);
+      const timer2 = setTimeout(() => setAnimationPhase(2), 400);
+      const timer3 = setTimeout(() => setAnimationPhase(3), 700);
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        clearTimeout(timer3);
+      };
+    }
   }, [isVisible]);
 
-  if (phase === 'hidden') return null;
-
-  const isIn   = phase === 'in';
-  const isHold = phase === 'hold';
-  const isOut  = phase === 'out';
+  if (!isVisible) return null;
 
   return (
-    <>
-      <style>{`
-        @keyframes pn-backdrop {
-          from { opacity: 0; } to { opacity: 1; }
-        }
-        @keyframes pn-slam {
-          0%   { opacity: 0; transform: translateY(-90px) scale(0.6) rotate(-4deg); }
-          55%  { opacity: 1; transform: translateY(10px)  scale(1.06) rotate(1deg); }
-          75%  { transform: translateY(-4px) scale(0.98) rotate(-0.5deg); }
-          100% { transform: translateY(0)   scale(1)    rotate(0deg); }
-        }
-        @keyframes pn-title {
-          0%   { opacity: 0; letter-spacing: 0.5em; filter: blur(6px); }
-          60%  { opacity: 1; filter: blur(0); }
-          100% { letter-spacing: 0.12em; }
-        }
-        @keyframes pn-subtitle {
-          0%   { opacity: 0; transform: translateY(12px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes pn-particle {
-          0%   { opacity: 0.9; transform: translateY(0) scale(1); }
-          100% { opacity: 0;   transform: translateY(-320px) scale(0.2); }
-        }
-        @keyframes pn-shine {
-          0%   { left: -80%; opacity: 0; }
-          30%  { opacity: 0.6; }
-          100% { left: 120%;  opacity: 0; }
-        }
-        @keyframes pn-glow-ring {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(251,191,36,0); }
-          50%       { box-shadow: 0 0 28px 6px rgba(251,191,36,0.45); }
-        }
-        @keyframes pn-slide-out {
-          0%   { opacity: 1; transform: translateY(0) scale(1); }
-          100% { opacity: 0; transform: translateY(30px) scale(0.92); }
-        }
-        @keyframes pn-spotlight {
-          0%, 100% { opacity: 0.55; }
-          50%       { opacity: 0.75; }
-        }
-        @keyframes pn-divider {
-          0%   { opacity: 0; width: 0; }
-          100% { opacity: 1; width: 220px; }
-        }
-      `}</style>
-
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-[9990] pointer-events-none"
+    <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+      <div 
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         style={{
-          background: 'radial-gradient(ellipse 70% 80% at 50% 42%, rgba(0,0,0,0.72) 30%, rgba(0,0,0,0.92) 100%)',
-          animation: 'pn-backdrop 0.3s ease-out forwards',
-          opacity: isOut ? 0 : 1,
-          transition: isOut ? 'opacity 0.5s ease' : undefined,
+          animation: 'neon-backdrop-fade 0.5s ease-out forwards'
         }}
       />
-
-      {/* Spotlight cone from top */}
-      <div
-        className="fixed pointer-events-none"
+      
+      <div 
+        className="relative flex flex-col items-center gap-6"
         style={{
-          top: 0, left: '50%', transform: 'translateX(-50%)',
-          width: 340, height: '65%', zIndex: 9991,
-          background: 'linear-gradient(180deg, rgba(251,191,36,0.18) 0%, transparent 100%)',
-          clipPath: 'polygon(35% 0%, 65% 0%, 100% 100%, 0% 100%)',
-          animation: 'pn-spotlight 2s ease-in-out infinite',
-          opacity: isHold ? 1 : 0,
-          transition: 'opacity 0.4s ease',
-        }}
-      />
-
-      {/* Rising golden particles */}
-      <div className="fixed inset-0 z-[9992] pointer-events-none overflow-hidden">
-        {(isIn || isHold) && particles.map((p, i) => (
-          <div
-            key={i}
-            style={{
-              position: 'absolute', left: `${p.left}%`, bottom: '8%',
-              width: p.size, height: p.size, borderRadius: '50%',
-              background: p.color, boxShadow: `0 0 ${p.size * 3}px ${p.color}`,
-              animation: `pn-particle ${p.duration}s ${p.delay}s ease-out infinite`,
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Main content */}
-      <div
-        className="fixed inset-0 z-[9993] flex flex-col items-center justify-center pointer-events-none"
-        style={{
-          animation: isOut
-            ? 'pn-slide-out 0.5s ease-in forwards'
-            : 'pn-slam 0.55s cubic-bezier(0.22,1,0.36,1) forwards',
+          animation: 'neon-container-enter 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
         }}
       >
-        {/* Card image frame */}
+        <div className="absolute inset-0 -m-20 overflow-hidden pointer-events-none">
+          {particles.map((p, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full"
+              style={{
+                left: `${p.left}%`,
+                bottom: '-10%',
+                width: `${p.size}px`,
+                height: `${p.size}px`,
+                background: i % 3 === 0 
+                  ? 'rgba(0, 255, 255, 0.8)' 
+                  : i % 3 === 1 
+                    ? 'rgba(255, 0, 255, 0.8)' 
+                    : 'rgba(139, 92, 246, 0.8)',
+                boxShadow: i % 3 === 0 
+                  ? '0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px rgba(0, 255, 255, 0.4)' 
+                  : i % 3 === 1 
+                    ? '0 0 10px rgba(255, 0, 255, 0.8), 0 0 20px rgba(255, 0, 255, 0.4)'
+                    : '0 0 10px rgba(139, 92, 246, 0.8), 0 0 20px rgba(139, 92, 246, 0.4)',
+                animation: `neon-particle-rise ${p.duration}s ease-out infinite`,
+                animationDelay: `${p.delay}s`
+              }}
+            />
+          ))}
+        </div>
+
         {cardImage && (
-          <div
+          <div 
+            className="relative"
             style={{
-              position: 'relative', marginBottom: 20,
-              borderRadius: 16,
-              animation: isHold ? 'pn-glow-ring 1.8s ease-in-out infinite' : undefined,
+              animation: animationPhase >= 1 
+                ? 'neon-card-reveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' 
+                : 'none',
+              opacity: animationPhase >= 1 ? 1 : 0
             }}
           >
-            <div style={{
-              position: 'absolute', inset: -3, borderRadius: 18, zIndex: 0,
-              background: 'linear-gradient(135deg, #fbbf24, #f59e0b, #fde68a, #f59e0b, #fbbf24)',
-              boxShadow: '0 0 24px rgba(251,191,36,0.5)',
-            }} />
-            <div style={{ position: 'relative', zIndex: 1, borderRadius: 14, overflow: 'hidden' }}>
-              <img
-                src={cardImage}
-                alt={cardName}
-                style={{ width: 148, height: 208, objectFit: 'cover', display: 'block' }}
-                onError={e => {
-                  const p = e.currentTarget.parentElement?.parentElement as HTMLElement | null;
-                  if (p) p.style.display = 'none';
+            <div 
+              className="absolute -inset-3 rounded-xl opacity-75"
+              style={{
+                background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.4), rgba(255, 0, 255, 0.4), rgba(139, 92, 246, 0.4))',
+                filter: 'blur(15px)',
+                animation: 'neon-glow-pulse 2s ease-in-out infinite'
+              }}
+            />
+            
+            <div 
+              className="absolute -inset-1 rounded-lg"
+              style={{
+                background: 'linear-gradient(135deg, #00ffff, #ff00ff, #8b5cf6, #00ffff)',
+                backgroundSize: '300% 300%',
+                animation: 'neon-border-flow 3s linear infinite',
+                padding: '3px'
+              }}
+            >
+              <div className="w-full h-full bg-black rounded-lg" />
+            </div>
+            
+            <img
+              src={cardImage}
+              alt={cardName}
+              className="relative w-40 h-56 rounded-lg object-contain z-10"
+              style={{
+                filter: 'drop-shadow(0 0 30px rgba(0, 255, 255, 0.6))',
+                animation: 'neon-card-float 3s ease-in-out infinite'
+              }}
+              onError={(e) => {
+                console.error('Failed to load card image:', cardImage);
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+
+            {glowParticles.map((gp, i) => (
+              <div
+                key={i}
+                className="absolute top-1/2 left-1/2 w-2 h-2 rounded-full"
+                style={{
+                  background: i % 2 === 0 ? '#00ffff' : '#ff00ff',
+                  boxShadow: i % 2 === 0 
+                    ? '0 0 10px #00ffff, 0 0 20px #00ffff' 
+                    : '0 0 10px #ff00ff, 0 0 20px #ff00ff',
+                  transform: `rotate(${gp.angle}deg) translateX(${gp.distance}px)`,
+                  animation: `neon-orbit 4s linear infinite`,
+                  animationDelay: `${gp.delay}s`,
+                  opacity: 0.8
                 }}
               />
-              <div style={{
-                position: 'absolute', top: 0, bottom: 0, width: '55%',
-                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.28), transparent)',
-                animation: 'pn-shine 1.1s 0.3s ease-out forwards',
-              }} />
-            </div>
+            ))}
           </div>
         )}
 
-        {/* Card name */}
-        <div style={{ animation: 'pn-title 0.55s 0.2s ease-out both', marginBottom: 8 }}>
-          <h2 style={{
-            fontFamily: '"Impact","Arial Black",sans-serif',
-            fontSize: 'clamp(1.6rem, 5.5vw, 2.8rem)',
-            color: '#fbbf24',
-            textShadow: '0 0 20px rgba(251,191,36,0.8), 0 0 40px rgba(251,191,36,0.4), 0 3px 0 #7a3c00',
-            letterSpacing: '0.12em',
-            textAlign: 'center',
-            textTransform: 'uppercase',
-            lineHeight: 1.1, margin: 0,
-          }}>
-            {cardName}
-          </h2>
+        <div 
+          className="relative overflow-hidden rounded-2xl"
+          style={{
+            animation: animationPhase >= 2 
+              ? 'neon-text-reveal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' 
+              : 'none',
+            opacity: animationPhase >= 2 ? 1 : 0,
+            transform: animationPhase >= 2 ? 'translateY(0)' : 'translateY(20px)'
+          }}
+        >
+          <div 
+            className="absolute -inset-1 rounded-2xl"
+            style={{
+              background: 'linear-gradient(90deg, #00ffff, #ff00ff, #8b5cf6, #00ffff)',
+              backgroundSize: '300% 100%',
+              animation: 'neon-border-flow 2s linear infinite',
+              padding: '2px'
+            }}
+          >
+            <div className="w-full h-full bg-black/90 rounded-2xl backdrop-blur-xl" />
+          </div>
+          
+          <div 
+            className="relative px-12 py-6 rounded-2xl z-10"
+            style={{
+              background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(20, 10, 30, 0.95))',
+              backdropFilter: 'blur(20px)'
+            }}
+          >
+            <div 
+              className="absolute inset-0 opacity-20 pointer-events-none overflow-hidden rounded-2xl"
+              style={{
+                background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 255, 255, 0.03) 2px, rgba(0, 255, 255, 0.03) 4px)',
+                animation: 'neon-scanlines 8s linear infinite'
+              }}
+            />
+
+            <h2 
+              className="text-4xl md:text-5xl font-black text-center mb-3 tracking-wider relative"
+              style={{
+                background: 'linear-gradient(135deg, #00ffff, #ffffff, #ff00ff)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                textShadow: '0 0 40px rgba(0, 255, 255, 0.5)',
+                filter: 'drop-shadow(0 0 10px rgba(0, 255, 255, 0.8))',
+                animation: 'neon-text-glow 2s ease-in-out infinite alternate'
+              }}
+            >
+              {cardName}
+            </h2>
+            
+            <p 
+              className="text-xl md:text-2xl font-bold text-center tracking-widest uppercase relative"
+              style={{
+                color: '#ff00ff',
+                textShadow: '0 0 20px rgba(255, 0, 255, 0.8), 0 0 40px rgba(255, 0, 255, 0.4)',
+                animation: animationPhase >= 3 ? 'neon-message-pulse 1.5s ease-in-out infinite' : 'none'
+              }}
+            >
+              {message}
+            </p>
+
+            <div className="flex justify-center gap-2 mt-4">
+              {[...Array(5)].map((_, i) => (
+                <div
+                  key={i}
+                  className="w-2 h-2 rounded-full"
+                  style={{
+                    background: '#00ffff',
+                    boxShadow: '0 0 10px #00ffff, 0 0 20px #00ffff',
+                    animation: 'neon-dot-pulse 1s ease-in-out infinite',
+                    animationDelay: `${i * 0.15}s`
+                  }}
+                />
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Subtitle */}
-        <div style={{ animation: 'pn-subtitle 0.4s 0.45s ease-out both' }}>
-          <p style={{
-            color: 'rgba(255,255,255,0.82)', fontSize: 'clamp(0.9rem, 2.8vw, 1.15rem)',
-            fontWeight: 600, textAlign: 'center',
-            textShadow: '0 1px 6px rgba(0,0,0,0.7)',
-            margin: 0, padding: '0 16px', maxWidth: 360,
-          }}>
-            {message}
-          </p>
-        </div>
-
-        {/* Decorative divider */}
-        <div style={{
-          marginTop: 14, height: 2, overflow: 'hidden',
-          background: 'linear-gradient(90deg, transparent, #fbbf24, #fff, #fbbf24, transparent)',
-          boxShadow: '0 0 10px rgba(251,191,36,0.6)',
-          animation: 'pn-divider 0.5s 0.55s ease-out both',
-        }} />
+        <div 
+          className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-64 h-1 rounded-full"
+          style={{
+            background: 'linear-gradient(90deg, transparent, #00ffff, #ff00ff, #00ffff, transparent)',
+            boxShadow: '0 0 20px rgba(0, 255, 255, 0.6), 0 0 40px rgba(255, 0, 255, 0.4)',
+            animation: 'neon-line-pulse 2s ease-in-out infinite'
+          }}
+        />
       </div>
-    </>
+
+      <style>{`
+        @keyframes neon-backdrop-fade {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        @keyframes neon-container-enter {
+          0% { 
+            opacity: 0; 
+            transform: scale(0.8) translateY(30px);
+          }
+          100% { 
+            opacity: 1; 
+            transform: scale(1) translateY(0);
+          }
+        }
+        
+        @keyframes neon-card-reveal {
+          0% { 
+            opacity: 0; 
+            transform: scale(0.5) rotateY(90deg);
+          }
+          60% {
+            transform: scale(1.1) rotateY(-10deg);
+          }
+          100% { 
+            opacity: 1; 
+            transform: scale(1) rotateY(0deg);
+          }
+        }
+        
+        @keyframes neon-card-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
+        }
+        
+        @keyframes neon-glow-pulse {
+          0%, 100% { 
+            opacity: 0.6; 
+            transform: scale(1);
+          }
+          50% { 
+            opacity: 0.9; 
+            transform: scale(1.05);
+          }
+        }
+        
+        @keyframes neon-border-flow {
+          0% { background-position: 0% 50%; }
+          100% { background-position: 300% 50%; }
+        }
+        
+        @keyframes neon-text-reveal {
+          0% { 
+            opacity: 0; 
+            transform: translateY(30px) scale(0.9);
+          }
+          100% { 
+            opacity: 1; 
+            transform: translateY(0) scale(1);
+          }
+        }
+        
+        @keyframes neon-text-glow {
+          0% { 
+            filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.8)) drop-shadow(0 0 20px rgba(0, 255, 255, 0.4));
+          }
+          100% { 
+            filter: drop-shadow(0 0 20px rgba(255, 0, 255, 0.8)) drop-shadow(0 0 40px rgba(255, 0, 255, 0.4));
+          }
+        }
+        
+        @keyframes neon-message-pulse {
+          0%, 100% { 
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% { 
+            opacity: 0.8;
+            transform: scale(1.02);
+          }
+        }
+        
+        @keyframes neon-particle-rise {
+          0% { 
+            transform: translateY(0) scale(1);
+            opacity: 1;
+          }
+          100% { 
+            transform: translateY(-400px) scale(0);
+            opacity: 0;
+          }
+        }
+        
+        @keyframes neon-orbit {
+          0% { 
+            transform: rotate(0deg) translateX(60px) rotate(0deg);
+          }
+          100% { 
+            transform: rotate(360deg) translateX(60px) rotate(-360deg);
+          }
+        }
+        
+        @keyframes neon-scanlines {
+          0% { transform: translateY(0); }
+          100% { transform: translateY(100%); }
+        }
+        
+        @keyframes neon-dot-pulse {
+          0%, 100% { 
+            opacity: 0.4;
+            transform: scale(0.8);
+          }
+          50% { 
+            opacity: 1;
+            transform: scale(1.2);
+          }
+        }
+        
+        @keyframes neon-line-pulse {
+          0%, 100% { 
+            opacity: 0.6;
+            transform: translateX(-50%) scaleX(1);
+          }
+          50% { 
+            opacity: 1;
+            transform: translateX(-50%) scaleX(1.2);
+          }
+        }
+      `}</style>
+    </div>
   );
 };

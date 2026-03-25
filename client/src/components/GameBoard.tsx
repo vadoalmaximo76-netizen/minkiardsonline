@@ -759,13 +759,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       };
 
       // Try to get card rects for the MossaFlyer animation
-      const fromRect = mosseCardId ? cardRegistry.getRect(mosseCardId) : null;
-      const toRect   = targetCardId ? cardRegistry.getRect(targetCardId) : null;
+      // The MOSSE card may already be gone from the DOM (game-state-update arrives before card-attacked),
+      // so we fall back to the rect stored via cardRegistry.storePendingMosse() right before the emit.
+      let fromRect = mosseCardId ? cardRegistry.getRect(mosseCardId) : null;
+      let cardImageSrc = mosseCardId ? cardRegistry.getImageSrc(mosseCardId) : null;
+      if (!fromRect) {
+        const pending = cardRegistry.consumePendingMosse();
+        if (pending) { fromRect = pending.rect; cardImageSrc = pending.imageSrc; }
+      }
+      const toRect = targetCardId ? cardRegistry.getRect(targetCardId) : null;
 
       if (fromRect && toRect) {
         // Show the MOSSA card flying toward the target; effects fire on landing
         pendingAttackEffectsRef.current = triggerImpactEffects;
-        const cardImageSrc = mosseCardId ? cardRegistry.getImageSrc(mosseCardId) : null;
         setMossaFlyer({
           fromRect,
           toRect,
@@ -774,7 +780,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           key: Date.now(),
         });
       } else {
-        // Rects unavailable (card not in DOM) — trigger effects immediately as fallback
+        // Rects unavailable — trigger effects immediately as fallback
         triggerImpactEffects();
       }
     };

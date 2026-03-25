@@ -558,6 +558,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         if (mosseDmgEffect === 'gamble_death') {
           console.log(`🎲 GAMBLE_DEATH: emitting mosse-attack directly for ${card.owner}`);
           if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); }
+          if (selectedMosseCard?.id) cardRegistry.storePendingMosse(selectedMosseCard.id);
           socket.emit('mosse-attack', {
             mosseCardId: selectedMosseCard?.id,
             targetCardId: card.id,
@@ -717,6 +718,9 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
 
       // Attacker thrust animation — 160ms pulse toward target
       if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); }
+
+      // Capture MOSSE card rect BEFORE emitting so MossaFlyer can use it even after game-state-update removes the card
+      if (selectedMosseCard?.id) cardRegistry.storePendingMosse(selectedMosseCard.id);
 
       // Attack with damage value and optional effect
       socket.emit('mosse-attack', { 
@@ -895,6 +899,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       if (firstTarget) {
         console.log(`🤝 CONTRATTAZIONE: emitting mosse-attack directly for ${firstTarget.owner}`);
         if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); }
+        if (mosseCardArg?.id) cardRegistry.storePendingMosse(mosseCardArg.id);
         socket.emit('mosse-attack', {
           mosseCardId: mosseCardArg?.id,
           targetCardId: firstTarget.id,
@@ -956,6 +961,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           const target = targetCards[i];
           setIsAttacking(true);
           setTimeout(() => setIsAttacking(false), 400);
+          if (selectedMosseCard?.id) cardRegistry.storePendingMosse(selectedMosseCard.id);
           socket.emit('mosse-attack', { 
             mosseCardId: selectedMosseCard?.id,
             targetCardId: target.id,

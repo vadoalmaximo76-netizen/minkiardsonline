@@ -1,5 +1,7 @@
 const _registry = new Map<string, HTMLElement>();
 
+let _pendingMosse: { rect: DOMRect; imageSrc: string | null } | null = null;
+
 export const cardRegistry = {
   set(id: string, el: HTMLElement | null) {
     if (el) _registry.set(id, el);
@@ -18,5 +20,17 @@ export const cardRegistry = {
     if (!el) return null;
     const img = el.querySelector('img');
     return img?.src ?? null;
+  },
+  storePendingMosse(id: string) {
+    const el = _registry.get(id);
+    if (!el) { _pendingMosse = null; return; }
+    const rect = el.getBoundingClientRect();
+    const img = el.querySelector('img');
+    _pendingMosse = { rect, imageSrc: img?.src ?? null };
+  },
+  consumePendingMosse(): { rect: DOMRect; imageSrc: string | null } | null {
+    const val = _pendingMosse;
+    _pendingMosse = null;
+    return val;
   },
 };
