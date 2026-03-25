@@ -37,6 +37,8 @@ import { Dice3D } from "./Dice3D";
 import { CardShatter3D } from "./CardShatter3D";
 import { KOBanner } from "./KOBanner";
 import { AttackSlash3D } from "./AttackSlash3D";
+import { AttackProjectile } from "./AttackProjectile";
+import { cardRegistry } from "../lib/cardRegistry";
 import { MusicPlayer } from "./MusicPlayer";
 import { VoiceChat } from "./VoiceChat";
 import { YouTubeVideoModal } from "./YouTubeVideoModal";
@@ -263,6 +265,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [attackedCharacterName, setAttackedCharacterName] = useState<string>("");
   const [attackEffectType, setAttackEffectType] = useState<AttackEffectType>('physical');
   const [attackSlash3D, setAttackSlash3D] = useState<{ visible: boolean; attackerName: string; targetName: string; damage: number }>({ visible: false, attackerName: '', targetName: '', damage: 0 });
+  const [attackProjectile, setAttackProjectile] = useState<{ fromRect: DOMRect; toRect: DOMRect; damage: number; key: number } | null>(null);
   const [damageVignetteVisible, setDamageVignetteVisible] = useState(false);
   const damageVignetteTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const [cinematicFlash, setCinematicFlash] = useState<{ visible: boolean; type: 'attack' | 'heal' }>({ visible: false, type: 'attack' });
@@ -722,7 +725,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setScenarioCardsActive(active);
     };
 
-    const handleCardAttacked = ({ targetCardName, fromPlayer, toPlayer, damageValue, attackerName, targetOwner }: { targetCardName?: string, fromPlayer?: string, toPlayer?: string, damageValue?: number, attackerName?: string, targetOwner?: string }) => {
+    const handleCardAttacked = ({ targetCardName, fromPlayer, toPlayer, damageValue, attackerName, targetOwner, mosseCardId, targetCardId }: { targetCardName?: string, fromPlayer?: string, toPlayer?: string, damageValue?: number, attackerName?: string, targetOwner?: string, mosseCardId?: string, targetCardId?: string }) => {
       const attacker = fromPlayer || attackerName || '???';
       const defender = toPlayer || targetOwner || '???';
       const target = targetCardName || defender;
@@ -748,6 +751,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         if (damageVignetteTimerRef.current) clearTimeout(damageVignetteTimerRef.current);
         setDamageVignetteVisible(true);
         damageVignetteTimerRef.current = setTimeout(() => setDamageVignetteVisible(false), 700);
+      }
+
+      // Attack projectile: fly from MOSSE card to target PERSONAGGIO card
+      if (mosseCardId && targetCardId) {
+        const fromRect = cardRegistry.getRect(mosseCardId);
+        const toRect = cardRegistry.getRect(targetCardId);
+        if (fromRect && toRect) {
+          setAttackProjectile({ fromRect, toRect, damage: dmg, key: Date.now() });
+        }
       }
     };
 
@@ -4542,6 +4554,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             targetName={attackSlash3D.targetName}
             damage={attackSlash3D.damage}
             onComplete={() => setAttackSlash3D({ visible: false, attackerName: '', targetName: '', damage: 0 })}
+          />
+        )}
+
+        {attackProjectile && (
+          <AttackProjectile
+            key={attackProjectile.key}
+            fromRect={attackProjectile.fromRect}
+            toRect={attackProjectile.toRect}
+            damage={attackProjectile.damage}
+            onImpact={() => {}}
+            onComplete={() => setAttackProjectile(null)}
           />
         )}
 

@@ -11,6 +11,7 @@ import { FloatingNumber } from "./FloatingNumber";
 import { getOptimizedUrl, onCloudNameReady, getCloudinaryCloudName } from "../lib/imagePreloader";
 import { SkinSelectionPanel } from "./SkinSelectionPanel";
 import { motion } from "framer-motion";
+import { cardRegistry } from "../lib/cardRegistry";
 
 let _cardIdCounter = 0;
 
@@ -1329,6 +1330,14 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     const tiltY = (x - 0.5) * 20;
     setCardTilt({ rotateX: tiltX, rotateY: tiltY, glareX: x * 100, glareY: y * 100 });
   }, [location]);
+
+  // Register field cards in the global registry so GameBoard can get their DOM positions for attack animations
+  useEffect(() => {
+    if (location !== 'field') return;
+    const el = cardRef.current;
+    if (el) cardRegistry.set(card.id, el);
+    return () => { cardRegistry.set(card.id, null); };
+  }, [card.id, location]);
 
   // Fan arc: cards in hand rotate like held cards; ±8° max spread, only when > 3 cards
   const totalCards = totalHandCards ?? 1;
