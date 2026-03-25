@@ -1553,6 +1553,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   // NEW CPU TURN LOGIC: State machine for pesca → gioca → esegui azione → fine turno
   async takeTurn(gameState: any) {
     try {
+      console.log(`🎯 CPU ${this.playerName}: takeTurn() START - hand=${gameState.players[this.playerName]?.hand?.length || 0}, openingPhase=${this.openingSequenceState.phase}`);
+      
       // CRITICAL FIX: Always reset stale attack/response flags at the start of a new turn
       // These flags should NEVER persist across turns - they only apply within a single turn's action
       if (this.waitingForAttackResolution) {
@@ -1923,6 +1925,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
       
       // Phase 4: End turn  
+      console.log(`🎯 CPU ${this.playerName}: takeTurn() COMPLETE - playAction=${playAction?.type || 'null'}`);
       this.sendChatMessage(`Ho completato le mie azioni, finisco il turno!`);
       this.resetTurnState();
       
@@ -1940,6 +1943,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   // Handle the draw phase: ensure CPU has exactly 1 card per type
   handleDrawPhase(cpuPlayer: any, gameState: any): any {
     const needsToDraw = this.shouldDrawCards(cpuPlayer, gameState);
+    console.log(`🔍 CPU ${this.playerName} handleDrawPhase: needsDraw=${needsToDraw.shouldDraw} deck=${needsToDraw.deckType}, hand=${cpuPlayer.hand?.map((c: any) => c.type).join(',') || 'EMPTY'}`);
     if (needsToDraw.shouldDraw && needsToDraw.deckType) {
       this.sendChatMessage(`Pesco una carta ${needsToDraw.deckType.toUpperCase()} - devo avere 1 per tipo!`);
       return {
@@ -2785,6 +2789,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     const hand = cpuPlayer.hand || [];
     const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
     const enemies = gameState.field.filter((card: any) => card.owner !== this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
+    
+    console.log(`🔍 CPU ${this.playerName} selectCardToPlay: hand size=${hand.length}, myChar=${myCharacter?.id || 'NONE'}, enemies=${enemies.length}, attackMode=${this.attackMode}`);
 
     // In hunt_human mode only human-owned characters count as valid attack targets
     const effectiveEnemies = this.attackMode === 'hunt_human'
@@ -2926,8 +2932,12 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     }
     
     const anyCard = hand.find((c: any) => c.type === 'mosse' || c.type === 'bonus');
-    if (anyCard) return anyCard;
+    if (anyCard) {
+      console.log(`🔍 CPU ${this.playerName}: Found fallback action card - returning ${anyCard.type}`);
+      return anyCard;
+    }
     
+    console.log(`❌ CPU ${this.playerName}: NO CARD TO PLAY - returning null`);
     return null;
   }
 
