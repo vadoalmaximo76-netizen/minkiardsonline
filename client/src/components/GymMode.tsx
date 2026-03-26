@@ -789,10 +789,14 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             if (gameId) {
               socket.emit('leave-game', { gameId });
             }
+            // Null out gameId immediately so any delayed server events (e.g. game-victory) are ignored
+            setGameIdLocal(null);
+            gameIdRef.current = null;
             if (selectedLeader) {
               setLostLeaderIds(prev => prev.includes(selectedLeader.id) ? prev : [...prev, selectedLeader.id]);
             }
             onClearPendingGymGame?.();
+            battleStartingRef.current = false;
             setPhase('map');
             setSelectedLeader(null);
             fetchLeaders();
