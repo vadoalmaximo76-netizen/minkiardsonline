@@ -4269,7 +4269,8 @@ Rispondi SOLO in JSON:`;
           'pesca miracolosa': "Pesca 3 carte da un mazzo a scelta",
           'stipendio': "Guadagna 100 PTI [BERSAGLIO: scelta]",
           'kainoken': "Raddoppia i PTI del tuo personaggio per 2 turni [BERSAGLIO: scelta]",
-          'terremoto': "Infligge 200 PTI di danno a tutti i personaggi in campo",
+          'terremoto': "Stordisce tutti i personaggi avversari per 1 turno",
+          'crisalide': "Il tuo personaggio è bloccato per 3 turni, poi si evolve 1 volta",
           'tsunami': "Infligge 300 PTI di danno a tutti i personaggi avversari",
           'uragano': "Infligge 200 PTI di danno a tutti i personaggi avversari",
           'super mega uragano strano': "Infligge 500 PTI di danno a tutti i personaggi avversari",
@@ -12050,23 +12051,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return { success: false, error: 'MOSSE card not found on field or not owned by attacker' };
     }
 
-    // OSTAGGIO CHECK: Find attacker's character on field and check if it's hostaged
-    const attackerCharacter = game.field.find(c => 
-      c.owner === attackerName && 
+    // OSTAGGIO CHECK: If ANY of the attacker's characters are hostaged, block ALL attacks
+    const anyHostagedChar = game.field.find(c =>
+      c.owner === attackerName &&
+      (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+      c.isHostage
+    );
+    if (anyHostagedChar) {
+      console.log(`⛓️ ${attackerName}'s character is hostaged - cannot use MOSSE to attack`);
+      return { success: false, error: 'Il tuo personaggio è in ostaggio! Non può usare carte MOSSE finché non viene liberato.' };
+    }
+
+    // Find attacker's non-hostaged character on field
+    const attackerCharacter = game.field.find(c =>
+      c.owner === attackerName &&
       (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
       !c.isHostage
     );
     if (!attackerCharacter) {
-      // Check if player has a hostaged character
-      const hostagedCharacter = game.field.find(c => 
-        c.owner === attackerName && 
-        (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
-        c.isHostage
-      );
-      if (hostagedCharacter) {
-        console.log(`⛓️ ${attackerName}'s character is hostaged - cannot use MOSSE to attack`);
-        return { success: false, error: 'Il tuo personaggio è in ostaggio! Non può usare carte MOSSE finché non viene liberato. Metti in campo un altro personaggio.' };
-      }
       // No character on field at all
       return { success: false, error: 'Devi avere un personaggio in campo per usare carte MOSSE.' };
     }
@@ -13595,13 +13597,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     ostaggioCard.ostaggioHoldingCardId = targetCardId;
     ostaggioCard.text = `⛓️ Tiene in ostaggio: ${targetName}\nTurni rimanenti: 3`;
     
-    // Mark target as hostage
+    // Mark target as hostage and freeze it (belt-and-suspenders so it can't attack via any path)
     targetCard.isHostage = true;
     targetCard.hostagedBy = captorPlayer;
     targetCard.hostageOstaggioCardId = ostaggioCardId;
     targetCard.hostageOriginalOwner = originalOwner;
     targetCard.hostageOriginalFieldIndex = originalFieldIndex;
     targetCard.hostageTurnsRemaining = 3;
+    (targetCard as any).frozenTurns = 9999;
     
     // Move hostage card next to OSTAGGIO card on field
     const ostaggioIndex = game.field.indexOf(ostaggioCard);
@@ -13687,13 +13690,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const ostaggioCardId = hostageCard.hostageOstaggioCardId;
     const captorPlayer = hostageCard.hostagedBy;
     
-    // Clear hostage state
+    // Clear hostage state (also clear the freeze we set in applyOstaggio)
     delete hostageCard.isHostage;
     delete hostageCard.hostagedBy;
     delete hostageCard.hostageOstaggioCardId;
     delete hostageCard.hostageOriginalOwner;
     delete hostageCard.hostageOriginalFieldIndex;
     delete hostageCard.hostageTurnsRemaining;
+    delete (hostageCard as any).frozenTurns;
     
     // Restore original owner
     hostageCard.owner = originalOwner;
