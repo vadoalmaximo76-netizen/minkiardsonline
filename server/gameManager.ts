@@ -12051,25 +12051,25 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return { success: false, error: 'MOSSE card not found on field or not owned by attacker' };
     }
 
-    // OSTAGGIO CHECK: If ANY of the attacker's characters are hostaged, block ALL attacks
-    const anyHostagedChar = game.field.find(c =>
-      c.owner === attackerName &&
-      (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
-      c.isHostage
-    );
-    if (anyHostagedChar) {
-      console.log(`⛓️ ${attackerName}'s character is hostaged - cannot use MOSSE to attack`);
-      return { success: false, error: 'Il tuo personaggio è in ostaggio! Non può usare carte MOSSE finché non viene liberato.' };
-    }
-
-    // Find attacker's non-hostaged character on field
+    // OSTAGGIO CHECK: The hostaged character itself is excluded from attacking (via !c.isHostage).
+    // The player is allowed to put a second character on the field and attack with it normally.
+    // If the player has no non-hostaged character at all, block and inform.
     const attackerCharacter = game.field.find(c =>
       c.owner === attackerName &&
       (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
       !c.isHostage
     );
     if (!attackerCharacter) {
-      // No character on field at all
+      // Check if the reason is a hostaged character
+      const hostagedCharacter = game.field.find(c =>
+        c.owner === attackerName &&
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+        c.isHostage
+      );
+      if (hostagedCharacter) {
+        console.log(`⛓️ ${attackerName}'s only character is hostaged - cannot use MOSSE to attack`);
+        return { success: false, error: 'Il tuo personaggio è in ostaggio! Metti un secondo personaggio in campo per poter attaccare.' };
+      }
       return { success: false, error: 'Devi avere un personaggio in campo per usare carte MOSSE.' };
     }
     
@@ -13701,7 +13701,29 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     
     // Restore original owner
     hostageCard.owner = originalOwner;
-    
+
+    // Return any stand-in characters to the original owner's hand
+    // (the player may have put a second character on field during the hostage period)
+    const standIns = game.field.filter(c =>
+      c.owner === originalOwner &&
+      c.id !== hostageCardId &&
+      (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+    );
+    if (standIns.length > 0 && game.players[originalOwner]) {
+      for (const standIn of standIns) {
+        const standInName = this.getCardNameFromUrl(standIn.frontImage);
+        game.field = game.field.filter(c => c.id !== standIn.id);
+        game.players[originalOwner].hand.push(standIn);
+        console.log(`⛓️🔓 OSTAGGIO: stand-in ${standInName} returned to ${originalOwner}'s hand`);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-standin-returned-${standIn.id}`,
+          playerName: 'Sistema',
+          message: `⛓️ ${standInName} torna in mano a ${originalOwner} ora che ${hostageName} è libero!`,
+          timestamp: Date.now()
+        });
+      }
+    }
+
     // Find and clear OSTAGGIO card, return to deck
     if (ostaggioCardId) {
       const ostaggioCard = game.field.find(c => c.id === ostaggioCardId);
