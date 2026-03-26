@@ -2075,11 +2075,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (game) {
             game.isGymMode = true;
             if (!game.playerDraftDecks) game.playerDraftDecks = {};
-            const deckIds: string[] = Array.isArray(playerDeck) && playerDeck.length > 0 ? playerDeck : [];
+            let deckIds: string[] = Array.isArray(playerDeck) && playerDeck.length > 0 ? playerDeck : [];
+            // Fallback: if client sent no deck, load from the user's story deck in DB
+            if (deckIds.length === 0 && userId && isDatabaseAvailable()) {
+              try {
+                const storyRows = await db.select().from(userStoryDeck)
+                  .where(eq(userStoryDeck.userId, userId)).limit(1);
+                if (storyRows.length > 0 && Array.isArray(storyRows[0].cardIds) && (storyRows[0].cardIds as string[]).length > 0) {
+                  deckIds = storyRows[0].cardIds as string[];
+                  console.log(`🗂️ Gym mode: loaded story deck from DB for player ${playerName}: ${deckIds.length} cards`);
+                }
+              } catch (dbErr) {
+                console.error('Gym mode: error loading story deck from DB:', dbErr);
+              }
+            }
             if (deckIds.length > 0) {
               const resolvedDeck = await gameManager.resolveCardIdsToDecks(deckIds);
               game.playerDraftDecks[playerName] = resolvedDeck;
               console.log(`🗂️ Gym mode: player ${playerName} deck set with ${resolvedDeck.personaggi.length}p/${resolvedDeck.mosse.length}m/${resolvedDeck.bonus.length}b cards`);
+            } else {
+              console.warn(`⚠️ Gym mode: no story deck available for player ${playerName} — will use shared deck`);
             }
             if (livesCount && livesCount > 0) {
               game.characterLimit = String(livesCount);

@@ -978,6 +978,7 @@ function App() {
           onBack={handleGoHome}
           pendingGymGame={pendingGymGame ?? undefined}
           onResumeGymGame={(gameId) => handleResumeGame(gameId, authenticatedUser?.username || playerName)}
+          onClearPendingGymGame={() => setPendingGymGame(null)}
         />
         <SpotifyPlayer disabled={false} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />

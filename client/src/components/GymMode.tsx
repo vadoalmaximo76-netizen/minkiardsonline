@@ -46,6 +46,7 @@ interface GymModeProps {
   onBack: () => void;
   pendingGymGame?: { gameId: string; gymLeaderCpuName?: string; gymLeaderId?: number };
   onResumeGymGame?: (gameId: string) => void;
+  onClearPendingGymGame?: () => void;
 }
 
 type Phase = 'map' | 'intro' | 'battle' | 'victory' | 'defeat' | 'card-pick';
@@ -177,7 +178,7 @@ function GymPathSVG({ count }: { count: number }) {
   );
 }
 
-export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, onResumeGymGame }: GymModeProps) {
+export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, onResumeGymGame, onClearPendingGymGame }: GymModeProps) {
   const [leaders, setLeaders] = useState<GymLeader[]>([]);
   const [completedIds, setCompletedIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
@@ -194,6 +195,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [pendingBattle, setPendingBattle] = useState<{ leader: GymLeader; deckIds: string[] } | null>(null);
   const [userCredits, setUserCredits] = useState(0);
   const [isReplayBattle, setIsReplayBattle] = useState(false);
+  const [lostLeaderIds, setLostLeaderIds] = useState<number[]>([]);
 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -749,7 +751,13 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             style={{ opacity: victoryStep >= 4 ? 1 : 0, transform: victoryStep >= 4 ? 'translateY(0)' : 'translateY(10px)' }}
           >
             <button
-              onClick={() => { setPhase('map'); setSelectedLeader(null); fetchLeaders(); fetchUserCredits(); }}
+              onClick={() => {
+                onClearPendingGymGame?.();
+                setPhase('map');
+                setSelectedLeader(null);
+                fetchLeaders();
+                fetchUserCredits();
+              }}
               className="px-8 py-3.5 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-lg rounded-2xl transition-all shadow-xl shadow-yellow-500/30 active:scale-95"
             >
               Torna alla Mappa
@@ -777,7 +785,18 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           Il Boss <span className="text-red-300 font-bold">{selectedLeader.name}</span> ti ha battuto.<br />Riprova!
         </p>
         <button
-          onClick={() => { setPhase('map'); setSelectedLeader(null); fetchLeaders(); }}
+          onClick={() => {
+            if (gameId) {
+              socket.emit('leave-game', { gameId });
+            }
+            if (selectedLeader) {
+              setLostLeaderIds(prev => prev.includes(selectedLeader.id) ? prev : [...prev, selectedLeader.id]);
+            }
+            onClearPendingGymGame?.();
+            setPhase('map');
+            setSelectedLeader(null);
+            fetchLeaders();
+          }}
           className="px-8 py-3.5 bg-gray-700 hover:bg-gray-600 text-white font-black text-lg rounded-2xl transition-all active:scale-95 shadow-xl"
         >
           Torna alla Mappa
@@ -1246,7 +1265,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
 
                     {/* Bottom: action button */}
                     <div>
-                      {pendingGymGame?.gymLeaderId === leader.id ? (
+                      {pendingGymGame?.gymLeaderId === leader.id && !lostLeaderIds.includes(leader.id) && !isCompleted ? (
                         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: align }}>
                           <button
                             onClick={() => handleInternalResume(leader, pendingGymGame.gameId)}
@@ -1262,6 +1281,15 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                               Nuova
                             </button>
                           )}
+                        </div>
+                      ) : lostLeaderIds.includes(leader.id) && !isCompleted ? (
+                        <div style={{ display: 'flex', justifyContent: align }}>
+                          <button
+                            onClick={() => handleChallengeLeader(leader)}
+                            style={{ border: 'none', borderRadius: 9, color: 'white', fontSize: 13, fontWeight: 900, padding: '6px 13px', cursor: 'pointer', background: 'linear-gradient(135deg,#dc2626,#9333ea)', display: 'inline-flex', alignItems: 'center', gap: 5, letterSpacing: '0.04em', boxShadow: '0 2px 10px rgba(220,38,38,0.5)', whiteSpace: 'nowrap' }}
+                          >
+                            <Swords style={{ width: 12, height: 12 }} /> Riprova
+                          </button>
                         </div>
                       ) : isAvailable ? (
                         <div style={{ display: 'flex', justifyContent: align }}>
