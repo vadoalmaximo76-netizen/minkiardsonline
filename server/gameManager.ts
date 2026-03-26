@@ -3575,6 +3575,20 @@ Rispondi SOLO in JSON:`;
     if ((game.isDraftMode || game.isGymMode) && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
       const personalDecks = game.playerDraftDecks[playerName];
       deck = personalDecks[deckType as 'personaggi' | 'mosse' | 'bonus'] || [];
+      
+      // AUTO-REFILL: If CPU personal deck is empty, refill from shared deck
+      // This happens when all personal cards have been played/drawn and not yet returned
+      if (deck.length === 0 && game.players[playerName].isCPU && game.decks[deckType]?.length > 0) {
+        console.log(`🔄 CPU ${playerName}: Personal ${deckType} deck empty - refilling from shared deck`);
+        const sharedDeck = game.decks[deckType];
+        // Take up to 5 cards from shared deck to refill personal deck
+        const refillCount = Math.min(5, sharedDeck.length);
+        for (let i = 0; i < refillCount; i++) {
+          const card = sharedDeck.pop()!;
+          deck.push(card);
+        }
+        console.log(`🔄 CPU ${playerName}: Refilled personal ${deckType} deck with ${refillCount} cards`);
+      }
     } else {
       deck = game.decks[deckType];
     }
@@ -15203,7 +15217,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       card.eliminatedBy = '';
       
       const deckType = card.type as keyof GameState['decks'];
-      // Add to BOTTOM of deck using unshift instead of push
+      
+      // CRITICAL FIX: In GymMode/DraftMode, return card to PERSONAL deck, not shared deck
+      // Otherwise pickCard (which reads from playerDraftDecks) will never find the returned card
+      const personalDecks = (game as any).playerDraftDecks?.[playerName];
+      if (personalDecks && (game as any).isGymMode && deckType !== 'personaggi_speciali') {
+        const personalDeck = personalDecks[deckType as 'personaggi' | 'mosse' | 'bonus'];
+        if (personalDeck) {
+          personalDeck.unshift(card);
+          console.log(`Returned ${card.type} card ${cardId} to BOTTOM of personal deck for ${playerName} [GymMode]`);
+          return;
+        }
+      }
+      
+      // Add to BOTTOM of shared deck using unshift instead of push
       game.decks[deckType].unshift(card);
       
       console.log(`Returned ${card.type} card ${cardId} to BOTTOM of deck for ${playerName}`);
