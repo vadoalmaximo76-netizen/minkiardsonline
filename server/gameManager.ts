@@ -27067,43 +27067,75 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
 
         case 'gamble_death': {
-          // mosse-76 (Roulette Russa): 50% di +100 o -100 PTI al bersaglio; dado: se sbaglia → attaccante muore
+          // mosse-76 (Roulette Russa): defender picks 1-6; if die matches → saved, else dies instantly
           if (!game) break;
-          const gambleWin = Math.random() < 0.5;
-          const diceRoll76 = Math.floor(Math.random() * 6) + 1;
-          const guess76 = Math.floor(Math.random() * 6) + 1;
-          const guessedRight76 = diceRoll76 === guess76;
-          io.to(gameId).emit('dice-rolled', { result: diceRoll76, playerName: attackerName });
-          const gamblePTI = 100;
-          if (gambleWin) {
-            effectiveDamage = -gamblePTI; // negative = give PTI to target
-            effectMessage = `🎲 ROULETTE RUSSA: Fortuna! Il bersaglio guadagna ${gamblePTI} PTI!`;
-          } else {
-            effectiveDamage = gamblePTI;
-            effectMessage = `🎲 ROULETTE RUSSA: Sfortuna! Il bersaglio perde ${gamblePTI} PTI!`;
-          }
-          if (!guessedRight76) {
-            // Attacker dies
-            const atkChar76 = game.field.find((c: Card) =>
-              c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-            );
-            if (atkChar76) {
-              const atkPTI76 = this.extractPTIFromNote(atkChar76.text || '');
-              atkChar76.pti = 0;
-              this.updateCardTextWithPTI(atkChar76);
-              const atkName76 = atkChar76.name || this.getCardNameFromUrl(atkChar76.frontImage || '');
-              effectMessage += ` | Dado sbagliato (${diceRoll76}≠${guess76}) 💀 ${atkName76} MUORE!`;
-              const rouletteState = this.getSanitizedGameState(gameId);
-              io.to(gameId).emit('game-state-update', rouletteState);
-              const rouletteDeath = this.moveToGraveyard(gameId, atkChar76.id, attackerName, attackerName);
-              if (rouletteDeath.eliminationCheck) {
-                this.processEliminationAfterDeath(gameId, attackerName, io, 'ROULETTE_RUSSA');
+          effectiveDamage = 0;
+          const defenderName76 = targetCard.owner;
+          const choiceId76 = `roulette-${Date.now()}`;
+          const isDefenderCPU76 = this.isPlayerCPU(gameId, defenderName76);
+
+          if (isDefenderCPU76) {
+            // CPU auto-picks a random number and resolves immediately
+            const cpuGuess76 = Math.floor(Math.random() * 6) + 1;
+            const diceRoll76 = Math.floor(Math.random() * 6) + 1;
+            io.to(gameId).emit('dice-rolled', { result: diceRoll76, playerName: defenderName76 });
+            const saved76 = diceRoll76 === cpuGuess76;
+            if (saved76) {
+              effectMessage = `🎲 ROULETTE RUSSA: ${defenderName76} ha scelto ${cpuGuess76}. Dado: ${diceRoll76}. ✅ SALVATO! Il personaggio sopravvive!`;
+            } else {
+              const defChar76 = game.field.find((c: Card) =>
+                c.owner === defenderName76 && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+              );
+              effectMessage = `🎲 ROULETTE RUSSA: ${defenderName76} ha scelto ${cpuGuess76}. Dado: ${diceRoll76}. 💀 ELIMINATO!`;
+              if (defChar76) {
+                defChar76.pti = 0;
+                this.updateCardTextWithPTI(defChar76);
+                const defState76 = this.getSanitizedGameState(gameId);
+                io.to(gameId).emit('game-state-update', defState76);
+                const defDeath76 = this.moveToGraveyard(gameId, defChar76.id, defenderName76, attackerName);
+                if (defDeath76.eliminationCheck) {
+                  this.processEliminationAfterDeath(gameId, defenderName76, io, 'ROULETTE_RUSSA');
+                }
               }
             }
+            console.log(`🎲 ROULETTE_RUSSA (CPU): defender=${defenderName76} guess=${cpuGuess76} roll=${diceRoll76} saved=${saved76}`);
           } else {
-            effectMessage += ` | Dado indovinato (${diceRoll76})! Salvo.`;
+            // Human defender: show number-picker panel, wait for choice-panel-response
+            const defPlayerData76 = game.players[defenderName76] as any;
+            const defSocketId76 = defPlayerData76?.socketId;
+            (game as any).pendingRouletteRussa = {
+              choiceId: choiceId76,
+              attackerName,
+              defenderName: defenderName76,
+              targetCardId,
+              justSet: true
+            };
+            if (defSocketId76 && io) {
+              io.to(defSocketId76).emit('show-choice-panel', {
+                choiceId: choiceId76,
+                title: '🎲 ROULETTE RUSSA',
+                question: 'Scegli un numero da 1 a 6. Se il dado esce quel numero, il tuo personaggio si salva!',
+                options: [
+                  { value: '1', label: '1', description: '' },
+                  { value: '2', label: '2', description: '' },
+                  { value: '3', label: '3', description: '' },
+                  { value: '4', label: '4', description: '' },
+                  { value: '5', label: '5', description: '' },
+                  { value: '6', label: '6', description: '' },
+                ],
+                playerName: defenderName76,
+                cardName: 'ROULETTE RUSSA',
+                timestamp: Date.now()
+              });
+            }
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-roulette-panel`,
+              playerName: 'Sistema',
+              message: `🎲 ROULETTE RUSSA! ${defenderName76} deve scegliere un numero da 1 a 6!`,
+              timestamp: Date.now()
+            });
+            console.log(`🎲 ROULETTE_RUSSA (human): waiting for ${defenderName76} to pick number (choiceId: ${choiceId76})`);
           }
-          console.log(`🎲 GAMBLE_DEATH: win=${gambleWin} roll=${diceRoll76} guess=${guess76} guessedRight=${guessedRight76}`);
           break;
         }
 
@@ -27151,7 +27183,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // Combine star removal from both manual input and special effects
     const totalStarsToRemove = starsToRemove + additionalStarsToRemove;
     // ========== END MOSSE SPECIAL EFFECT HANDLING ==========
-    
+
+    // ROULETTE RUSSA: if human defender panel is pending, return early — resolution via choice-panel-response
+    if (game && (game as any).pendingRouletteRussa?.justSet) {
+      delete (game as any).pendingRouletteRussa.justSet;
+      return { success: true, result: { roulettePending: true } };
+    }
+
     // GIANNI GIGANTI instakill: override forceInstantDeath to bypass ALL reducers (shield, halve, etc.)
     if (isGianniInstakill) {
       forceInstantDeath = true;

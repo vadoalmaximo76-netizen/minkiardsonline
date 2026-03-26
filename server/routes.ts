@@ -4231,7 +4231,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!game) return;
       const socketPlayerName = gameManager.getPlayerNameFromSocket(socket.id);
       if (!socketPlayerName) return;
-      
+
+      // ── ROULETTE RUSSA ──────────────────────────────────────────────────────
+      const pendingRR = (game as any).pendingRouletteRussa;
+      if (pendingRR && pendingRR.choiceId === choiceId && pendingRR.defenderName === socketPlayerName) {
+        delete (game as any).pendingRouletteRussa;
+        const chosen = parseInt(value, 10);
+        const diceRollRR = Math.floor(Math.random() * 6) + 1;
+        io.to(gameId).emit('dice-rolled', { result: diceRollRR, playerName: socketPlayerName });
+        if (diceRollRR === chosen) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-roulette-saved`,
+            playerName: 'Sistema',
+            message: `🎲 ROULETTE RUSSA: ${socketPlayerName} ha scelto ${chosen}. Dado: ${diceRollRR}. ✅ SALVATO! Il personaggio sopravvive!`,
+            timestamp: Date.now()
+          });
+        } else {
+          const defCharRR = (gameManager as any).getPlayerActiveCharacter(game, socketPlayerName);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-roulette-death`,
+            playerName: 'Sistema',
+            message: `🎲 ROULETTE RUSSA: ${socketPlayerName} ha scelto ${chosen}. Dado: ${diceRollRR}. 💀 ELIMINATO! Il personaggio muore!`,
+            timestamp: Date.now()
+          });
+          if (defCharRR) {
+            defCharRR.pti = 0;
+            (gameManager as any).updateCardTextWithPTI(defCharRR);
+            const deathStateRR = gameManager.getSanitizedGameState(gameId);
+            io.to(gameId).emit('game-state-update', deathStateRR);
+            const deathResultRR = (gameManager as any).moveToGraveyard(gameId, defCharRR.id, socketPlayerName, pendingRR.attackerName);
+            if (deathResultRR?.eliminationCheck) {
+              (gameManager as any).processEliminationAfterDeath(gameId, socketPlayerName, io, 'ROULETTE_RUSSA');
+            }
+          }
+        }
+        const rrFinalState = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', rrFinalState);
+        console.log(`🎲 ROULETTE_RUSSA (human): ${socketPlayerName} chose ${chosen} vs die ${diceRollRR} — ${diceRollRR === chosen ? 'SAVED' : 'DEAD'}`);
+        return;
+      }
+
+      // ── BOB DYLAN ────────────────────────────────────────────────────────────
       const pending = (game as any).pendingBobDylanChoice;
       if (!pending || pending.choiceId !== choiceId || pending.playerName !== socketPlayerName) {
         console.log(`⚠️ choice-panel-response: no matching pending choice for ${socketPlayerName} (choiceId: ${choiceId})`);
@@ -6455,6 +6495,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`🎯 ACCHIAPPT CHESSA mini-game started (attackId: ${attackResult.result.attackId}) — bypassing normal damage flow`);
           const updatedStateAC = gameManager.getSanitizedGameState(gameId);
           emitThrottledGameState(io, gameId, updatedStateAC);
+          return;
+        }
+
+        // ROULETTE RUSSA: human defender panel pending — wait for choice-panel-response to resolve
+        if (attackResult.result?.roulettePending) {
+          console.log(`🎲 ROULETTE RUSSA pending: waiting for defender's number choice`);
+          const updatedStateRR = gameManager.getSanitizedGameState(gameId);
+          emitThrottledGameState(io, gameId, updatedStateRR);
           return;
         }
 
