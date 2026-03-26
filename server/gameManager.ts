@@ -13604,7 +13604,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     targetCard.hostageOriginalOwner = originalOwner;
     targetCard.hostageOriginalFieldIndex = originalFieldIndex;
     targetCard.hostageTurnsRemaining = 3;
-    (targetCard as any).frozenTurns = 9999;
+    targetCard.frozenTurns = 9999;
     
     // Move hostage card next to OSTAGGIO card on field
     const ostaggioIndex = game.field.indexOf(ostaggioCard);
@@ -13697,7 +13697,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     delete hostageCard.hostageOriginalOwner;
     delete hostageCard.hostageOriginalFieldIndex;
     delete hostageCard.hostageTurnsRemaining;
-    delete (hostageCard as any).frozenTurns;
+    hostageCard.frozenTurns = 0;
     
     // Restore original owner
     hostageCard.owner = originalOwner;
