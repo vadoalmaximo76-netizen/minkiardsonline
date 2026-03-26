@@ -63,5 +63,18 @@
     "resetPasswordExpires": null,
     "id": 5,
     "createdAt": "2026-03-07T10:12:37.935Z"
+  },
+  {
+    "username": "Fratello Bordello",
+    "email": "torolocotoroloco@gmail.com",
+    "password": "$2b$10$XEEZeurGIjCbtEIRmHTe6e4elpf6oq6Ro/TkYoWZWXtmG6cegS48i",
+    "googleId": null,
+    "avatar": "shark",
+    "puntiRankiard": 0,
+    "isAdmin": false,
+    "resetPasswordToken": null,
+    "resetPasswordExpires": null,
+    "id": 6,
+    "createdAt": "2026-03-26T10:05:51.254Z"
   }
 ]
