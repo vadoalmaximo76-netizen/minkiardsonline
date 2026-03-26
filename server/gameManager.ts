@@ -38,6 +38,7 @@ interface Card {
   attachedBy?: string[]; // IDs of parasitic cards attached to this character
   canReattach?: boolean; // False after detachment (cannot reattach)
   originalStars?: number; // Store original stars for PARASSITA (copies target's stars)
+  originalPti?: number; // Store original PTI when card is first placed on field (used for PTI threshold checks)
   // MOSSE card usage tracking
   used?: boolean; // Whether this MOSSE card has been used this turn
   usedBy?: string; // Player who used this MOSSE card
@@ -11454,7 +11455,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         for (const fieldCard of game.field) {
           if ((fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') && 
               fieldCard.pti != null && fieldCard.pti > threshold) {
-            const cardBasePti = (fieldCard as any).originalPti ?? fieldCard.pti;
+            const cardBasePti = fieldCard.originalPti ?? fieldCard.pti;
             if (cardBasePti >= threshold) continue;
             if (newThreshold.triggeredCardIds.includes(fieldCard.id)) continue;
             const oldPti = fieldCard.pti;
@@ -17953,7 +17954,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         for (const fieldCard of game.field) {
           if ((fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
               fieldCard.pti != null && fieldCard.pti > threshold) {
-            const cardBasePti2 = (fieldCard as any).originalPti ?? fieldCard.pti;
+            const cardBasePti2 = fieldCard.originalPti ?? fieldCard.pti;
             if (cardBasePti2 >= threshold) continue;
             if (newThreshold2.triggeredCardIds.includes(fieldCard.id)) continue;
             fieldCard.pti = dropTo;
@@ -20899,13 +20900,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     for (const threshold of game.ptiThresholds) {
       if (!threshold.triggeredCardIds) threshold.triggeredCardIds = [];
       if (threshold.dropTo <= 0) threshold.dropTo = 100;
+      if (threshold.onlyLowBasePti === undefined) threshold.onlyLowBasePti = true;
     }
     
     for (const fieldCard of game.field) {
       if ((fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') && fieldCard.pti != null) {
         for (const threshold of game.ptiThresholds) {
           if (threshold.triggeredCardIds!.includes(fieldCard.id)) continue;
-          const cardBasePti = (fieldCard as any).originalPti ?? fieldCard.pti;
+          const cardBasePti = fieldCard.originalPti ?? fieldCard.pti;
           if (threshold.onlyLowBasePti && cardBasePti >= threshold.threshold) continue;
           if (fieldCard.pti > threshold.threshold) {
             const oldPti = fieldCard.pti;
@@ -22310,12 +22312,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           for (const threshold of gameState.ptiThresholds) {
             if (!threshold.triggeredCardIds) threshold.triggeredCardIds = [];
             if (threshold.dropTo <= 0) threshold.dropTo = 100;
+            if (threshold.onlyLowBasePti === undefined) threshold.onlyLowBasePti = true;
           }
           for (const fieldCard of gameState.field) {
             if ((fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') && fieldCard.pti != null) {
               for (const threshold of gameState.ptiThresholds) {
                 if (threshold.triggeredCardIds!.includes(fieldCard.id)) continue;
-                const cardBasePtiEt = (fieldCard as any).originalPti ?? fieldCard.pti;
+                const cardBasePtiEt = fieldCard.originalPti ?? fieldCard.pti;
                 if (threshold.onlyLowBasePti && cardBasePtiEt >= threshold.threshold) continue;
                 if (fieldCard.pti > threshold.threshold) {
                   const oldPti = fieldCard.pti;
