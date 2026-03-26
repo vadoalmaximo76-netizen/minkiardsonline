@@ -5463,7 +5463,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // If no defense required, process damage immediately
       await gameManager.processMosseDamage(gameId, cpuName, targetCardId, damageValue, mosseCardId, io, false, false, false, false, starsToRemove || 0);
-      
+
+      // ROULETTE RUSSA: if human defender panel was just shown, pause CPU turn — choice-panel-response will resolve it
+      {
+        const gameAfterCPURR = gameManager.getGameState(gameId);
+        if ((gameAfterCPURR as any)?.pendingRouletteRussa) {
+          console.log(`🎲 ROULETTE RUSSA pending (CPU attack path): waiting for ${(gameAfterCPURR as any).pendingRouletteRussa.defenderName}'s choice`);
+          const rrStateCPU = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', rrStateCPU);
+          return;
+        }
+      }
+
       // NEW: Notify CPU that attack is resolved and immediately continue their turn
       const game = gameManager.getGameState(gameId);
       if (game && game.players[cpuName]?.cpuInstance) {
@@ -6498,14 +6509,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
 
-        // ROULETTE RUSSA: human defender panel pending — wait for choice-panel-response to resolve
-        if (attackResult.result?.roulettePending) {
-          console.log(`🎲 ROULETTE RUSSA pending: waiting for defender's number choice`);
-          const updatedStateRR = gameManager.getSanitizedGameState(gameId);
-          emitThrottledGameState(io, gameId, updatedStateRR);
-          return;
-        }
-
         // OSTAGGIO HANDLING: If this is an OSTAGGIO attack, apply hostage effect
         if (attackResult.result?.isOstaggioAttack) {
           console.log(`⛓️ OSTAGGIO attack detected - applying hostage effect to ${targetCardId}`);
@@ -6576,7 +6579,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // If no defense required, process damage immediately
         await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io, false, isHandTarget || false, isFurtoAttack || false, false, starsToRemove || 0, mosseEffect);
-        
+
+        // ROULETTE RUSSA: if human defender panel was just shown, pause here — choice-panel-response will resolve it
+        {
+          const gameAfterRR = gameManager.getGameState(gameId);
+          if ((gameAfterRR as any)?.pendingRouletteRussa) {
+            console.log(`🎲 ROULETTE RUSSA pending (human mosse-attack path): waiting for ${(gameAfterRR as any).pendingRouletteRussa.defenderName}'s choice`);
+            const rrState = gameManager.getSanitizedGameState(gameId);
+            emitThrottledGameState(io, gameId, rrState);
+            return;
+          }
+        }
+
         // NEW: If CPU attacked without defense, continue their turn
         const gameStateAfterAttack = gameManager.getGameState(gameId);
         if (gameStateAfterAttack && gameStateAfterAttack.players[attackerName]?.cpuInstance) {

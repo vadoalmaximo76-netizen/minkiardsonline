@@ -27107,8 +27107,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               choiceId: choiceId76,
               attackerName,
               defenderName: defenderName76,
-              targetCardId,
-              justSet: true
+              targetCardId
             };
             if (defSocketId76 && io) {
               io.to(defSocketId76).emit('show-choice-panel', {
@@ -27183,12 +27182,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // Combine star removal from both manual input and special effects
     const totalStarsToRemove = starsToRemove + additionalStarsToRemove;
     // ========== END MOSSE SPECIAL EFFECT HANDLING ==========
-
-    // ROULETTE RUSSA: if human defender panel is pending, return early — resolution via choice-panel-response
-    if (game && (game as any).pendingRouletteRussa?.justSet) {
-      delete (game as any).pendingRouletteRussa.justSet;
-      return { success: true, result: { roulettePending: true } };
-    }
 
     // GIANNI GIGANTI instakill: override forceInstantDeath to bypass ALL reducers (shield, halve, etc.)
     if (isGianniInstakill) {
