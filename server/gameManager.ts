@@ -379,7 +379,7 @@ interface GameState {
   weatherTurns?: number; // Turns remaining for weather
   terrainEffect?: string; // Current terrain effect
   counterSpellActive?: string; // Player with counter spell ready
-  ptiThresholds?: Array<{ threshold: number; dropTo: number; stars: number }>; // PTI cap rules
+  ptiThresholds?: Array<{ threshold: number; dropTo: number; stars: number; onlyLowBasePti?: boolean; triggeredCardIds?: string[] }>; // PTI cap rules
   delayedDeaths?: Array<{
     cardId: string;
     cardName: string;
@@ -4599,7 +4599,7 @@ Rispondi SOLO in JSON:`;
       const threshMatch = text.match(/(?:più\s+di|supera|ha\s+più\s+di)\s+(\d+)/i);
       const threshVal = threshMatch ? parseInt(threshMatch[1], 10) : 2000;
       const dropToMatch = text.match(/scende.*?a\s+(\d+)\s*pti/i) || text.match(/a\s+(\d+)\s*pti/i);
-      const dropToVal = dropToMatch ? parseInt(dropToMatch[1], 10) : 100;
+      const dropToVal = dropToMatch ? Math.max(1, parseInt(dropToMatch[1], 10)) : 100;
       actions.push({ type: 'pti_threshold', target: 'all', value: threshVal, description: `Se supera ${threshVal} PTI, scende a ${dropToVal} PTI e 1 stella` });
     }
 
@@ -11447,27 +11447,32 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       case 'pti_threshold': {
         const threshold = action.value || 2000;
         const dropMatch = action.description.match(/scende.*?(\d+)\s*pti/i);
-        const dropTo = dropMatch ? parseInt(dropMatch[1]) : 100;
+        const dropTo = Math.max(1, dropMatch ? parseInt(dropMatch[1]) : 100);
         if (!game.ptiThresholds) game.ptiThresholds = [];
-        game.ptiThresholds.push({ threshold, dropTo, stars: 1 });
+        const newThreshold = { threshold, dropTo, stars: 1, onlyLowBasePti: true, triggeredCardIds: [] as string[] };
+        game.ptiThresholds.push(newThreshold);
         for (const fieldCard of game.field) {
           if ((fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') && 
               fieldCard.pti != null && fieldCard.pti > threshold) {
+            const cardBasePti = (fieldCard as any).originalPti ?? fieldCard.pti;
+            if (cardBasePti >= threshold) continue;
+            if (newThreshold.triggeredCardIds.includes(fieldCard.id)) continue;
             const oldPti = fieldCard.pti;
             fieldCard.pti = dropTo;
             fieldCard.text = `PTI: ${dropTo} | Stelle: 1`;
             fieldCard.stars = 1;
             this.updateCardTextWithPTI(fieldCard);
+            newThreshold.triggeredCardIds.push(fieldCard.id);
             console.log(`📉 PTI THRESHOLD: ${fieldCard.name} exceeded ${threshold} PTI (${oldPti}), dropped to ${dropTo} PTI and 1 star!`);
           }
         }
-        console.log(`📉 PTI THRESHOLD SET: Characters exceeding ${threshold} PTI will drop to ${dropTo} PTI and 1 star`);
+        console.log(`📉 PTI THRESHOLD SET: Characters with base PTI < ${threshold} exceeding ${threshold} PTI will drop to ${dropTo} PTI and 1 star (once per character)`);
         const io = (global as any).io;
         if (io) {
           io.to(gameId).emit('chat-message', {
             id: `${Date.now()}-pti-threshold`,
             playerName: 'Sistema',
-            message: `📉 Limite PTI attivo! Se un personaggio supera ${threshold} PTI, scende a ${dropTo} PTI e 1 stella!`,
+            message: `📉 Limite PTI attivo! Se un personaggio (con PTI base < ${threshold}) supera ${threshold} PTI, scende a ${dropTo} PTI e 1 stella!`,
             timestamp: Date.now()
           });
         }
@@ -17941,21 +17946,26 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       case 'pti_threshold': {
         const threshold = action.value || 2000;
         const dropMatch = action.description?.match(/scende.*?(\d+)\s*pti/i);
-        const dropTo = dropMatch ? parseInt(dropMatch[1]) : 100;
+        const dropTo = Math.max(1, dropMatch ? parseInt(dropMatch[1]) : 100);
         if (!game.ptiThresholds) game.ptiThresholds = [];
-        game.ptiThresholds.push({ threshold, dropTo, stars: 1 });
+        const newThreshold2 = { threshold, dropTo, stars: 1, onlyLowBasePti: true, triggeredCardIds: [] as string[] };
+        game.ptiThresholds.push(newThreshold2);
         for (const fieldCard of game.field) {
           if ((fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
               fieldCard.pti != null && fieldCard.pti > threshold) {
+            const cardBasePti2 = (fieldCard as any).originalPti ?? fieldCard.pti;
+            if (cardBasePti2 >= threshold) continue;
+            if (newThreshold2.triggeredCardIds.includes(fieldCard.id)) continue;
             fieldCard.pti = dropTo;
             fieldCard.stars = 1;
             this.updateCardTextWithPTI(fieldCard);
+            newThreshold2.triggeredCardIds.push(fieldCard.id);
           }
         }
         io?.to?.(gameId)?.emit?.('chat-message', {
           id: `${Date.now()}-pti-threshold`,
           playerName: 'Sistema',
-          message: `📉 Limite PTI attivo! Se un personaggio supera ${threshold} PTI, scende a ${dropTo} PTI e 1 stella!`,
+          message: `📉 Limite PTI attivo! Se un personaggio (con PTI base < ${threshold}) supera ${threshold} PTI, scende a ${dropTo} PTI e 1 stella!`,
           timestamp: Date.now()
         });
         break;
@@ -20885,22 +20895,32 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   checkAndEnforcePtiThresholds(gameId: string): void {
     const game = this.games.get(gameId);
     if (!game || !game.ptiThresholds || game.ptiThresholds.length === 0) return;
+
+    for (const threshold of game.ptiThresholds) {
+      if (!threshold.triggeredCardIds) threshold.triggeredCardIds = [];
+      if (threshold.dropTo <= 0) threshold.dropTo = 100;
+    }
     
     for (const fieldCard of game.field) {
       if ((fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') && fieldCard.pti != null) {
         for (const threshold of game.ptiThresholds) {
+          if (threshold.triggeredCardIds!.includes(fieldCard.id)) continue;
+          const cardBasePti = (fieldCard as any).originalPti ?? fieldCard.pti;
+          if (threshold.onlyLowBasePti && cardBasePti >= threshold.threshold) continue;
           if (fieldCard.pti > threshold.threshold) {
             const oldPti = fieldCard.pti;
-            fieldCard.pti = threshold.dropTo;
+            const safeDropTo = Math.max(1, threshold.dropTo);
+            fieldCard.pti = safeDropTo;
             fieldCard.stars = threshold.stars;
-            fieldCard.text = `PTI: ${threshold.dropTo} | Stelle: ${threshold.stars}`;
-            console.log(`📉 PTI THRESHOLD ENFORCED: ${fieldCard.name} exceeded ${threshold.threshold} PTI (${oldPti}), dropped to ${threshold.dropTo} PTI and ${threshold.stars} star!`);
+            fieldCard.text = `PTI: ${safeDropTo} | Stelle: ${threshold.stars}`;
+            threshold.triggeredCardIds!.push(fieldCard.id);
+            console.log(`📉 PTI THRESHOLD ENFORCED: ${fieldCard.name} exceeded ${threshold.threshold} PTI (${oldPti}), dropped to ${safeDropTo} PTI and ${threshold.stars} star! (once only)`);
             const io = (global as any).io;
             if (io) {
               io.to(gameId).emit('chat-message', {
                 id: `${Date.now()}-pti-cap-${fieldCard.id}`,
                 playerName: 'Sistema',
-                message: `📉 ${fieldCard.name} ha superato ${threshold.threshold} PTI! Scende a ${threshold.dropTo} PTI e ${threshold.stars} stella!`,
+                message: `📉 ${fieldCard.name} ha superato ${threshold.threshold} PTI! Scende a ${safeDropTo} PTI e ${threshold.stars} stella!`,
                 timestamp: Date.now()
               });
             }
@@ -22287,22 +22307,31 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
         // Check PTI thresholds for all characters on field
         if (gameState.ptiThresholds && gameState.ptiThresholds.length > 0) {
+          for (const threshold of gameState.ptiThresholds) {
+            if (!threshold.triggeredCardIds) threshold.triggeredCardIds = [];
+            if (threshold.dropTo <= 0) threshold.dropTo = 100;
+          }
           for (const fieldCard of gameState.field) {
             if ((fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') && fieldCard.pti != null) {
               for (const threshold of gameState.ptiThresholds) {
+                if (threshold.triggeredCardIds!.includes(fieldCard.id)) continue;
+                const cardBasePtiEt = (fieldCard as any).originalPti ?? fieldCard.pti;
+                if (threshold.onlyLowBasePti && cardBasePtiEt >= threshold.threshold) continue;
                 if (fieldCard.pti > threshold.threshold) {
                   const oldPti = fieldCard.pti;
-                  fieldCard.pti = threshold.dropTo;
+                  const safeDropToEt = Math.max(1, threshold.dropTo);
+                  fieldCard.pti = safeDropToEt;
                   fieldCard.stars = threshold.stars;
-                  fieldCard.text = `PTI: ${threshold.dropTo} | Stelle: ${threshold.stars}`;
+                  fieldCard.text = `PTI: ${safeDropToEt} | Stelle: ${threshold.stars}`;
                   this.updateCardTextWithPTI(fieldCard);
-                  console.log(`📉 PTI THRESHOLD: ${fieldCard.name} exceeded ${threshold.threshold} PTI (${oldPti}), dropped to ${threshold.dropTo} PTI and ${threshold.stars} star!`);
+                  threshold.triggeredCardIds!.push(fieldCard.id);
+                  console.log(`📉 PTI THRESHOLD: ${fieldCard.name} exceeded ${threshold.threshold} PTI (${oldPti}), dropped to ${safeDropToEt} PTI and ${threshold.stars} star! (once only)`);
                   const threshIo = (global as any).io;
                   if (threshIo) {
                     threshIo.to(gameId).emit('chat-message', {
                       id: `${Date.now()}-pti-threshold-trigger`,
                       playerName: 'Sistema',
-                      message: `📉 ${fieldCard.name} ha superato ${threshold.threshold} PTI! Scende a ${threshold.dropTo} PTI e ${threshold.stars} stella!`,
+                      message: `📉 ${fieldCard.name} ha superato ${threshold.threshold} PTI! Scende a ${safeDropToEt} PTI e ${threshold.stars} stella!`,
                       timestamp: Date.now()
                     });
                   }
