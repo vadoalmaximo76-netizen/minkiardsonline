@@ -20605,10 +20605,41 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const gs = this.getSanitizedGameState(gameId);
       if (gs) io.to(gameId).emit('game-state-update', gs);
     };
-    const advanceTurn = async (playerName: string) => {
+
+    // Safety timeout: if CPU action takes more than 12s, force end turn
+    let safetyFired = false;
+    const safetyTimer = setTimeout(async () => {
+      safetyFired = true;
+      const currentGame = this.games.get(gameId);
+      if (!currentGame) return;
+      const currentPlayer = currentGame.turnOrder[currentGame.currentTurnIndex];
+      if (currentPlayer === cpuName) {
+        console.warn(`⏰ CPU ${cpuName} action safety timeout (12s) in ${gameId} - forcing end turn`);
+        io.to(gameId).emit('cpu-done-thinking', { playerName: cpuName });
+        const next = this.endTurn(gameId, cpuName);
+        if (next) {
+          io.to(gameId).emit('next-turn', { nextPlayer: next });
+          emitState();
+          const freshGame = this.games.get(gameId);
+          if (freshGame?.players[next]?.isCPU) {
+            await new Promise(r => setTimeout(r, 1500));
+            const nextAction = await this.processCPUTurn(gameId, next, io);
+            if (nextAction) await this.applyCPUAction(gameId, next, nextAction, io);
+          } else {
+            this.startTurnTimer(gameId, next);
+          }
+        } else {
+          emitState();
+        }
+      }
+    }, 12000);
+
+    // Helper: safely force-end CPU turn and proceed (used both in advanceTurn and error recovery)
+    const forceEndAndProceed = async (playerName: string) => {
+      io.to(gameId).emit('cpu-done-thinking', { playerName: cpuName });
+      emitState();
       const next = this.endTurn(gameId, playerName);
       if (next) {
-        io.to(gameId).emit('cpu-done-thinking', { playerName: cpuName });
         io.to(gameId).emit('next-turn', { nextPlayer: next });
         emitState();
         const freshGame = this.games.get(gameId);
@@ -20626,9 +20657,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             });
           }
         }
+      } else {
+        console.warn(`⚠️ applyCPUAction: endTurn returned null for ${playerName} in ${gameId} - game may be over or stuck`);
+        emitState();
       }
     };
 
+    const advanceTurn = forceEndAndProceed;
+
+    try {
     switch (action.type) {
       case 'pick-opening-cards': {
         // Pick all 3 initial cards (personaggi, mosse, bonus) atomically
@@ -20684,6 +20721,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       default:
         break;
+    }
+    clearTimeout(safetyTimer);
+    } catch (err) {
+      clearTimeout(safetyTimer);
+      if (!safetyFired) {
+        console.error(`❌ applyCPUAction: unexpected error for CPU ${cpuName} in ${gameId}:`, err);
+        try {
+          await forceEndAndProceed(cpuName);
+        } catch (e2) {
+          console.error(`❌ applyCPUAction: even forceEndAndProceed failed for ${cpuName}:`, e2);
+          io.to(gameId).emit('cpu-done-thinking', { playerName: cpuName });
+          emitState();
+        }
+      }
     }
   }
 
