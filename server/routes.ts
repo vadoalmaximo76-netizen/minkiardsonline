@@ -5437,6 +5437,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } catch (err) { console.error('Error emitting CPU attack audio:', err); }
 
+      // ROULETTE RUSSA (human defender): panel shown — bypass all defense/damage flow
+      if (attackResult.result?.roulettePending) {
+        console.log(`🎲 ROULETTE RUSSA pending (CPU attack): waiting for human defender's choice`);
+        const updatedStateRRCPU = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', updatedStateRRCPU);
+        return;
+      }
+
+      // ROULETTE RUSSA (CPU defender): already resolved — emit state and continue turn
+      if (attackResult.result?.rouletteCPUResolved) {
+        console.log(`🎲 ROULETTE RUSSA (CPU defender resolved) for CPU ${cpuName}`);
+        const updatedStateRRCPUD = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', updatedStateRRCPUD);
+        // Continue CPU turn
+        const gameRRC = gameManager.getGameState(gameId);
+        if (gameRRC && gameRRC.players[cpuName]?.cpuInstance) {
+          gameRRC.players[cpuName].cpuInstance.resolveAttack();
+          setTimeout(async () => {
+            try {
+              const updS = gameManager.getSanitizedGameState(gameId);
+              const nxtA = await gameRRC.players[cpuName].cpuInstance.takeTurn(updS);
+              if (nxtA) await gameManager.processCPUTurn(gameId, cpuName, io);
+            } catch (e) { console.error(`Error continuing CPU ${cpuName} turn after roulette:`, e); }
+          }, 100);
+        }
+        return;
+      }
+
       // NEW: Use defense system like all other attacks
       if (attackResult.result?.requiresDefenseResponse) {
         console.log(`🛡️ CPU attack requires defense - emitting defense:request to ${targetOwner}`);
@@ -5464,16 +5492,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If no defense required, process damage immediately
       await gameManager.processMosseDamage(gameId, cpuName, targetCardId, damageValue, mosseCardId, io, false, false, false, false, starsToRemove || 0);
 
-      // ROULETTE RUSSA: if human defender panel was just shown, pause CPU turn — choice-panel-response will resolve it
-      {
-        const gameAfterCPURR = gameManager.getGameState(gameId);
-        if ((gameAfterCPURR as any)?.pendingRouletteRussa) {
-          console.log(`🎲 ROULETTE RUSSA pending (CPU attack path): waiting for ${(gameAfterCPURR as any).pendingRouletteRussa.defenderName}'s choice`);
-          const rrStateCPU = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', rrStateCPU);
-          return;
-        }
-      }
 
       // NEW: Notify CPU that attack is resolved and immediately continue their turn
       const game = gameManager.getGameState(gameId);
@@ -6509,6 +6527,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
 
+        // ROULETTE RUSSA (human): panel shown to defender — bypass defense dialog, wait for choice-panel-response
+        if (attackResult.result?.roulettePending) {
+          console.log(`🎲 ROULETTE RUSSA pending: waiting for defender's number choice`);
+          const updatedStateRR = gameManager.getSanitizedGameState(gameId);
+          emitThrottledGameState(io, gameId, updatedStateRR);
+          return;
+        }
+
+        // ROULETTE RUSSA (CPU): already resolved in executeMossaAttack — just emit state
+        if (attackResult.result?.rouletteCPUResolved) {
+          console.log(`🎲 ROULETTE RUSSA (CPU): attack resolved`);
+          const updatedStateRRC = gameManager.getSanitizedGameState(gameId);
+          emitThrottledGameState(io, gameId, updatedStateRRC);
+          return;
+        }
+
         // OSTAGGIO HANDLING: If this is an OSTAGGIO attack, apply hostage effect
         if (attackResult.result?.isOstaggioAttack) {
           console.log(`⛓️ OSTAGGIO attack detected - applying hostage effect to ${targetCardId}`);
@@ -6580,16 +6614,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // If no defense required, process damage immediately
         await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io, false, isHandTarget || false, isFurtoAttack || false, false, starsToRemove || 0, mosseEffect);
 
-        // ROULETTE RUSSA: if human defender panel was just shown, pause here — choice-panel-response will resolve it
-        {
-          const gameAfterRR = gameManager.getGameState(gameId);
-          if ((gameAfterRR as any)?.pendingRouletteRussa) {
-            console.log(`🎲 ROULETTE RUSSA pending (human mosse-attack path): waiting for ${(gameAfterRR as any).pendingRouletteRussa.defenderName}'s choice`);
-            const rrState = gameManager.getSanitizedGameState(gameId);
-            emitThrottledGameState(io, gameId, rrState);
-            return;
-          }
-        }
 
         // NEW: If CPU attacked without defense, continue their turn
         const gameStateAfterAttack = gameManager.getGameState(gameId);

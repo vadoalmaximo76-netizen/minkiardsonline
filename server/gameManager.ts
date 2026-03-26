@@ -12412,6 +12412,89 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
+    // ROULETTE RUSSA (gamble_death): intercept before defense dialog — defender picks 1-6; die decides death
+    if (!isHandTarget && !isDuelAttack && mosseEffect === 'gamble_death') {
+      const isDefenderCPU76 = this.isPlayerCPU(gameId, targetOwnerName);
+      const io76 = (global as any).io;
+
+      // Track card usage and return MOSSE to deck
+      if (!attacker.usedCardsThisTurn) attacker.usedCardsThisTurn = [];
+      attacker.usedCardsThisTurn.push(mosseCard.frontImage);
+      this.returnToDeck(gameId, mosseCardId, attackerName);
+
+      if (isDefenderCPU76) {
+        // CPU defender: auto-pick random number, roll, resolve immediately
+        const cpuGuess76 = Math.floor(Math.random() * 6) + 1;
+        const diceRoll76 = Math.floor(Math.random() * 6) + 1;
+        if (io76) io76.to(gameId).emit('dice-rolled', { result: diceRoll76, playerName: targetOwnerName });
+        const saved76 = diceRoll76 === cpuGuess76;
+        if (io76) io76.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-roulette-cpu`,
+          playerName: 'Sistema',
+          message: saved76
+            ? `🎲 ROULETTE RUSSA: ${targetOwnerName} ha scelto ${cpuGuess76}. Dado: ${diceRoll76}. ✅ SALVATO! Il personaggio sopravvive!`
+            : `🎲 ROULETTE RUSSA: ${targetOwnerName} ha scelto ${cpuGuess76}. Dado: ${diceRoll76}. 💀 ELIMINATO!`,
+          timestamp: Date.now()
+        });
+        if (!saved76) {
+          const defChar76 = game.field.find((c: Card) =>
+            c.owner === targetOwnerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          if (defChar76) {
+            defChar76.pti = 0;
+            this.updateCardTextWithPTI(defChar76);
+            const stateRR76 = this.getSanitizedGameState(gameId);
+            if (io76) io76.to(gameId).emit('game-state-update', stateRR76);
+            const deathRR76 = this.moveToGraveyard(gameId, defChar76.id, targetOwnerName, attackerName);
+            if (deathRR76.eliminationCheck) {
+              this.processEliminationAfterDeath(gameId, targetOwnerName, io76, 'ROULETTE_RUSSA');
+            }
+          }
+        }
+        const finalRR76 = this.getSanitizedGameState(gameId);
+        if (io76) io76.to(gameId).emit('game-state-update', finalRR76);
+        console.log(`🎲 ROULETTE_RUSSA (CPU): defender=${targetOwnerName} guess=${cpuGuess76} roll=${diceRoll76} saved=${saved76}`);
+        return { success: true, result: { rouletteCPUResolved: true } };
+      } else {
+        // Human defender: show number-picker panel, wait for choice-panel-response
+        const defPlayerData76 = game.players[targetOwnerName] as any;
+        const defSocketId76 = defPlayerData76?.socketId;
+        const choiceId76 = `roulette-${Date.now()}`;
+        (game as any).pendingRouletteRussa = {
+          choiceId: choiceId76,
+          attackerName,
+          defenderName: targetOwnerName,
+          targetCardId
+        };
+        if (defSocketId76 && io76) {
+          io76.to(defSocketId76).emit('show-choice-panel', {
+            choiceId: choiceId76,
+            title: '🎲 ROULETTE RUSSA',
+            question: 'Scegli un numero da 1 a 6. Se il dado esce quel numero, il tuo personaggio si salva!',
+            options: [
+              { value: '1', label: '1', description: '' },
+              { value: '2', label: '2', description: '' },
+              { value: '3', label: '3', description: '' },
+              { value: '4', label: '4', description: '' },
+              { value: '5', label: '5', description: '' },
+              { value: '6', label: '6', description: '' },
+            ],
+            playerName: targetOwnerName,
+            cardName: 'ROULETTE RUSSA',
+            timestamp: Date.now()
+          });
+        }
+        if (io76) io76.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-roulette-panel`,
+          playerName: 'Sistema',
+          message: `🎲 ROULETTE RUSSA! ${targetOwnerName} deve scegliere un numero da 1 a 6!`,
+          timestamp: Date.now()
+        });
+        console.log(`🎲 ROULETTE_RUSSA (human): waiting for ${targetOwnerName} to pick number (choiceId: ${choiceId76})`);
+        return { success: true, result: { roulettePending: true } };
+      }
+    }
+
     // CORRUZIONE peace check: prevent attacks when peace restriction is active
     if ((game as any).peaceRestrictions) {
       const peaceList = (game as any).peaceRestrictions as Array<{protectedPlayer: string; restrictedPlayer: string; turnsRemaining: number}>;
@@ -27067,74 +27150,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
 
         case 'gamble_death': {
-          // mosse-76 (Roulette Russa): defender picks 1-6; if die matches → saved, else dies instantly
-          if (!game) break;
+          // mosse-76 (Roulette Russa): fully handled upstream in executeMossaAttack — this is a no-op fallback
           effectiveDamage = 0;
-          const defenderName76 = targetCard.owner;
-          const choiceId76 = `roulette-${Date.now()}`;
-          const isDefenderCPU76 = this.isPlayerCPU(gameId, defenderName76);
-
-          if (isDefenderCPU76) {
-            // CPU auto-picks a random number and resolves immediately
-            const cpuGuess76 = Math.floor(Math.random() * 6) + 1;
-            const diceRoll76 = Math.floor(Math.random() * 6) + 1;
-            io.to(gameId).emit('dice-rolled', { result: diceRoll76, playerName: defenderName76 });
-            const saved76 = diceRoll76 === cpuGuess76;
-            if (saved76) {
-              effectMessage = `🎲 ROULETTE RUSSA: ${defenderName76} ha scelto ${cpuGuess76}. Dado: ${diceRoll76}. ✅ SALVATO! Il personaggio sopravvive!`;
-            } else {
-              const defChar76 = game.field.find((c: Card) =>
-                c.owner === defenderName76 && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-              );
-              effectMessage = `🎲 ROULETTE RUSSA: ${defenderName76} ha scelto ${cpuGuess76}. Dado: ${diceRoll76}. 💀 ELIMINATO!`;
-              if (defChar76) {
-                defChar76.pti = 0;
-                this.updateCardTextWithPTI(defChar76);
-                const defState76 = this.getSanitizedGameState(gameId);
-                io.to(gameId).emit('game-state-update', defState76);
-                const defDeath76 = this.moveToGraveyard(gameId, defChar76.id, defenderName76, attackerName);
-                if (defDeath76.eliminationCheck) {
-                  this.processEliminationAfterDeath(gameId, defenderName76, io, 'ROULETTE_RUSSA');
-                }
-              }
-            }
-            console.log(`🎲 ROULETTE_RUSSA (CPU): defender=${defenderName76} guess=${cpuGuess76} roll=${diceRoll76} saved=${saved76}`);
-          } else {
-            // Human defender: show number-picker panel, wait for choice-panel-response
-            const defPlayerData76 = game.players[defenderName76] as any;
-            const defSocketId76 = defPlayerData76?.socketId;
-            (game as any).pendingRouletteRussa = {
-              choiceId: choiceId76,
-              attackerName,
-              defenderName: defenderName76,
-              targetCardId
-            };
-            if (defSocketId76 && io) {
-              io.to(defSocketId76).emit('show-choice-panel', {
-                choiceId: choiceId76,
-                title: '🎲 ROULETTE RUSSA',
-                question: 'Scegli un numero da 1 a 6. Se il dado esce quel numero, il tuo personaggio si salva!',
-                options: [
-                  { value: '1', label: '1', description: '' },
-                  { value: '2', label: '2', description: '' },
-                  { value: '3', label: '3', description: '' },
-                  { value: '4', label: '4', description: '' },
-                  { value: '5', label: '5', description: '' },
-                  { value: '6', label: '6', description: '' },
-                ],
-                playerName: defenderName76,
-                cardName: 'ROULETTE RUSSA',
-                timestamp: Date.now()
-              });
-            }
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-roulette-panel`,
-              playerName: 'Sistema',
-              message: `🎲 ROULETTE RUSSA! ${defenderName76} deve scegliere un numero da 1 a 6!`,
-              timestamp: Date.now()
-            });
-            console.log(`🎲 ROULETTE_RUSSA (human): waiting for ${defenderName76} to pick number (choiceId: ${choiceId76})`);
-          }
+          console.log(`🎲 ROULETTE_RUSSA: gamble_death reached processMosseDamage (should not happen — handled in executeMossaAttack)`);
           break;
         }
 
