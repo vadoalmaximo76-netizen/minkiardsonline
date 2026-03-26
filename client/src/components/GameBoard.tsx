@@ -288,6 +288,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [deathEffectKey, setDeathEffectKey] = useState(0);
   const [choosingNotification, setChoosingNotification] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
   const [blockTypeSelection, setBlockTypeSelection] = useState<{ visible: boolean; options: string[]; turns: number } | null>(null);
+  const [bobDylanPanel, setBobDylanPanel] = useState<{ visible: boolean; choiceId: string; title: string; question: string; options: Array<{value: string; label: string; description: string}> } | null>(null);
   const [daddyConteDialog, setDaddyConteDialog] = useState<{ visible: boolean; characters: Array<{id: string; name: string; frontImage: string; owner: string}> } | null>(null);
   const [fabrizioDialog, setFabrizioDialog] = useState<{ visible: boolean; characterName: string; characterId: string; currentPti: number } | null>(null);
   const [camilloDialog, setCamilloDialog] = useState<{ visible: boolean; halfPTI: number; opponents: Array<{playerName: string; charId?: string; charName: string; charImage: string}> } | null>(null);
@@ -1174,6 +1175,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       }
     };
     socket.on('block-card-type-select', handleBlockCardTypeSelect);
+
+    const handleShowChoicePanel = (data: { choiceId: string; title: string; question: string; options: Array<{value: string; label: string; description: string}> }) => {
+      setBobDylanPanel({ visible: true, choiceId: data.choiceId, title: data.title, question: data.question, options: data.options });
+    };
+    socket.on('show-choice-panel', handleShowChoicePanel);
 
     const handleDaddyConteChoice = (data: { characters: Array<{id: string; name: string; frontImage: string; owner: string}> }) => {
       setDaddyConteDialog({ visible: true, characters: data.characters });
@@ -2220,6 +2226,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('control-turn-set', handleControlTurnSet);
       socket.off('comic-banner', handleComicBanner);
       socket.off('block-card-type-select', handleBlockCardTypeSelect);
+      socket.off('show-choice-panel', handleShowChoicePanel);
       socket.off('daddy-conte-choice', handleDaddyConteChoice);
       socket.off('fabrizio-choice', handleFabrizioChoice);
       socket.off('camillo-kill-choice', handleCamilloKillChoice);
@@ -4934,6 +4941,33 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                     className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-all duration-200 hover:scale-105 border border-blue-400/30"
                   >
                     {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {bobDylanPanel?.visible && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80">
+            <div className="bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl p-6 shadow-2xl border border-red-700/60 max-w-sm w-full mx-4">
+              <div className="text-center mb-5">
+                <span className="text-5xl">😈</span>
+                <h3 className="text-red-400 text-xl font-bold mt-2 uppercase tracking-widest">{bobDylanPanel.title}</h3>
+                <p className="text-gray-200 text-sm mt-2">{bobDylanPanel.question}</p>
+              </div>
+              <div className="flex flex-col gap-3">
+                {bobDylanPanel.options.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => {
+                      socket.emit('choice-panel-response', { choiceId: bobDylanPanel.choiceId, value: opt.value, gameId });
+                      setBobDylanPanel(null);
+                    }}
+                    className={`py-3 px-4 rounded-lg font-bold text-sm transition-all border ${opt.value === 'SI' ? 'bg-red-900/80 hover:bg-red-800 border-red-600 text-red-200' : 'bg-gray-800 hover:bg-gray-700 border-gray-600 text-gray-200'}`}
+                  >
+                    <div className="font-bold">{opt.label}</div>
+                    {opt.description && <div className="text-xs opacity-70 mt-1 font-normal">{opt.description}</div>}
                   </button>
                 ))}
               </div>

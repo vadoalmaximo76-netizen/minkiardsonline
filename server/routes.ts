@@ -4223,6 +4223,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // BOB DYLAN (bonus-69): Player responds to the "Patto con quello di giù?" choice panel
+    socket.on('choice-panel-response', async ({ choiceId, value, gameId: gId }: { choiceId: string; value: string; gameId: string }) => {
+      const gameId = gId || gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = (gameManager as any).games?.get(gameId);
+      if (!game) return;
+      const socketPlayerName = gameManager.getPlayerNameFromSocket(socket.id);
+      if (!socketPlayerName) return;
+      
+      const pending = (game as any).pendingBobDylanChoice;
+      if (!pending || pending.choiceId !== choiceId || pending.playerName !== socketPlayerName) {
+        console.log(`⚠️ choice-panel-response: no matching pending choice for ${socketPlayerName} (choiceId: ${choiceId})`);
+        return;
+      }
+      
+      (game as any).pendingBobDylanChoice = undefined;
+      
+      if (value === 'SI') {
+        const activeChar = (gameManager as any).getPlayerActiveCharacter(game, socketPlayerName);
+        if (activeChar) {
+          activeChar.stars = 0;
+          activeChar.pti = (activeChar.pti || 0) + 10000;
+          (gameManager as any).updateCardTextWithPTI(activeChar);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-bob-dylan-si`,
+            playerName: 'Sistema',
+            message: `😈 ${socketPlayerName} ha fatto il PATTO CON QUELLO DI GIÙ! ${activeChar.name || 'Il personaggio'} va a 0 stelle ma guadagna +10000 PTI!`,
+            timestamp: Date.now()
+          });
+        }
+      } else {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-bob-dylan-no`,
+          playerName: 'Sistema',
+          message: `🎸 ${socketPlayerName} ha rifiutato il patto con quello di giù. Resta tutto invariato.`,
+          timestamp: Date.now()
+        });
+      }
+      
+      const updatedState = gameManager.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', updatedState);
+      console.log(`🎸 BOB DYLAN choice-panel-response: ${socketPlayerName} chose ${value}`);
+    });
+
     // TASK-24: CAMILLO kill PTI gift choice
     socket.on('camillo-kill-target-chosen', ({ gameId: gId, targetPlayer }: { gameId: string; targetPlayer: string }) => {
       const gameId = gId || gameManager.getPlayerGameId(socket.id);

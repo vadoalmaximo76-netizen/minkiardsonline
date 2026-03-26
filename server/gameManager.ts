@@ -3868,17 +3868,27 @@ Rispondi SOLO in JSON:`;
             const cachedData = getPersonaggioFromCache(cardNameForCheck);
             const cardPti = cachedData?.pti || card.pti || 1000;
             
-            if (cardPti < restriction.threshold) {
+            // DITTATURA HITLER exception: if the player who played DITTATURA has HITLER as active character, threshold is 200
+            let effectiveThreshold = restriction.threshold;
+            if (restriction.imposedBy) {
+              const dittatoraActiveChar = this.getPlayerActiveCharacter(game, restriction.imposedBy);
+              const dittatoraCharName = (dittatoraActiveChar?.name || this.getCardNameFromUrl(dittatoraActiveChar?.frontImage || '')).toUpperCase();
+              if (dittatoraCharName.includes('HITLER')) {
+                effectiveThreshold = 200;
+              }
+            }
+            
+            if (cardPti < effectiveThreshold) {
               const io = (global as any).io;
               if (io) {
                 io.to(gameId).emit('chat-message', {
                   id: `${Date.now()}-dittatura-block`,
                   playerName: 'Sistema',
-                  message: `👑 DITTATURA: ${cardNameForCheck} non può essere giocato perché ha solo ${cardPti} PTI (minimo ${restriction.threshold})!`,
+                  message: `👑 DITTATURA: ${cardNameForCheck} non può essere giocato perché ha solo ${cardPti} PTI (minimo ${effectiveThreshold})!`,
                   timestamp: Date.now()
                 });
               }
-              console.log(`👑 DITTATURA BLOCKED: ${cardNameForCheck} (${cardPti} PTI) below threshold (${restriction.threshold})`);
+              console.log(`👑 DITTATURA BLOCKED: ${cardNameForCheck} (${cardPti} PTI) below threshold (${effectiveThreshold})`);
               return {};
             }
           }
@@ -4298,12 +4308,12 @@ Rispondi SOLO in JSON:`;
           'corruzione': "Ruba 100 PTI da un personaggio avversario e li aggiunge al tuo [BERSAGLIO: scelta]",
           'nirdosh': "Avvelena un personaggio avversario: perde 50 PTI per turno per 3 turni [BERSAGLIO: scelta]",
           'munnezza': "Infligge 100 PTI di danno a un personaggio avversario [BERSAGLIO: scelta]",
-          'gasata': "Aumenta i PTI del tuo personaggio di 150 [BERSAGLIO: scelta]",
+          'gasata': "Scegli un personaggio avversario tramite pannello: sia il tuo personaggio che il suo guadagnano +500 PTI [BERSAGLIO: scelta]",
           'sbirciata': "Guarda le carte in mano di un avversario",
           'inverti giro': "Inverte l'ordine dei turni",
           'slot machine': "Scommessa: 50% possibilità di guadagnare o perdere 200 PTI [BERSAGLIO: scelta] [DADO: Se indovina: Successo; Se sbaglia: Fallimento]",
           'replay': "Ripeti il tuo turno: puoi giocare un'altra carta",
-          'folata di venta': "Infligge 100 PTI di danno a tutti i personaggi avversari",
+          'folata di venta': "Respinta: il danno viene spostato su un altro avversario tramite dado (pari = giocatore turno successivo, dispari = giocatore turno precedente)",
           'macchina del tempo': "Viaggio nel Tempo: riporta il gioco a 2 turni fa",
           'disinnesca bomba': "Rimuovi tutte le bombe attive dal campo di gioco",
           'cimitero vuoto': "Riporta in mano una carta dal cimitero a scelta",
@@ -6082,6 +6092,74 @@ Rispondi SOLO in JSON:`;
       return {};
     }
     
+    // ============ BOB DYLAN / IL SORRISO AMARO DI BOB DYLAN (bonus-69) ============
+    // "DA UN PANNELLO A COMPARSA, SCEGLI: 'VUOI FARE IL PATTO CON QUELLO DI GIÙ?'"
+    if (/pannello a comparsa.*scegli.*patto.*giu|patto con quello di gi[uù]/i.test(card.effect)) {
+      const ioBD = (global as any).io;
+      const isCPU = this.isPlayerCPU(gameId, playerName);
+      const activeChar = this.getPlayerActiveCharacter(game, playerName);
+      
+      if (isCPU) {
+        const cpuChoice = Math.random() < 0.5 ? 'SI' : 'NO';
+        if (cpuChoice === 'SI' && activeChar) {
+          activeChar.stars = 0;
+          activeChar.pti = (activeChar.pti || 0) + 10000;
+          this.updateCardTextWithPTI(activeChar);
+          if (ioBD) {
+            ioBD.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-bob-dylan-si`,
+              playerName: 'Sistema',
+              message: `😈 ${playerName} ha fatto il PATTO CON QUELLO DI GIÙ! ${activeChar.name || 'Il personaggio'} va a 0 stelle ma guadagna +10000 PTI!`,
+              timestamp: Date.now()
+            });
+          }
+        } else {
+          if (ioBD) {
+            ioBD.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-bob-dylan-no`,
+              playerName: 'Sistema',
+              message: `🎸 ${playerName} ha rifiutato il patto con quello di giù. Resta tutto invariato.`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        if (ioBD) {
+          const gsUpdate = this.getSanitizedGameState(gameId);
+          ioBD.to(gameId).emit('game-state-update', gsUpdate);
+        }
+        return {};
+      }
+      
+      const playerData = game.players[playerName] as any;
+      const socketId = playerData?.socketId;
+      
+      if (ioBD && socketId) {
+        const choiceId = `bob-dylan-${Date.now()}`;
+        (game as any).pendingBobDylanChoice = { choiceId, playerName, cardId: card.id };
+        
+        ioBD.to(socketId).emit('show-choice-panel', {
+          choiceId,
+          title: 'IL PATTO CON QUELLO DI GIÙ',
+          question: 'Vuoi fare il patto con quello di giù?',
+          options: [
+            { value: 'SI', label: 'SÌ - 0 stelle ma +10000 PTI', description: 'Il tuo personaggio perde tutte le stelle ma guadagna 10000 PTI' },
+            { value: 'NO', label: 'NO - Resta tutto invariato', description: 'Nessun effetto' }
+          ],
+          playerName,
+          cardName: card.name || 'IL SORRISO AMARO DI BOB DYLAN',
+          timestamp: Date.now()
+        });
+        
+        ioBD.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-bob-dylan-panel`,
+          playerName: 'Sistema',
+          message: `🎸 ${playerName} sta considerando il patto con quello di giù...`,
+          timestamp: Date.now()
+        });
+      }
+      return {};
+    }
+
     // ============ FUSION + CLONE PATTERN ============
     // Detect complex fusion-clone effects: choose opponent character, fuse, add PTI, clone to both
     const effectLower = card.effect.toLowerCase();
@@ -6206,6 +6284,53 @@ Rispondi SOLO in JSON:`;
         timestamp: Date.now()
       });
       
+      // ---- GASATA-SPECIFIC HANDLING ----
+      // GASATA must only allow selecting opponent characters; +500 PTI to both sides
+      const isGasata = /sia il tuo personaggio che il suo guadagnano\s*\+?500 pti/i.test(card.effect) ||
+                       /guadagnano.*\+?500 pti.*bersaglio/i.test(card.effect);
+      if (isGasata) {
+        const enemyOnlyChars = allFieldChars.filter((c: Card) => c.owner !== playerName);
+        if (enemyOnlyChars.length === 0) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-gasata-no-enemy`,
+            playerName: 'Sistema',
+            message: `🥂 GASATA: nessun personaggio avversario in campo!`,
+            timestamp: Date.now()
+          });
+          game.pendingTargetSelections.delete(selectionId);
+          return {};
+        }
+        if (this.isPlayerCPU(gameId, playerName)) {
+          // CPU picks enemy with highest PTI
+          const bestEnemy = enemyOnlyChars.reduce((best: Card, c: Card) =>
+            (c.pti || 0) > (best.pti || 0) ? c : best, enemyOnlyChars[0]);
+          console.log(`🤖 GASATA CPU ${playerName} picking enemy with most PTI: ${bestEnemy.name || bestEnemy.id}`);
+          setTimeout(async () => {
+            await this.processTargetSelection(gameId, selectionId, [bestEnemy.id], playerName, io);
+          }, 500);
+          return {};
+        }
+        // Human: show only opponent characters
+        io.to(gameId).emit('show-custom-target-selection', {
+          selectionId,
+          cardId: card.id,
+          cardName,
+          owner: playerName,
+          maxSelections: 1,
+          title: '🥂 GASATA — Scegli Personaggio Avversario',
+          subtitle: 'Sia il tuo personaggio che quello scelto guadagnano +500 PTI',
+          availableTargets: enemyOnlyChars.map((c: Card) => ({
+            id: c.id,
+            name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+            owner: c.owner,
+            frontImage: c.frontImage || '',
+            pti: c.pti,
+            stars: c.stars
+          }))
+        });
+        return {};
+      }
+
       // CPU AUTONOMOUS HANDLING: If the player is CPU, auto-select targets immediately
       if (this.isPlayerCPU(gameId, playerName)) {
         console.log(`🤖 CPU ${playerName} auto-selecting targets for BERSAGLIO effect`);
@@ -8567,12 +8692,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       case 'dittatura': {
         // DITTATURA: Block playing characters below PTI threshold
-        const ptiThreshold = action.value || 100;
+        let ptiThreshold = action.value || 100;
         const durationTurns = 5; // Default 5 turns
         
         // Extract turns from description if available
         const turnsMatch = action.description?.match(/(\d+)\s*turni/i);
         const turns = turnsMatch ? parseInt(turnsMatch[1]) : durationTurns;
+        
+        // DITTATURA HITLER exception: if HITLER is the active character, threshold is 200
+        const dittActiveChar = this.getPlayerActiveCharacter(game, playerName);
+        const dittActiveCharName = (dittActiveChar?.name || this.getCardNameFromUrl(dittActiveChar?.frontImage || '')).toUpperCase();
+        if (dittActiveCharName.includes('HITLER')) {
+          ptiThreshold = 200;
+        }
         
         if (!(game as any).cardPlayRestrictions) (game as any).cardPlayRestrictions = [];
         (game as any).cardPlayRestrictions.push({
@@ -8583,14 +8715,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           timestamp: Date.now()
         });
         
-        console.log(`👑 DITTATURA: Characters with less than ${ptiThreshold} PTI cannot be played for ${turns} turns`);
+        console.log(`👑 DITTATURA: Characters with less than ${ptiThreshold} PTI cannot be played for ${turns} turns${dittActiveCharName.includes('HITLER') ? ' (HITLER eccezione: soglia 200)' : ''}`);
         
         const io = (global as any).io;
         if (io) {
           io.to(gameId).emit('chat-message', {
             id: `${Date.now()}-dittatura`,
             playerName: 'Sistema',
-            message: `👑 DITTATURA! I personaggi con meno di ${ptiThreshold} PTI non possono essere giocati per ${turns} turni!`,
+            message: `👑 DITTATURA! I personaggi con meno di ${ptiThreshold} PTI non possono essere giocati per ${turns} turni!${dittActiveCharName.includes('HITLER') ? ' (HITLER al potere: soglia 200 PTI!)' : ''}`,
             timestamp: Date.now()
           });
           io.to(gameId).emit('dittatura-active', {
@@ -15821,22 +15953,25 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const preMortemPTI = cardBeforeKill ? (cardBeforeKill.pti ?? this.extractPTIFromNote(cardBeforeKill.text || '')) : 0;
     const result = this.moveToGraveyard(gameId, cardId, owner, attacker);
     if (result.success) {
-      // KILL TRIGGER BLOCK: if a bonus-66 effect is active, block the killer for N turns
+      // KILL TRIGGER BLOCK: if a bonus-66 effect is active, block the killer for N turns (only ONCE per activation)
       const game = this.games.get(gameId);
       if (game) {
-        const ktb = (game as any).killTriggerBlock as { blockTurns: number; playedBy: string } | undefined;
-        if (ktb && attacker && attacker !== 'SELF_DAMAGE' && attacker !== 'EFFETTO_CASUALE') {
+        const ktb = (game as any).killTriggerBlock as { blockTurns: number; playedBy: string; used?: boolean } | undefined;
+        if (ktb && !ktb.used && attacker && attacker !== 'SELF_DAMAGE' && attacker !== 'EFFETTO_CASUALE') {
           if (!game.skipTurnPlayers) game.skipTurnPlayers = [];
           for (let i = 0; i < ktb.blockTurns; i++) game.skipTurnPlayers.push(attacker);
-          console.log(`⚔️🚫 kill_trigger_block: ${attacker} ha ucciso → bloccato per ${ktb.blockTurns} turni`);
+          ktb.used = true; // Mark as used so it only fires once
+          console.log(`⚔️🚫 kill_trigger_block: ${attacker} ha ucciso → bloccato per ${ktb.blockTurns} turni (effetto esaurito)`);
           const ioKtb = (global as any).io;
           if (ioKtb) {
             ioKtb.to(gameId).emit('chat-message', {
               id: `${Date.now()}-ktb-kill`, playerName: 'Sistema',
-              message: `⚔️🚫 ${attacker} ha ucciso un personaggio e viene bloccato per ${ktb.blockTurns} turni!`,
+              message: `⚔️🚫 ${attacker} ha ucciso un personaggio e viene bloccato per ${ktb.blockTurns} turni! (HO STATO IO - effetto esaurito)`,
               timestamp: Date.now()
             });
           }
+          // Disable the effect after first kill
+          (game as any).killTriggerBlock = undefined;
         }
       }
       // EMIS KILLA: gains +1 star on kill — only when EMIS KILLA is the active attacking character
@@ -17801,6 +17936,38 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       game.pendingTargetSelections.delete(selectionId);
       return { success: true, message: `Dado pronto per ${targetNames}` };
+    }
+
+    // ============ GASATA HANDLER (bonus-63): +500 PTI to BOTH self and selected target ============
+    if (/sia il tuo personaggio che il suo guadagnano\s*\+?500 pti/i.test(selection.effectText) ||
+        /entrambi.*guadagnano.*\+?500 pti/i.test(selection.effectText) ||
+        /guadagnano.*\+?500 pti.*bersaglio/i.test(selection.effectText)) {
+      const gasataTarget = targetCards[0];
+      if (gasataTarget) {
+        const myChar = this.getPlayerActiveCharacter(game, playerName);
+        const gasataTargetName = gasataTarget.name || this.getCardNameFromUrl(gasataTarget.frontImage || '');
+        const myCharName = myChar ? (myChar.name || this.getCardNameFromUrl(myChar.frontImage || '')) : playerName;
+        
+        if (gasataTarget && gasataTarget.pti != null) {
+          gasataTarget.pti = (gasataTarget.pti || 0) + 500;
+          this.updateCardTextWithPTI(gasataTarget);
+        }
+        if (myChar && myChar.pti != null) {
+          myChar.pti = (myChar.pti || 0) + 500;
+          this.updateCardTextWithPTI(myChar);
+        }
+        console.log(`🥂 GASATA: ${myCharName} e ${gasataTargetName} guadagnano +500 PTI ciascuno!`);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-gasata`,
+          playerName: 'Sistema',
+          message: `🥂 GASATA! ${myCharName} e ${gasataTargetName} guadagnano +500 PTI ciascuno!`,
+          timestamp: Date.now()
+        });
+      }
+      game.pendingTargetSelections.delete(selectionId);
+      const gasataGameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', gasataGameState);
+      return { success: true };
     }
 
     // Parse and apply effects to selected targets (non-dice effects)
@@ -23771,7 +23938,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const defenseBonusCards = [
         "ALTA SALVA", "BOOMERANG", "CONTRO SKRAZZKOOM", "CONVERSIONE", 
         "DIFESA VIGLIACCA", "E NN T MITT SCUORN", "E TAGG TRATTAT", 
-        "FOLATA DI VENTO", "RESPINTA", "E NN T MITT SSCUORN"
+        "FOLATA DI VENTO", "FOLATA DI VENTA", "FOLATA", "RESPINTA", "E NN T MITT SSCUORN"
       ];
 
       // Extract card name from frontImage URL if name is undefined
@@ -24821,7 +24988,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             applyDamageToSpecificCard(targetCardId, halvedDamage, 'E TAGG TRATTAT (danno dimezzato)');
           }
 
-        } else if (defenseCardName.includes('FOLATA DI VENTO')) {
+        } else if (defenseCardName.includes('FOLATA')) {
           io.to(gameId).emit('chat-message', {
             id: `${Date.now()}-defense-success`,
             playerName: 'Sistema',
