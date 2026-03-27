@@ -13394,6 +13394,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             const enemyChar = this.getPlayerActiveCharacter(game, pName);
             if (enemyChar) {
               (enemyChar as any).blockedMosse = blockTurns;
+              (enemyChar as any).isBollaProtected = true;
               console.log(`🫧 BLOCK MOSSE: ${enemyChar.name} (${pName}) cannot use MOSSE for ${blockTurns} turns!`);
               const io = (global as any).io;
               if (io) {
@@ -20318,6 +20319,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       case 'block_mosse': {
         const blockTurns = action.value || 3;
         (targetCard as any).blockedMosse = blockTurns;
+        (targetCard as any).isBollaProtected = true;
         console.log(`🫧 BLOCK MOSSE: ${targetName} cannot use MOSSE for ${blockTurns} turns!`);
         io?.to?.(gameId)?.emit?.('chat-message', {
           id: `${Date.now()}-block-mosse`,
@@ -24714,6 +24716,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             console.log(`🫧 BLOCK MOSSE: ${npc.name} (${nextPlayer}) - ${(npc as any).blockedMosse} turni rimanenti`);
             if ((npc as any).blockedMosse <= 0) {
               delete (npc as any).blockedMosse;
+              delete (npc as any).isBollaProtected;
               console.log(`🫧 BLOCK MOSSE EXPIRED: ${npc.name} can use MOSSE again!`);
               const expiredIo = (global as any).io;
               if (expiredIo) {

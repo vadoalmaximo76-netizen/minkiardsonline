@@ -1252,7 +1252,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const isPoisoned    = isPersonaggio && (card.poisonTurns ?? 0) > 0;
   const isLocked      = isPersonaggio && !!(card.isLocked) && (card.lockTurns ?? 0) > 0;
   const isStunned     = isPersonaggio && !!(card.isStunned);
-  const isBollaActive = isPersonaggio && (card.blockedMosse ?? 0) > 0;
+  const isBollaActive = isPersonaggio && !!((card as any).isBollaProtected);
   const isVoodooLinked    = isPersonaggio && (gameState?.voodooLinks ?? []).some((l: any) => l.card1Id === card.id || l.card2Id === card.id);
   const isBarrieraProtected = isPersonaggio && (gameState?.barrieraShields ?? []).some((s: any) => s.protectedCharacterId === card.id);
   // ────────────────────────────────────────────────────────────────────────
@@ -1707,7 +1707,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               ${isMosseSelected ? 'ring-4 ring-purple-500 ring-opacity-70' : ''}
               ${card.faceDown ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}
               ${isNewlyDrawn && location === 'hand' ? 'card-draw-enter-enhanced' : ''}
-              ${card.protectedByRifugio && !card.faceDown && location === 'field' ? 'ring-2 ring-emerald-400 ring-offset-1 ring-offset-transparent' : ''}
+              ${card.protectedByRifugio && !card.faceDown && location === 'field' ? 'ring-2 ring-emerald-400 animate-pulse shadow-[0_0_10px_2px_rgba(52,211,153,0.5)]' : ''}
               ${skinAnimation || ''}`}
           style={isNewlyDrawn && location === 'hand' ? { animationDelay: `${drawAnimationDelay}ms` } : undefined}
           />
