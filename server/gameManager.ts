@@ -4838,9 +4838,16 @@ Rispondi SOLO in JSON:`;
     const hasAllAttack = actions.some(a => a.type === 'all_attack_target');
     const hasGambling = actions.some(a => a.type === 'gambling');
     const hasReturnToHand = actions.some(a => a.type === 'return_all_to_hand');
+    // Guard: "attacca" and "subisce" are ambiguous — they also appear in protection phrases
+    // like "non può essere attaccato per N turni" or "non subisce danni per N turni".
+    // Exclude them as damage triggers when the text describes a protection/immunity context.
+    const isProtectionContext =
+      /non\s+può\s+essere\s+attaccat/i.test(text) ||
+      (/non\s+può\s+attaccar/i.test(text) && !text.includes('danno') && !text.includes('danni')) ||
+      /non\s+subisce\s+(dann|colp|attacc)/i.test(text);
     if (text.includes('danno') || text.includes('danni') || text.includes('infligge') || text.includes('danneggia') || 
-        text.includes('colpisce') || text.includes('attacca') || text.includes('ferisce') || text.includes('distrugge') ||
-        text.includes('elimina') || text.includes('uccide') || text.includes('fa male') || text.includes('subisce') ||
+        text.includes('colpisce') || (!isProtectionContext && text.includes('attacca')) || text.includes('ferisce') || text.includes('distrugge') ||
+        text.includes('elimina') || text.includes('uccide') || text.includes('fa male') || (!isProtectionContext && text.includes('subisce')) ||
         text.includes('fa perdere') || text.includes('toglie') || text.includes('sottrae') || text.includes('leva') ||
         text.includes('causa') || text.includes('provoca') || text.includes('perde pti') || text.includes('perde vita') ||
         text.includes('picchia') || text.includes('aggredisce') || text.includes('massacra') || text.includes('devasta') ||
