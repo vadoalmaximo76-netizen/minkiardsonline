@@ -4,6 +4,8 @@ export interface CinematicEventData {
   type: 'big_attack' | 'mega_attack' | 'special_bonus' | 'lethal';
   attackerName: string;
   attackerCharName?: string;
+  cardName?: string;
+  animationType?: string;
   damage?: number;
   label?: string;
 }
@@ -121,7 +123,8 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
   const isExiting = phase === 'exit';
 
   const charName = data.attackerCharName || data.attackerName;
-  const labelText = data.label || theme.label;
+  const labelText = data.label || (data.animationType ? `${theme.label} · ${data.animationType.toUpperCase()}` : theme.label);
+  const cardDisplayName = data.cardName;
 
   return (
     <div
@@ -358,6 +361,28 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
               }}
             >
               {charName}
+            </div>
+          )}
+
+          {/* Card name (mossa used) */}
+          {cardDisplayName && (
+            <div
+              style={{
+                color: theme.accentLight,
+                fontFamily: 'monospace, sans-serif',
+                fontSize: 'clamp(10px, 1.6vw, 13px)',
+                fontWeight: 600,
+                letterSpacing: '0.2em',
+                textTransform: 'uppercase',
+                opacity: 0,
+                animation: 'cin-label-slide 0.3s ease-out forwards',
+                animationDelay: '0.18s',
+                maxWidth: '70vw',
+                textAlign: 'center',
+                marginBottom: 8,
+              }}
+            >
+              {cardDisplayName}
             </div>
           )}
 

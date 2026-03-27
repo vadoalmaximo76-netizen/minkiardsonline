@@ -764,7 +764,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           setAttackEffectVisible(true);
         }, 10);
         setAttackSlash3D({ visible: true, attackerName: attacker, targetName: target, damage: dmg });
-        if (dmg >= 30) {
+        if (dmg >= 30 && dmg < 150) {
           setCinematicFlash({ visible: true, type: 'attack' });
           setTimeout(() => setCinematicFlash({ visible: false, type: 'attack' }), 700);
         }

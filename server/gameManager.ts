@@ -14314,6 +14314,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const defChar76 = game.field.find((c: Card) =>
             c.owner === targetOwnerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
           );
+          if (io76) {
+            const rrCpuKillerChar = this.getPlayerActiveCharacter(game, attackerName);
+            io76.to(gameId).emit('cinematic-event', {
+              type: 'lethal',
+              attackerName,
+              attackerCharName: rrCpuKillerChar?.name || attackerName,
+              cardName: 'ROULETTE RUSSA',
+              label: '💀 ELIMINATO!',
+              timestamp: Date.now()
+            });
+          }
           if (defChar76) {
             defChar76.pti = 0;
             this.updateCardTextWithPTI(defChar76);
@@ -28484,6 +28495,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               activator: result.sorosActivator,
               cardImage: result.sorosImage
             });
+            const sorosChar = this.getPlayerActiveCharacter(game, result.sorosActivator);
+            io.to(gameId).emit('cinematic-event', {
+              type: 'special_bonus',
+              attackerName: result.sorosActivator,
+              attackerCharName: sorosChar?.name || result.sorosActivator,
+              cardName: 'SOROS',
+              label: '🎭 SOROS ATTIVATO!',
+              timestamp: Date.now()
+            });
           }
           
           if (result.eliminationCheck) {
@@ -29859,6 +29879,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           io.to(gameId).emit('soros-activated', {
             activator: result.sorosActivator,
             cardImage: result.sorosImage
+          });
+          const sorosChar2 = this.getPlayerActiveCharacter(game, result.sorosActivator);
+          io.to(gameId).emit('cinematic-event', {
+            type: 'special_bonus',
+            attackerName: result.sorosActivator,
+            attackerCharName: sorosChar2?.name || result.sorosActivator,
+            cardName: 'SOROS',
+            label: '🎭 SOROS ATTIVATO!',
+            timestamp: Date.now()
           });
         }
         

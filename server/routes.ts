@@ -3324,6 +3324,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           type: totalDamage >= 300 ? 'mega_attack' : 'big_attack',
                           attackerName: playerName,
                           attackerCharName: cinChar3?.name || playerName,
+                          cardName: mosseCard.name || undefined,
+                          animationType: (mosseCard as any).mosseDamageEffect || undefined,
                           damage: totalDamage,
                           timestamp: Date.now()
                         });
@@ -4315,6 +4317,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: `🎲 ROULETTE RUSSA: ${socketPlayerName} ha scelto ${chosen}. Dado: ${diceRollRR}. 💀 ELIMINATO! Il personaggio muore!`,
             timestamp: Date.now()
           });
+          // Cinematic: lethal outcome of roulette russa
+          try {
+            const rrKillerState = gameManager.getGameState(gameId);
+            const rrKillerChar = rrKillerState?.field?.find((c: any) =>
+              (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === pendingRR.attackerName
+            );
+            io.to(gameId).emit('cinematic-event', {
+              type: 'lethal',
+              attackerName: pendingRR.attackerName,
+              attackerCharName: rrKillerChar?.name || pendingRR.attackerName,
+              cardName: 'ROULETTE RUSSA',
+              label: '💀 ELIMINATO!',
+              timestamp: Date.now()
+            });
+          } catch (e) { /* non-critical */ }
           if (defCharRR) {
             defCharRR.pti = 0;
             (gameManager as any).updateCardTextWithPTI(defCharRR);
@@ -6034,10 +6051,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const cinCpuChar = cpuAttState3.field.find((c: any) =>
               (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === cpuName
             );
+            const cinCpuMosse = cpuAttState3.field?.find((c: any) => c.id === mosseCardId) ||
+              cpuAttState3.decks?.mosse?.find((c: any) => c.id === mosseCardId);
             io.to(gameId).emit('cinematic-event', {
               type: damageValue >= 300 ? 'mega_attack' : 'big_attack',
               attackerName: cpuName,
               attackerCharName: cinCpuChar?.name || cpuName,
+              cardName: cinCpuMosse?.name || undefined,
+              animationType: cinCpuMosse?.mosseDamageEffect || undefined,
               damage: damageValue,
               timestamp: Date.now()
             });
@@ -6789,10 +6810,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   const cinChar4 = cinState4?.field?.find((c: any) =>
                     (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === attackerName
                   );
+                  const cinMosse4 = cinState4?.field?.find((c: any) => c.id === mosseCardId) ||
+                    cinState4?.decks?.mosse?.find((c: any) => c.id === mosseCardId);
                   io.to(gameId).emit('cinematic-event', {
                     type: damageValue >= 300 ? 'mega_attack' : 'big_attack',
                     attackerName,
                     attackerCharName: cinChar4?.name || attackerName,
+                    cardName: cinMosse4?.name || undefined,
+                    animationType: cinMosse4?.mosseDamageEffect || undefined,
                     damage: damageValue,
                     timestamp: Date.now()
                   });
@@ -7120,10 +7145,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const cinChar = attackGameState.field.find((c: any) =>
                 (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === attackerName
               );
+              const cinMosse = attackGameState.field?.find((c: any) => c.id === mosseCardId) ||
+                attackGameState.decks?.mosse?.find((c: any) => c.id === mosseCardId);
               io.to(gameId).emit('cinematic-event', {
                 type: damageValue >= 300 ? 'mega_attack' : 'big_attack',
                 attackerName,
                 attackerCharName: cinChar?.name || attackerName,
+                cardName: cinMosse?.name || undefined,
+                animationType: cinMosse?.mosseDamageEffect || undefined,
                 damage: damageValue,
                 timestamp: Date.now()
               });
