@@ -8493,6 +8493,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           if (!game.peaceRestrictions) game.peaceRestrictions = [];
           (game.peaceRestrictions as any[]).push({ restrictedPlayer: tgt.owner, protectedPlayer: playerName, turnsLeft: 3, reason: 'CORRUZIONE' });
           emitChat(`💰 CORRUZIONE! ${playerName} cede 50 PTI a ${tgt.name || tgt.owner}. ${tgt.owner} non può attaccare ${playerName} per 3 turni!`);
+          if (io) {
+            io.to(gameId).emit('cinematic-event', {
+              type: 'special_bonus',
+              attackerName: playerName,
+              attackerCharName: myChar?.name || playerName,
+              cardName: 'CORRUZIONE MASSIVA',
+              label: '💰 CORRUZIONE!',
+              timestamp: Date.now()
+            });
+          }
           emitState();
         } else {
           const psId = (game.players[playerName] as any)?.socketId;

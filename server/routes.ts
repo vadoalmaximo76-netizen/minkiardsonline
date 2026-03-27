@@ -4483,6 +4483,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!game.peaceRestrictions) game.peaceRestrictions = [];
           game.peaceRestrictions.push({ restrictedPlayer: tgtCO.owner, protectedPlayer: socketPlayerName, turnsLeft: 3, reason: 'CORRUZIONE' });
           io.to(gameId).emit('chat-message', { id: `${Date.now()}-co`, playerName: 'Sistema', message: `💰 CORRUZIONE! ${socketPlayerName} cede 50 PTI a ${tgtCO.name || tgtCO.owner}. ${tgtCO.owner} non può attaccare ${socketPlayerName} per 3 turni!`, timestamp: Date.now() });
+          try {
+            const coState = gameManager.getGameState(gameId);
+            const coChar = coState?.field?.find((c: any) =>
+              (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === socketPlayerName
+            );
+            io.to(gameId).emit('cinematic-event', {
+              type: 'special_bonus',
+              attackerName: socketPlayerName,
+              attackerCharName: coChar?.name || socketPlayerName,
+              cardName: 'CORRUZIONE MASSIVA',
+              label: '💰 CORRUZIONE!',
+              timestamp: Date.now()
+            });
+          } catch (e) { /* non-critical */ }
         }
         io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
         return;

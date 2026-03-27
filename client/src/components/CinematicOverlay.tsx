@@ -17,7 +17,7 @@ interface CinematicOverlayProps {
 
 const DURATIONS: Record<CinematicEventData['type'], number> = {
   big_attack: 1800,
-  mega_attack: 2600,
+  mega_attack: 2800,
   special_bonus: 2200,
   lethal: 2400,
 };
