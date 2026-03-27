@@ -8,6 +8,9 @@ export interface CinematicEventData {
   animationType?: string;
   damage?: number;
   label?: string;
+  defenderName?: string;
+  defenderCharName?: string;
+  timestamp?: number;
 }
 
 interface CinematicOverlayProps {
@@ -66,7 +69,6 @@ const BASE_THEMES: Record<CinematicEventData['type'], ThemeShape> = {
   },
 };
 
-// Additional visual overrides per mosseDamageEffect (animationType)
 const ANIMATION_TYPE_OVERRIDES: Record<string, Partial<ThemeShape>> = {
   death: {
     bg: 'linear-gradient(135deg, #000000 0%, #0d0000 40%, #000000 100%)',
@@ -174,33 +176,53 @@ function useCountUp(target: number, duration: number, active: boolean): number {
 
 export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
   const [phase, setPhase] = useState<'enter' | 'hold' | 'exit' | 'done'>('done');
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevDataRef = useRef<CinematicEventData | null>(null);
+  const [impactFired, setImpactFired] = useState(false);
+  const timerIds = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const activeTimestamp = useRef<number | null>(null);
 
   const theme = data ? resolveTheme(data.type, data.animationType) : BASE_THEMES.big_attack;
   const duration = data ? DURATIONS[data.type] : 1800;
   const displayDamage = data?.damage ?? 0;
   const counter = useCountUp(displayDamage, duration, phase === 'hold' || phase === 'exit');
 
-  useEffect(() => {
-    if (!data || data === prevDataRef.current) return;
-    prevDataRef.current = data;
+  const isAttackType = data?.type === 'big_attack' || data?.type === 'mega_attack' || data?.type === 'lethal';
 
-    if (timerRef.current) clearTimeout(timerRef.current);
+  function clearAll() {
+    timerIds.current.forEach(id => clearTimeout(id));
+    timerIds.current = [];
+  }
+
+  function addTimer(fn: () => void, ms: number) {
+    const id = setTimeout(fn, ms);
+    timerIds.current.push(id);
+    return id;
+  }
+
+  useEffect(() => {
+    if (!data) return;
+    const ts = data.timestamp ?? Date.now();
+    if (ts === activeTimestamp.current) return;
+    activeTimestamp.current = ts;
+
+    clearAll();
+    setImpactFired(false);
     setPhase('enter');
 
-    timerRef.current = setTimeout(() => {
+    addTimer(() => {
       setPhase('hold');
-      timerRef.current = setTimeout(() => {
+      addTimer(() => {
+        setImpactFired(true);
+      }, 300);
+      addTimer(() => {
         setPhase('exit');
-        timerRef.current = setTimeout(() => {
+        addTimer(() => {
           setPhase('done');
           onComplete();
-        }, 400);
-      }, duration - 600);
+        }, 380);
+      }, duration - 580);
     }, 200);
 
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+    return clearAll;
   }, [data, duration, onComplete]);
 
   if (!data || phase === 'done') return null;
@@ -208,7 +230,8 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
   const isEntering = phase === 'enter';
   const isExiting = phase === 'exit';
 
-  const charName = data.attackerCharName || data.attackerName;
+  const attackerCharName = data.attackerCharName || data.attackerName;
+  const defenderCharName = data.defenderCharName || data.defenderName;
   const labelText = data.label || theme.label;
   const cardDisplayName = data.cardName;
 
@@ -256,9 +279,38 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
           0% { transform: translateX(-40px); opacity: 0; }
           100% { transform: translateX(0); opacity: 1; }
         }
-        @keyframes cin-char-slide {
-          0% { transform: translateX(40px); opacity: 0; }
+        @keyframes cin-attacker-in {
+          0% { transform: translateX(-80px); opacity: 0; }
           100% { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes cin-defender-in {
+          0% { transform: translateX(80px); opacity: 0; }
+          100% { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes cin-defender-hit {
+          0%   { transform: translateX(0)    rotate(0deg);   filter: brightness(1); }
+          15%  { transform: translateX(-14px) rotate(-4deg); filter: brightness(3) saturate(0); }
+          30%  { transform: translateX(14px)  rotate(3deg);  filter: brightness(2); }
+          45%  { transform: translateX(-10px) rotate(-2deg); filter: brightness(1.5); }
+          60%  { transform: translateX(8px)   rotate(1deg);  filter: brightness(1.2); }
+          75%  { transform: translateX(-5px)  rotate(0deg);  filter: brightness(1); }
+          100% { transform: translateX(0)    rotate(0deg);   filter: brightness(1); }
+        }
+        @keyframes cin-impact-burst {
+          0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
+          60%  { transform: translate(-50%, -50%) scale(1.4); opacity: 0.9; }
+          100% { transform: translate(-50%, -50%) scale(2);   opacity: 0; }
+        }
+        @keyframes cin-impact-text {
+          0%   { transform: translate(-50%, -50%) scale(0.3) rotate(-15deg); opacity: 0; }
+          40%  { transform: translate(-50%, -50%) scale(1.3) rotate(8deg);  opacity: 1; }
+          70%  { transform: translate(-50%, -50%) scale(1)   rotate(-3deg); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(0.8) rotate(0deg);  opacity: 0; }
+        }
+        @keyframes cin-mossa-fly {
+          0%   { transform: translateX(0) scaleX(1); opacity: 1; }
+          80%  { transform: translateX(110%) scaleX(1.3); opacity: 0.7; }
+          100% { transform: translateX(140%) scaleX(1.5); opacity: 0; }
         }
         @keyframes cin-glow-pulse {
           0%, 100% { opacity: 0.4; }
@@ -272,20 +324,13 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
           0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0.9; }
           100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
         }
-        @keyframes cin-border-glow {
-          0%, 100% { box-shadow: 0 0 0 2px var(--cin-accent), 0 0 20px var(--cin-accent); }
-          50% { box-shadow: 0 0 0 3px var(--cin-accent), 0 0 40px var(--cin-accent), 0 0 60px var(--cin-accent); }
-        }
       `}</style>
 
       {/* Entry flash */}
       {isEntering && (
         <div
           className="absolute inset-0"
-          style={{
-            background: 'white',
-            animation: 'cin-flash 0.25s ease-out forwards',
-          }}
+          style={{ background: 'white', animation: 'cin-flash 0.25s ease-out forwards' }}
         />
       )}
 
@@ -295,9 +340,7 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
         style={{
           height: 90,
           background: '#000',
-          animation: isExiting
-            ? 'cin-bar-top-out 0.35s ease-in forwards'
-            : 'cin-bar-top 0.2s ease-out forwards',
+          animation: isExiting ? 'cin-bar-top-out 0.35s ease-in forwards' : 'cin-bar-top 0.2s ease-out forwards',
         }}
       />
 
@@ -307,64 +350,26 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
         style={{
           height: 90,
           background: '#000',
-          animation: isExiting
-            ? 'cin-bar-bottom-out 0.35s ease-in forwards'
-            : 'cin-bar-bottom 0.2s ease-out forwards',
+          animation: isExiting ? 'cin-bar-bottom-out 0.35s ease-in forwards' : 'cin-bar-bottom 0.2s ease-out forwards',
         }}
       />
 
-      {/* Full-screen background (between letterbox bars) */}
-      <div
-        className="absolute"
-        style={{
-          top: 90, left: 0, right: 0, bottom: 90,
-          background: theme.bg,
-        }}
-      >
+      {/* Full-screen background */}
+      <div className="absolute" style={{ top: 90, left: 0, right: 0, bottom: 90, background: theme.bg }}>
         {/* Scan lines */}
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: `repeating-linear-gradient(
-              to bottom,
-              ${theme.scanColor} 0px,
-              ${theme.scanColor} 1px,
-              transparent 1px,
-              transparent 4px
-            )`,
+            backgroundImage: `repeating-linear-gradient(to bottom, ${theme.scanColor} 0px, ${theme.scanColor} 1px, transparent 1px, transparent 4px)`,
             animation: 'cin-scan 3s linear infinite',
           }}
         />
 
-        {/* Center glow ring (for mega_attack and lethal only) */}
+        {/* Center glow rings */}
         {(data.type === 'mega_attack' || data.type === 'lethal') && (
           <>
-            <div
-              className="absolute rounded-full"
-              style={{
-                width: 300,
-                height: 300,
-                border: `2px solid ${theme.accent}`,
-                top: '50%',
-                left: '50%',
-                animation: 'cin-ring 0.8s ease-out forwards',
-                animationDelay: '0.1s',
-                opacity: 0,
-              }}
-            />
-            <div
-              className="absolute rounded-full"
-              style={{
-                width: 300,
-                height: 300,
-                border: `2px solid ${theme.accentLight}`,
-                top: '50%',
-                left: '50%',
-                animation: 'cin-ring 0.8s ease-out forwards',
-                animationDelay: '0.3s',
-                opacity: 0,
-              }}
-            />
+            <div className="absolute rounded-full" style={{ width: 300, height: 300, border: `2px solid ${theme.accent}`, top: '50%', left: '50%', animation: 'cin-ring 0.8s ease-out forwards', animationDelay: '0.1s', opacity: 0 }} />
+            <div className="absolute rounded-full" style={{ width: 300, height: 300, border: `2px solid ${theme.accentLight}`, top: '50%', left: '50%', animation: 'cin-ring 0.8s ease-out forwards', animationDelay: '0.3s', opacity: 0 }} />
           </>
         )}
 
@@ -372,35 +377,232 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
         <div
           className="absolute rounded-full"
           style={{
-            width: '80vw',
-            height: '80vw',
-            maxWidth: 600,
-            maxHeight: 600,
+            width: '80vw', height: '80vw', maxWidth: 600, maxHeight: 600,
             background: `radial-gradient(ellipse at center, ${theme.accent}22 0%, transparent 70%)`,
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
+            top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
             animation: 'cin-glow-pulse 0.6s ease-in-out infinite',
           }}
         />
 
-        {/* Content container */}
-        <div
-          className="absolute inset-0 flex flex-col items-center justify-center"
-          style={{
-            animation: isExiting
-              ? 'cin-content-out 0.35s ease-in forwards'
-              : 'cin-content-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
-          }}
-        >
-          {/* Emoji */}
-          <div style={{ fontSize: 42, lineHeight: 1, marginBottom: 8 }}>
-            {theme.emoji}
-          </div>
-
-          {/* Label */}
+        {/* ── ATTACK LAYOUT: Attacker vs Defender ── */}
+        {isAttackType && (attackerCharName || defenderCharName) ? (
           <div
+            className="absolute inset-0 flex flex-col items-center justify-center"
             style={{
+              animation: isExiting
+                ? 'cin-content-out 0.35s ease-in forwards'
+                : 'cin-content-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+            }}
+          >
+            {/* Label row */}
+            <div style={{
+              color: theme.accentLight,
+              fontFamily: 'monospace, sans-serif',
+              fontSize: 'clamp(10px, 1.6vw, 14px)',
+              fontWeight: 700,
+              letterSpacing: '0.3em',
+              textTransform: 'uppercase',
+              marginBottom: 10,
+              opacity: 0,
+              animation: 'cin-label-slide 0.3s ease-out forwards',
+              animationDelay: '0.1s',
+            }}>
+              {theme.emoji} {labelText}
+            </div>
+
+            {/* VS row */}
+            <div className="flex items-center justify-center w-full" style={{ gap: 'clamp(8px, 3vw, 40px)', maxWidth: 700 }}>
+
+              {/* ATTACKER side */}
+              <div
+                className="flex flex-col items-center"
+                style={{
+                  flex: 1, maxWidth: 240,
+                  opacity: 0,
+                  animation: 'cin-attacker-in 0.35s ease-out forwards',
+                  animationDelay: '0.12s',
+                }}
+              >
+                <div style={{
+                  color: theme.accentLight,
+                  fontFamily: 'monospace',
+                  fontSize: 'clamp(9px, 1.3vw, 11px)',
+                  letterSpacing: '0.25em',
+                  textTransform: 'uppercase',
+                  marginBottom: 4,
+                  opacity: 0.7,
+                }}>ATTACCANTE</div>
+                <div style={{
+                  color: '#fff',
+                  fontFamily: 'sans-serif',
+                  fontSize: 'clamp(14px, 2.8vw, 24px)',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  textShadow: `0 0 20px ${theme.accent}`,
+                  letterSpacing: '0.1em',
+                  textAlign: 'center',
+                  lineHeight: 1.15,
+                }}>
+                  {attackerCharName}
+                </div>
+                {/* Mossa card - flies toward defender */}
+                {cardDisplayName && (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      padding: '4px 10px',
+                      background: `${theme.accent}33`,
+                      border: `1px solid ${theme.accent}`,
+                      borderRadius: 4,
+                      color: theme.accentLight,
+                      fontFamily: 'monospace',
+                      fontSize: 'clamp(8px, 1.2vw, 11px)',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.15em',
+                      textAlign: 'center',
+                      maxWidth: '100%',
+                      opacity: impactFired ? 0 : 1,
+                      animation: impactFired ? 'cin-mossa-fly 0.35s ease-in forwards' : 'none',
+                    }}
+                  >
+                    {cardDisplayName}
+                  </div>
+                )}
+              </div>
+
+              {/* CENTER: impact zone */}
+              <div className="relative flex flex-col items-center" style={{ flexShrink: 0, width: 'clamp(60px, 10vw, 90px)' }}>
+                <div style={{
+                  color: theme.accentLight,
+                  fontFamily: 'monospace',
+                  fontSize: 'clamp(10px, 1.8vw, 13px)',
+                  fontWeight: 700,
+                  letterSpacing: '0.35em',
+                  opacity: 0.5,
+                }}>VS</div>
+                {/* Impact burst */}
+                {impactFired && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '50%', left: '50%',
+                      width: 80, height: 80,
+                      background: `radial-gradient(ellipse at center, ${theme.accentLight} 0%, ${theme.accent} 40%, transparent 70%)`,
+                      borderRadius: '50%',
+                      animation: 'cin-impact-burst 0.5s ease-out forwards',
+                    }}
+                  />
+                )}
+                {impactFired && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '50%', left: '50%',
+                      fontSize: 'clamp(24px, 5vw, 40px)',
+                      animation: 'cin-impact-text 0.55s ease-out forwards',
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      zIndex: 2,
+                    }}
+                  >
+                    {data.type === 'lethal' ? '☠️' : data.type === 'mega_attack' ? '💥' : '⚔️'}
+                  </div>
+                )}
+              </div>
+
+              {/* DEFENDER side */}
+              <div
+                className="flex flex-col items-center"
+                style={{
+                  flex: 1, maxWidth: 240,
+                  opacity: 0,
+                  animation: 'cin-defender-in 0.35s ease-out forwards',
+                  animationDelay: '0.12s',
+                }}
+              >
+                <div style={{
+                  color: '#EF9A9A',
+                  fontFamily: 'monospace',
+                  fontSize: 'clamp(9px, 1.3vw, 11px)',
+                  letterSpacing: '0.25em',
+                  textTransform: 'uppercase',
+                  marginBottom: 4,
+                  opacity: 0.7,
+                }}>DIFENSORE</div>
+                <div
+                  style={{
+                    color: impactFired ? '#FF8A80' : '#ffdddd',
+                    fontFamily: 'sans-serif',
+                    fontSize: 'clamp(14px, 2.8vw, 24px)',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    textShadow: impactFired ? '0 0 20px #FF1744, 0 0 40px #FF1744' : 'none',
+                    letterSpacing: '0.1em',
+                    textAlign: 'center',
+                    lineHeight: 1.15,
+                    animation: impactFired ? 'cin-defender-hit 0.6s ease-out forwards' : 'none',
+                    transition: 'text-shadow 0.1s',
+                  }}
+                >
+                  {defenderCharName || '???'}
+                </div>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div style={{
+              width: 'clamp(80px, 30vw, 280px)',
+              height: 2,
+              background: `linear-gradient(to right, transparent, ${theme.accent}, transparent)`,
+              margin: '12px 0',
+            }} />
+
+            {/* Damage counter */}
+            {displayDamage > 0 && (
+              <div style={{
+                color: theme.accent,
+                fontFamily: '"Impact", "Arial Black", sans-serif',
+                fontSize: 'clamp(52px, 12vw, 96px)',
+                fontWeight: 900,
+                lineHeight: 1,
+                textShadow: `0 0 10px ${theme.accent}, 0 0 30px ${theme.accent}, 0 0 60px ${theme.accent}80`,
+                marginBottom: 4,
+                opacity: 0,
+                animation: 'cin-damage-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+                animationDelay: '0.2s',
+                letterSpacing: '-0.02em',
+              }}>
+                -{counter}
+              </div>
+            )}
+            {displayDamage > 0 && (
+              <div style={{
+                color: theme.accentLight,
+                fontFamily: 'monospace, sans-serif',
+                fontSize: 'clamp(12px, 2vw, 16px)',
+                fontWeight: 700,
+                letterSpacing: '0.3em',
+                opacity: 0,
+                animation: 'cin-label-slide 0.3s ease-out forwards',
+                animationDelay: '0.25s',
+              }}>
+                PTI
+              </div>
+            )}
+          </div>
+        ) : (
+          /* ── SPECIAL BONUS / non-attack layout (original) ── */
+          <div
+            className="absolute inset-0 flex flex-col items-center justify-center"
+            style={{
+              animation: isExiting
+                ? 'cin-content-out 0.35s ease-in forwards'
+                : 'cin-content-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+            }}
+          >
+            <div style={{ fontSize: 42, lineHeight: 1, marginBottom: 8 }}>{theme.emoji}</div>
+            <div style={{
               color: theme.accentLight,
               fontFamily: 'monospace, sans-serif',
               fontSize: 'clamp(11px, 1.8vw, 15px)',
@@ -411,25 +613,17 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
               opacity: 0,
               animation: 'cin-label-slide 0.3s ease-out forwards',
               animationDelay: '0.1s',
-            }}
-          >
-            {labelText}
-          </div>
-
-          {/* Accent divider */}
-          <div
-            style={{
+            }}>
+              {labelText}
+            </div>
+            <div style={{
               width: 'clamp(80px, 20vw, 200px)',
               height: 2,
               background: `linear-gradient(to right, transparent, ${theme.accent}, transparent)`,
               marginBottom: 10,
-            }}
-          />
-
-          {/* Attacker char name */}
-          {charName && (
-            <div
-              style={{
+            }} />
+            {attackerCharName && (
+              <div style={{
                 color: '#fff',
                 fontFamily: 'sans-serif',
                 fontSize: 'clamp(18px, 3.5vw, 30px)',
@@ -439,21 +633,17 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
                 textShadow: `0 0 20px ${theme.accent}, 0 0 40px ${theme.accent}80`,
                 marginBottom: 10,
                 opacity: 0,
-                animation: 'cin-char-slide 0.3s ease-out forwards',
+                animation: 'cin-attacker-in 0.3s ease-out forwards',
                 animationDelay: '0.15s',
                 maxWidth: '80vw',
                 textAlign: 'center',
                 lineHeight: 1.1,
-              }}
-            >
-              {charName}
-            </div>
-          )}
-
-          {/* Card name (mossa used) */}
-          {cardDisplayName && (
-            <div
-              style={{
+              }}>
+                {attackerCharName}
+              </div>
+            )}
+            {cardDisplayName && (
+              <div style={{
                 color: theme.accentLight,
                 fontFamily: 'monospace, sans-serif',
                 fontSize: 'clamp(10px, 1.6vw, 13px)',
@@ -466,16 +656,12 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
                 maxWidth: '70vw',
                 textAlign: 'center',
                 marginBottom: 8,
-              }}
-            >
-              {cardDisplayName}
-            </div>
-          )}
-
-          {/* Damage counter */}
-          {displayDamage > 0 && (
-            <div
-              style={{
+              }}>
+                {cardDisplayName}
+              </div>
+            )}
+            {displayDamage > 0 && (
+              <div style={{
                 color: theme.accent,
                 fontFamily: '"Impact", "Arial Black", sans-serif',
                 fontSize: 'clamp(52px, 12vw, 96px)',
@@ -487,16 +673,12 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
                 animation: 'cin-damage-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
                 animationDelay: '0.2s',
                 letterSpacing: '-0.02em',
-              }}
-            >
-              -{counter}
-            </div>
-          )}
-
-          {/* "PTI" label */}
-          {displayDamage > 0 && (
-            <div
-              style={{
+              }}>
+                -{counter}
+              </div>
+            )}
+            {displayDamage > 0 && (
+              <div style={{
                 color: theme.accentLight,
                 fontFamily: 'monospace, sans-serif',
                 fontSize: 'clamp(12px, 2vw, 16px)',
@@ -505,16 +687,12 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
                 opacity: 0,
                 animation: 'cin-label-slide 0.3s ease-out forwards',
                 animationDelay: '0.25s',
-              }}
-            >
-              PTI
-            </div>
-          )}
-
-          {/* Special bonus label (no damage) */}
-          {displayDamage === 0 && data.label && (
-            <div
-              style={{
+              }}>
+                PTI
+              </div>
+            )}
+            {displayDamage === 0 && data.label && (
+              <div style={{
                 color: theme.accentLight,
                 fontFamily: 'sans-serif',
                 fontSize: 'clamp(14px, 2.5vw, 20px)',
@@ -525,39 +703,25 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
                 animation: 'cin-label-slide 0.3s ease-out forwards',
                 animationDelay: '0.25s',
                 maxWidth: '70vw',
-              }}
-            >
-              {data.label}
-            </div>
-          )}
-        </div>
+              }}>
+                {data.label}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Accent border on letterbox bars */}
-      <div
-        className="absolute"
-        style={{
-          top: 88,
-          left: 0,
-          right: 0,
-          height: 3,
-          background: `linear-gradient(to right, transparent 0%, ${theme.accent} 20%, ${theme.accentLight} 50%, ${theme.accent} 80%, transparent 100%)`,
-          opacity: isExiting ? 0 : 1,
-          transition: 'opacity 0.2s',
-        }}
-      />
-      <div
-        className="absolute"
-        style={{
-          bottom: 88,
-          left: 0,
-          right: 0,
-          height: 3,
-          background: `linear-gradient(to right, transparent 0%, ${theme.accent} 20%, ${theme.accentLight} 50%, ${theme.accent} 80%, transparent 100%)`,
-          opacity: isExiting ? 0 : 1,
-          transition: 'opacity 0.2s',
-        }}
-      />
+      {/* Accent border lines on letterbox */}
+      <div className="absolute" style={{
+        top: 88, left: 0, right: 0, height: 3,
+        background: `linear-gradient(to right, transparent 0%, ${theme.accent} 20%, ${theme.accentLight} 50%, ${theme.accent} 80%, transparent 100%)`,
+        opacity: isExiting ? 0 : 1, transition: 'opacity 0.2s',
+      }} />
+      <div className="absolute" style={{
+        bottom: 88, left: 0, right: 0, height: 3,
+        background: `linear-gradient(to right, transparent 0%, ${theme.accent} 20%, ${theme.accentLight} 50%, ${theme.accent} 80%, transparent 100%)`,
+        opacity: isExiting ? 0 : 1, transition: 'opacity 0.2s',
+      }} />
     </div>
   );
 }
