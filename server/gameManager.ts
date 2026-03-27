@@ -4302,7 +4302,7 @@ Rispondi SOLO in JSON:`;
       
       // Detect known card effects by name when effect text is missing
       const cardNameLower = (card.name || this.getCardNameFromUrl(card.frontImage || '')).toLowerCase().trim();
-      if (!effectText && !textContent) {
+      if (!effectText) {
         const knownNameEffects: Record<string, string> = {
           'asta': "Parte un'asta tra i partecipanti per un personaggio dal mazzo usando punti Rankiard",
           'medicina': "[CUSTOM:medicina] +30 PTI al tuo personaggio, oppure annulla Virus e Influenza se presenti",
