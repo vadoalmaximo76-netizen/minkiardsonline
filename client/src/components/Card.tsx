@@ -1729,124 +1729,111 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           )}
 
           {/* ── STATUS EFFECT OVERLAYS ─────────────────────────────────────── */}
-          {/* All overlays only shown for field personaggi (not face-down) */}
+          {/* Only shown for field personaggi (not face-down) */}
 
-          {/* BOLLA DI SAPONE: iridescent soap bubble */}
+          {/* BOLLA DI SAPONE */}
           {isBollaActive && !card.faceDown && location === 'field' && (
-            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15] overflow-hidden">
-              <div
-                className="absolute inset-0 rounded-xl animate-pulse"
-                style={{
-                  background: 'radial-gradient(circle at 40% 35%, rgba(173,216,255,0.22) 0%, rgba(255,182,255,0.14) 40%, rgba(182,255,210,0.10) 70%, transparent 100%)',
-                  boxShadow: 'inset 0 0 0 2px rgba(200,230,255,0.5), 0 0 8px 2px rgba(150,200,255,0.4)',
-                }}
-              />
-              <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-sky-900/70 text-sky-200 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap z-[16] border border-sky-400/40 backdrop-blur-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
+            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15]" style={{
+              background: 'radial-gradient(circle at 40% 35%, rgba(150,210,255,0.50) 0%, rgba(230,150,255,0.38) 45%, rgba(150,255,200,0.28) 80%, transparent 100%)',
+              boxShadow: 'inset 0 0 0 3px rgba(180,230,255,0.95), 0 0 10px 3px rgba(140,190,255,0.60)',
+              animation: 'freeze-pulse 2s ease-in-out infinite',
+            }}>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-2xl select-none pointer-events-none" style={{ opacity: 0.70 }}>🫧</span>
+              </div>
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-sky-950 text-sky-100 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap border border-sky-300" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
                 🫧 BOLLA{card.blockedMosse ? ` (${card.blockedMosse}t)` : ''}
               </div>
             </div>
           )}
 
-          {/* CONGELATO: ice frost */}
+          {/* CONGELATO */}
           {isFrozen && !card.faceDown && location === 'field' && (
-            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15] overflow-hidden">
-              <div
-                className="absolute inset-0 rounded-xl"
-                style={{
-                  background: 'linear-gradient(160deg, rgba(180,230,255,0.18) 0%, rgba(100,180,255,0.12) 100%)',
-                  boxShadow: 'inset 0 0 0 2px rgba(100,200,255,0.6)',
-                  animation: 'freeze-pulse 2s ease-in-out infinite',
-                }}
-              />
+            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15]" style={{
+              background: 'linear-gradient(160deg, rgba(140,210,255,0.52) 0%, rgba(80,160,255,0.42) 100%)',
+              boxShadow: 'inset 0 0 0 3px rgba(80,200,255,0.95), 0 0 10px 3px rgba(60,180,255,0.55)',
+              animation: 'freeze-pulse 2s ease-in-out infinite',
+            }}>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-2xl opacity-30 select-none pointer-events-none">❄️</span>
+                <span className="text-3xl select-none pointer-events-none" style={{ opacity: 0.75 }}>❄️</span>
               </div>
-              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-cyan-900/75 text-cyan-200 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap z-[16] border border-cyan-400/40 backdrop-blur-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-cyan-950 text-cyan-100 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap border border-cyan-300" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
                 ❄️ GELO ({card.frozenTurns}t)
               </div>
             </div>
           )}
 
-          {/* VELENO: poison drip */}
+          {/* VELENO */}
           {isPoisoned && !card.faceDown && location === 'field' && (
-            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15] overflow-hidden">
-              <div
-                className="absolute inset-0 rounded-xl animate-pulse"
-                style={{
-                  background: 'linear-gradient(180deg, rgba(100,220,80,0.10) 0%, rgba(80,180,30,0.08) 100%)',
-                  boxShadow: 'inset 0 0 0 2px rgba(120,220,60,0.5)',
-                }}
-              />
+            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15] animate-pulse" style={{
+              background: 'linear-gradient(180deg, rgba(80,200,60,0.48) 0%, rgba(50,160,20,0.40) 100%)',
+              boxShadow: 'inset 0 0 0 3px rgba(100,220,50,0.95), 0 0 10px 3px rgba(80,200,40,0.55)',
+            }}>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xl opacity-25 select-none pointer-events-none">☠️</span>
+                <span className="text-3xl select-none pointer-events-none" style={{ opacity: 0.75 }}>☠️</span>
               </div>
-              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-green-900/75 text-green-200 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap z-[16] border border-green-500/40 backdrop-blur-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-green-950 text-green-100 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap border border-green-300" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
                 ☠️ VELENO ({card.poisonTurns}t)
               </div>
             </div>
           )}
 
-          {/* BLOCCO ABILITÀ: red lock */}
+          {/* BLOCCO ABILITÀ */}
           {isLocked && !card.faceDown && location === 'field' && (
-            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15] overflow-hidden">
-              <div
-                className="absolute inset-0 rounded-xl"
-                style={{
-                  background: 'rgba(200,30,30,0.10)',
-                  boxShadow: 'inset 0 0 0 2px rgba(220,50,50,0.6)',
-                  animation: 'lock-pulse 2.5s ease-in-out infinite',
-                }}
-              />
+            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15]" style={{
+              background: 'rgba(200,30,30,0.45)',
+              boxShadow: 'inset 0 0 0 3px rgba(240,60,60,0.95), 0 0 10px 3px rgba(220,40,40,0.60)',
+              animation: 'lock-pulse 2.5s ease-in-out infinite',
+            }}>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-2xl opacity-30 select-none pointer-events-none">⛔</span>
+                <span className="text-3xl select-none pointer-events-none" style={{ opacity: 0.80 }}>⛔</span>
               </div>
-              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-red-900/75 text-red-200 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap z-[16] border border-red-500/40 backdrop-blur-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-red-950 text-red-100 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap border border-red-300" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
                 ⛔ BLOCCATO ({card.lockTurns}t)
               </div>
             </div>
           )}
 
-          {/* STORDITO: spinning stars */}
+          {/* STORDITO */}
           {isStunned && !card.faceDown && location === 'field' && (
-            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15] overflow-hidden">
-              <div
-                className="absolute inset-0 rounded-xl animate-pulse"
-                style={{
-                  background: 'rgba(250,200,50,0.10)',
-                  boxShadow: 'inset 0 0 0 2px rgba(250,200,50,0.5)',
-                }}
-              />
+            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15] animate-pulse" style={{
+              background: 'rgba(240,190,30,0.45)',
+              boxShadow: 'inset 0 0 0 3px rgba(255,210,40,0.95), 0 0 10px 3px rgba(240,190,30,0.60)',
+            }}>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-2xl opacity-35 select-none pointer-events-none animate-spin" style={{ animationDuration: '2s' }}>💫</span>
+                <span className="text-3xl select-none pointer-events-none animate-spin" style={{ opacity: 0.80, animationDuration: '1.8s' }}>💫</span>
               </div>
-              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-yellow-900/75 text-yellow-200 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap z-[16] border border-yellow-500/40 backdrop-blur-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-yellow-950 text-yellow-100 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap border border-yellow-300" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
                 💫 STORDITO
               </div>
             </div>
           )}
 
-          {/* BAMBOLA VOODOO: purple linked */}
+          {/* BAMBOLA VOODOO */}
           {isVoodooLinked && !card.faceDown && location === 'field' && (
-            <div
-              className="absolute inset-0 rounded-xl pointer-events-none z-[15] animate-pulse"
-              style={{ boxShadow: 'inset 0 0 0 2px rgba(180,80,255,0.65), 0 0 6px 1px rgba(160,60,255,0.35)' }}
-            >
-              <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-purple-900/75 text-purple-200 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap z-[16] border border-purple-400/40 backdrop-blur-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
+            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15] animate-pulse" style={{
+              background: 'rgba(160,50,240,0.35)',
+              boxShadow: 'inset 0 0 0 3px rgba(200,100,255,0.95), 0 0 10px 3px rgba(170,60,255,0.60)',
+            }}>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-3xl select-none pointer-events-none" style={{ opacity: 0.78 }}>🪆</span>
+              </div>
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-purple-950 text-purple-100 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap border border-purple-300" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
                 🪆 VOODOO
               </div>
             </div>
           )}
 
-          {/* BARRIERA: blue energy shield on protected character */}
+          {/* BARRIERA */}
           {isBarrieraProtected && !card.faceDown && location === 'field' && (
-            <div
-              className="absolute inset-0 rounded-xl pointer-events-none z-[15] animate-pulse"
-              style={{
-                background: 'rgba(30,100,220,0.08)',
-                boxShadow: 'inset 0 0 0 2px rgba(80,160,255,0.65), 0 0 8px 2px rgba(60,140,255,0.30)',
-              }}
-            >
-              <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-blue-900/75 text-blue-200 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap z-[16] border border-blue-400/40 backdrop-blur-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
+            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15] animate-pulse" style={{
+              background: 'rgba(30,100,220,0.42)',
+              boxShadow: 'inset 0 0 0 3px rgba(80,160,255,0.95), 0 0 10px 3px rgba(60,140,255,0.60)',
+            }}>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-3xl select-none pointer-events-none" style={{ opacity: 0.78 }}>🛡️</span>
+              </div>
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-blue-950 text-blue-100 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap border border-blue-300" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
                 🛡️ BARRIERA
               </div>
             </div>
