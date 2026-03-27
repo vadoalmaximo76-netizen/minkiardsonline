@@ -4,6 +4,7 @@ import { socket } from '../lib/socket';
 import { CardAnimation } from './CardAnimation';
 import { CharacterEffects } from './CharacterEffects';
 import { CustomAnimationOverlay } from './CustomAnimationOverlay';
+import { CinematicOverlay, type CinematicEventData } from './CinematicOverlay';
 import { EmojiReactions } from './EmojiReactions';
 
 interface Card {
@@ -168,6 +169,7 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
   const [showCustomAnimation, setShowCustomAnimation] = useState(false);
   const [customAnimationCard, setCustomAnimationCard] = useState('');
   const [customAnimationDesc, setCustomAnimationDesc] = useState('');
+  const [cinematicOverlayData, setCinematicOverlayData] = useState<CinematicEventData | null>(null);
   const [floatingNumbers, setFloatingNumbers] = useState<FloatingNumber[]>([]);
 
   useEffect(() => {
@@ -215,6 +217,10 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
         setCustomAnimationDesc(data.customAnimation);
         setShowCustomAnimation(true);
       }
+    };
+
+    const handleCinematicEvent = (data: CinematicEventData) => {
+      setCinematicOverlayData(data);
     };
 
     const handleCardAttacked = (data: { targetCardId: string; damage: number; gameId?: string }) => {
@@ -278,6 +284,7 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
     socket.on('spectator-chat-message', handleSpectatorChatMessage);
     socket.on('card-animation-trigger', handleCardAnimationTrigger);
     socket.on('custom-animation-trigger', handleCustomAnimationTrigger);
+    socket.on('cinematic-event', handleCinematicEvent);
     socket.on('card-attacked', handleCardAttacked);
     socket.on('mosse-attack', handleMosseAttack);
     socket.on('character-eliminated', handleCharacterEliminated);
@@ -296,6 +303,7 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
       socket.off('spectator-chat-message', handleSpectatorChatMessage);
       socket.off('card-animation-trigger', handleCardAnimationTrigger);
       socket.off('custom-animation-trigger', handleCustomAnimationTrigger);
+      socket.off('cinematic-event', handleCinematicEvent);
       socket.off('card-attacked', handleCardAttacked);
       socket.off('mosse-attack', handleMosseAttack);
       socket.off('character-eliminated', handleCharacterEliminated);
@@ -770,6 +778,12 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
           onComplete={() => setShowCustomAnimation(false)}
         />
       )}
+
+      {/* Cinematic Overlay — high-damage attacks and special bonus cards */}
+      <CinematicOverlay
+        data={cinematicOverlayData}
+        onComplete={() => setCinematicOverlayData(null)}
+      />
     </div>
   );
 }

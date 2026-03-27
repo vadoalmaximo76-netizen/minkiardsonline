@@ -8582,6 +8582,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           if (swappedForThisOpponent === 0) emitChat(`🎴 KAINOKEN! Nessuna carta compatibile da scambiare con ${opponentName}.`);
         }
         if (swapped === 0) emitChat(`🎴 KAINOKEN! Nessuna carta scambiata (mazzi vuoti o mani avversarie senza carte compatibili).`);
+        // CINEMATIC EVENT for kainoken
+        if (io && swapped > 0) {
+          io.to(gameId).emit('cinematic-event', {
+            type: 'special_bonus',
+            attackerName: playerName,
+            attackerCharName: myChar?.name || playerName,
+            label: 'KAINOKEN!',
+            timestamp: Date.now()
+          });
+        }
         emitState(); break;
       }
 

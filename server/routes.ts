@@ -3314,6 +3314,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       damageValue: totalDamage,
                       timestamp: Date.now()
                     });
+                    if (totalDamage >= 150) {
+                      try {
+                        const cinState3 = gameManager.getGameState(gameId);
+                        const cinChar3 = cinState3?.field?.find((c: any) =>
+                          (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === playerName
+                        );
+                        io.to(gameId).emit('cinematic-event', {
+                          type: totalDamage >= 300 ? 'mega_attack' : 'big_attack',
+                          attackerName: playerName,
+                          attackerCharName: cinChar3?.name || playerName,
+                          damage: totalDamage,
+                          timestamp: Date.now()
+                        });
+                      } catch (e) { /* non-critical */ }
+                    }
                     
                     if (attackResult.result?.requiresDefenseResponse) {
                       const pendingDefense = gameManager.getPendingDefense(gameId);
@@ -6014,6 +6029,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
           }
+          // CINEMATIC EVENT: full-screen animation for high-damage CPU attacks
+          if (damageValue >= 150) {
+            const cinCpuChar = cpuAttState3.field.find((c: any) =>
+              (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === cpuName
+            );
+            io.to(gameId).emit('cinematic-event', {
+              type: damageValue >= 300 ? 'mega_attack' : 'big_attack',
+              attackerName: cpuName,
+              attackerCharName: cinCpuChar?.name || cpuName,
+              damage: damageValue,
+              timestamp: Date.now()
+            });
+          }
         }
       } catch (err) { console.error('Error emitting CPU attack audio:', err); }
 
@@ -6755,6 +6783,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 mosseCardId, targetCardId, attackerName, targetOwner,
                 damageValue, timestamp: Date.now()
               });
+              if (damageValue >= 150) {
+                try {
+                  const cinState4 = gameManager.getGameState(gameId);
+                  const cinChar4 = cinState4?.field?.find((c: any) =>
+                    (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === attackerName
+                  );
+                  io.to(gameId).emit('cinematic-event', {
+                    type: damageValue >= 300 ? 'mega_attack' : 'big_attack',
+                    attackerName,
+                    attackerCharName: cinChar4?.name || attackerName,
+                    damage: damageValue,
+                    timestamp: Date.now()
+                  });
+                } catch (e) { /* non-critical */ }
+              }
               const updatedState = gameManager.getSanitizedGameState(gameId);
               io.to(gameId).emit('game-state-update', updatedState);
             } else {
@@ -7071,6 +7114,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   baseDamage
                 });
               }
+            }
+            // CINEMATIC EVENT: full-screen animation for high-damage attacks
+            if (damageValue >= 150) {
+              const cinChar = attackGameState.field.find((c: any) =>
+                (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === attackerName
+              );
+              io.to(gameId).emit('cinematic-event', {
+                type: damageValue >= 300 ? 'mega_attack' : 'big_attack',
+                attackerName,
+                attackerCharName: cinChar?.name || attackerName,
+                damage: damageValue,
+                timestamp: Date.now()
+              });
             }
           }
         } catch (err) {

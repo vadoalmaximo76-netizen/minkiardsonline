@@ -17,6 +17,7 @@ import { EvolutionAnimation } from "./EvolutionAnimation";
 import { FusionAnimation } from "./FusionAnimation";
 import { CardAnimation } from "./CardAnimation";
 import { CustomAnimationOverlay } from "./CustomAnimationOverlay";
+import { CinematicOverlay, type CinematicEventData } from "./CinematicOverlay";
 import { AddCardsModal } from "./AddCardsModal";
 import { PlayerOrderNotification } from "./PlayerOrderNotification";
 import { NextTurnNotification } from "./NextTurnNotification";
@@ -278,6 +279,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [damageVignetteVisible, setDamageVignetteVisible] = useState(false);
   const damageVignetteTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const [cinematicFlash, setCinematicFlash] = useState<{ visible: boolean; type: 'attack' | 'heal' }>({ visible: false, type: 'attack' });
+  const [cinematicOverlayData, setCinematicOverlayData] = useState<CinematicEventData | null>(null);
   const [turnPhaseFlash, setTurnPhaseFlash] = useState<{ visible: boolean; isMyTurn: boolean }>({ visible: false, isMyTurn: false });
   const [cardShatter3D, setCardShatter3D] = useState<{ visible: boolean; cardImage: string; cardName: string }>({ visible: false, cardImage: '', cardName: '' });
   const [koBanner, setKoBanner] = useState<{ visible: boolean; cardName: string; cardOwner: string; cardImage: string; eliminationMode: boolean; isCurrentPlayer: boolean }>({ visible: false, cardName: '', cardOwner: '', cardImage: '', eliminationMode: false, isCurrentPlayer: false });
@@ -900,6 +902,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       }, 4000);
     };
 
+    const handleCinematicEvent = (data: CinematicEventData) => {
+      console.log(`🎬 [Cinematic] type=${data.type} attacker=${data.attackerCharName || data.attackerName} dmg=${data.damage ?? 0}`);
+      setCinematicOverlayData(data);
+    };
+
     const handleSpecialMoveOverlay = (data: { moveName: string; damage: number; attackerName: string; playerName: string; category: string | null }) => {
       console.log(`💥 Special move overlay: ${data.attackerName} uses ${data.moveName} for ${data.damage} damage`);
       setAttackEffectType(getDamageEffectType(data.damage, data.moveName));
@@ -1124,6 +1131,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('character-sound', handleCharacterSound);
     socket.on('card-animation-trigger', handleCardAnimationTrigger);
     socket.on('custom-animation-trigger', handleCustomAnimationTrigger);
+    socket.on('cinematic-event', handleCinematicEvent);
     socket.on('special-move-overlay', handleSpecialMoveOverlay);
     socket.on('evolution-animation', handleEvolutionAnimation);
     socket.on('fusion-animation', handleFusionAnimation);
@@ -2225,6 +2233,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('cards-added', handleCardsAdded);
       socket.off('bee-sound', handleBeeSound);
       socket.off('character-sound', handleCharacterSound);
+      socket.off('cinematic-event', handleCinematicEvent);
       socket.off('special-move-overlay', handleSpecialMoveOverlay);
       socket.off('evolution-animation', handleEvolutionAnimation);
       socket.off('fusion-animation', handleFusionAnimation);
@@ -4564,6 +4573,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             }}
           />
         )}
+
+        {/* Cinematic Overlay — high-damage attacks and special bonus cards */}
+        <CinematicOverlay
+          data={cinematicOverlayData}
+          onComplete={() => setCinematicOverlayData(null)}
+        />
 
         {specialMoveOverlay.visible && (
           <div 
