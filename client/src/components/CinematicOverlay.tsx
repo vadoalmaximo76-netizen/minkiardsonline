@@ -22,14 +22,16 @@ const DURATIONS: Record<CinematicEventData['type'], number> = {
   lethal: 2400,
 };
 
-const THEMES: Record<CinematicEventData['type'], {
+type ThemeShape = {
   bg: string;
   accent: string;
   accentLight: string;
   label: string;
   emoji: string;
   scanColor: string;
-}> = {
+};
+
+const BASE_THEMES: Record<CinematicEventData['type'], ThemeShape> = {
   big_attack: {
     bg: 'linear-gradient(135deg, #1a0a00 0%, #3d1500 40%, #1a0a00 100%)',
     accent: '#FF6B00',
@@ -64,6 +66,90 @@ const THEMES: Record<CinematicEventData['type'], {
   },
 };
 
+// Additional visual overrides per mosseDamageEffect (animationType)
+const ANIMATION_TYPE_OVERRIDES: Record<string, Partial<ThemeShape>> = {
+  death: {
+    bg: 'linear-gradient(135deg, #000000 0%, #0d0000 40%, #000000 100%)',
+    accent: '#B71C1C',
+    accentLight: '#FF5252',
+    label: 'MORTE ISTANTANEA',
+    emoji: '☠️',
+    scanColor: 'rgba(183, 28, 28, 0.15)',
+  },
+  death_on_dice_fail: {
+    bg: 'linear-gradient(135deg, #120900 0%, #2a1a00 40%, #120900 100%)',
+    accent: '#FFD600',
+    accentLight: '#FFFF8D',
+    label: 'ROULETTE RUSSA',
+    emoji: '🎲',
+    scanColor: 'rgba(255, 214, 0, 0.10)',
+  },
+  gamble_death: {
+    bg: 'linear-gradient(135deg, #120900 0%, #2a1a00 40%, #120900 100%)',
+    accent: '#FFD600',
+    accentLight: '#FFFF8D',
+    label: 'ROULETTE RUSSA',
+    emoji: '🎲',
+    scanColor: 'rgba(255, 214, 0, 0.10)',
+  },
+  dice_split: {
+    bg: 'linear-gradient(135deg, #09120a 0%, #1a2c1b 40%, #09120a 100%)',
+    accent: '#00C853',
+    accentLight: '#69F0AE',
+    label: 'SPLIT DADO',
+    emoji: '🎯',
+    scanColor: 'rgba(0, 200, 83, 0.08)',
+  },
+  halve_pti: {
+    bg: 'linear-gradient(135deg, #001200 0%, #003300 40%, #001200 100%)',
+    accent: '#76FF03',
+    accentLight: '#CCFF90',
+    label: 'PTI DIMEZZATI',
+    emoji: '☣️',
+    scanColor: 'rgba(118, 255, 3, 0.08)',
+  },
+  zero_stars: {
+    bg: 'linear-gradient(135deg, #000d1a 0%, #001f3d 40%, #000d1a 100%)',
+    accent: '#448AFF',
+    accentLight: '#82B1FF',
+    label: 'STELLE AZZERATE',
+    emoji: '⭐',
+    scanColor: 'rgba(68, 138, 255, 0.08)',
+  },
+  set_5_pti: {
+    bg: 'linear-gradient(135deg, #001a15 0%, #003828 40%, #001a15 100%)',
+    accent: '#1DE9B6',
+    accentLight: '#A7FFEB',
+    label: '5 PTI RIMASTI',
+    emoji: '5️⃣',
+    scanColor: 'rgba(29, 233, 182, 0.08)',
+  },
+  drain_on_attack: {
+    bg: 'linear-gradient(135deg, #0a1200 0%, #1c2e00 40%, #0a1200 100%)',
+    accent: '#8BC34A',
+    accentLight: '#DCEDC8',
+    label: 'ASSORBIMENTO',
+    emoji: '🌀',
+    scanColor: 'rgba(139, 195, 74, 0.08)',
+  },
+  field_harvest_30: {
+    bg: 'linear-gradient(135deg, #1a0a00 0%, #3d1a00 40%, #1a0a00 100%)',
+    accent: '#FF6D00',
+    accentLight: '#FFAB40',
+    label: 'DANNO DI CAMPO',
+    emoji: '🌋',
+    scanColor: 'rgba(255, 109, 0, 0.10)',
+  },
+};
+
+function resolveTheme(type: CinematicEventData['type'], animationType?: string): ThemeShape {
+  const base = BASE_THEMES[type];
+  if (!animationType) return base;
+  const override = ANIMATION_TYPE_OVERRIDES[animationType];
+  if (!override) return base;
+  return { ...base, ...override };
+}
+
 function useCountUp(target: number, duration: number, active: boolean): number {
   const [count, setCount] = useState(0);
   const rafRef = useRef<number>(0);
@@ -91,7 +177,7 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevDataRef = useRef<CinematicEventData | null>(null);
 
-  const theme = data ? THEMES[data.type] : THEMES.big_attack;
+  const theme = data ? resolveTheme(data.type, data.animationType) : BASE_THEMES.big_attack;
   const duration = data ? DURATIONS[data.type] : 1800;
   const displayDamage = data?.damage ?? 0;
   const counter = useCountUp(displayDamage, duration, phase === 'hold' || phase === 'exit');
@@ -123,7 +209,7 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
   const isExiting = phase === 'exit';
 
   const charName = data.attackerCharName || data.attackerName;
-  const labelText = data.label || (data.animationType ? `${theme.label} · ${data.animationType.toUpperCase()}` : theme.label);
+  const labelText = data.label || theme.label;
   const cardDisplayName = data.cardName;
 
   return (

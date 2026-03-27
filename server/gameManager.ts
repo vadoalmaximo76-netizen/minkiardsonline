@@ -29589,6 +29589,41 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // If instant death effect, set newPTI to 0
     let newPTI = forceInstantDeath ? 0 : Math.max(0, currentPTI - effectiveDamage);
 
+    // CINEMATIC EVENT: emit using actual resolved damage (single central source)
+    const resolvedDamage = forceInstantDeath ? currentPTI : (currentPTI - newPTI);
+    if (!isVoodooReflection && !isPersistentTick && !isHandTarget) {
+      const cinematicIo = io || (global as any).io;
+      if (cinematicIo) {
+        const atkChar = game?.field?.find((c: any) =>
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === attackerName
+        );
+        const mCard = game?.field?.find((c: any) => c.id === mosseCardId) ||
+          (game?.decks?.mosse as any[] | undefined)?.find((c: any) => c.id === mosseCardId) ||
+          (game?.graveyard as any[] | undefined)?.find((c: any) => c.id === mosseCardId);
+        if (forceInstantDeath && mosseEffect === 'death') {
+          cinematicIo.to(gameId).emit('cinematic-event', {
+            type: 'lethal',
+            attackerName,
+            attackerCharName: atkChar?.name || attackerName,
+            cardName: mCard?.name || undefined,
+            animationType: 'death',
+            label: '💀 MORTE ISTANTANEA!',
+            timestamp: Date.now()
+          });
+        } else if (resolvedDamage >= 150) {
+          cinematicIo.to(gameId).emit('cinematic-event', {
+            type: resolvedDamage >= 300 ? 'mega_attack' : 'big_attack',
+            attackerName,
+            attackerCharName: atkChar?.name || attackerName,
+            cardName: mCard?.name || undefined,
+            animationType: mCard?.mosseDamageEffect || undefined,
+            damage: resolvedDamage,
+            timestamp: Date.now()
+          });
+        }
+      }
+    }
+
     // ── SPIN-TA IMPULSIVA: if PTI drops below 100, add 200 PTI and 5 stars ──────
     if (!forceInstantDeath && newPTI > 0 && newPTI < 100 && currentPTI >= 100 && (targetCard as any).spinTaImpulsiva) {
       newPTI += 200;
