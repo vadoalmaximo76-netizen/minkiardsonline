@@ -177,8 +177,10 @@ function useCountUp(target: number, duration: number, active: boolean): number {
 export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
   const [phase, setPhase] = useState<'enter' | 'hold' | 'exit' | 'done'>('done');
   const [impactFired, setImpactFired] = useState(false);
-  const timerIds = useRef<ReturnType<typeof setTimeout>[]>([]);
   const activeTimestamp = useRef<number | null>(null);
+  // Stable ref for onComplete so it never triggers effect re-runs
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   const theme = data ? resolveTheme(data.type, data.animationType) : BASE_THEMES.big_attack;
   const duration = data ? DURATIONS[data.type] : 1800;
@@ -187,43 +189,49 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
 
   const isAttackType = data?.type === 'big_attack' || data?.type === 'mega_attack' || data?.type === 'lethal';
 
-  function clearAll() {
-    timerIds.current.forEach(id => clearTimeout(id));
-    timerIds.current = [];
-  }
-
-  function addTimer(fn: () => void, ms: number) {
-    const id = setTimeout(fn, ms);
-    timerIds.current.push(id);
-    return id;
-  }
-
   useEffect(() => {
     if (!data) return;
     const ts = data.timestamp ?? Date.now();
     if (ts === activeTimestamp.current) return;
     activeTimestamp.current = ts;
 
-    clearAll();
+    // Cancelled flag — set when this effect run is superseded (data changed or unmount)
+    let cancelled = false;
+    let t2: ReturnType<typeof setTimeout>;
+    let t3: ReturnType<typeof setTimeout>;
+    let t4: ReturnType<typeof setTimeout>;
+
     setImpactFired(false);
     setPhase('enter');
 
-    addTimer(() => {
+    const t1 = setTimeout(() => {
+      if (cancelled) return;
       setPhase('hold');
-      addTimer(() => {
-        setImpactFired(true);
+
+      t2 = setTimeout(() => {
+        if (!cancelled) setImpactFired(true);
       }, 300);
-      addTimer(() => {
+
+      t3 = setTimeout(() => {
+        if (cancelled) return;
         setPhase('exit');
-        addTimer(() => {
+
+        t4 = setTimeout(() => {
+          if (cancelled) return;
           setPhase('done');
-          onComplete();
+          onCompleteRef.current();
         }, 380);
       }, duration - 580);
     }, 200);
 
-    return clearAll;
-  }, [data, duration, onComplete]);
+    return () => {
+      cancelled = true;
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
+  }, [data, duration]); // onComplete intentionally excluded — stable via ref
 
   if (!data || phase === 'done') return null;
 
