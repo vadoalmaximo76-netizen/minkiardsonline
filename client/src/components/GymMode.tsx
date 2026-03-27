@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Shield, Star, Lock, CheckCircle, Swords, Trophy, ChevronRight, Sparkles, Heart, Target, Users } from 'lucide-react';
+import { ArrowLeft, Shield, Star, Lock, CheckCircle, Swords, Trophy, ChevronRight, Sparkles, Heart, Target, Users, BookOpen, X } from 'lucide-react';
 import { GameBoard } from './GameBoard';
 import { socket } from '../lib/socket';
 import { useGameState } from '../lib/stores/useGameState';
@@ -37,6 +37,7 @@ interface GymLeader {
   cpuCount: number;
   cpuConfigs: CpuConfig[];
   attackMode: 'free_for_all' | 'hunt_human';
+  isActive?: boolean;
 }
 
 interface GymModeProps {
@@ -51,6 +52,13 @@ interface GymModeProps {
 
 type Phase = 'map' | 'intro' | 'battle' | 'victory' | 'defeat' | 'card-pick';
 
+type CardDataKey = keyof typeof CARD_DATA;
+
+function getCardDataUrls(key: string): string[] | undefined {
+  if (key in CARD_DATA) return CARD_DATA[key as CardDataKey] as string[];
+  return undefined;
+}
+
 function getCardImageFromId(cardId: string): string {
   if (cardId.startsWith('custom-')) {
     const num = cardId.replace('custom-', '');
@@ -60,9 +68,32 @@ function getCardImageFromId(cardId: string): string {
   const idx = parseInt(parts[parts.length - 1]);
   const deckKey = parts.slice(0, parts.length - 1).join('_');
   const mappedKey = deckKey === 'personaggi_speciali' ? 'personaggi_speciali' : deckKey;
-  const urls = (CARD_DATA as any)[mappedKey] as string[] | undefined;
+  const urls = getCardDataUrls(mappedKey);
   if (urls && !isNaN(idx) && idx >= 0 && idx < urls.length) return urls[idx];
   return '';
+}
+
+function getCardNameFromUrl(url: string): string {
+  if (!url) return '';
+  try {
+    const parts = url.split('/');
+    const filename = parts[parts.length - 1];
+    return filename
+      .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+      .replace(/[-_]/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  } catch {
+    return '';
+  }
+}
+
+function getCardNameFromId(cardId: string): string {
+  const imgUrl = getCardImageFromId(cardId);
+  if (imgUrl) return getCardNameFromUrl(imgUrl);
+  if (cardId.startsWith('custom-')) return `Carta ${cardId.replace('custom-', '')}`;
+  return cardId;
 }
 
 function getCardDeckLabel(cardId: string): string {
@@ -196,6 +227,10 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [userCredits, setUserCredits] = useState(0);
   const [isReplayBattle, setIsReplayBattle] = useState(false);
   const [lostLeaderIds, setLostLeaderIds] = useState<number[]>([]);
+  const [showDeckPanel, setShowDeckPanel] = useState(false);
+  const [hoveredLeaderId, setHoveredLeaderId] = useState<number | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const [cardEffects, setCardEffects] = useState<Record<string, string>>({});
 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -224,6 +259,22 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     finally { setLoading(false); }
   }, [authToken]);
 
+  const fetchCardEffects = useCallback(async () => {
+    try {
+      const res = await fetch('/api/card-modifications');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.modifications)) {
+        const map: Record<string, string> = {};
+        for (const mod of data.modifications) {
+          if (mod.originalCardId && mod.effect) {
+            map[mod.originalCardId] = mod.effect;
+          }
+        }
+        setCardEffects(map);
+      }
+    } catch {}
+  }, []);
+
   const fetchStoryDeck = useCallback(async () => {
     if (!authToken) return;
     try {
@@ -250,7 +301,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     fetchLeaders();
     fetchStoryDeck();
     fetchUserCredits();
-  }, [fetchLeaders, fetchStoryDeck, fetchUserCredits]);
+    fetchCardEffects();
+  }, [fetchLeaders, fetchStoryDeck, fetchUserCredits, fetchCardEffects]);
 
   useEffect(() => {
     selectedLeaderRef.current = selectedLeader;
@@ -328,7 +380,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     const t1 = setTimeout(() => setVictoryStep(2), 700);
     const t2 = setTimeout(() => setVictoryStep(3), 2000);
     const t3 = setTimeout(() => setVictoryStep(4), 3500);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    const t4 = setTimeout(() => setVictoryStep(5), 4800);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
   }, [phase]);
 
   useEffect(() => {
@@ -546,6 +599,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   };
 
   const currentLeader = leaders.find(l => getLeaderStatus(l) === 'available');
+  const activeLeaders = leaders.filter(l => l.isActive).sort((a, b) => a.orderIndex - b.orderIndex);
 
   // ── BATTLE ────────────────────────────────────────────────────────────────
   if (phase === 'battle' && gameId && selectedLeader) {
@@ -636,32 +690,60 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-6">
-          <div className="grid grid-cols-3 gap-3 max-w-sm mx-auto">
+          <div className="flex flex-col gap-4 max-w-sm mx-auto">
             {pickableCards.map((cardId, idx) => {
               const imgUrl = getCardImageFromId(cardId);
               const label = getCardDeckLabel(cardId);
+              const copiesInDeck = storyDeckIds.filter(id => id === cardId).length;
               return (
                 <button
                   key={`${cardId}-${idx}`}
                   onClick={() => handlePickCard(cardId)}
                   disabled={cardPickLoading}
-                  className="relative rounded-xl overflow-hidden border-2 border-white/20 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all group disabled:opacity-50 disabled:cursor-not-allowed aspect-[2/3] bg-gray-900"
+                  className="relative flex items-stretch gap-3 rounded-xl overflow-hidden border-2 border-white/20 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all group disabled:opacity-50 disabled:cursor-not-allowed bg-gray-900/80 text-left"
                 >
-                  {imgUrl ? (
-                    <img
-                      src={imgUrl}
-                      alt={label}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gray-800">
-                      <Shield className="w-8 h-8 text-white/20" />
+                  {/* Card thumbnail */}
+                  <div className="flex-shrink-0 w-20 aspect-[2/3] relative overflow-hidden">
+                    {imgUrl ? (
+                      <img
+                        src={imgUrl}
+                        alt={label}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                        <Shield className="w-8 h-8 text-white/20" />
+                      </div>
+                    )}
+                  </div>
+                  {/* Card info */}
+                  <div className="flex-1 flex flex-col justify-center py-3 pr-3 gap-1.5">
+                    <span className="text-white font-black text-sm leading-tight">{getCardNameFromId(cardId)}</span>
+                    <span className="text-yellow-400/70 text-[10px] font-bold uppercase tracking-wide">{label}</span>
+                    <p className="text-white/55 text-[10px] leading-snug line-clamp-2">
+                      {cardEffects[cardId]
+                        ? cardEffects[cardId].split('[')[0].trim()
+                        : label === 'Personaggio' || label === 'Speciale'
+                          ? 'Combattente con PTI e stelle'
+                          : label === 'Mossa'
+                            ? 'Tecnica da usare in battaglia'
+                            : 'Carta speciale che cambia le sorti del gioco'}
+                    </p>
+                    {copiesInDeck > 0 && (
+                      <span className="inline-flex items-center gap-1 bg-blue-900/60 border border-blue-500/40 text-blue-300 text-[10px] font-bold rounded-full px-2 py-0.5 w-fit">
+                        Hai già {copiesInDeck} {copiesInDeck === 1 ? 'copia' : 'copie'}
+                      </span>
+                    )}
+                    {copiesInDeck === 0 && (
+                      <span className="inline-flex items-center gap-1 bg-green-900/40 border border-green-500/30 text-green-400 text-[10px] font-bold rounded-full px-2 py-0.5 w-fit">
+                        Nuova!
+                      </span>
+                    )}
+                    <div className="flex items-center gap-1 text-yellow-400/80 text-xs font-bold">
+                      <span>Tocca per scegliere</span>
+                      <ChevronRight className="w-3 h-3" />
                     </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-center py-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-yellow-300 text-[10px] font-bold">{label}</span>
                   </div>
                   {cardPickLoading && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -746,11 +828,44 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             </div>
           )}
 
+          {/* Mini-summary post-victory */}
+          <div
+            className="w-full max-w-xs transition-all duration-700"
+            style={{ opacity: victoryStep >= 4 ? 1 : 0, transform: victoryStep >= 4 ? 'translateY(0)' : 'translateY(20px)' }}
+          >
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+              <p className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-3 text-center">Riepilogo</p>
+              <div className="flex justify-around gap-3">
+                <div className="text-center">
+                  <p className="text-yellow-300 font-black text-2xl leading-tight">
+                    {completedIds.includes(selectedLeader.id)
+                      ? completedIds.length
+                      : completedIds.length + 1}
+                  </p>
+                  <p className="text-white/40 text-[10px] mt-0.5">Vittorie</p>
+                </div>
+                <div className="w-px bg-white/10" />
+                <div className="text-center">
+                  <p className="text-blue-300 font-black text-2xl leading-tight">
+                    {Math.max(0, activeLeaders.length - (completedIds.includes(selectedLeader.id) ? completedIds.length : completedIds.length + 1))}
+                  </p>
+                  <p className="text-white/40 text-[10px] mt-0.5">Boss rimasti</p>
+                </div>
+                <div className="w-px bg-white/10" />
+                <div className="text-center">
+                  <p className="text-green-300 font-black text-2xl leading-tight">{storyDeckIds.length}</p>
+                  <p className="text-white/40 text-[10px] mt-0.5">Carte mazzo</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div
             className="transition-all duration-700"
-            style={{ opacity: victoryStep >= 4 ? 1 : 0, transform: victoryStep >= 4 ? 'translateY(0)' : 'translateY(10px)' }}
+            style={{ opacity: victoryStep >= 5 ? 1 : 0, transform: victoryStep >= 5 ? 'translateY(0)' : 'translateY(10px)', pointerEvents: victoryStep >= 5 ? 'auto' : 'none' }}
           >
             <button
+              disabled={victoryStep < 5}
               onClick={() => {
                 onClearPendingGymGame?.();
                 setPhase('map');
@@ -758,7 +873,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                 fetchLeaders();
                 fetchUserCredits();
               }}
-              className="px-8 py-3.5 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-lg rounded-2xl transition-all shadow-xl shadow-yellow-500/30 active:scale-95"
+              className="px-8 py-3.5 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-lg rounded-2xl transition-all shadow-xl shadow-yellow-500/30 active:scale-95 disabled:cursor-not-allowed"
             >
               Torna alla Mappa
             </button>
@@ -923,7 +1038,6 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   }
 
   // ── MAP ───────────────────────────────────────────────────────────────────
-  const activeLeaders = leaders.filter(l => l.isActive).sort((a, b) => a.orderIndex - b.orderIndex);
   const completedCount = activeLeaders.filter(l => completedIds.includes(l.id)).length;
   const totalCount = activeLeaders.length;
   const progressPct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
@@ -973,7 +1087,13 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             <p className="text-white/30 text-[10px]">Mazzo Story Mode</p>
           </div>
         </div>
-        <div className="h-6 w-px bg-white/10" />
+        <button
+          onClick={() => setShowDeckPanel(true)}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-900/40 border border-purple-500/30 text-purple-300 text-[10px] font-bold hover:bg-purple-900/60 transition-colors"
+        >
+          <BookOpen className="w-3 h-3" /> Vedi mazzo
+        </button>
+        <div className="flex-1" />
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-yellow-600/20 border border-yellow-600/30 flex items-center justify-center">
             <Star className="w-3.5 h-3.5 text-yellow-400" />
@@ -984,6 +1104,60 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           </div>
         </div>
       </div>
+
+      {/* Deck Panel Modal */}
+      {showDeckPanel && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70" onClick={() => setShowDeckPanel(false)}>
+          <div
+            className="w-full max-w-lg bg-gray-950 border-t border-white/10 rounded-t-3xl shadow-2xl flex flex-col"
+            style={{ maxHeight: '80vh' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-white/10 flex-shrink-0">
+              <div>
+                <h3 className="text-white font-black text-base">Il tuo Mazzo Story Mode</h3>
+                <p className="text-white/40 text-xs mt-0.5">{storyDeckIds.length} carte totali</p>
+              </div>
+              <button
+                onClick={() => setShowDeckPanel(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+              >
+                <X className="w-4 h-4 text-white/70" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              {storyDeckIds.length === 0 ? (
+                <div className="text-center py-10">
+                  <div className="text-4xl mb-3">🃏</div>
+                  <p className="text-white/40 text-sm">Nessuna carta nel mazzo</p>
+                  <p className="text-white/25 text-xs mt-1">Completa i boss per aggiungere carte</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-4 gap-2">
+                  {storyDeckIds.map((cardId, idx) => {
+                    const imgUrl = getCardImageFromId(cardId);
+                    const label = getCardDeckLabel(cardId);
+                    return (
+                      <div key={`${cardId}-${idx}`} className="flex flex-col items-center gap-1">
+                        <div className="w-full aspect-[2/3] rounded-lg overflow-hidden border border-white/10 bg-gray-800">
+                          {imgUrl ? (
+                            <img src={imgUrl} alt={label} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Shield className="w-4 h-4 text-white/20" />
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-[9px] text-white/50 font-bold text-center leading-tight truncate w-full" title={getCardNameFromId(cardId)}>{getCardNameFromId(cardId) || label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Badge strip: medaglie tappe completate ── */}
       {completedIds.length > 0 && (
@@ -1087,6 +1261,17 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                 <div
                   className="gym-path-node-pop"
                   style={{ position: 'relative', width: nodeSize, height: nodeSize, flexShrink: 0, animationDelay: `${idx * 0.06}s`, zIndex: 2 }}
+                  onMouseEnter={(e) => { if (!isLocked) { setHoveredLeaderId(leader.id); setTooltipPos({ x: e.clientX, y: e.clientY }); } }}
+                  onMouseMove={(e) => { if (!isLocked) setTooltipPos({ x: e.clientX, y: e.clientY }); }}
+                  onMouseLeave={() => { setHoveredLeaderId(null); setTooltipPos(null); }}
+                  onTouchStart={(e) => {
+                    if (!isLocked) {
+                      const t = e.touches[0];
+                      setHoveredLeaderId(leader.id);
+                      setTooltipPos({ x: t.clientX, y: t.clientY });
+                      setTimeout(() => { setHoveredLeaderId(null); setTooltipPos(null); }, 2500);
+                    }
+                  }}
                 >
                   {/* pulse ring */}
                   {isCurrent && (
@@ -1367,6 +1552,64 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           </div>
         )}
       </div>
+
+      {/* Boss Tooltip */}
+      {hoveredLeaderId !== null && tooltipPos && (() => {
+        const hLeader = activeLeaders.find(l => l.id === hoveredLeaderId);
+        if (!hLeader) return null;
+        const tipW = 220;
+        const tipH = 180;
+        const vpW = window.innerWidth;
+        const vpH = window.innerHeight;
+        let left = tooltipPos.x + 14;
+        let top = tooltipPos.y - 20;
+        if (left + tipW > vpW - 8) left = tooltipPos.x - tipW - 14;
+        if (top + tipH > vpH - 8) top = vpH - tipH - 8;
+        if (top < 8) top = 8;
+        return (
+          <div
+            style={{
+              position: 'fixed', left, top, width: tipW, zIndex: 9999,
+              pointerEvents: 'none',
+              background: 'rgba(10,5,25,0.97)',
+              border: '1px solid rgba(245,158,11,0.4)',
+              borderRadius: 14,
+              boxShadow: '0 8px 30px rgba(0,0,0,0.8)',
+              padding: '12px',
+            }}
+          >
+            {/* Leader image + name */}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
+              {hLeader.leaderImageUrl ? (
+                <img src={hLeader.leaderImageUrl} alt={hLeader.name} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(245,158,11,0.5)', flexShrink: 0 }} />
+              ) : (
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(245,158,11,0.1)', border: '2px solid rgba(245,158,11,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Shield style={{ width: 20, height: 20, color: 'rgba(245,158,11,0.5)' }} />
+                </div>
+              )}
+              <div style={{ minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: '#fde68a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hLeader.name}</p>
+                <p style={{ margin: '2px 0 0', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hLeader.gymName}</p>
+              </div>
+            </div>
+            {/* Difficulty + specialty */}
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 6 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: hLeader.cpuLevel === 'easy' ? '#4ade80' : hLeader.cpuLevel === 'medium' ? '#facc15' : '#f87171', background: 'rgba(255,255,255,0.06)', borderRadius: 99, padding: '2px 7px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                {hLeader.cpuLevel === 'easy' ? '🟢 Facile' : hLeader.cpuLevel === 'medium' ? '🟡 Medio' : '🔴 Difficile'}
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 800, color: '#fbbf24', background: 'rgba(245,158,11,0.1)', borderRadius: 99, padding: '2px 7px', border: '1px solid rgba(245,158,11,0.2)' }}>
+                ⭐ +{hLeader.rewardCredits}
+              </span>
+            </div>
+            {hLeader.specialty && (
+              <p style={{ margin: 0, fontSize: 10, color: 'rgba(253,230,138,0.7)', lineHeight: 1.4 }}>⚡ {hLeader.specialty}</p>
+            )}
+            {hLeader.description && !hLeader.specialty && (
+              <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.4)', lineHeight: 1.4 }}>{hLeader.description}</p>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

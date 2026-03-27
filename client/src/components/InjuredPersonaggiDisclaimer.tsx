@@ -1,4 +1,26 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { CARD_DATA } from '../lib/cardData';
+
+type CardDataKey = keyof typeof CARD_DATA;
+
+function getCardDataUrlsLocal(key: string): string[] | undefined {
+  if (key in CARD_DATA) return CARD_DATA[key as CardDataKey] as string[];
+  return undefined;
+}
+
+function getCardImageFromIdLocal(cardId: string): string {
+  if (cardId.startsWith('custom-')) {
+    const num = cardId.replace('custom-', '');
+    return `/api/card-image/${num}`;
+  }
+  const parts = cardId.split('-');
+  const idx = parseInt(parts[parts.length - 1]);
+  const deckKey = parts.slice(0, parts.length - 1).join('_');
+  const mappedKey = deckKey === 'personaggi_speciali' ? 'personaggi_speciali' : deckKey;
+  const urls = getCardDataUrlsLocal(mappedKey);
+  if (urls && !isNaN(idx) && idx >= 0 && idx < urls.length) return urls[idx];
+  return '';
+}
 
 /**
  * Draft card IDs have format: "personaggi-5-abc123"
@@ -171,6 +193,44 @@ export function InjuredPersonaggiDisclaimer({
           <span className="text-white/50 text-xs">I tuoi Rankiard disponibili:</span>
           <span className="text-yellow-400 font-bold text-sm">⭐ {localCredits}</span>
         </div>
+
+        {/* Visual roster grid — all deck cards, injured ones in grayscale */}
+        {relevantCardIds && relevantCardIds.length > 0 && (
+          <div className="px-6 pt-3 pb-2">
+            <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-2">Il tuo mazzo per questa partita</p>
+            <div className="flex flex-wrap gap-2">
+              {relevantCardIds.map((cardId, idx) => {
+                const baseId = extractBaseId(cardId);
+                const injuredEntry = injured.find(c => c.cardId === cardId || c.cardId === baseId);
+                const isInjured = !!injuredEntry;
+                const imgUrl = injuredEntry?.imageUrl || getCardImageFromIdLocal(cardId);
+                return (
+                  <div
+                    key={`${cardId}-${idx}`}
+                    className="relative flex-shrink-0"
+                    style={{ width: 38, height: 54 }}
+                    title={injuredEntry ? `${injuredEntry.name} — Infortunato` : cardId}
+                  >
+                    <div className="w-full h-full rounded-md overflow-hidden border border-white/10" style={{ filter: isInjured ? 'grayscale(100%)' : 'none', opacity: isInjured ? 0.5 : 1 }}>
+                      {imgUrl ? (
+                        <img src={imgUrl} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      ) : (
+                        <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                          <span className="text-xs opacity-30">?</span>
+                        </div>
+                      )}
+                    </div>
+                    {isInjured && (
+                      <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/20">
+                        <span style={{ fontSize: 16, lineHeight: 1 }}>🩹</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Card list */}
         <div className="px-6 pb-4 space-y-3 max-h-64 overflow-y-auto">
