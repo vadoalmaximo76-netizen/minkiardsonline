@@ -8554,7 +8554,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             { deckKey: 'mosse',      cardType: 'mosse' },
             { deckKey: 'personaggi', cardType: 'personaggi' },
           ];
-          let done = false;
+          let swappedForThisOpponent = 0;
           for (const { deckKey, cardType } of deckTypeMap) {
             const sharedDeck = game.decks[deckKey] as Card[];
             if (!sharedDeck || sharedDeck.length === 0) continue;
@@ -8566,13 +8566,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             deckCard.owner = opponentName;
             const idx = oppHand.indexOf(oppHandCard);
             oppHand.splice(idx, 1);
-            oppHandCard.owner = undefined as any;
             sharedDeck.push(oppHandCard);
             opp.hand = [...oppHand, deckCard];
-            emitChat(`🎴 KAINOKEN! ${playerName} dà una carta "${deckCard.name || deckKey}" dal mazzo a ${opponentName}, che restituisce "${oppHandCard.name || cardType}" al mazzo!`);
-            swapped++; done = true; break;
+            emitChat(`🎴 KAINOKEN! ${playerName} dà "${deckCard.name || deckKey}" (dal mazzo ${deckKey}) a ${opponentName}, che restituisce "${oppHandCard.name || cardType}" al mazzo!`);
+            swapped++;
+            swappedForThisOpponent++;
           }
-          if (!done) emitChat(`🎴 KAINOKEN! Nessuna carta compatibile nei mazzi da scambiare con ${opponentName}.`);
+          if (swappedForThisOpponent === 0) emitChat(`🎴 KAINOKEN! Nessuna carta compatibile da scambiare con ${opponentName}.`);
         }
         if (swapped === 0) emitChat(`🎴 KAINOKEN! Nessuna carta scambiata (mazzi vuoti o mani avversarie senza carte compatibili).`);
         emitState(); break;
@@ -17945,12 +17945,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             if (ioEL) ioEL.to(gameId).emit('chat-message', { id: `${Date.now()}-extralives`, playerName: 'Sistema', message: `❤️ MINKIARD N. 400! ${cardOwner} usa una vita extra! Il personaggio torna in vita con 500 PTI! (${extraLivesEL - 1} vite extra rimanenti)`, timestamp: Date.now() });
             console.log(`❤️ EXTRA LIFE: ${cardOwner} consumed extra life (${extraLivesEL} → ${extraLivesEL - 1})`);
           } else if (attacker && attacker !== cardOwner && (game as any).morstuaVitaMea?.[attacker]) {
-            // ── MORS TUA VITA MEA: attacker gains a life instead of opponent losing one ──
+            // ── MORS TUA VITA MEA: attacker gains a life; defender does NOT lose one this kill ──
             delete (game as any).morstuaVitaMea[attacker];
             (game.players[attacker] as any).extraLives = ((game.players[attacker] as any).extraLives || 0) + 1;
-            // Opponent retains their implicit life: give them +1 extraLife so this death
-            // doesn't mark them for elimination on any subsequent death check.
-            (game.players[cardOwner] as any).extraLives = ((game.players[cardOwner] as any).extraLives || 0) + 1;
             const ioMTV = (global as any).io;
             const cardNameMTV = card.name || this.getCardNameFromUrl(card.frontImage || '');
             if (ioMTV) ioMTV.to(gameId).emit('chat-message', {
@@ -17959,6 +17956,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               timestamp: Date.now()
             });
             console.log(`☠️ MORS TUA VITA MEA: ${attacker} gained extraLife instead of ${cardOwner} losing one`);
+            // eliminationCheck stays false — defender is NOT eliminated for this kill
           } else {
             eliminationCheck = true;
           }
