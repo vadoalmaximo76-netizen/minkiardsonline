@@ -3851,6 +3851,17 @@ Rispondi SOLO in JSON:`;
       }
     }
 
+    // ZZERUO: block bonus card plays for this player for N turns
+    const zzeruo = (game as any).zzeruo;
+    if (zzeruo) {
+      const cardToCheck2 = player.hand.find((c: Card) => c.id === cardId);
+      if (cardToCheck2 && cardToCheck2.type === 'bonus' && zzeruo[playerName] && zzeruo[playerName].turnsLeft > 0) {
+        const ioZZ = (global as any).io;
+        if (ioZZ) ioZZ.to(gameId).emit('chat-message', { id: `${Date.now()}-zzeruo-block`, playerName: 'Sistema', message: `🚫 ZZERUO attivo! ${playerName} non può usare carte bonus per ancora ${zzeruo[playerName].turnsLeft} turni!`, timestamp: Date.now() });
+        return {};
+      }
+    }
+
     // DADDY CONTE / FABRIZIO: player must resolve pending start-of-turn choice before playing cards
     if ((player as any).pendingDaddyConteChoice) {
       console.log(`🤵 DADDY CONTE: ${playerName} must make their choice before playing cards`);
@@ -4294,7 +4305,11 @@ Rispondi SOLO in JSON:`;
       
       // Track for missions/achievements (non-blocking)
       this.trackPlayerEventAsync(gameId, playerName, 'card_played', { cardType: card.type });
-      
+
+      // Track last played card for scart_frusc: always update the current lastPlayedCard
+      // The turn-boundary snapshot (scartFruscLastCard) is saved once at turn start in endTurn
+      (game as any).lastPlayedCard = { ...card, owner: playerName, playedAt: Date.now() };
+
       // Process custom card effect if present (works for all cards with effects - custom, permanent, or modified)
       // Check both effect field AND text field for effect descriptions
       let effectText = card.effect || '';
@@ -4390,6 +4405,24 @@ Rispondi SOLO in JSON:`;
           'spin ta impulsiva': "[CUSTOM:spin_ta_impulsiva] Effetto passivo: quando il tuo personaggio scende sotto i 100 PTI, aggiunge automaticamente 200 PTI e 5 stelle",
           'ti porto via con me in questa morte fantastica': "[CUSTOM:ti_porto_via] Quando il tuo personaggio muore, fa morire anche il personaggio che lo ha ucciso",
           'vitello d ora': "[CUSTOM:vitello_d_oro] Pannello: scegli quanti PTI convertire in stelle (ogni 50 PTI = 1 stella); il tuo personaggio muore dopo 5 turni",
+          'scee': "+10 PTI al tuo personaggio",
+          'sono una balena whoa whoa': "[CUSTOM:balena] +20 PTI al tuo personaggio; +50 PTI se lo usa Bear",
+          'ma che cocco melone': "[CUSTOM:cocco_melone] +40 PTI al tuo personaggio; +100 PTI se lo usa Napoletano",
+          'rusc': "[CUSTOM:rusc] +10 PTI al tuo personaggio; se la usa Montaquilano raddoppia il valore del suo prossimo attacco",
+          'sta buon rocc': "[CUSTOM:sta_buon_rocc] Tutti i personaggi in campo assumono PTI e stelle del personaggio con i PTI più alti",
+          'tu mi lasci cadere e poi mi porti su': "[CUSTOM:tu_mi_lasci_cadere] Il tuo personaggio scende a 0 stelle ma poi guadagna +1 stella ogni turno per sempre",
+          'u': "[CUSTOM:u_inverti] Inverte l'ordine delle cifre dei PTI di tutti i personaggi in campo (es: 1234→4321, 100→1, 1→1000)",
+          'zzeruo': "[CUSTOM:zzeruo] Per 3 turni i tuoi personaggi non possono usare bonus, ma i bonus degli avversari non hanno effetto su di te",
+          'p na ntecchia': "[CUSTOM:p_na_ntecchia] Se un attacco ti uccide ti salvi rimanendo a 5 PTI; si può usare anche fuori dal proprio turno come una respinta",
+          'mbacc a z vcienz': "[CUSTOM:mbacc_z_vcienz] Pannello: annulla il prossimo bonus che ti colpisce e mettilo in mano; se lo usa Zì Vcienz ruba anche i bonus in mano agli altri",
+          'mini semaforo': "[CUSTOM:mini_semaforo] Tutti i personaggi sono bloccati; ogni turno ogni giocatore lancia un dado per ogni suo personaggio: si sblocca solo con pari. Il Pelux non viene mai bloccato. Mostra animazione semaforo rosso/verde",
+          'oh ma quello': "[CUSTOM:oh_ma_quello] Pannello: scegli un personaggio avversario e sostituiscilo con un altro personaggio a tua scelta; se lo usa Gidi può pescare anche dai personaggi speciali",
+          'oooooh che t ritt': "[CUSTOM:oooooh_che_t_ritt] Reazione: mentre un avversario attacca un altro, puoi giocare questa carta per dare al personaggio attaccato una mossa dalla tua mano per aiutarlo a respingere; valido solo se il personaggio ha stelle sufficienti",
+          'scart frusc e pigl pr mera': "[CUSTOM:scart_frusc] Prendi l'ultima carta messa in campo prima del tuo turno e riusala; se è un personaggio, lo sottrai all'avversario che lo aveva schierato",
+          'stai a fa na cazzata': "[CUSTOM:stai_fa_cazzata] Pannello: quando un avversario attacca un altro puoi spiare le carte del difensore e annullare l'attacco; se lo usa Golden Freezer l'effetto vale per un turno intero",
+          'totaleeee': "[CUSTOM:totaleeee] Somma PTI e stelle di tutti i personaggi in campo e genera un personaggio centrale con quei valori; chi lo uccide se ne appropria con tutti i suoi PTI e stelle",
+          'vous tra vous': "[CUSTOM:vous_tra_vous] Pannello: scegli due personaggi avversari di partecipanti diversi e falli combattere in duello finché uno dei due non muore",
+          'z ammonta': "[CUSTOM:z_ammonta] Tutte le carte in campo e in mano tornano nei rispettivi mazzi; i mazzi vengono mischiati e ogni giocatore ripesca le carte (i CPU ripescano automaticamente almeno 1 carta per tipo)",
         };
         if (knownNameEffects[cardNameLower]) {
           effectText = knownNameEffects[cardNameLower];
@@ -6069,6 +6102,26 @@ Rispondi SOLO in JSON:`;
 
     console.log(`🎴 Processing custom card effect for ${card.name || card.id}: "${card.effect}"`);
 
+    // ZZERUO GLOBAL IMMUNITY: for any bonus played by an opponent, collect the set of players
+    // currently protected by ZZERUO and store it on game state so all effect paths can skip them.
+    // This is read by isZzeruoImmune() throughout executeNamedBonusEffect and other helpers.
+    // The set is cleared at the end of this processCustomCardEffect call.
+    if (card.type === 'bonus') {
+      const zzeruoMap = (game as any).zzeruo;
+      if (zzeruoMap) {
+        const immuneSet: Set<string> = new Set();
+        for (const pName of Object.keys(zzeruoMap)) {
+          if (pName !== playerName && zzeruoMap[pName] && zzeruoMap[pName].turnsLeft > 0) {
+            immuneSet.add(pName);
+            console.log(`🚫 ZZERUO: ${pName} is immune — bonus "${card.name || card.id}" from ${playerName} will not affect them`);
+          }
+        }
+        (game as any)._zzeruoImmuneForBonus = immuneSet;
+      } else {
+        (game as any)._zzeruoImmuneForBonus = null;
+      }
+    }
+
     // ============ [CUSTOM:name] NAMED EFFECT DISPATCHER ============
     // Effects tagged with [CUSTOM:name] bypass AI/text-parser and route to executeNamedBonusEffect
     if (card.effect && card.effect.includes('[CUSTOM:')) {
@@ -7137,8 +7190,42 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return { customAnimation };
   }
 
-  // Get the player's "active" character - the leftmost (first) personaggio on field
-  // This is the character that receives effects and performs attacks
+  /**
+   * Returns true if `targetPlayerName` is currently protected by ZZERUO immunity.
+   * Named effects must call this before applying any harmful effect to a specific enemy player,
+   * and skip that player if immune. This avoids the over-broad global cancellation of bonus
+   * effects that don't actually target the protected player.
+   */
+  private isZzeruoImmune(game: GameState, targetPlayerName: string): boolean {
+    // Primary: use the pre-computed immunity set built at bonus-play time in processCustomCardEffect
+    // (covers ALL bonus effect paths centrally, not just specific named effects)
+    const immuneSet = (game as any)._zzeruoImmuneForBonus as Set<string> | null | undefined;
+    if (immuneSet) return immuneSet.has(targetPlayerName);
+    // Fallback: direct check (e.g. when called outside the bonus-play pipeline)
+    const zz = (game as any).zzeruo;
+    return !!(zz && zz[targetPlayerName] && zz[targetPlayerName].turnsLeft > 0);
+  }
+
+  /**
+   * Returns true if `targetPlayerName` has MBACC A Z VCIENZ active.
+   * When a named effect would apply a harmful bonus effect specifically to this player,
+   * call this and, if true, intercept: add the card to their hand and cancel the effect for them.
+   * `card` is the bonus card being played, `attackerName` is who played it.
+   * Returns true if intercepted (caller should skip applying the effect to this player).
+   */
+  private checkMbaccInterception(game: GameState, gameId: string, targetPlayerName: string, card: Card, attackerName: string): boolean {
+    const mbaccMap = (game as any).mbacc_z_vcienz;
+    if (!mbaccMap || !mbaccMap[targetPlayerName]?.active) return false;
+    game.players[targetPlayerName].hand = [...(game.players[targetPlayerName].hand || []), { ...card }];
+    delete mbaccMap[targetPlayerName];
+    const ioMb = (global as any).io;
+    if (ioMb) {
+      ioMb.to(gameId).emit('chat-message', { id: `${Date.now()}-mbacc-intercept`, playerName: 'Sistema', message: `🪄 MBACC A Z VCIENZ! ${targetPlayerName} ha intercettato "${card.name || '?'}" giocato da ${attackerName} e lo ha aggiunto alla sua mano!`, timestamp: Date.now() });
+    }
+    console.log(`🪄 MBACC A Z VCIENZ: ${targetPlayerName} intercepted bonus "${card.name}" played by ${attackerName}`);
+    return true;
+  }
+
   private getPlayerActiveCharacter(game: GameState, playerName: string): Card | undefined {
     // Find all personaggi belonging to this player on the field
     const playerPersonaggi = game.field.filter(c => 
@@ -8817,6 +8904,447 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         emitState(); break;
       }
 
+      // ─── SCEE ────────────────────────────────────────────────────────────────
+      case 'scee': {
+        if (!myChar) break;
+        myChar.pti = (myChar.pti || 0) + 10;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🎯 SCEE! ${myChar.name || playerName} +10 PTI (PTI: ${myChar.pti})`);
+        emitState(); break;
+      }
+
+      // ─── BALENA ──────────────────────────────────────────────────────────────
+      case 'balena': {
+        if (!myChar) break;
+        const isBear = /bear/i.test(myCharName);
+        const ptiBalena = isBear ? 50 : 20;
+        myChar.pti = (myChar.pti || 0) + ptiBalena;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🐋 SONO UNA BALENA! ${myChar.name || playerName} +${ptiBalena} PTI${isBear ? ' (BEAR!)' : ''} (PTI: ${myChar.pti})`);
+        emitState(); break;
+      }
+
+      // ─── COCCO MELONE ─────────────────────────────────────────────────────────
+      case 'cocco_melone': {
+        if (!myChar) break;
+        const isNapoletanoCM = /napoletano/i.test(myCharName);
+        const ptiCM = isNapoletanoCM ? 100 : 40;
+        myChar.pti = (myChar.pti || 0) + ptiCM;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🍈 MA CHE COCCO MELONE! ${myChar.name || playerName} +${ptiCM} PTI${isNapoletanoCM ? ' (NAPOLETANO!)' : ''} (PTI: ${myChar.pti})`);
+        emitState(); break;
+      }
+
+      // ─── RUSC ─────────────────────────────────────────────────────────────────
+      case 'rusc': {
+        if (!myChar) break;
+        myChar.pti = (myChar.pti || 0) + 10;
+        this.updateCardTextWithPTI(myChar);
+        const isMontaquilano = /montaquilano/i.test(myCharName);
+        if (isMontaquilano) {
+          (myChar as any).doubleNextAttack = true;
+          emitChat(`💪 RUSC! ${myChar.name || playerName} +10 PTI + il prossimo attacco è RADDOPPIATO! (Montaquilano!)`);
+        } else {
+          emitChat(`💪 RUSC! ${myChar.name || playerName} +10 PTI (PTI: ${myChar.pti})`);
+        }
+        emitState(); break;
+      }
+
+      // ─── STA BUON ROCC ────────────────────────────────────────────────────────
+      case 'sta_buon_rocc': {
+        const allCharsSBR = game.field.filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+        if (allCharsSBR.length === 0) { emitChat(`🪨 STA BUON ROCC! Nessun personaggio in campo.`); break; }
+        const strongestSBR = allCharsSBR.reduce((max: Card, c: Card) => ((c.pti || 0) > (max.pti || 0)) ? c : max, allCharsSBR[0]);
+        const topPti = strongestSBR.pti || 0;
+        const topStars = strongestSBR.stars || 0;
+        for (const c of allCharsSBR) {
+          c.pti = topPti;
+          c.stars = topStars;
+          this.updateCardTextWithPTI(c);
+        }
+        emitChat(`🪨 STA BUON ROCC! Tutti i personaggi assumono i valori di ${strongestSBR.name || strongestSBR.owner}: ${topPti} PTI e ${topStars} stelle!`);
+        emitState(); break;
+      }
+
+      // ─── TU MI LASCI CADERE ───────────────────────────────────────────────────
+      case 'tu_mi_lasci_cadere': {
+        if (!myChar) break;
+        myChar.stars = 0;
+        // Mark the character with a permanent per-turn star gain flag (processed in endTurn)
+        (myChar as any).starPerTurnBonus = ((myChar as any).starPerTurnBonus || 0) + 1;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`⬇️⬆️ TU MI LASCI CADERE! ${myChar.name || playerName}: stelle azzerate → +1 stella ogni turno per sempre!`);
+        emitState(); break;
+      }
+
+      // ─── U INVERTI ────────────────────────────────────────────────────────────
+      case 'u_inverti': {
+        const allCharsU = game.field.filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+        if (allCharsU.length === 0) { emitChat(`🔄 U! Nessun personaggio in campo.`); break; }
+        const invertDigits = (n: number): number => {
+          // Pad to 4 digits before reversing so e.g. 1 → 0001 → 1000
+          const abs = Math.abs(n);
+          const s = String(abs).padStart(4, '0');
+          const reversed = s.split('').reverse().join('');
+          return parseInt(reversed, 10) || 1;
+        };
+        for (const c of allCharsU) {
+          // ZZERUO: skip characters owned by ZZERUO-protected enemy players
+          if (c.owner && c.owner !== playerName && this.isZzeruoImmune(game, c.owner)) {
+            emitChat(`🚫 ZZERUO! ${c.owner} è immune — ${c.name || '?'} non viene invertito!`);
+            continue;
+          }
+          const orig = c.pti || 0;
+          c.pti = invertDigits(orig);
+          this.updateCardTextWithPTI(c);
+        }
+        emitChat(`🔄 U! Le cifre dei PTI di tutti i personaggi sono state invertite!`);
+        emitState(); break;
+      }
+
+      // ─── ZZERUO ──────────────────────────────────────────────────────────────
+      case 'zzeruo': {
+        if (!game.timedEffects) game.timedEffects = [];
+        (game as any).zzeruo = (game as any).zzeruo || {};
+        (game as any).zzeruo[playerName] = { turnsLeft: 3 };
+        emitChat(`🚫 ZZERUO! Per 3 turni ${playerName} non può usare bonus, ma i bonus avversari non hanno effetto su di lui!`);
+        emitState(); break;
+      }
+
+      // ─── P NA NTECCHIA ────────────────────────────────────────────────────────
+      // Played proactively on your own turn (same pattern as RESPINTA which pre-arms reflectNextDamageTo).
+      // Sets a `salvavita` flag on the active character; the flag fires in the damage-application path
+      // when that character would be killed — saving them at 5 PTI instead of dying.
+      // The game engine has no true "play during another player's turn" mechanism; pre-arming flags
+      // before the attack is the standard reaction pattern for all defensive bonus cards.
+      case 'p_na_ntecchia': {
+        if (!myChar) break;
+        (myChar as any).salvavita = true;
+        emitChat(`🛟 P NA NTECCHIA! ${myChar.name || playerName}: se un attacco lo uccide, si salva rimanendo a 5 PTI!`);
+        emitState(); break;
+      }
+
+      // ─── MBACC A Z VCIENZ ────────────────────────────────────────────────────
+      case 'mbacc_z_vcienz': {
+        const isZiVcienz = /z[iì].?vcienz|zi.?vcienz/i.test(myCharName);
+        if (isCPU) {
+          (game as any).mbacc_z_vcienz = (game as any).mbacc_z_vcienz || {};
+          (game as any).mbacc_z_vcienz[playerName] = { active: true, ziVcienz: isZiVcienz };
+          if (isZiVcienz) {
+            for (const pName of game.turnOrder) {
+              if (pName !== playerName) {
+                const pHand = game.players[pName]?.hand || [];
+                const bonusToSteal = pHand.find((c: any) => c.type === 'bonus');
+                if (bonusToSteal) {
+                  const idx = pHand.indexOf(bonusToSteal);
+                  pHand.splice(idx, 1);
+                  game.players[playerName].hand = [...(game.players[playerName].hand || []), bonusToSteal];
+                  emitChat(`🪄 MBACC A Z VCIENZ (Zì Vcienz)! Rubato bonus "${bonusToSteal.name}" da ${pName}!`);
+                }
+              }
+            }
+          }
+          emitChat(`🪄 MBACC A Z VCIENZ! ${playerName}: il prossimo bonus avversario viene annullato e messo in mano${isZiVcienz ? ' (+ furto bonus!)' : ''}!`);
+          emitState(); break;
+        }
+        const psIdMB = (game.players[playerName] as any)?.socketId;
+        (game as any).mbacc_z_vcienz = (game as any).mbacc_z_vcienz || {};
+        if (isZiVcienz) {
+          // Zì Vcienz (human): steal one bonus from each opponent automatically (same as CPU path),
+          // then arm interception for the next incoming bonus.
+          (game as any).mbacc_z_vcienz[playerName] = { active: true, ziVcienz: true };
+          for (const pName of game.turnOrder) {
+            if (pName !== playerName) {
+              const pHand = game.players[pName]?.hand || [];
+              const bonusToSteal = pHand.find((c: any) => c.type === 'bonus');
+              if (bonusToSteal) {
+                const idx = pHand.indexOf(bonusToSteal);
+                pHand.splice(idx, 1);
+                game.players[playerName].hand = [...(game.players[playerName].hand || []), bonusToSteal];
+                emitChat(`🪄 MBACC A Z VCIENZ (Zì Vcienz)! ${playerName} ruba "${bonusToSteal.name}" da ${pName}!`);
+              }
+            }
+          }
+          emitChat(`🪄 MBACC A Z VCIENZ (Zì Vcienz)! ${playerName}: bonus rubato da ogni avversario + il prossimo bonus avversario sarà intercettato!`);
+        } else {
+          // Regular: just intercept the next incoming bonus (no choice panel needed)
+          (game as any).mbacc_z_vcienz[playerName] = { active: true, ziVcienz: false };
+          emitChat(`🪄 MBACC A Z VCIENZ! ${playerName}: il prossimo bonus avversario che ti colpisce sarà annullato e aggiunto alla tua mano!`);
+        }
+        emitState(); break;
+      }
+
+      // ─── MINI SEMAFORO ────────────────────────────────────────────────────────
+      case 'mini_semaforo': {
+        const allCharsSF = game.field.filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+        for (const c of allCharsSF) {
+          // PELUX is always immune regardless of owner (checked first for ALL characters)
+          const isPelux = /pelux/i.test(c.name || '');
+          if (isPelux) continue;
+          // ZZERUO: skip enemy characters whose owner is immune to bonuses
+          if (c.owner && c.owner !== playerName && this.isZzeruoImmune(game, c.owner)) {
+            emitChat(`🚫 ZZERUO! ${c.owner} è immune — ${c.name || '?'} non viene bloccato!`);
+            continue;
+          }
+          (c as any).miniSemaforoBlocco = true;
+        }
+        (game as any).miniSemaforo = { active: true, activatedBy: playerName };
+        if (io) io.to(gameId).emit('mini-semaforo-animation', { playerName, timestamp: Date.now() });
+        emitChat(`🚦 MINI SEMAFORO! Tutti i personaggi sono BLOCCATI (Il Pelux è immune)! Ogni turno ogni giocatore tira un dado per ogni suo personaggio: PARI = sblocco!`);
+        emitState(); break;
+      }
+
+      // ─── OH MA QUELLO ────────────────────────────────────────────────────────
+      case 'oh_ma_quello': {
+        // Filter enemy chars, excluding ZZERUO-immune players and checking MBACC interception
+        const allEnemyCharsOMQ = game.field.filter((c: Card) =>
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        // Filter only ZZERUO-immune players from candidate targets.
+        // MBACC interception is NOT checked here (filtering is NOT application); it fires at CPU
+        // target-selection time or (for human) the choice-panel response handler in routes.ts.
+        const enemiesOMQ = allEnemyCharsOMQ.filter((c: Card) => {
+          if (!c.owner) return true;
+          if (this.isZzeruoImmune(game, c.owner)) {
+            emitChat(`🚫 ZZERUO! ${c.owner} è immune — ${c.name || '?'} non può essere bersaglio di OH MA QUELLO!`);
+            return false;
+          }
+          return true;
+        });
+        if (enemiesOMQ.length === 0) { emitChat(`😮 OH MA QUELLO! Nessun personaggio avversario disponibile come bersaglio.`); break; }
+        const isGidi = /gidi/i.test(myCharName);
+        const deckTypesOMQ = isGidi ? ['personaggi', 'personaggi_speciali'] : ['personaggi'];
+        const availableReplacementsOMQ: Card[] = [];
+        for (const dt of deckTypesOMQ) {
+          const d = (game.decks as any)?.[dt] || [];
+          availableReplacementsOMQ.push(...d);
+        }
+        if (availableReplacementsOMQ.length === 0) { emitChat(`😮 OH MA QUELLO! Nessun personaggio disponibile nel mazzo per la sostituzione.`); break; }
+        if (isCPU) {
+          const targetOMQ = enemiesOMQ[Math.floor(Math.random() * enemiesOMQ.length)];
+          const replacementOMQ = availableReplacementsOMQ[Math.floor(Math.random() * availableReplacementsOMQ.length)];
+          const tOwner = targetOMQ.owner;
+          // MBACC: check at definitive target-application time (not during filtering)
+          if (tOwner && this.checkMbaccInterception(game, gameId, tOwner, card, playerName)) {
+            emitState(); break;
+          }
+          game.field = game.field.filter((c: Card) => c.id !== targetOMQ.id);
+          if (!(game.graveyard)) game.graveyard = [];
+          game.graveyard.push(targetOMQ);
+          replacementOMQ.owner = tOwner;
+          game.field.push(replacementOMQ);
+          for (const dt of deckTypesOMQ) {
+            (game.decks as any)[dt] = ((game.decks as any)[dt] || []).filter((c: Card) => c.id !== replacementOMQ.id);
+          }
+          emitChat(`😮 OH MA QUELLO! ${targetOMQ.name || targetOMQ.owner} sostituito con ${replacementOMQ.name || '?'}${isGidi ? ' (GIDI: pesca anche speciali!)' : ''}!`);
+          emitState();
+        } else {
+          const psIdOMQ = (game.players[playerName] as any)?.socketId;
+          const cIdOMQ = `oh-ma-quello-${Date.now()}`;
+          // Step 1: player picks target enemy to replace; step 2 will pick the replacement from deck
+          (game as any).pendingOhMaQuello = {
+            choiceId: cIdOMQ, playerName, isGidi,
+            availableReplacements: availableReplacementsOMQ.map((c: Card) => c.id),
+            step: 'pick_target',
+            sourceCard: card // needed for MBACC interception in routes.ts choice handler
+          };
+          if (psIdOMQ && io) {
+            io.to(psIdOMQ).emit('show-choice-panel', {
+              choiceId: cIdOMQ, title: '😮 OH MA QUELLO — Passo 1/2',
+              question: `Scegli il personaggio avversario da sostituire:`,
+              options: enemiesOMQ.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}${isGidi ? ' (Gidi: speciali disponibili!)' : ''}` })),
+              playerName, cardName: 'OH MA QUELLO', timestamp: Date.now()
+            });
+          }
+          emitChat(`😮 OH MA QUELLO! ${playerName} sceglie quale personaggio sostituire${isGidi ? ' (GIDI: speciali inclusi!)' : ''}...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── OOOOOH CHE T RITT ────────────────────────────────────────────────────
+      // Pre-arms `oooohCheTRitt` on the active character. When a PENDINGDEFENSE exists against
+      // another player AND this character's owner has MOSSA cards in hand, the defense-request
+      // flow checks `oooohCheTRitt` and allows the helper to donate a MOSSA card from their hand
+      // to the defender (stars ≥ 1 eligibility is checked at donation time in routes.ts).
+      // The flag is consumed on first use (single-activation reaction).
+      case 'oooooh_che_t_ritt': {
+        if (!myChar) break;
+        (myChar as any).oooohCheTRitt = true;
+        emitChat(`🤲 OOOOOH CHE T RITT! ${myChar.name || playerName}: quando un avversario attacca un altro giocatore, potrai dargli una mossa dalla tua mano (deve avere almeno 1 stella)!`);
+        emitState(); break;
+      }
+
+      // ─── SCART FRUSC ─────────────────────────────────────────────────────────
+      case 'scart_frusc': {
+        // Use the turn-boundary snapshot captured at the START of this player's turn.
+        // This is the last card played by any player BEFORE the current turn began,
+        // not a mid-turn "previous card" that would change as more cards are played.
+        const lastPlayed = (game as any).scartFruscLastCard;
+        if (!lastPlayed) { emitChat(`♻️ SCART FRUSC! Nessuna carta recente da riusare.`); break; }
+        const isPersonaggio = lastPlayed.type === 'personaggi' || lastPlayed.type === 'personaggi_speciali';
+        if (isPersonaggio) {
+          const originalOwner = lastPlayed.owner;
+          if (originalOwner && originalOwner !== playerName) {
+            game.field = game.field.filter((c: Card) => c.id !== lastPlayed.id);
+            lastPlayed.owner = playerName;
+            game.field.push({ ...lastPlayed, owner: playerName });
+            emitChat(`♻️ SCART FRUSC! ${lastPlayed.name || '?'} sottratto a ${originalOwner} e ora appartiene a ${playerName}!`);
+          } else {
+            emitChat(`♻️ SCART FRUSC! L'ultima carta era già tua o non ha un proprietario.`);
+          }
+        } else {
+          const replayCard = { ...lastPlayed, id: `scart_frusc_replay_${Date.now()}`, owner: playerName };
+          game.players[playerName].hand = [...(game.players[playerName].hand || []), replayCard];
+          emitChat(`♻️ SCART FRUSC! ${lastPlayed.name || '?'} aggiunta di nuovo alla tua mano!`);
+        }
+        emitState(); break;
+      }
+
+      // ─── STAI A FA NA CAZZATA ─────────────────────────────────────────────────
+      case 'stai_fa_cazzata': {
+        const isGoldenFreezerSFC = /golden.?freezer/i.test(myCharName);
+        const turnsActiveSFC = isGoldenFreezerSFC ? 1 : 0;
+        (game as any).staiAFaNaCazzata = (game as any).staiAFaNaCazzata || {};
+        (game as any).staiAFaNaCazzata[playerName] = { active: true, turnsLeft: turnsActiveSFC, goldenFreezer: isGoldenFreezerSFC };
+        emitChat(`🛑 STAI A FA NA CAZZATA! ${playerName}: può spiare le carte del difensore e annullare un attacco avversario${isGoldenFreezerSFC ? ' (GOLDEN FREEZER: vale per 1 turno intero!)' : ''}!`);
+        emitState(); break;
+      }
+
+      // ─── TOTALEEEE ───────────────────────────────────────────────────────────
+      case 'totaleeee': {
+        const allCharsTot = game.field.filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+        if (allCharsTot.length === 0) { emitChat(`⚡ TOTALEEEE! Nessun personaggio in campo.`); break; }
+        // ZZERUO: only absorb characters whose owner is not immune (MBACC not applicable here
+        // as TOTALEEEE is a field-wide restructuring, not a targeted per-player application).
+        const eligibleCharsTot = allCharsTot.filter((c: Card) => {
+          if (!c.owner || c.owner === playerName) return true;
+          if (this.isZzeruoImmune(game, c.owner)) {
+            emitChat(`🚫 ZZERUO! ${c.owner} è immune — ${c.name || '?'} non viene assorbito da TOTALEEEE!`);
+            return false;
+          }
+          return true;
+        });
+        const totalPtiT = eligibleCharsTot.reduce((s: number, c: Card) => s + (c.pti || 0), 0);
+        const totalStarsT = eligibleCharsTot.reduce((s: number, c: Card) => s + (c.stars || 0), 0);
+        const centralChar: any = {
+          id: `totaleeee_central_${Date.now()}`,
+          name: 'TOTALEEEE',
+          type: 'personaggi',
+          owner: '__central__',
+          pti: totalPtiT,
+          stars: totalStarsT,
+          isTotaleeeeCentral: true,
+          activatedBy: playerName,
+          frontImage: null,
+          text: `TOTALEEEE — ${totalPtiT} PTI, ${totalStarsT} stelle — Chi lo uccide lo conquista!`
+        };
+        game.field.push(centralChar);
+        emitChat(`⚡ TOTALEEEE! Personaggio centrale creato con ${totalPtiT} PTI e ${totalStarsT} stelle! Chi lo uccide lo conquista con tutti i suoi valori!`);
+        emitState(); break;
+      }
+
+      // ─── VOUS TRA VOUS ────────────────────────────────────────────────────────
+      case 'vous_tra_vous': {
+        const allEnemyPlayersVTV = game.turnOrder.filter((p: string) => p !== playerName);
+        // ZZERUO: exclude immune players from candidates.
+        // MBACC: NOT checked during filtering (filtering ≠ application); fires at actual target selection.
+        const enemyPlayersVTV = allEnemyPlayersVTV.filter((p: string) => {
+          if (this.isZzeruoImmune(game, p)) {
+            emitChat(`🚫 ZZERUO! ${p} è immune — non può essere trascinato nel duello VOUS TRA VOUS!`);
+            return false;
+          }
+          return true;
+        });
+        if (enemyPlayersVTV.length < 2) { emitChat(`⚔️ VOUS TRA VOUS! Servono almeno 2 avversari disponibili per il duello.`); break; }
+        if (isCPU) {
+          const shuffledVTV = [...enemyPlayersVTV].sort(() => Math.random() - 0.5);
+          const p1VTV = shuffledVTV[0]; const p2VTV = shuffledVTV[1];
+          const c1VTV = this.getPlayerActiveCharacter(game, p1VTV);
+          const c2VTV = this.getPlayerActiveCharacter(game, p2VTV);
+          if (!c1VTV || !c2VTV) { emitChat(`⚔️ VOUS TRA VOUS! Uno dei due avversari non ha un personaggio in campo.`); emitState(); break; }
+          // MBACC: check at definitive target-application time for each chosen duelist
+          const mbaccP1 = this.checkMbaccInterception(game, gameId, p1VTV, card, playerName);
+          const mbaccP2 = !mbaccP1 && this.checkMbaccInterception(game, gameId, p2VTV, card, playerName);
+          if (mbaccP1 || mbaccP2) { emitState(); break; }
+          (game as any).vousTrVous = { player1: p1VTV, player2: p2VTV, char1Id: c1VTV.id, char2Id: c2VTV.id, active: true, activatedBy: playerName };
+          emitChat(`⚔️ VOUS TRA VOUS! ${c1VTV.name || p1VTV} vs ${c2VTV.name || p2VTV} — duello fino alla morte!`);
+          emitState();
+        } else {
+          const psIdVTV = (game.players[playerName] as any)?.socketId;
+          const cIdVTV = `vous-tra-vous-${Date.now()}`;
+          (game as any).pendingVousTrVous = { choiceId: cIdVTV, playerName, sourceCard: card };
+          const eligibleVTV = enemyPlayersVTV.filter((p: string) => !!this.getPlayerActiveCharacter(game, p));
+          if (eligibleVTV.length < 2) { emitChat(`⚔️ VOUS TRA VOUS! Non ci sono abbastanza avversari con personaggi in campo.`); emitState(); break; }
+          if (psIdVTV && io) {
+            io.to(psIdVTV).emit('show-choice-panel', {
+              choiceId: cIdVTV, title: '⚔️ VOUS TRA VOUS',
+              question: 'Scegli il primo avversario del duello:',
+              options: eligibleVTV.map((p: string) => {
+                const ec = this.getPlayerActiveCharacter(game, p);
+                return { value: p, label: p, description: ec ? `${ec.name || '?'} — PTI: ${ec.pti}` : 'Nessun personaggio' };
+              }),
+              playerName, cardName: 'VOUS TRA VOUS', timestamp: Date.now()
+            });
+          }
+          emitChat(`⚔️ VOUS TRA VOUS! ${playerName} sceglie i due avversari per il duello...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── Z AMMONTA ────────────────────────────────────────────────────────────
+      case 'z_ammonta': {
+        // Return all field cards to the shared decks (by card type), clear field
+        const fieldCopyZA = [...game.field];
+        for (const c of fieldCopyZA) {
+          const sharedDeckType = (c.type === 'bonus' ? 'bonus' : c.type === 'mosse' ? 'mosse' : 'personaggi') as keyof typeof game.decks;
+          if (game.decks[sharedDeckType]) {
+            game.decks[sharedDeckType].push(c);
+          }
+        }
+        game.field = [];
+        // Return all hand cards to the shared decks and clear hands
+        for (const pName of game.turnOrder) {
+          const pData = game.players[pName];
+          if (!pData) continue;
+          for (const c of (pData.hand || [])) {
+            const sharedDeckType = (c.type === 'bonus' ? 'bonus' : c.type === 'mosse' ? 'mosse' : 'personaggi') as keyof typeof game.decks;
+            if (game.decks[sharedDeckType]) {
+              game.decks[sharedDeckType].push(c);
+            }
+          }
+          pData.hand = [];
+        }
+        // Shuffle all shared decks
+        for (const deckType of ['bonus', 'mosse', 'personaggi'] as const) {
+          const d = game.decks[deckType];
+          if (d && d.length > 0) {
+            for (let i = d.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [d[i], d[j]] = [d[j], d[i]];
+            }
+          }
+        }
+        // Give each player 1 card per type from the shared decks
+        for (const pName of game.turnOrder) {
+          const pData = game.players[pName];
+          if (!pData) continue;
+          for (const deckType of ['personaggi', 'mosse', 'bonus'] as const) {
+            const d = game.decks[deckType];
+            if (d && d.length > 0) {
+              const drawn = d.pop()!;
+              drawn.owner = pName;
+              pData.hand.push(drawn);
+            }
+          }
+        }
+        const zaCardsPerPlayer = 3; // 1 bonus + 1 mosse + 1 personaggi
+        emitChat(`♻️ Z AMMONTA! Tutti i mazzi sono stati rimescolati e ogni giocatore ha ripescato ${zaCardsPerPlayer} carte (1 per tipo)!`);
+        if (io) io.to(gameId).emit('z-ammonta-redraw', { playerName, count: zaCardsPerPlayer, timestamp: Date.now() });
+        emitState(); break;
+      }
+
       default:
         console.log(`⚠️ [NAMED-BONUS] Unknown effect: ${effectName}`);
     }
@@ -8898,6 +9426,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               if (fieldCard.owner !== playerName && 
                   (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
                   fieldCard.pti != null) {
+                // ZZERUO IMMUNITY: skip opponent's character if they are protected by ZZERUO
+                if (fieldCard.owner && this.isZzeruoImmune(game, fieldCard.owner)) {
+                  console.log(`🚫 ZZERUO: ${fieldCard.owner} is immune — custom damage skipped for "${fieldCard.name || fieldCard.id}"`);
+                  const ioZZ = (global as any).io;
+                  if (ioZZ) ioZZ.to(gameId).emit('chat-message', { id: `${Date.now()}-zzeruo-immune-${fieldCard.id}`, playerName: 'Sistema', message: `🚫 ZZERUO: ${fieldCard.owner} è protetto — il danno è annullato!`, timestamp: Date.now() });
+                  continue;
+                }
                 const oldPti = fieldCard.pti;
                 fieldCard.pti = Math.max(0, fieldCard.pti - damageValue);
                 this.updateCardTextWithPTI(fieldCard);
@@ -8939,7 +9474,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             }
           }
         } else if (action.target === 'enemy_card' || action.target === 'random') {
-          const enemies = game.field.filter((c: Card) => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.pti != null);
+          const enemies = game.field.filter((c: Card) => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.pti != null && !this.isZzeruoImmune(game, c.owner || ''));
           if (enemies.length > 0) {
             const target = this.cpuPickBestEnemy(enemies);
             const oldPti = target.pti || 0;
@@ -9054,6 +9589,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             // Default: Discard random cards from each opponent's hand
             for (const [opponentName, opponent] of Object.entries(game.players)) {
               if (opponentName === playerName && action.target === 'opponents') continue;
+              // ZZERUO IMMUNITY: skip opponent if immune
+              if (this.isZzeruoImmune(game, opponentName)) {
+                console.log(`🚫 ZZERUO: ${opponentName} is immune — discard skipped`);
+                continue;
+              }
               const discardCount = Math.min(discardValue, opponent.hand.length);
               for (let i = 0; i < discardCount; i++) {
                 if (opponent.hand.length > 0) {
@@ -9184,6 +9724,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           for (const fieldCard of game.field) {
             if (fieldCard.owner !== playerName && 
                 (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+              if (fieldCard.owner && this.isZzeruoImmune(game, fieldCard.owner)) {
+                console.log(`🚫 ZZERUO: ${fieldCard.owner} is immune — freeze skipped for "${fieldCard.name || fieldCard.id}"`);
+                continue;
+              }
               fieldCard.frozenTurns = action.value || 2;
               console.log(`❄️ Custom effect: ${fieldCard.name || fieldCard.id} is FROZEN for ${fieldCard.frozenTurns} turns!`);
             }
@@ -9197,6 +9741,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           for (const fieldCard of game.field) {
             if (fieldCard.owner !== playerName && 
                 (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+              if (fieldCard.owner && this.isZzeruoImmune(game, fieldCard.owner)) {
+                console.log(`🚫 ZZERUO: ${fieldCard.owner} is immune — stun skipped for "${fieldCard.name || fieldCard.id}"`);
+                continue;
+              }
               fieldCard.isStunned = true;
               console.log(`💫 Custom effect: ${fieldCard.name || fieldCard.id} is STUNNED!`);
             }
@@ -9210,6 +9758,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           for (const fieldCard of game.field) {
             if (fieldCard.owner !== playerName && 
                 (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+              // ZZERUO IMMUNITY: skip immune opponents
+              if (fieldCard.owner && this.isZzeruoImmune(game, fieldCard.owner)) {
+                console.log(`🚫 ZZERUO: ${fieldCard.owner} is immune — poison skipped for "${fieldCard.name || fieldCard.id}"`);
+                continue;
+              }
               fieldCard.poisonDamage = action.value || 50;
               fieldCard.poisonTurns = 3;
               console.log(`☠️ Custom effect: ${fieldCard.name || fieldCard.id} is POISONED (${fieldCard.poisonDamage}/turn)!`);
@@ -9224,6 +9777,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           for (const fieldCard of game.field) {
             if (fieldCard.owner !== playerName && 
                 (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+              // ZZERUO IMMUNITY: skip immune opponents
+              if (fieldCard.owner && this.isZzeruoImmune(game, fieldCard.owner)) {
+                console.log(`🚫 ZZERUO: ${fieldCard.owner} is immune — burn skipped for "${fieldCard.name || fieldCard.id}"`);
+                continue;
+              }
               fieldCard.burnDamage = action.value || 30;
               console.log(`🔥 Custom effect: ${fieldCard.name || fieldCard.id} is BURNING (${fieldCard.burnDamage}/turn)!`);
             }
@@ -13411,6 +13969,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return { success: false, error: 'Il tuo personaggio è stordito! Non può attaccare questo turno.' };
     }
 
+    // MINI SEMAFORO: blocked characters cannot attack (except Il Pelux)
+    if ((attackerCharacter as any).miniSemaforoBlocco) {
+      const isPelux = /pelux/i.test(attackerCharacter.name || '');
+      if (!isPelux) {
+        console.log(`🚦 ${attackerName}'s character is blocked by MINI SEMAFORO - cannot attack`);
+        return { success: false, error: 'Il tuo personaggio è bloccato dal MINI SEMAFORO! Aspetta un dado pari per sbloccarsi.' };
+      }
+    }
+
     // CATAPULTA INFERNALE: server-side damage override (field char stars + first hand char stars)
     if ((mosseCard.frontImage || '').includes('catapulta-infernale')) {
       const fieldStars = attackerCharacter ? (attackerCharacter.stars ?? this.extractStarsFromNote(attackerCharacter.text || '')) : 1;
@@ -13484,6 +14051,23 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const io3 = (global as any).io;
         if (io3) io3.to(gameId).emit('chat-message', { id: `${Date.now()}-carica-forced`, playerName: 'Sistema', message: `⚡ CARICA! L'attacco di ${attackerName} è diretto obbligatoriamente su ${forcedCard.name || forcedCard.owner}!`, timestamp: Date.now() });
       }
+    }
+
+    // ── VOUS TRA VOUS: enforce duel — only p1↔p2 attacks allowed ─────────────
+    if ((game as any).vousTrVous?.active && !isHandTarget) {
+      const vtv = (game as any).vousTrVous;
+      const duelists = [vtv.player1, vtv.player2];
+      const isInDuel = duelists.includes(attackerName);
+      const targetInDuel = duelists.includes(targetOwnerName);
+      // Non-duelists cannot attack
+      if (!isInDuel) {
+        return { success: false, error: `⚔️ VOUS TRA VOUS in corso! Solo ${vtv.player1} e ${vtv.player2} possono attaccarsi tra loro.` };
+      }
+      // Duelists must attack only each other
+      if (isInDuel && !targetInDuel) {
+        return { success: false, error: `⚔️ VOUS TRA VOUS in corso! Devi attaccare solo ${duelists.find(p => p !== attackerName)}!` };
+      }
+      // Clear duel when one of the characters dies (handled by death logic + moveToGraveyard)
     }
 
     // ── PROVINO PER LA JUVE (doubleNextAttack) ────────────────────────────────
@@ -16870,6 +17454,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
+    // SALVAVITA (p na ntecchia): Save from death at 5 PTI
+    if (cardToCheck && (cardToCheck as any).salvavita) {
+      delete (cardToCheck as any).salvavita;
+      cardToCheck.pti = 5;
+      this.updateCardTextWithPTI(cardToCheck);
+      const cardNameSV = cardToCheck.name || this.getCardNameFromUrl(cardToCheck.frontImage || '');
+      const ioSV = (global as any).io;
+      if (ioSV) {
+        ioSV.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-salvavita-trigger`,
+          playerName: 'Sistema',
+          message: `🛟 P NA NTECCHIA! ${cardNameSV} stava per morire ma si salva con 5 PTI!`,
+          timestamp: Date.now()
+        });
+      }
+      return { success: true, insuranceTriggered: true };
+    }
+
     // BRIAN / RETURN ON DEATH: Check if card should return to hand instead of graveyard
     if (cardToCheck && (cardToCheck as any).returnToHandOnDeath) {
       const cardOwner = cardToCheck.owner || playerName;
@@ -17067,6 +17669,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           if ((game as any).ciroMohamedDuelActive) {
             (game as any).ciroMohamedDuelActive = false;
             console.log(`🍕 CIRO/MOHAMED: duelActive flag cleared after card death (${cardId})`);
+          }
+          // VOUS TRA VOUS: clear duel if a duelist's character dies
+          if ((game as any).vousTrVous?.active) {
+            const vtv = (game as any).vousTrVous;
+            if (vtv.player1 === cardOwner || vtv.player2 === cardOwner) {
+              const vtvWinner = vtv.player1 === cardOwner ? vtv.player2 : vtv.player1;
+              (game as any).vousTrVous = undefined;
+              console.log(`⚔️ VOUS TRA VOUS ended: ${cardOwner} lost their character. Winner: ${vtvWinner}`);
+              const ioVTV = (global as any).io;
+              if (ioVTV) ioVTV.to(gameId).emit('chat-message', { id: `${Date.now()}-vtv-end`, playerName: 'Sistema', message: `⚔️ VOUS TRA VOUS! ${cardOwner} è stato eliminato. Vince ${vtvWinner}!`, timestamp: Date.now() });
+            }
           }
           const ioGlobal = (global as any).io;
           if (ioGlobal) {
@@ -23280,6 +23893,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const gameState = this.games.get(gameId);
     if (!gameState || gameState.turnOrder.length === 0) return null;
 
+    // SCART FRUSC: snapshot the last played card at turn boundary so that when the next player
+    // plays SCART FRUSC they reuse the card played by the PREVIOUS player's turn, not something
+    // played earlier in their own turn (which would change as more cards are played mid-turn).
+    if ((gameState as any).lastPlayedCard) {
+      (gameState as any).scartFruscLastCard = (gameState as any).lastPlayedCard;
+    }
+
     // Track turns played stat
     this.trackPlayerStat(gameState, playerName, 'turnsPlayed');
 
@@ -23384,6 +24004,53 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
+    // ── ZZERUO decrement ────────────────────────────────────────────────────────
+    if ((gameState as any).zzeruo) {
+      for (const pName of Object.keys((gameState as any).zzeruo)) {
+        const zz = (gameState as any).zzeruo[pName];
+        if (zz && zz.turnsLeft > 0) {
+          zz.turnsLeft--;
+          if (zz.turnsLeft <= 0) {
+            delete (gameState as any).zzeruo[pName];
+            const ioZZ2 = (global as any).io;
+            if (ioZZ2) ioZZ2.to(gameId).emit('chat-message', { id: `${Date.now()}-zzeruo-end`, playerName: 'Sistema', message: `🚫 ZZERUO terminato per ${pName}! Può usare bonus di nuovo, ma anche i bonus avversari avranno effetto.`, timestamp: Date.now() });
+          }
+        }
+      }
+    }
+
+    // ── MINI SEMAFORO: roll dice each turn to unblock chars ──────────────────────
+    if ((gameState as any).miniSemaforo?.active) {
+      const ioSF = (global as any).io;
+      const allFieldChars = (gameState.field || []).filter((c: Card) => (c as any).miniSemaforoBlocco);
+      let anyUnlocked = false;
+      for (const pName of gameState.turnOrder) {
+        const pChars = (gameState.field || []).filter((c: Card) => c.owner === pName && (c as any).miniSemaforoBlocco);
+        for (const ch of pChars) {
+          const rollSF = Math.floor(Math.random() * 6) + 1;
+          const charNameSF = (ch as any).name || this.getCardNameFromUrl((ch as any).frontImage || '') || pName;
+          const isBlockedSF = rollSF % 2 !== 0;
+          if (ioSF) ioSF.to(gameId).emit('dice-rolled', { result: rollSF, playerName: pName });
+          // Emit per-character animation event with expected client payload
+          if (ioSF) ioSF.to(gameId).emit('mini-semaforo-animation', {
+            playerName: pName, characterName: charNameSF, roll: rollSF, blocked: isBlockedSF
+          });
+          if (!isBlockedSF) {
+            delete (ch as any).miniSemaforoBlocco;
+            anyUnlocked = true;
+            if (ioSF) ioSF.to(gameId).emit('chat-message', { id: `${Date.now()}-sf-unlock-${ch.id}`, playerName: 'Sistema', message: `🟢 MINI SEMAFORO: ${charNameSF} sblocca con un ${rollSF} (pari)!`, timestamp: Date.now() });
+          } else {
+            if (ioSF) ioSF.to(gameId).emit('chat-message', { id: `${Date.now()}-sf-locked-${ch.id}`, playerName: 'Sistema', message: `🔴 MINI SEMAFORO: ${charNameSF} rimane bloccato con un ${rollSF} (dispari)!`, timestamp: Date.now() });
+          }
+        }
+      }
+      const remainingBlocked = (gameState.field || []).filter((c: Card) => (c as any).miniSemaforoBlocco).length;
+      if (remainingBlocked === 0) {
+        delete (gameState as any).miniSemaforo;
+        if (ioSF) ioSF.to(gameId).emit('chat-message', { id: `${Date.now()}-sf-end`, playerName: 'Sistema', message: `🟢 MINI SEMAFORO terminato! Tutti i personaggi sono stati sbloccati!`, timestamp: Date.now() });
+      }
+    }
+
     // ── STEALTH (Scudo) decrement ─────────────────────────────────────────────────
     for (const fc of (gameState.field || [])) {
       if ((fc as any).stealthTurnsLeft !== undefined) {
@@ -23418,6 +24085,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const ioDop = (global as any).io;
           if (ioDop) ioDop.to(gameId).emit('chat-message', { id: `${Date.now()}-doping-penalty`, playerName: 'Sistema', message: `💊 DOPING: ${fc.name || fc.owner} perde 50 PTI per l'effetto del doping!`, timestamp: Date.now() });
         }
+      }
+    }
+
+    // ── TU MI LASCI CADERE: apply +1 stella/turno for characters with starPerTurnBonus ───────────
+    for (const fc of (gameState.field || [])) {
+      if ((fc as any).starPerTurnBonus && fc.owner === playerName) {
+        const bonus = (fc as any).starPerTurnBonus as number;
+        fc.stars = Math.min(5, (fc.stars || 0) + bonus);
+        this.updateCardTextWithPTI(fc);
+        const ioSPT = (global as any).io;
+        if (ioSPT) ioSPT.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-star-per-turn-${fc.id}`, playerName: 'Sistema',
+          message: `⭐ TU MI LASCI CADERE: ${fc.name || playerName} guadagna +${bonus} stella/e → ${fc.stars} stelle!`,
+          timestamp: Date.now()
+        });
       }
     }
 
@@ -27901,6 +28583,171 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
+    // STAI A FA NA CAZZATA: spy reveals defender's hand and cancels the incoming attack
+    // For CPU spies: auto-fire; for human spies: show choice panel and pause the attack
+    if (!isVoodooReflection && !isHandTarget && game && (game as any).staiAFaNaCazzata) {
+      const sfcMap = (game as any).staiAFaNaCazzata as Record<string, any>;
+      for (const spyPlayer of Object.keys(sfcMap)) {
+        const spyData = sfcMap[spyPlayer];
+        if (!spyData?.active) continue;
+        if (spyPlayer === attackerName || spyPlayer === targetOwner) continue; // Only third-party spies
+        const spyChar = this.getPlayerActiveCharacter(game, spyPlayer);
+        if (!spyChar) continue;
+        const ioSFC = (global as any).io || io;
+        const spySockId = (game.players[spyPlayer] as any)?.socketId;
+        const isCPUSpy = !!(game.players[spyPlayer] as any)?.isCPU;
+        const defenderHand = game.players[targetOwner]?.hand || [];
+
+        if (!isCPUSpy && spySockId && ioSFC) {
+          // Human spy: emit choice panel and pause the attack
+          const sfcChoiceId = `stai-fa-cazzata-${Date.now()}`;
+          const handSummary = defenderHand.map((c: any) => `${c.name || c.id} (${c.type})`).join(', ') || '(mano vuota)';
+          // Store pending attack state so it can be resumed if spy ignores
+          (game as any).pendingStaiAFaNaCazzata = {
+            choiceId: sfcChoiceId, spyPlayer,
+            attackerName, targetOwner, targetCardId,
+            mosseCardId, damageValue, starsToRemove, mosseEffect,
+            isFurtoAttack, isDuelAttack, goldenFreezer: !!spyData.goldenFreezer
+          };
+          // Reveal hand privately first
+          ioSFC.to(spySockId).emit('spy-reveal-hand', {
+            spiedPlayer: targetOwner,
+            hand: defenderHand.map((c: any) => ({ id: c.id, name: c.name, type: c.type })),
+            timestamp: Date.now()
+          });
+          // Show choice panel
+          ioSFC.to(spySockId).emit('show-choice-panel', {
+            choiceId: sfcChoiceId, title: '🕵️ STAI A FA NA CAZZATA',
+            question: `${attackerName} sta attaccando ${targetOwner}! Vuoi spiare e annullare l'attacco?\nMano di ${targetOwner}: [${handSummary}]`,
+            options: [
+              { value: 'SPY', label: '🔍 Spia e Annulla', description: `Annulla l'attacco di ${attackerName} su ${targetOwner}` },
+              { value: 'IGNORA', label: '🚫 Ignora', description: 'Non intervenire — lascia proseguire l\'attacco' }
+            ],
+            playerName: spyPlayer, cardName: 'STAI A FA NA CAZZATA', timestamp: Date.now()
+          });
+          ioSFC.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-sfc-pending`, playerName: 'Sistema',
+            message: `🕵️ STAI A FA NA CAZZATA! ${spyPlayer} decide se spiare l'attacco di ${attackerName} su ${targetOwner}...`,
+            timestamp: Date.now()
+          });
+          // Auto-timeout after 15s: if no response, continue attack normally
+          setTimeout(async () => {
+            const pendingSFC = (game as any).pendingStaiAFaNaCazzata;
+            if (pendingSFC && pendingSFC.choiceId === sfcChoiceId) {
+              delete (game as any).pendingStaiAFaNaCazzata;
+              console.log(`🕵️ STAI A FA NA CAZZATA TIMEOUT: Continuing attack ${attackerName}→${targetOwner}`);
+              await this.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, ioSFC, false, isDuelAttack, false, isFurtoAttack, starsToRemove, mosseEffect ?? undefined);
+            }
+          }, 15000);
+          console.log(`🕵️ STAI A FA NA CAZZATA: Pausing attack ${attackerName}→${targetOwner} for human spy ${spyPlayer}`);
+          return; // Paused — waiting for spy choice
+        } else {
+          // CPU spy: auto-fire — reveal hand summary in log, cancel attack
+          const handSummary = defenderHand.map((c: any) => `${c.name || c.id} (${c.type})`).join(', ') || '(mano vuota)';
+          console.log(`🕵️ STAI A FA NA CAZZATA (CPU): ${spyPlayer} spied ${targetOwner}'s hand: ${handSummary}`);
+          if (ioSFC) {
+            ioSFC.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-sfc-cpu-cancel`, playerName: 'Sistema',
+              message: `🛑 STAI A FA NA CAZZATA! ${spyPlayer} ha intercettato l'attacco di ${attackerName} su ${targetOwner} — ATTACCO ANNULLATO!`,
+              timestamp: Date.now()
+            });
+          }
+          // Consume or decrement (Golden Freezer: lasts 1 full turn, otherwise one-shot)
+          if (spyData.goldenFreezer && spyData.turnsLeft > 0) {
+            spyData.turnsLeft--;
+            if (spyData.turnsLeft <= 0) delete sfcMap[spyPlayer];
+          } else {
+            delete sfcMap[spyPlayer];
+          }
+          if (Object.keys(sfcMap).length === 0) delete (game as any).staiAFaNaCazzata;
+          return; // Attack cancelled
+        }
+      }
+    }
+
+    // OOOOH CHE TRITT: a player who played this card can give a mossa from their hand to the attacked character
+    // Only fires if the defender character has stelle >= 1 (star constraint)
+    // For CPU helpers: auto-transfer first mossa; for human helpers: show choice panel
+    if (!isVoodooReflection && !isHandTarget && game) {
+      for (const pName of (game.turnOrder || [])) {
+        if (pName === attackerName) continue; // Attacker can't use this reactively
+        const pChar = this.getPlayerActiveCharacter(game, pName);
+        if (!pChar || !(pChar as any).oooohCheTRitt) continue;
+        const pHand = game.players[pName]?.hand || [];
+        const ioOCT = (global as any).io || io;
+        // Star eligibility: the defender's active character must have at least 1 star
+        const defenderChar = this.getPlayerActiveCharacter(game, targetOwner);
+        const defenderStars = defenderChar ? (defenderChar.stars || 0) : 0;
+        if (defenderStars < 1) {
+          if (ioOCT) {
+            ioOCT.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-ooooh-che-tritt-stars`, playerName: 'Sistema',
+              message: `🎴 OOOOOH CHE T RITT! ${pName} vorrebbe aiutare ${targetOwner} ma il difensore non ha stelle sufficienti!`,
+              timestamp: Date.now()
+            });
+          }
+          delete (pChar as any).oooohCheTRitt;
+          break;
+        }
+        const mossasInHand = pHand.filter((c: any) => c.type === 'mosse');
+        const isCPUHelper = !!(game.players[pName] as any)?.isCPU;
+        const helperSockId = (game.players[pName] as any)?.socketId;
+        if (isCPUHelper) {
+          // CPU: auto-transfer the first mossa found
+          delete (pChar as any).oooohCheTRitt;
+          const mossaInHand = mossasInHand[0];
+          if (mossaInHand && game.players[targetOwner]) {
+            game.players[pName].hand = pHand.filter((c: any) => c.id !== mossaInHand.id);
+            game.players[targetOwner].hand = [...(game.players[targetOwner].hand || []), { ...mossaInHand }];
+            if (ioOCT) {
+              ioOCT.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-ooooh-che-tritt`, playerName: 'Sistema',
+                message: `🎴 OOOOOH CHE T RITT! ${pName} reagisce all'attacco su ${targetOwner} (${defenderStars}⭐) e gli passa "${mossaInHand.name || '?'}"!`,
+                timestamp: Date.now()
+              });
+            }
+          } else if (ioOCT) {
+            ioOCT.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-ooooh-che-tritt-no`, playerName: 'Sistema',
+              message: `🎴 OOOOOH CHE T RITT! ${pName} vorrebbe aiutare ${targetOwner} ma non ha mosse in mano!`,
+              timestamp: Date.now()
+            });
+          }
+        } else if (helperSockId && ioOCT && mossasInHand.length > 0) {
+          // Human: show choice panel to pick which mossa to give (do NOT delete flag yet)
+          const octChoiceId = `ooooh-che-tritt-${Date.now()}`;
+          (game as any).pendingOoooohCheTRitt = { choiceId: octChoiceId, helperPlayer: pName, targetOwner, defenderStars };
+          ioOCT.to(helperSockId).emit('show-choice-panel', {
+            choiceId: octChoiceId, title: '🎴 OOOOOH CHE T RITT!',
+            question: `${attackerName} sta attaccando ${targetOwner} (${defenderStars}⭐)! Quale mossa vuoi passare al difensore?`,
+            options: [
+              ...mossasInHand.map((c: any) => ({ value: c.id, label: c.name || c.id, description: `Mosse — ${c.text?.substring(0, 50) || '?'}` })),
+              { value: 'IGNORA', label: '🚫 Non intervenire', description: 'Non passare nulla al difensore' }
+            ],
+            playerName: pName, cardName: 'OOOOOH CHE T RITT', timestamp: Date.now()
+          });
+          ioOCT.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-ooooh-pending`, playerName: 'Sistema',
+            message: `🎴 OOOOOH CHE T RITT! ${pName} decide quale mossa passare a ${targetOwner}...`,
+            timestamp: Date.now()
+          });
+          delete (pChar as any).oooohCheTRitt; // Flag consumed — awaiting panel response
+          console.log(`🎴 OOOOOH CHE T RITT: Human ${pName} shown mossa selection panel`);
+        } else {
+          // Human but no mosse in hand
+          delete (pChar as any).oooohCheTRitt;
+          if (ioOCT) {
+            ioOCT.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-ooooh-che-tritt-no`, playerName: 'Sistema',
+              message: `🎴 OOOOOH CHE T RITT! ${pName} vorrebbe aiutare ${targetOwner} ma non ha mosse in mano!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break; // Only one player can react per attack
+      }
+    }
+
     // BAMBOLA DEL DEMONIO: immune to attacks for 3 turns
     if (!isVoodooReflection && (targetCard as any).immuneToAttacks &&
         (targetCard.frontImage || '').toLowerCase().includes('bambola-del-demonio')) {
@@ -28869,6 +29716,26 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         // CIMICE DEATH EFFECT: Check if dying card is CIMICE or has copied CIMICE power before moving to graveyard
         const dyingCardName = this.getCardNameFromUrl(targetCard.frontImage || '').toUpperCase();
         const hasCimicePower = dyingCardName.includes('CIMICE') || targetCard.copiedPower === 'CIMICE';
+
+        // TOTALEEE CENTRALE: if the dying card is the central character, conquer it instead of graveyard
+        if ((targetCard as any).isTotaleeeeCentral && targetCard.owner === '__central__') {
+          console.log(`🏛️ TOTALEEE CENTRALE: central character ${targetCard.name || targetCardId} conquered by ${attackerName}!`);
+          game!.field = game!.field.filter((c: any) => c.id !== targetCardId);
+          targetCard.owner = attackerName;
+          targetCard.pti = currentPTI; // Restore full PTI on conquest
+          targetCard.stars = targetCard.stars ?? this.extractStarsFromNote(targetCard.text || '');
+          this.updateCardTextWithPTI(targetCard);
+          game!.field.push(targetCard);
+          const ioTC = (global as any).io || io;
+          ioTC.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-totaleee-centrale`, playerName: 'Sistema',
+            message: `🏛️ TOTALEEE CENTRALE! ${attackerName} ha conquistato ${targetCard.name || 'il personaggio centrale'} con tutti i suoi PTI e stelle!`,
+            timestamp: Date.now()
+          });
+          const tcState = this.getSanitizedGameState(gameId);
+          ioTC.to(gameId).emit('game-state-update', tcState);
+          return;
+        }
         
         // Regular field death: move to graveyard with attacker info for SOROS activation
         const result = this.moveToGraveyard(gameId, targetCardId, targetOwner, attackerName);

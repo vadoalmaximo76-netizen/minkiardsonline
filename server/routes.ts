@@ -4573,6 +4573,254 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
+      // ── OH MA QUELLO ─────────────────────────────────────────────────────────
+      const pendingOMQ = (game as any).pendingOhMaQuello;
+      if (pendingOMQ && pendingOMQ.choiceId === choiceId && pendingOMQ.playerName === socketPlayerName) {
+        if (pendingOMQ.step === 'pick_target') {
+          // Step 1: player chose the target to replace — now show replacement picker
+          const targetOMQ = game.field.find((c: any) => c.id === value);
+          if (!targetOMQ) {
+            delete (game as any).pendingOhMaQuello;
+            io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+            return;
+          }
+          // MBACC: check at definitive target-selection time (human path mirrors CPU path)
+          const tOwnerCandidate = targetOMQ.owner;
+          if (tOwnerCandidate) {
+            const mbaccMapOMQ = (game as any).mbacc_z_vcienz;
+            if (mbaccMapOMQ && mbaccMapOMQ[tOwnerCandidate]?.active) {
+              const cardOMQ = (pendingOMQ as any).sourceCard;
+              if (cardOMQ) {
+                game.players[tOwnerCandidate].hand = [...(game.players[tOwnerCandidate].hand || []), { ...cardOMQ }];
+                delete mbaccMapOMQ[tOwnerCandidate];
+                io.to(gameId).emit('chat-message', { id: `${Date.now()}-mbacc-omq`, playerName: 'Sistema', message: `🪄 MBACC A Z VCIENZ! ${tOwnerCandidate} ha intercettato la mossa di OH MA QUELLO e l'ha aggiunta alla sua mano!`, timestamp: Date.now() });
+              }
+              delete (game as any).pendingOhMaQuello;
+              io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+              return;
+            }
+          }
+          pendingOMQ.targetCardId = value;
+          pendingOMQ.targetOwner = targetOMQ.owner;
+          pendingOMQ.step = 'pick_replacement';
+          const newCIdOMQ = `oh-ma-quello-r-${Date.now()}`;
+          pendingOMQ.choiceId = newCIdOMQ;
+          const availIds: string[] = pendingOMQ.availableReplacements;
+          const deckTypes = pendingOMQ.isGidi ? ['personaggi', 'personaggi_speciali'] : ['personaggi'];
+          const replacementOptions: any[] = [];
+          for (const dt of deckTypes) {
+            const deck = (game.decks as any)?.[dt] || [];
+            replacementOptions.push(...deck.filter((c: any) => availIds.includes(c.id)));
+          }
+          const psIdOMQR = (game.players[socketPlayerName] as any)?.socketId;
+          if (psIdOMQR) {
+            io.to(psIdOMQR).emit('show-choice-panel', {
+              choiceId: newCIdOMQ, title: '😮 OH MA QUELLO — Passo 2/2',
+              question: `Scegli il personaggio sostituto (va al posto di ${targetOMQ.name || targetOMQ.owner}):`,
+              options: replacementOptions.slice(0, 10).map((c: any) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | Stelle: ${c.stars ?? '?'}${pendingOMQ.isGidi && c.type === 'personaggi_speciali' ? ' ⭐ Speciale' : ''}` })),
+              playerName: socketPlayerName, cardName: 'OH MA QUELLO', timestamp: Date.now()
+            });
+          }
+          io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        } else if (pendingOMQ.step === 'pick_replacement') {
+          // Step 2: player chose the replacement character
+          delete (game as any).pendingOhMaQuello;
+          const targetOMQ = game.field.find((c: any) => c.id === pendingOMQ.targetCardId);
+          const deckTypes = pendingOMQ.isGidi ? ['personaggi', 'personaggi_speciali'] : ['personaggi'];
+          let replacementOMQ: any = null;
+          for (const dt of deckTypes) {
+            const deck = (game.decks as any)?.[dt] || [];
+            const idx = deck.findIndex((c: any) => c.id === value);
+            if (idx !== -1) {
+              replacementOMQ = deck.splice(idx, 1)[0];
+              break;
+            }
+          }
+          if (targetOMQ && replacementOMQ) {
+            const tOwnerOMQ = targetOMQ.owner;
+            game.field = game.field.filter((c: any) => c.id !== targetOMQ.id);
+            if (!game.graveyard) game.graveyard = [];
+            game.graveyard.push(targetOMQ);
+            replacementOMQ.owner = tOwnerOMQ;
+            game.field.push(replacementOMQ);
+            io.to(gameId).emit('chat-message', { id: `${Date.now()}-oh-ma-quello`, playerName: 'Sistema', message: `😮 OH MA QUELLO! ${targetOMQ.name || tOwnerOMQ} sostituito con ${replacementOMQ.name || '?'}${pendingOMQ.isGidi ? ' (GIDI!)' : ''}!`, timestamp: Date.now() });
+          }
+          io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        }
+        return;
+      }
+
+      // ── VOUS TRA VOUS (step 1: pick player 1) ────────────────────────────────
+      const pendingVTV = (game as any).pendingVousTrVous;
+      if (pendingVTV && pendingVTV.choiceId === choiceId && pendingVTV.playerName === socketPlayerName) {
+        if (!pendingVTV.player1) {
+          // First pick: player1 chosen — ZZERUO: verify chosen player is not immune
+          const zzeruoMap = (game as any).zzeruo;
+          if (zzeruoMap && zzeruoMap[value] && zzeruoMap[value].turnsLeft > 0) {
+            io.to(gameId).emit('chat-message', { id: `${Date.now()}-vtv-zzeruo`, playerName: 'Sistema', message: `🚫 ZZERUO! ${value} è immune — scegli un altro avversario.`, timestamp: Date.now() });
+            io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+            return;
+          }
+          pendingVTV.player1 = value;
+          // Build candidate list for step 2, applying ZZERUO filter
+          const remainingVTV = game.turnOrder
+            .filter((p: string) => p !== socketPlayerName && p !== value)
+            .filter((p: string) => !!(gameManager as any).getPlayerActiveCharacter(game, p))
+            .filter((p: string) => !(zzeruoMap && zzeruoMap[p] && zzeruoMap[p].turnsLeft > 0));
+          if (remainingVTV.length === 0) {
+            delete (game as any).pendingVousTrVous;
+            io.to(gameId).emit('chat-message', { id: `${Date.now()}-vtv-no`, playerName: 'Sistema', message: `⚔️ VOUS TRA VOUS: non ci sono altri avversari validi per il duello.`, timestamp: Date.now() });
+            io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+            return;
+          }
+          const newChoiceId = `vous-tra-vous-p2-${Date.now()}`;
+          pendingVTV.choiceId = newChoiceId;
+          const psIdVTV = (game.players[socketPlayerName] as any)?.socketId;
+          if (psIdVTV) {
+            io.to(psIdVTV).emit('show-choice-panel', {
+              choiceId: newChoiceId, title: '⚔️ VOUS TRA VOUS — Secondo partecipante',
+              question: 'Scegli il secondo avversario del duello:',
+              options: remainingVTV.map((p: string) => {
+                const ec = (gameManager as any).getPlayerActiveCharacter(game, p);
+                return { value: p, label: p, description: ec ? `${ec.name || '?'} — PTI: ${ec.pti}` : 'Nessun personaggio' };
+              }),
+              playerName: socketPlayerName, cardName: 'VOUS TRA VOUS', timestamp: Date.now()
+            });
+          }
+          io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        } else {
+          // Second pick: player2 chosen — ZZERUO check and MBACC check at definitive application
+          const p1VTV = pendingVTV.player1;
+          const p2VTV = value;
+          const zzeruoMapFinal = (game as any).zzeruo;
+          if (zzeruoMapFinal && zzeruoMapFinal[p2VTV] && zzeruoMapFinal[p2VTV].turnsLeft > 0) {
+            io.to(gameId).emit('chat-message', { id: `${Date.now()}-vtv-zzeruo2`, playerName: 'Sistema', message: `🚫 ZZERUO! ${p2VTV} è immune — non può partecipare al duello.`, timestamp: Date.now() });
+            delete (game as any).pendingVousTrVous;
+            io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+            return;
+          }
+          // MBACC: check interception for p1 and p2 at application time
+          const mbaccMapVTV = (game as any).mbacc_z_vcienz;
+          const vtvCard = pendingVTV.sourceCard;
+          for (const p of [p1VTV, p2VTV]) {
+            if (mbaccMapVTV && mbaccMapVTV[p]?.active && vtvCard) {
+              game.players[p].hand = [...(game.players[p].hand || []), { ...vtvCard }];
+              delete mbaccMapVTV[p];
+              io.to(gameId).emit('chat-message', { id: `${Date.now()}-mbacc-vtv`, playerName: 'Sistema', message: `🪄 MBACC A Z VCIENZ! ${p} ha intercettato VOUS TRA VOUS e l'ha aggiunto alla sua mano!`, timestamp: Date.now() });
+              delete (game as any).pendingVousTrVous;
+              io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+              return;
+            }
+          }
+          delete (game as any).pendingVousTrVous;
+          const c1VTV = (gameManager as any).getPlayerActiveCharacter(game, p1VTV);
+          const c2VTV = (gameManager as any).getPlayerActiveCharacter(game, p2VTV);
+          if (c1VTV && c2VTV) {
+            (game as any).vousTrVous = { player1: p1VTV, player2: p2VTV, char1Id: c1VTV.id, char2Id: c2VTV.id, active: true, activatedBy: socketPlayerName };
+            io.to(gameId).emit('chat-message', { id: `${Date.now()}-vtv`, playerName: 'Sistema', message: `⚔️ VOUS TRA VOUS! ${c1VTV.name || p1VTV} vs ${c2VTV.name || p2VTV} — duello fino alla morte!`, timestamp: Date.now() });
+          }
+          io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        }
+        return;
+      }
+
+      // ── MBACC A Z VCIENZ (Zì Vcienz theft) ──────────────────────────────────
+      const mbacc = (game as any).mbacc_z_vcienz;
+      if (mbacc && mbacc[socketPlayerName] && mbacc[socketPlayerName].choiceId === choiceId) {
+        const mbaccData = mbacc[socketPlayerName];
+        delete mbaccData.choiceId;
+        // value = target player name to steal bonus from
+        const targetMbacc = value;
+        if (game.players[targetMbacc]) {
+          const targetHand = game.players[targetMbacc].hand || [];
+          const bonusIdx = targetHand.findIndex((c: any) => c.type === 'bonus');
+          if (bonusIdx !== -1) {
+            const stolen = targetHand.splice(bonusIdx, 1)[0];
+            game.players[socketPlayerName].hand = [...(game.players[socketPlayerName].hand || []), stolen];
+            io.to(gameId).emit('chat-message', { id: `${Date.now()}-mbacc`, playerName: 'Sistema', message: `🪄 MBACC A Z VCIENZ (Zì Vcienz)! ${socketPlayerName} ruba "${stolen.name}" da ${targetMbacc}!`, timestamp: Date.now() });
+          } else {
+            io.to(gameId).emit('chat-message', { id: `${Date.now()}-mbacc-no`, playerName: 'Sistema', message: `🪄 MBACC A Z VCIENZ: ${targetMbacc} non ha bonus in mano.`, timestamp: Date.now() });
+          }
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── STAI A FA NA CAZZATA (spy choice) ─────────────────────────────────────
+      const pendingSFC = (game as any).pendingStaiAFaNaCazzata;
+      if (pendingSFC && pendingSFC.choiceId === choiceId && pendingSFC.spyPlayer === socketPlayerName) {
+        delete (game as any).pendingStaiAFaNaCazzata;
+        const sfcMap = (game as any).staiAFaNaCazzata as Record<string, any>;
+        if (value === 'SPY' && sfcMap) {
+          // Spy chose to cancel the attack
+          const spyDataSFC = sfcMap[socketPlayerName];
+          if (spyDataSFC) {
+            if (spyDataSFC.goldenFreezer && spyDataSFC.turnsLeft > 0) {
+              spyDataSFC.turnsLeft--;
+              if (spyDataSFC.turnsLeft <= 0) delete sfcMap[socketPlayerName];
+            } else {
+              delete sfcMap[socketPlayerName];
+            }
+            if (Object.keys(sfcMap).length === 0) delete (game as any).staiAFaNaCazzata;
+          }
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-sfc-spy-cancel`, playerName: 'Sistema',
+            message: `🛑 STAI A FA NA CAZZATA! ${socketPlayerName} ha spiato e annullato l'attacco di ${pendingSFC.attackerName} su ${pendingSFC.targetOwner}!`,
+            timestamp: Date.now()
+          });
+          // Attacker's mosse card stays out of their hand — return it to deck
+          (gameManager as any).returnToDeck(gameId, pendingSFC.mosseCardId, pendingSFC.attackerName);
+        } else {
+          // Spy chose to ignore — resume the attack normally
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-sfc-ignored`, playerName: 'Sistema',
+            message: `🕵️ STAI A FA NA CAZZATA ignorata — l'attacco di ${pendingSFC.attackerName} su ${pendingSFC.targetOwner} prosegue!`,
+            timestamp: Date.now()
+          });
+          await gameManager.processMosseDamage(
+            gameId, pendingSFC.attackerName, pendingSFC.targetCardId, pendingSFC.damageValue,
+            pendingSFC.mosseCardId, io, false, !!pendingSFC.isDuelAttack, false, !!pendingSFC.isFurtoAttack,
+            pendingSFC.starsToRemove || 0, pendingSFC.mosseEffect || undefined
+          );
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── OOOOOH CHE T RITT (mossa gift choice) ─────────────────────────────────
+      const pendingOCT = (game as any).pendingOoooohCheTRitt;
+      if (pendingOCT && pendingOCT.choiceId === choiceId && pendingOCT.helperPlayer === socketPlayerName) {
+        delete (game as any).pendingOoooohCheTRitt;
+        if (value !== 'IGNORA') {
+          // Player chose a mossa card to give to the defender
+          const helperHand = game.players[socketPlayerName]?.hand || [];
+          const chosenMossa = helperHand.find((c: any) => c.id === value);
+          if (chosenMossa && game.players[pendingOCT.targetOwner]) {
+            game.players[socketPlayerName].hand = helperHand.filter((c: any) => c.id !== value);
+            game.players[pendingOCT.targetOwner].hand = [...(game.players[pendingOCT.targetOwner].hand || []), { ...chosenMossa }];
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-ooooh-gift`, playerName: 'Sistema',
+              message: `🎴 OOOOOH CHE T RITT! ${socketPlayerName} passa "${chosenMossa.name || '?'}" a ${pendingOCT.targetOwner} (${pendingOCT.defenderStars}⭐)!`,
+              timestamp: Date.now()
+            });
+          } else {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-ooooh-not-found`, playerName: 'Sistema',
+              message: `🎴 OOOOOH CHE T RITT! ${socketPlayerName}: carta selezionata non trovata in mano.`,
+              timestamp: Date.now()
+            });
+          }
+        } else {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-ooooh-ignored`, playerName: 'Sistema',
+            message: `🎴 OOOOOH CHE T RITT! ${socketPlayerName} ha scelto di non intervenire.`,
+            timestamp: Date.now()
+          });
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
       // ── BOB DYLAN ────────────────────────────────────────────────────────────
       const pending = (game as any).pendingBobDylanChoice;
       if (!pending || pending.choiceId !== choiceId || pending.playerName !== socketPlayerName) {

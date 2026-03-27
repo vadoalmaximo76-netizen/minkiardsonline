@@ -1919,6 +1919,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('cimice-effect', handleCimiceEffect);
 
+    // MINI SEMAFORO: dice roll animation — show which character is blocked or unblocked
+    const handleMiniSemaforoAnimation = ({ playerName: semPlayer, characterName: semChar, roll: semRoll, blocked: semBlocked }: { playerName: string; characterName: string; roll: number; blocked: boolean }) => {
+      showGameToast(
+        `🚦 MINI SEMAFORO — ${semChar} (${semPlayer}): dado ${semRoll} → ${semBlocked ? '🔴 BLOCCATO' : '🟢 SBLOCCATO!'}`,
+        '🚦',
+        semBlocked ? 'warning' : 'success',
+        3000
+      );
+    };
+    socket.on('mini-semaforo-animation', handleMiniSemaforoAnimation);
+
+    // Z AMMONTA: bonus card redraw notification
+    const handleZAmmontaRedraw = ({ playerName: zaPlayer, count: zaCount }: { playerName: string; count: number }) => {
+      showGameToast(`🃏 Z AMMONTA! ${zaPlayer} ha pescato ${zaCount} nuove carte bonus!`, '🃏', 'success', 4000);
+    };
+    socket.on('z-ammonta-redraw', handleZAmmontaRedraw);
+
     const handleInstructionExecuted = ({ playerName: instructorName, instruction, result, timestamp }: { 
       playerName: string, instruction: string, result: string, timestamp: number 
     }) => {
@@ -2272,6 +2289,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('parasitic-attached', handleParasiticAttached);
       socket.off('saibaim-explosion', handleSaibaImExplosion);
       socket.off('cimice-effect', handleCimiceEffect);
+      socket.off('mini-semaforo-animation', handleMiniSemaforoAnimation);
+      socket.off('z-ammonta-redraw', handleZAmmontaRedraw);
       socket.off('hostage-applied', handleHostageApplied);
       socket.off('hostage-updated', handleHostageUpdated);
       socket.off('hostage-released', handleHostageReleased);
