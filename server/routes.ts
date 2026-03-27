@@ -6,7 +6,7 @@ import OpenAI from "openai";
 import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
-import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable, switchToFallback } from "./db";
+import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable, switchToFallback, getFallbackDb, getPrimaryDb } from "./db";
 
 function handle402(err: unknown): boolean {
   const msg = (err as any)?.message ?? '';
@@ -15,7 +15,7 @@ function handle402(err: unknown): boolean {
   }
   return false;
 }
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates } from "../shared/schema";
 import { jsonStorage, homePanelsStorage, newsTickerStorage, homeConfigStorage, rankiardTiersStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray, gt } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES } from "../client/src/lib/cardData";
@@ -10541,6 +10541,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('[admin cleanup] Error:', error);
       res.status(500).json({ success: false, error: 'Cleanup failed' });
+    }
+  });
+
+  // ── Admin: sync data between primary and secondary (fallback) databases ─────
+  app.post('/api/admin/sync-databases', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = req.user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Admin only' });
+      }
+
+      const fallbackDb = getFallbackDb();
+      const primaryDb = getPrimaryDb();
+
+      if (!fallbackDb) {
+        return res.status(503).json({ success: false, error: 'Secondary DB (DATABASE_URL) non disponibile' });
+      }
+      if (!primaryDb) {
+        return res.status(503).json({ success: false, error: 'Primary DB non disponibile o già in modalità fallback — sync non necessario' });
+      }
+
+      const report: Record<string, { copied: number; errors: number }> = {};
+
+      async function syncTable<T extends { id: number }>(
+        tableName: string,
+        table: any,
+        uniqueKey: (row: T) => Record<string, any>,
+        conflictTarget: any[]
+      ) {
+        let copied = 0;
+        let errors = 0;
+        try {
+          const primaryRows: T[] = await (primaryDb as any).select().from(table);
+          const fallbackRows: T[] = await fallbackDb.select().from(table);
+          const fallbackIds = new Set(fallbackRows.map((r: any) => r.id));
+
+          // Copy records from primary → fallback that are missing
+          const missing = primaryRows.filter(r => !fallbackIds.has(r.id));
+          for (const row of missing) {
+            try {
+              const { id: _id, ...data } = row as any;
+              await (fallbackDb as any).insert(table).values(data).onConflictDoNothing();
+              copied++;
+            } catch (e) {
+              errors++;
+            }
+          }
+        } catch (e) {
+          console.error(`[sync-databases] Error syncing ${tableName}:`, (e as any)?.message);
+          errors++;
+        }
+        report[tableName] = { copied, errors };
+        console.log(`[sync-databases] ${tableName}: copied=${copied} errors=${errors}`);
+      }
+
+      // Sync the most critical tables (primary → fallback)
+      await syncTable('users', users, (r: any) => ({ email: r.email }), [users.email]);
+      await syncTable('tournaments', tournaments, (r: any) => ({ id: r.id }), [tournaments.id]);
+      await syncTable('tournament_participants', tournamentParticipants, (r: any) => ({ id: r.id }), [tournamentParticipants.id]);
+      await syncTable('tournament_matches', tournamentMatches, (r: any) => ({ id: r.id }), [tournamentMatches.id]);
+      await syncTable('game_states', gameStates, (r: any) => ({ gameId: r.gameId }), [gameStates.gameId]);
+      await syncTable('custom_cards', customCards, (r: any) => ({ id: r.id }), [customCards.id]);
+      await syncTable('card_modifications', cardModifications, (r: any) => ({ originalCardId: r.originalCardId }), [cardModifications.originalCardId]);
+      await syncTable('clans', clans, (r: any) => ({ id: r.id }), [clans.id]);
+      await syncTable('clan_members', clanMembers, (r: any) => ({ id: r.id }), [clanMembers.id]);
+      await syncTable('draft_decks', draftDecks, (r: any) => ({ id: r.id }), [draftDecks.id]);
+      await syncTable('user_draft_credits', userDraftCredits, (r: any) => ({ id: r.id }), [userDraftCredits.id]);
+      await syncTable('user_card_collection', userCardCollection, (r: any) => ({ id: r.id }), [userCardCollection.id]);
+      await syncTable('user_gym_progress', userGymProgress, (r: any) => ({ id: r.id }), [userGymProgress.id]);
+      await syncTable('user_story_deck', userStoryDeck, (r: any) => ({ id: r.id }), [userStoryDeck.id]);
+
+      const totalCopied = Object.values(report).reduce((sum, r) => sum + r.copied, 0);
+      const totalErrors = Object.values(report).reduce((sum, r) => sum + r.errors, 0);
+
+      console.log(`✅ [sync-databases] Sync complete: ${totalCopied} records copied, ${totalErrors} errors`);
+      res.json({ success: true, totalCopied, totalErrors, report });
+    } catch (error) {
+      console.error('[sync-databases] Fatal error:', error);
+      res.status(500).json({ success: false, error: 'Sync failed' });
     }
   });
 

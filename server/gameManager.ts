@@ -1,5 +1,5 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
-import { db, isDatabaseAvailable } from './db';
+import { db, isDatabaseAvailable, switchToFallback, getFallbackDb } from './db';
 import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, tournamentParticipants, draftDecks, draftCharacterGrowth, draftTournaments, injuredPersonaggi, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
 import { eq, ilike, sql, and, gt } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
@@ -3379,7 +3379,7 @@ Rispondi SOLO in JSON:`;
   }
 
   // Load all active games from database on server startup
-  async loadActiveGamesFromDB(): Promise<void> {
+  async loadActiveGamesFromDB(_retryCount = 0): Promise<void> {
     try {
       // Only purge INACTIVE games that are also stale (>2 days old)
       // Active games are never deleted by age — they survive indefinitely until explicitly ended
@@ -3539,6 +3539,13 @@ Rispondi SOLO in JSON:`;
         console.log(`🔄 Re-applied card modifications to all restored games`);
       }
     } catch (error) {
+      const msg = (error as any)?.message ?? '';
+      const is402 = msg.includes('402') || msg.includes('data transfer quota') || msg.includes('exceeded');
+      if (is402 && _retryCount === 0) {
+        console.warn('⚠️ [loadGames] Primary DB returned 402, switching to fallback and retrying...');
+        switchToFallback();
+        return this.loadActiveGamesFromDB(1);
+      }
       console.error('❌ Failed to load active games from DB:', error);
     }
   }
