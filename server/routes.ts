@@ -5654,12 +5654,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Continue CPU turn
         const gameRRC = gameManager.getGameState(gameId);
         if (gameRRC && gameRRC.players[cpuName]?.cpuInstance) {
-          gameRRC.players[cpuName].cpuInstance.resolveAttack();
+          const cpuInstRRC = gameRRC.players[cpuName].cpuInstance;
+          cpuInstRRC.resolveAttack();
           setTimeout(async () => {
             try {
               const updS = gameManager.getSanitizedGameState(gameId);
-              const nxtA = await gameRRC.players[cpuName].cpuInstance.takeTurn(updS);
-              if (nxtA) await gameManager.processCPUTurn(gameId, cpuName, io);
+              const nxtA = await cpuInstRRC.takeTurn(updS);
+              if (nxtA) {
+                await gameManager.processCPUTurn(gameId, cpuName, io);
+              } else {
+                // No further actions — end CPU turn cleanly
+                gameManager.processDelayedDamages(gameId, cpuName, io);
+                const nextPlayerRRC = gameManager.endTurn(gameId, cpuName);
+                if (nextPlayerRRC) {
+                  io.to(gameId).emit('next-turn', { nextPlayer: nextPlayerRRC });
+                  if (gameRRC.players[nextPlayerRRC]?.isCPU) {
+                    setTimeout(() => { gameManager.processCPUTurn(gameId, nextPlayerRRC, io); }, 1200);
+                  }
+                }
+              }
             } catch (e) { console.error(`Error continuing CPU ${cpuName} turn after roulette:`, e); }
           }, 100);
         }
