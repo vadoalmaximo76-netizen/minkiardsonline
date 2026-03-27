@@ -4247,7 +4247,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             timestamp: Date.now()
           });
         } else {
-          const defCharRR = (gameManager as any).getPlayerActiveCharacter(game, socketPlayerName);
+          // Use stored targetCardId so board changes after the attack can't kill the wrong character
+          const rrTargetCardId = pendingRR.targetCardId;
+          const defCharRR = rrTargetCardId
+            ? game.field?.find((c: any) => c.id === rrTargetCardId) || game.characters?.find((c: any) => c.id === rrTargetCardId)
+            : (gameManager as any).getPlayerActiveCharacter(game, socketPlayerName);
           io.to(gameId).emit('chat-message', {
             id: `${Date.now()}-roulette-death`,
             playerName: 'Sistema',
