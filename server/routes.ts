@@ -10674,7 +10674,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Tables with non-serial PKs — no sequence to realign
       await syncTable('game_states', gameStates, r => r['gameId'] as string, false);
-      await syncTable('card_modifications', cardModifications, r => r['originalCardId'] as number, false);
+      await syncTable('card_modifications', cardModifications, r => r['originalCardId'] as string, false);
 
       const totalToFallback = Object.values(report).reduce((s, r) => s + r.toFallback, 0);
       const totalToPrimary = Object.values(report).reduce((s, r) => s + r.toPrimary, 0);
