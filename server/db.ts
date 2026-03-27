@@ -4,9 +4,16 @@ import * as schema from '../shared/schema';
 
 type DbType = ReturnType<typeof drizzle<typeof schema>>;
 
+// Minimal shape we rely on from Drizzle builders in the dual-write proxy.
+// Drizzle builders are complex generic objects; we only need to inspect
+// presence of `then` (thenable) and forward other property accesses by name.
+type AnyBuilder = Record<string, unknown>;
+type FulfillFn = (value: unknown) => unknown;
+type RejectFn = (reason: unknown) => unknown;
+
 let _db: DbType | null = null;
 let _fallbackDb: DbType | null = null;
-let _originalPrimaryDb: DbType | null = null;  // always keeps the original primary reference
+let _originalPrimaryDb: DbType | null = null;  // never changed by switchToFallback()
 let _isDatabaseAvailable = false;
 let _activeDbSource: string = 'none';
 let _usingFallback = false;
@@ -84,7 +91,7 @@ if (!_isDatabaseAvailable) {
 // ── 402 quota-exceeded detection & auto-switch ──────────────────────────────
 export function is402QuotaError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false;
-  const msg = (err as any)?.message ?? '';
+  const msg = (err as { message?: string }).message ?? '';
   return msg.includes('402') || msg.includes('data transfer quota') || msg.includes('exceeded');
 }
 
@@ -107,23 +114,23 @@ export function switchToFallback(): boolean {
 // Creates a proxy around a Drizzle query builder that, when awaited, also
 // fires the same query on the secondary DB in the background (errors silently
 // swallowed so they never affect the primary result).
-// FIX: Also detects 402 on the primary promise and triggers switchToFallback().
-function createDualBuilder(primaryBuilder: any, secondaryBuilder: any | null): any {
+// Also detects 402 on the primary promise and triggers switchToFallback().
+function createDualBuilder(primaryBuilder: AnyBuilder, secondaryBuilder: AnyBuilder | null): AnyBuilder {
   return new Proxy(primaryBuilder, {
-    get(target, prop) {
+    get(target, prop: string | symbol) {
       // When the query is awaited (.then is called), execute both DBs
       if (prop === 'then') {
-        return function(onFulfilled: any, onRejected: any) {
+        return function(onFulfilled: FulfillFn | undefined, onRejected: RejectFn | undefined) {
           // Fire secondary in background — do NOT await
-          if (secondaryBuilder && typeof secondaryBuilder.then === 'function') {
+          if (secondaryBuilder && typeof secondaryBuilder['then'] === 'function') {
             Promise.resolve(secondaryBuilder).catch((err: unknown) => {
-              // Silently ignore secondary failures (schema mismatch, downtime…)
-              const msg = (err as any)?.message ?? String(err);
+              const msg = (err as { message?: string }).message ?? String(err);
               console.warn('[DualWrite] Secondary DB write failed (ignored):', msg.slice(0, 120));
             });
           }
           // Return primary result, detecting 402 to trigger auto-fallback
-          return target.then(onFulfilled, (err: unknown) => {
+          const primaryThen = target['then'] as (f?: FulfillFn, r?: RejectFn) => Promise<unknown>;
+          return primaryThen.call(target, onFulfilled, (err: unknown) => {
             if (is402QuotaError(err)) {
               switchToFallback();
             }
@@ -135,16 +142,16 @@ function createDualBuilder(primaryBuilder: any, secondaryBuilder: any | null): a
 
       // For builder chain methods (.values, .where, .set, .returning, etc.)
       // forward the same call to both builders and return a new dual builder.
-      const primaryVal = target[prop];
+      const primaryVal = target[prop as string];
       if (typeof primaryVal === 'function') {
-        return function(...args: any[]) {
-          const newPrimary = primaryVal.apply(target, args);
-          let newSecondary: any = null;
+        return function(...args: unknown[]) {
+          const newPrimary = (primaryVal as (...a: unknown[]) => unknown).apply(target, args);
+          let newSecondary: AnyBuilder | null = null;
           if (secondaryBuilder) {
             try {
-              const secMethod = secondaryBuilder[prop];
+              const secMethod = secondaryBuilder[prop as string];
               if (typeof secMethod === 'function') {
-                newSecondary = secMethod.apply(secondaryBuilder, args);
+                newSecondary = (secMethod as (...a: unknown[]) => unknown).apply(secondaryBuilder, args) as AnyBuilder;
               }
             } catch (_e) {
               newSecondary = null;
@@ -152,7 +159,7 @@ function createDualBuilder(primaryBuilder: any, secondaryBuilder: any | null): a
           }
           // Wrap in a new dual builder so chain continues on both
           if (newPrimary && typeof newPrimary === 'object') {
-            return createDualBuilder(newPrimary, newSecondary);
+            return createDualBuilder(newPrimary as AnyBuilder, newSecondary);
           }
           return newPrimary;
         };
@@ -163,14 +170,14 @@ function createDualBuilder(primaryBuilder: any, secondaryBuilder: any | null): a
   });
 }
 
-// Wraps a method result (which may be a thenable/query-builder) to detect 402 errors.
+// Wraps a method result (thenable/query-builder) to detect 402 errors.
 function wrapResult(result: unknown): unknown {
   if (!result || typeof result !== 'object') return result;
-  const thenable = result as any;
-  if (typeof thenable.then !== 'function') return result;
+  const thenable = result as AnyBuilder;
+  if (typeof thenable['then'] !== 'function') return result;
 
-  const originalThen = thenable.then.bind(thenable);
-  thenable.then = function(onFulfilled: any, onRejected: any) {
+  const originalThen = (thenable['then'] as Function).bind(thenable);
+  thenable['then'] = function(onFulfilled: FulfillFn | undefined, onRejected: RejectFn | undefined) {
     return originalThen(onFulfilled, (err: unknown) => {
       if (is402QuotaError(err)) {
         switchToFallback();
@@ -193,21 +200,21 @@ const _dbProxy = new Proxy({} as DbType, {
   get(_target, prop: string | symbol) {
     if (!_db) throw new Error('No database connection available');
     const currentDb = _db;
-    const val = (currentDb as any)[prop];
+    const val = (currentDb as unknown as Record<string | symbol, unknown>)[prop];
 
     if (typeof val === 'function') {
       return function(this: unknown, ...args: unknown[]) {
-        const primaryResult = (val as Function).apply(currentDb, args);
+        const primaryResult = (val as (...a: unknown[]) => unknown).apply(currentDb, args);
 
         // ── Dual-write for INSERT / UPDATE / DELETE ──────────────────────
         const isWrite = WRITE_OPS.has(prop as string);
         if (isWrite && _fallbackDb && _fallbackDb !== currentDb) {
           try {
-            const secMethod = (_fallbackDb as any)[prop];
+            const secMethod = (_fallbackDb as unknown as Record<string | symbol, unknown>)[prop];
             if (typeof secMethod === 'function') {
-              const secondaryResult = (secMethod as Function).apply(_fallbackDb, args);
+              const secondaryResult = (secMethod as (...a: unknown[]) => unknown).apply(_fallbackDb, args);
               // Return a dual builder that propagates chain calls to both and handles 402
-              return createDualBuilder(primaryResult, secondaryResult);
+              return createDualBuilder(primaryResult as AnyBuilder, secondaryResult as AnyBuilder);
             }
           } catch (_e) {
             // If secondary setup fails, fall through to primary only
@@ -222,7 +229,7 @@ const _dbProxy = new Proxy({} as DbType, {
   },
   set(_target, prop: string | symbol, value: unknown) {
     if (!_db) return false;
-    ((_db) as any)[prop] = value;
+    (_db as unknown as Record<string | symbol, unknown>)[prop] = value;
     return true;
   },
 });
@@ -252,13 +259,13 @@ export function setDatabaseUnavailable(): void {
   console.warn('⚠️ Database marked as unavailable due to runtime error');
 }
 
-// Returns the raw fallback DB instance (always DATABASE_URL/Replit)
+// Returns the raw fallback DB instance (always DATABASE_URL/Replit).
 export function getFallbackDb(): DbType | null {
   return _fallbackDb;
 }
 
 // Returns the original primary DB instance — even when we're in fallback mode.
-// (_originalPrimaryDb is set at init time and never changed by switchToFallback)
+// (_originalPrimaryDb is captured at init time; switchToFallback never changes it.)
 export function getPrimaryDb(): DbType | null {
   return _originalPrimaryDb;
 }

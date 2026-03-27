@@ -10552,8 +10552,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ success: false, error: 'Admin only' });
       }
 
-      // getPrimaryDb() always returns the original primary even in fallback mode
-      // getFallbackDb() returns the secondary (DATABASE_URL / Replit)
+      // getPrimaryDb() always holds the original primary (EXTERNAL_DATABASE_URL),
+      // even when we've auto-switched to fallback mode.
+      // getFallbackDb() holds the secondary (DATABASE_URL / Replit).
       const primaryDb = getPrimaryDb();
       const fallbackDb = getFallbackDb();
 
@@ -10565,100 +10566,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (primaryDb === fallbackDb) {
-        return res.status(400).json({ success: false, error: 'Primary e fallback sono lo stesso DB — nessuna sincronizzazione necessaria' });
+        return res.status(400).json({
+          success: false,
+          error: 'Primary e fallback coincidono — nessuna sincronizzazione necessaria',
+        });
       }
 
-      const report: Record<string, { toFallback: number; toPrimary: number; errors: number }> = {};
+      // Type alias for the DB instances (both share the same underlying type).
+      type SyncDb = NonNullable<typeof primaryDb>;
+      type SyncResult = { copied: number; errors: number };
+      const report: Record<string, SyncResult> = {};
 
-      // Copies rows missing in `destDb` from `srcDb` — preserving ALL columns including PK.
-      // Uses onConflictDoNothing() so existing rows are never overwritten.
-      async function copyMissing(
-        srcDb: any,
-        destDb: any,
-        table: any,
-        srcRows: any[],
-        destRows: any[],
-        getKey: (row: any) => string | number
-      ): Promise<{ copied: number; errors: number }> {
-        const destKeys = new Set(destRows.map(getKey));
-        const missing = srcRows.filter(r => !destKeys.has(getKey(r)));
+      // Copies rows missing in fallbackDb from primaryDb, preserving ALL columns
+      // including the PK so FK relationships across tables remain consistent.
+      // onConflictDoNothing() skips rows already present — never overwrites.
+      // After any inserts into serial-PK tables, realigns the destination sequence
+      // so future auto-increment INSERTs don't collide with the copied IDs.
+      const syncTable = async (
+        pgTableName: string,
+        table: object,
+        getKey: (row: Record<string, unknown>) => string | number,
+        hasSerialId: boolean
+      ): Promise<SyncResult> => {
         let copied = 0;
         let errors = 0;
-        for (const row of missing) {
-          try {
-            await (destDb as any).insert(table).values(row).onConflictDoNothing();
-            copied++;
-          } catch (e) {
-            console.warn(`[sync] row insert failed:`, (e as any)?.message?.slice(0, 100));
-            errors++;
-          }
-        }
-        return { copied, errors };
-      }
-
-      async function syncTableBidirectional(
-        tableName: string,
-        table: any,
-        getKey: (row: any) => string | number
-      ) {
-        let errors = 0;
-        let toFallback = 0;
-        let toPrimary = 0;
         try {
-          let primaryRows: any[] = [];
-          let fallbackRows: any[] = [];
+          const pDb = primaryDb as SyncDb;
+          const fDb = fallbackDb as SyncDb;
 
-          try { primaryRows = await (primaryDb as any).select().from(table); }
-          catch (e) {
-            console.warn(`[sync] Cannot read primary for ${tableName}:`, (e as any)?.message?.slice(0, 80));
-          }
-          try { fallbackRows = await (fallbackDb as any).select().from(table); }
-          catch (e) {
-            console.warn(`[sync] Cannot read fallback for ${tableName}:`, (e as any)?.message?.slice(0, 80));
+          const primaryRows: Record<string, unknown>[] =
+            await pDb.select().from(table as never);
+
+          const fallbackRows: Record<string, unknown>[] =
+            await fDb.select().from(table as never);
+
+          const fallbackKeys = new Set(fallbackRows.map(getKey));
+          const missing = primaryRows.filter(r => !fallbackKeys.has(getKey(r)));
+
+          for (const row of missing) {
+            try {
+              await fDb.insert(table as never).values(row as never).onConflictDoNothing();
+              copied++;
+            } catch (insertErr) {
+              const msg = (insertErr instanceof Error) ? insertErr.message : String(insertErr);
+              console.warn(`[sync] ${pgTableName} row insert failed:`, msg.slice(0, 100));
+              errors++;
+            }
           }
 
-          // primary → fallback
-          if (primaryRows.length > 0) {
-            const r1 = await copyMissing(primaryDb, fallbackDb, table, primaryRows, fallbackRows, getKey);
-            toFallback = r1.copied;
-            errors += r1.errors;
+          // Realign the serial sequence on fallback after inserting rows with explicit IDs,
+          // so that future INSERTs without an explicit ID don't produce duplicate-key errors.
+          if (hasSerialId && copied > 0) {
+            try {
+              await fDb.execute(sql.raw(
+                `SELECT setval(pg_get_serial_sequence('${pgTableName}', 'id'),` +
+                ` COALESCE((SELECT MAX(id) FROM "${pgTableName}"), 1))`
+              ));
+            } catch (seqErr) {
+              const msg = (seqErr instanceof Error) ? seqErr.message : String(seqErr);
+              console.warn(`[sync] Could not realign sequence for ${pgTableName}:`, msg.slice(0, 80));
+            }
           }
-
-          // fallback → primary (sync back any records only in fallback)
-          if (fallbackRows.length > 0) {
-            const r2 = await copyMissing(fallbackDb, primaryDb, table, fallbackRows, primaryRows, getKey);
-            toPrimary = r2.copied;
-            errors += r2.errors;
-          }
-        } catch (e) {
-          console.error(`[sync-databases] Error syncing ${tableName}:`, (e as any)?.message);
+        } catch (err) {
+          const msg = (err instanceof Error) ? err.message : String(err);
+          console.error(`[sync-databases] Error syncing ${pgTableName}:`, msg);
           errors++;
         }
-        report[tableName] = { toFallback, toPrimary, errors };
-        console.log(`[sync-databases] ${tableName}: →fallback=${toFallback} →primary=${toPrimary} errors=${errors}`);
-      }
+        report[pgTableName] = { copied, errors };
+        console.log(`[sync-databases] ${pgTableName}: copied=${copied} errors=${errors}`);
+        return { copied, errors };
+      };
 
-      await syncTableBidirectional('users', users, (r: any) => r.id);
-      await syncTableBidirectional('tournaments', tournaments, (r: any) => r.id);
-      await syncTableBidirectional('tournament_participants', tournamentParticipants, (r: any) => r.id);
-      await syncTableBidirectional('tournament_matches', tournamentMatches, (r: any) => r.id);
-      await syncTableBidirectional('game_states', gameStates, (r: any) => r.gameId);
-      await syncTableBidirectional('custom_cards', customCards, (r: any) => r.id);
-      await syncTableBidirectional('card_modifications', cardModifications, (r: any) => r.originalCardId);
-      await syncTableBidirectional('clans', clans, (r: any) => r.id);
-      await syncTableBidirectional('clan_members', clanMembers, (r: any) => r.id);
-      await syncTableBidirectional('draft_decks', draftDecks, (r: any) => r.id);
-      await syncTableBidirectional('user_draft_credits', userDraftCredits, (r: any) => r.id);
-      await syncTableBidirectional('user_card_collection', userCardCollection, (r: any) => r.id);
-      await syncTableBidirectional('user_gym_progress', userGymProgress, (r: any) => r.id);
-      await syncTableBidirectional('user_story_deck', userStoryDeck, (r: any) => r.id);
+      // Tables with integer serial PKs — sequence realignment needed after copy
+      await syncTable('users', users, r => r['id'] as number, true);
+      await syncTable('tournaments', tournaments, r => r['id'] as number, true);
+      await syncTable('tournament_participants', tournamentParticipants, r => r['id'] as number, true);
+      await syncTable('tournament_matches', tournamentMatches, r => r['id'] as number, true);
+      await syncTable('custom_cards', customCards, r => r['id'] as number, true);
+      await syncTable('clans', clans, r => r['id'] as number, true);
+      await syncTable('clan_members', clanMembers, r => r['id'] as number, true);
+      await syncTable('draft_decks', draftDecks, r => r['id'] as number, true);
+      await syncTable('user_draft_credits', userDraftCredits, r => r['id'] as number, true);
+      await syncTable('user_card_collection', userCardCollection, r => r['id'] as number, true);
+      await syncTable('user_gym_progress', userGymProgress, r => r['id'] as number, true);
+      await syncTable('user_story_deck', userStoryDeck, r => r['id'] as number, true);
 
-      const totalToFallback = Object.values(report).reduce((s, r) => s + r.toFallback, 0);
-      const totalToPrimary = Object.values(report).reduce((s, r) => s + r.toPrimary, 0);
+      // Tables with non-integer or composite PKs — no serial sequence to realign
+      await syncTable('game_states', gameStates, r => r['gameId'] as string, false);
+      await syncTable('card_modifications', cardModifications, r => r['originalCardId'] as number, false);
+
+      const totalCopied = Object.values(report).reduce((s, r) => s + r.copied, 0);
       const totalErrors = Object.values(report).reduce((s, r) => s + r.errors, 0);
 
-      console.log(`✅ [sync-databases] Sync complete: →fallback=${totalToFallback} →primary=${totalToPrimary} errors=${totalErrors}`);
-      res.json({ success: true, totalToFallback, totalToPrimary, totalErrors, report });
+      console.log(`✅ [sync-databases] Sync complete: copied=${totalCopied} errors=${totalErrors}`);
+      res.json({ success: true, totalCopied, totalErrors, report });
     } catch (error) {
       console.error('[sync-databases] Fatal error:', error);
       res.status(500).json({ success: false, error: 'Sync failed' });
