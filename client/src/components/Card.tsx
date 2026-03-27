@@ -171,6 +171,7 @@ interface CardProps {
     lockTurns?: number;
     isStunned?: boolean;
     blockedMosse?: number;
+    isBollaProtected?: boolean;
   };
   location: 'hand' | 'field' | 'graveyard';
   showBack?: boolean;
@@ -1252,7 +1253,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const isPoisoned    = isPersonaggio && (card.poisonTurns ?? 0) > 0;
   const isLocked      = isPersonaggio && !!(card.isLocked) && (card.lockTurns ?? 0) > 0;
   const isStunned     = isPersonaggio && !!(card.isStunned);
-  const isBollaActive = isPersonaggio && !!((card as any).isBollaProtected);
+  const isBollaActive = isPersonaggio && !!card.isBollaProtected;
   const isVoodooLinked    = isPersonaggio && (gameState?.voodooLinks ?? []).some((l: any) => l.card1Id === card.id || l.card2Id === card.id);
   const isBarrieraProtected = isPersonaggio && (gameState?.barrieraShields ?? []).some((s: any) => s.protectedCharacterId === card.id);
   // ────────────────────────────────────────────────────────────────────────
@@ -1741,7 +1742,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                 }}
               />
               <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-sky-900/70 text-sky-200 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap z-[16] border border-sky-400/40 backdrop-blur-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
-                🫧 BOLLA ({card.blockedMosse}t)
+                🫧 BOLLA{card.blockedMosse ? ` (${card.blockedMosse}t)` : ''}
               </div>
             </div>
           )}
@@ -2919,6 +2920,7 @@ export const Card = memo(CardComponent, (prevProps, nextProps) => {
     prevCard.lockTurns === nextCard.lockTurns &&
     prevCard.isStunned === nextCard.isStunned &&
     prevCard.blockedMosse === nextCard.blockedMosse &&
+    prevCard.isBollaProtected === nextCard.isBollaProtected &&
     prevProps.location === nextProps.location &&
     prevProps.showBack === nextProps.showBack &&
     prevProps.onCardPlayed === nextProps.onCardPlayed &&

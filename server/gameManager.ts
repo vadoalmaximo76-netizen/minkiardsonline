@@ -24585,6 +24585,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if ((card as any).protectionTurns <= 0) {
           delete (card as any).isProtected;
           delete (card as any).protectionTurns;
+          delete (card as any).isBollaProtected;
           if (io) {
             io.to(gameId).emit('chat-message', {
               id: `${Date.now()}-protection-ended`,
