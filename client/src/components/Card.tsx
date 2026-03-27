@@ -164,6 +164,13 @@ interface CardProps {
     effect?: string;
     isHostage?: boolean;
     hostageTurnsRemaining?: number;
+    frozenTurns?: number;
+    poisonTurns?: number;
+    poisonDamage?: number;
+    isLocked?: boolean;
+    lockTurns?: number;
+    isStunned?: boolean;
+    blockedMosse?: number;
   };
   location: 'hand' | 'field' | 'graveyard';
   showBack?: boolean;
@@ -1239,6 +1246,16 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   
   // Check if this is a PERSONAGGI card
   const isPersonaggio = card.type === 'personaggi' || card.type === 'personaggi_speciali';
+
+  // ── Lasting status-effect flags (for visual overlays) ───────────────────
+  const isFrozen      = isPersonaggio && (card.frozenTurns ?? 0) > 0;
+  const isPoisoned    = isPersonaggio && (card.poisonTurns ?? 0) > 0;
+  const isLocked      = isPersonaggio && !!(card.isLocked) && (card.lockTurns ?? 0) > 0;
+  const isStunned     = isPersonaggio && !!(card.isStunned);
+  const isBollaActive = isPersonaggio && (card.blockedMosse ?? 0) > 0;
+  const isVoodooLinked    = isPersonaggio && (gameState?.voodooLinks ?? []).some((l: any) => l.card1Id === card.id || l.card2Id === card.id);
+  const isBarrieraProtected = isPersonaggio && (gameState?.barrieraShields ?? []).some((s: any) => s.protectedCharacterId === card.id);
+  // ────────────────────────────────────────────────────────────────────────
   
   // Add animation class for newly played cards (when they appear on field)
   const shouldAnimate = location === 'field';
@@ -1690,6 +1707,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               ${isMosseSelected ? 'ring-4 ring-purple-500 ring-opacity-70' : ''}
               ${card.faceDown ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}
               ${isNewlyDrawn && location === 'hand' ? 'card-draw-enter-enhanced' : ''}
+              ${card.protectedByRifugio && !card.faceDown && location === 'field' ? 'ring-2 ring-emerald-400 ring-offset-1 ring-offset-transparent' : ''}
               ${skinAnimation || ''}`}
           style={isNewlyDrawn && location === 'hand' ? { animationDelay: `${drawAnimationDelay}ms` } : undefined}
           />
@@ -1708,6 +1726,132 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           {isLowHealth && location === 'field' && (
             <div className="absolute inset-0 low-health-critical-overlay rounded-xl" />
           )}
+
+          {/* ── STATUS EFFECT OVERLAYS ─────────────────────────────────────── */}
+          {/* All overlays only shown for field personaggi (not face-down) */}
+
+          {/* BOLLA DI SAPONE: iridescent soap bubble */}
+          {isBollaActive && !card.faceDown && location === 'field' && (
+            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15] overflow-hidden">
+              <div
+                className="absolute inset-0 rounded-xl animate-pulse"
+                style={{
+                  background: 'radial-gradient(circle at 40% 35%, rgba(173,216,255,0.22) 0%, rgba(255,182,255,0.14) 40%, rgba(182,255,210,0.10) 70%, transparent 100%)',
+                  boxShadow: 'inset 0 0 0 2px rgba(200,230,255,0.5), 0 0 8px 2px rgba(150,200,255,0.4)',
+                }}
+              />
+              <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-sky-900/70 text-sky-200 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap z-[16] border border-sky-400/40 backdrop-blur-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
+                🫧 BOLLA ({card.blockedMosse}t)
+              </div>
+            </div>
+          )}
+
+          {/* CONGELATO: ice frost */}
+          {isFrozen && !card.faceDown && location === 'field' && (
+            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15] overflow-hidden">
+              <div
+                className="absolute inset-0 rounded-xl"
+                style={{
+                  background: 'linear-gradient(160deg, rgba(180,230,255,0.18) 0%, rgba(100,180,255,0.12) 100%)',
+                  boxShadow: 'inset 0 0 0 2px rgba(100,200,255,0.6)',
+                  animation: 'freeze-pulse 2s ease-in-out infinite',
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-2xl opacity-30 select-none pointer-events-none">❄️</span>
+              </div>
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-cyan-900/75 text-cyan-200 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap z-[16] border border-cyan-400/40 backdrop-blur-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
+                ❄️ GELO ({card.frozenTurns}t)
+              </div>
+            </div>
+          )}
+
+          {/* VELENO: poison drip */}
+          {isPoisoned && !card.faceDown && location === 'field' && (
+            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15] overflow-hidden">
+              <div
+                className="absolute inset-0 rounded-xl animate-pulse"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(100,220,80,0.10) 0%, rgba(80,180,30,0.08) 100%)',
+                  boxShadow: 'inset 0 0 0 2px rgba(120,220,60,0.5)',
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xl opacity-25 select-none pointer-events-none">☠️</span>
+              </div>
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-green-900/75 text-green-200 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap z-[16] border border-green-500/40 backdrop-blur-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
+                ☠️ VELENO ({card.poisonTurns}t)
+              </div>
+            </div>
+          )}
+
+          {/* BLOCCO ABILITÀ: red lock */}
+          {isLocked && !card.faceDown && location === 'field' && (
+            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15] overflow-hidden">
+              <div
+                className="absolute inset-0 rounded-xl"
+                style={{
+                  background: 'rgba(200,30,30,0.10)',
+                  boxShadow: 'inset 0 0 0 2px rgba(220,50,50,0.6)',
+                  animation: 'lock-pulse 2.5s ease-in-out infinite',
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-2xl opacity-30 select-none pointer-events-none">⛔</span>
+              </div>
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-red-900/75 text-red-200 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap z-[16] border border-red-500/40 backdrop-blur-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
+                ⛔ BLOCCATO ({card.lockTurns}t)
+              </div>
+            </div>
+          )}
+
+          {/* STORDITO: spinning stars */}
+          {isStunned && !card.faceDown && location === 'field' && (
+            <div className="absolute inset-0 rounded-xl pointer-events-none z-[15] overflow-hidden">
+              <div
+                className="absolute inset-0 rounded-xl animate-pulse"
+                style={{
+                  background: 'rgba(250,200,50,0.10)',
+                  boxShadow: 'inset 0 0 0 2px rgba(250,200,50,0.5)',
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-2xl opacity-35 select-none pointer-events-none animate-spin" style={{ animationDuration: '2s' }}>💫</span>
+              </div>
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-yellow-900/75 text-yellow-200 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap z-[16] border border-yellow-500/40 backdrop-blur-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
+                💫 STORDITO
+              </div>
+            </div>
+          )}
+
+          {/* BAMBOLA VOODOO: purple linked */}
+          {isVoodooLinked && !card.faceDown && location === 'field' && (
+            <div
+              className="absolute inset-0 rounded-xl pointer-events-none z-[15] animate-pulse"
+              style={{ boxShadow: 'inset 0 0 0 2px rgba(180,80,255,0.65), 0 0 6px 1px rgba(160,60,255,0.35)' }}
+            >
+              <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-purple-900/75 text-purple-200 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap z-[16] border border-purple-400/40 backdrop-blur-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
+                🪆 VOODOO
+              </div>
+            </div>
+          )}
+
+          {/* BARRIERA: blue energy shield on protected character */}
+          {isBarrieraProtected && !card.faceDown && location === 'field' && (
+            <div
+              className="absolute inset-0 rounded-xl pointer-events-none z-[15] animate-pulse"
+              style={{
+                background: 'rgba(30,100,220,0.08)',
+                boxShadow: 'inset 0 0 0 2px rgba(80,160,255,0.65), 0 0 8px 2px rgba(60,140,255,0.30)',
+              }}
+            >
+              <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-blue-900/75 text-blue-200 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap z-[16] border border-blue-400/40 backdrop-blur-sm" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.7)' }}>
+                🛡️ BARRIERA
+              </div>
+            </div>
+          )}
+          {/* ──────────────────────────────────────────────────────────────── */}
+
           {appliedSkinUrl && !showBack && !card.faceDown && (
             <div className="absolute -top-1 -right-1 bg-violet-500 rounded-full p-0.5 z-10">
               <Palette className="w-3 h-3 text-white" />
@@ -2769,6 +2913,12 @@ export const Card = memo(CardComponent, (prevProps, nextProps) => {
     prevCard.isBarrieraShield === nextCard.isBarrieraShield &&
     prevCard.barrieraPTI === nextCard.barrieraPTI &&
     prevCard.appliedSkinUrl === nextCard.appliedSkinUrl &&
+    prevCard.frozenTurns === nextCard.frozenTurns &&
+    prevCard.poisonTurns === nextCard.poisonTurns &&
+    prevCard.isLocked === nextCard.isLocked &&
+    prevCard.lockTurns === nextCard.lockTurns &&
+    prevCard.isStunned === nextCard.isStunned &&
+    prevCard.blockedMosse === nextCard.blockedMosse &&
     prevProps.location === nextProps.location &&
     prevProps.showBack === nextProps.showBack &&
     prevProps.onCardPlayed === nextProps.onCardPlayed &&
