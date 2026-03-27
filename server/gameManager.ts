@@ -4429,7 +4429,7 @@ Rispondi SOLO in JSON:`;
           'rifugio': "Il tuo personaggio non può essere attaccato per 1 turno [BERSAGLIO: scelta]",
           'respinta': "[CUSTOM:respinta] Riflette il prossimo danno subito verso un personaggio avversario a tua scelta",
           'schedine o tutto o niente': "[CUSTOM:schedine] Scegli se scommettere su chi saranno i due finalisti e congeli le tue carte; se indovini torni in gioco, altrimenti sei eliminato. Golden Freezer gioca obbligatoriamente",
-          'bambola voodoo': "Infligge 100 PTI di danno a un personaggio avversario per 3 turni consecutivi [BERSAGLIO: scelta]",
+          'bambola voodoo': "[CUSTOM:bambola_voodoo] Collega due personaggi in campo: ogni danno subito da uno si riflette anche sull'altro [BERSAGLIO: scelta]",
           'modalit frankenstein': "[CUSTOM:frankenstein] Fondi tutti i tuoi personaggi morti per creare un nuovo personaggio che somma PTI e stelle di tutti; se muore vieni eliminato",
           'notte dello spirito': "[CUSTOM:notte_spirito] Il tuo prossimo personaggio viene messo in campo come carta coperta; gli altri non possono vederlo ma tu non puoi usarlo per attaccare. Se hai Tamburello in campo, puoi usare le mosse",
           'ruoss e fessa': "[CUSTOM:ruoss_e_fessa] Pannello: decidi se portare il tuo personaggio a 5000 PTI e 3 stelle; ogni volta che attacca perde 1000 PTI",
