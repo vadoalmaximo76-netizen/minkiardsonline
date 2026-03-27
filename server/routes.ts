@@ -4235,12 +4235,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // ── ROULETTE RUSSA ──────────────────────────────────────────────────────
       const pendingRR = (game as any).pendingRouletteRussa;
       if (pendingRR && pendingRR.choiceId === choiceId && pendingRR.defenderName === socketPlayerName) {
-        delete (game as any).pendingRouletteRussa;
         const chosen = parseInt(value, 10);
         if (isNaN(chosen) || chosen < 1 || chosen > 6) {
           console.warn(`🎲 ROULETTE_RUSSA: invalid choice "${value}" from ${socketPlayerName} — ignoring`);
           return;
         }
+        // Only clear pending state AFTER successful validation
+        delete (game as any).pendingRouletteRussa;
         const diceRollRR = Math.floor(Math.random() * 6) + 1;
         io.to(gameId).emit('dice-rolled', { result: diceRollRR, playerName: socketPlayerName });
         if (diceRollRR === chosen) {
