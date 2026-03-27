@@ -1206,8 +1206,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const gameManager = new GameManager();
 
   // Load active games from database on server startup, then begin periodic autosave
-  gameManager.loadActiveGamesFromDB().then(() => {
+  gameManager.loadActiveGamesFromDB().then(async () => {
     console.log('🎮 Active games loaded from database');
+
+    // Startup cleanup: remove inactive non-GymMode games > 12h old immediately
+    try {
+      const { removedMemory, removedDb } = await gameManager.cleanupInactiveGames();
+      if (removedMemory + removedDb > 0) {
+        console.log(`🧹 [startup cleanup] Removed ${removedMemory} in-memory + ${removedDb} DB inactive games (>12h, non-GymMode)`);
+      }
+    } catch (cleanupErr) {
+      console.error('⚠️ [startup cleanup] Error during initial cleanup:', cleanupErr);
+    }
 
     // Periodic autosave: persist all active in-memory games to DB every 30 seconds.
     // Started only after initial load so the first tick never races with restore.
@@ -1228,6 +1238,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`🕐 [autosave] Saved ${saved}/${activeIds.length} active games`);
       }
     }, 30_000);
+
+    // Hourly cleanup: keep DB lean by removing inactive non-GymMode games > 12h old
+    setInterval(async () => {
+      try {
+        const { removedMemory, removedDb } = await gameManager.cleanupInactiveGames();
+        if (removedMemory + removedDb > 0) {
+          console.log(`🧹 [hourly cleanup] Removed ${removedMemory} in-memory + ${removedDb} DB inactive non-GymMode games`);
+        }
+      } catch (cleanupErr) {
+        console.error('⚠️ [hourly cleanup] Error:', cleanupErr);
+      }
+    }, 60 * 60 * 1000); // every 60 minutes
   }).catch(err => {
     console.error('❌ Failed to load active games:', err);
   });
@@ -10503,6 +10525,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.log('[ADMIN CHECK ERROR]', error);
       res.json({ success: true, isAdmin: false });
+    }
+  });
+
+  // Admin: force-cleanup inactive non-GymMode games older than 12h
+  app.post('/api/admin/cleanup-games', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = req.user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Admin only' });
+      }
+      const { removedMemory, removedDb } = await gameManager.cleanupInactiveGames();
+      console.log(`🧹 [admin cleanup] Removed ${removedMemory} in-memory + ${removedDb} DB inactive non-GymMode games`);
+      res.json({ success: true, removedMemory, removedDb, message: `Rimossi ${removedMemory} dalla memoria + ${removedDb} dal database (partite normali inattive >12h)` });
+    } catch (error) {
+      console.error('[admin cleanup] Error:', error);
+      res.status(500).json({ success: false, error: 'Cleanup failed' });
     }
   });
 
