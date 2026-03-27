@@ -10552,71 +10552,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ success: false, error: 'Admin only' });
       }
 
-      const fallbackDb = getFallbackDb();
+      // getPrimaryDb() always returns the original primary even in fallback mode
+      // getFallbackDb() returns the secondary (DATABASE_URL / Replit)
       const primaryDb = getPrimaryDb();
+      const fallbackDb = getFallbackDb();
 
-      if (!fallbackDb) {
-        return res.status(503).json({ success: false, error: 'Secondary DB (DATABASE_URL) non disponibile' });
+      if (!primaryDb || !fallbackDb) {
+        return res.status(503).json({
+          success: false,
+          error: 'Entrambi i DB devono essere configurati per la sincronizzazione',
+        });
       }
-      if (!primaryDb) {
-        return res.status(503).json({ success: false, error: 'Primary DB non disponibile o già in modalità fallback — sync non necessario' });
+
+      if (primaryDb === fallbackDb) {
+        return res.status(400).json({ success: false, error: 'Primary e fallback sono lo stesso DB — nessuna sincronizzazione necessaria' });
       }
 
-      const report: Record<string, { copied: number; errors: number }> = {};
+      const report: Record<string, { toFallback: number; toPrimary: number; errors: number }> = {};
 
-      async function syncTable<T extends { id: number }>(
-        tableName: string,
+      // Copies rows missing in `destDb` from `srcDb` — preserving ALL columns including PK.
+      // Uses onConflictDoNothing() so existing rows are never overwritten.
+      async function copyMissing(
+        srcDb: any,
+        destDb: any,
         table: any,
-        uniqueKey: (row: T) => Record<string, any>,
-        conflictTarget: any[]
-      ) {
+        srcRows: any[],
+        destRows: any[],
+        getKey: (row: any) => string | number
+      ): Promise<{ copied: number; errors: number }> {
+        const destKeys = new Set(destRows.map(getKey));
+        const missing = srcRows.filter(r => !destKeys.has(getKey(r)));
         let copied = 0;
         let errors = 0;
-        try {
-          const primaryRows: T[] = await (primaryDb as any).select().from(table);
-          const fallbackRows: T[] = await fallbackDb.select().from(table);
-          const fallbackIds = new Set(fallbackRows.map((r: any) => r.id));
+        for (const row of missing) {
+          try {
+            await (destDb as any).insert(table).values(row).onConflictDoNothing();
+            copied++;
+          } catch (e) {
+            console.warn(`[sync] row insert failed:`, (e as any)?.message?.slice(0, 100));
+            errors++;
+          }
+        }
+        return { copied, errors };
+      }
 
-          // Copy records from primary → fallback that are missing
-          const missing = primaryRows.filter(r => !fallbackIds.has(r.id));
-          for (const row of missing) {
-            try {
-              const { id: _id, ...data } = row as any;
-              await (fallbackDb as any).insert(table).values(data).onConflictDoNothing();
-              copied++;
-            } catch (e) {
-              errors++;
-            }
+      async function syncTableBidirectional(
+        tableName: string,
+        table: any,
+        getKey: (row: any) => string | number
+      ) {
+        let errors = 0;
+        let toFallback = 0;
+        let toPrimary = 0;
+        try {
+          let primaryRows: any[] = [];
+          let fallbackRows: any[] = [];
+
+          try { primaryRows = await (primaryDb as any).select().from(table); }
+          catch (e) {
+            console.warn(`[sync] Cannot read primary for ${tableName}:`, (e as any)?.message?.slice(0, 80));
+          }
+          try { fallbackRows = await (fallbackDb as any).select().from(table); }
+          catch (e) {
+            console.warn(`[sync] Cannot read fallback for ${tableName}:`, (e as any)?.message?.slice(0, 80));
+          }
+
+          // primary → fallback
+          if (primaryRows.length > 0) {
+            const r1 = await copyMissing(primaryDb, fallbackDb, table, primaryRows, fallbackRows, getKey);
+            toFallback = r1.copied;
+            errors += r1.errors;
+          }
+
+          // fallback → primary (sync back any records only in fallback)
+          if (fallbackRows.length > 0) {
+            const r2 = await copyMissing(fallbackDb, primaryDb, table, fallbackRows, primaryRows, getKey);
+            toPrimary = r2.copied;
+            errors += r2.errors;
           }
         } catch (e) {
           console.error(`[sync-databases] Error syncing ${tableName}:`, (e as any)?.message);
           errors++;
         }
-        report[tableName] = { copied, errors };
-        console.log(`[sync-databases] ${tableName}: copied=${copied} errors=${errors}`);
+        report[tableName] = { toFallback, toPrimary, errors };
+        console.log(`[sync-databases] ${tableName}: →fallback=${toFallback} →primary=${toPrimary} errors=${errors}`);
       }
 
-      // Sync the most critical tables (primary → fallback)
-      await syncTable('users', users, (r: any) => ({ email: r.email }), [users.email]);
-      await syncTable('tournaments', tournaments, (r: any) => ({ id: r.id }), [tournaments.id]);
-      await syncTable('tournament_participants', tournamentParticipants, (r: any) => ({ id: r.id }), [tournamentParticipants.id]);
-      await syncTable('tournament_matches', tournamentMatches, (r: any) => ({ id: r.id }), [tournamentMatches.id]);
-      await syncTable('game_states', gameStates, (r: any) => ({ gameId: r.gameId }), [gameStates.gameId]);
-      await syncTable('custom_cards', customCards, (r: any) => ({ id: r.id }), [customCards.id]);
-      await syncTable('card_modifications', cardModifications, (r: any) => ({ originalCardId: r.originalCardId }), [cardModifications.originalCardId]);
-      await syncTable('clans', clans, (r: any) => ({ id: r.id }), [clans.id]);
-      await syncTable('clan_members', clanMembers, (r: any) => ({ id: r.id }), [clanMembers.id]);
-      await syncTable('draft_decks', draftDecks, (r: any) => ({ id: r.id }), [draftDecks.id]);
-      await syncTable('user_draft_credits', userDraftCredits, (r: any) => ({ id: r.id }), [userDraftCredits.id]);
-      await syncTable('user_card_collection', userCardCollection, (r: any) => ({ id: r.id }), [userCardCollection.id]);
-      await syncTable('user_gym_progress', userGymProgress, (r: any) => ({ id: r.id }), [userGymProgress.id]);
-      await syncTable('user_story_deck', userStoryDeck, (r: any) => ({ id: r.id }), [userStoryDeck.id]);
+      await syncTableBidirectional('users', users, (r: any) => r.id);
+      await syncTableBidirectional('tournaments', tournaments, (r: any) => r.id);
+      await syncTableBidirectional('tournament_participants', tournamentParticipants, (r: any) => r.id);
+      await syncTableBidirectional('tournament_matches', tournamentMatches, (r: any) => r.id);
+      await syncTableBidirectional('game_states', gameStates, (r: any) => r.gameId);
+      await syncTableBidirectional('custom_cards', customCards, (r: any) => r.id);
+      await syncTableBidirectional('card_modifications', cardModifications, (r: any) => r.originalCardId);
+      await syncTableBidirectional('clans', clans, (r: any) => r.id);
+      await syncTableBidirectional('clan_members', clanMembers, (r: any) => r.id);
+      await syncTableBidirectional('draft_decks', draftDecks, (r: any) => r.id);
+      await syncTableBidirectional('user_draft_credits', userDraftCredits, (r: any) => r.id);
+      await syncTableBidirectional('user_card_collection', userCardCollection, (r: any) => r.id);
+      await syncTableBidirectional('user_gym_progress', userGymProgress, (r: any) => r.id);
+      await syncTableBidirectional('user_story_deck', userStoryDeck, (r: any) => r.id);
 
-      const totalCopied = Object.values(report).reduce((sum, r) => sum + r.copied, 0);
-      const totalErrors = Object.values(report).reduce((sum, r) => sum + r.errors, 0);
+      const totalToFallback = Object.values(report).reduce((s, r) => s + r.toFallback, 0);
+      const totalToPrimary = Object.values(report).reduce((s, r) => s + r.toPrimary, 0);
+      const totalErrors = Object.values(report).reduce((s, r) => s + r.errors, 0);
 
-      console.log(`✅ [sync-databases] Sync complete: ${totalCopied} records copied, ${totalErrors} errors`);
-      res.json({ success: true, totalCopied, totalErrors, report });
+      console.log(`✅ [sync-databases] Sync complete: →fallback=${totalToFallback} →primary=${totalToPrimary} errors=${totalErrors}`);
+      res.json({ success: true, totalToFallback, totalToPrimary, totalErrors, report });
     } catch (error) {
       console.error('[sync-databases] Fatal error:', error);
       res.status(500).json({ success: false, error: 'Sync failed' });

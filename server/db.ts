@@ -6,6 +6,7 @@ type DbType = ReturnType<typeof drizzle<typeof schema>>;
 
 let _db: DbType | null = null;
 let _fallbackDb: DbType | null = null;
+let _originalPrimaryDb: DbType | null = null;  // always keeps the original primary reference
 let _isDatabaseAvailable = false;
 let _activeDbSource: string = 'none';
 let _usingFallback = false;
@@ -37,6 +38,7 @@ if (process.env.EXTERNAL_DATABASE_URL) {
   const extDb = tryConnect(process.env.EXTERNAL_DATABASE_URL, 'EXTERNAL_DATABASE_URL (primary)');
   if (extDb) {
     _db = extDb;
+    _originalPrimaryDb = extDb;
     _isDatabaseAvailable = true;
     _activeDbSource = 'EXTERNAL_DATABASE_URL (primary)';
 
@@ -56,6 +58,7 @@ if (process.env.EXTERNAL_DATABASE_URL) {
       const fallbackDb = tryConnect(process.env.DATABASE_URL, 'DATABASE_URL (fallback)');
       if (fallbackDb) {
         _db = fallbackDb;
+        _fallbackDb = fallbackDb;
         _isDatabaseAvailable = true;
         _activeDbSource = 'DATABASE_URL (fallback)';
         _usingFallback = true;
@@ -66,6 +69,7 @@ if (process.env.EXTERNAL_DATABASE_URL) {
   const replDb = tryConnect(process.env.DATABASE_URL, 'DATABASE_URL (Replit)');
   if (replDb) {
     _db = replDb;
+    _originalPrimaryDb = replDb;
     _isDatabaseAvailable = true;
     _activeDbSource = 'DATABASE_URL (Replit)';
   }
@@ -78,7 +82,7 @@ if (!_isDatabaseAvailable) {
 }
 
 // ── 402 quota-exceeded detection & auto-switch ──────────────────────────────
-function is402QuotaError(err: unknown): boolean {
+export function is402QuotaError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false;
   const msg = (err as any)?.message ?? '';
   return msg.includes('402') || msg.includes('data transfer quota') || msg.includes('exceeded');
@@ -103,6 +107,7 @@ export function switchToFallback(): boolean {
 // Creates a proxy around a Drizzle query builder that, when awaited, also
 // fires the same query on the secondary DB in the background (errors silently
 // swallowed so they never affect the primary result).
+// FIX: Also detects 402 on the primary promise and triggers switchToFallback().
 function createDualBuilder(primaryBuilder: any, secondaryBuilder: any | null): any {
   return new Proxy(primaryBuilder, {
     get(target, prop) {
@@ -117,8 +122,14 @@ function createDualBuilder(primaryBuilder: any, secondaryBuilder: any | null): a
               console.warn('[DualWrite] Secondary DB write failed (ignored):', msg.slice(0, 120));
             });
           }
-          // Return primary result normally
-          return target.then(onFulfilled, onRejected);
+          // Return primary result, detecting 402 to trigger auto-fallback
+          return target.then(onFulfilled, (err: unknown) => {
+            if (is402QuotaError(err)) {
+              switchToFallback();
+            }
+            if (onRejected) return onRejected(err);
+            return Promise.reject(err);
+          });
         };
       }
 
@@ -195,7 +206,7 @@ const _dbProxy = new Proxy({} as DbType, {
             const secMethod = (_fallbackDb as any)[prop];
             if (typeof secMethod === 'function') {
               const secondaryResult = (secMethod as Function).apply(_fallbackDb, args);
-              // Return a dual builder that propagates chain calls to both
+              // Return a dual builder that propagates chain calls to both and handles 402
               return createDualBuilder(primaryResult, secondaryResult);
             }
           } catch (_e) {
@@ -241,14 +252,13 @@ export function setDatabaseUnavailable(): void {
   console.warn('⚠️ Database marked as unavailable due to runtime error');
 }
 
-// Returns the raw fallback DB instance (used for sync-databases admin endpoint)
+// Returns the raw fallback DB instance (always DATABASE_URL/Replit)
 export function getFallbackDb(): DbType | null {
   return _fallbackDb;
 }
 
-// Returns the raw primary DB instance (used for sync-databases admin endpoint)
+// Returns the original primary DB instance — even when we're in fallback mode.
+// (_originalPrimaryDb is set at init time and never changed by switchToFallback)
 export function getPrimaryDb(): DbType | null {
-  // When in fallback mode, _db IS the fallback; return the original primary (no separate reference kept)
-  if (_usingFallback) return null;
-  return _db;
+  return _originalPrimaryDb;
 }
