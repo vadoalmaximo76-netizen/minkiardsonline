@@ -6,7 +6,15 @@ import OpenAI from "openai";
 import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
-import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
+import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable, switchToFallback } from "./db";
+
+function handle402(err: unknown): boolean {
+  const msg = (err as any)?.message ?? '';
+  if (msg.includes('402') || msg.includes('data transfer quota') || msg.includes('exceeded')) {
+    return switchToFallback();
+  }
+  return false;
+}
 import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi } from "../shared/schema";
 import { jsonStorage, homePanelsStorage, newsTickerStorage, homeConfigStorage, rankiardTiersStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray, gt } from "drizzle-orm";
@@ -11265,6 +11273,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         }
       });
     } catch (error) {
+      handle402(error);
       console.error('Error fetching profile:', error);
       res.status(500).json({ success: false, error: 'Failed to fetch profile' });
     }
@@ -11529,6 +11538,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const list = await db.select().from(gymLeaders).orderBy(gymLeaders.orderIndex);
       res.json({ success: true, gymLeaders: list });
     } catch (e) {
+      handle402(e);
       console.error('Error fetching gym leaders:', e);
       res.status(500).json({ success: false, error: 'Errore server' });
     }
@@ -11644,6 +11654,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       }
       res.json({ success: true, gymLeaders: list, completedIds });
     } catch (e) {
+      handle402(e);
       console.error('Error fetching gym leaders:', e);
       res.status(500).json({ success: false, error: 'Errore server' });
     }
@@ -11686,6 +11697,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const cardIds = rows.length > 0 ? (rows[0].cardIds as string[]) : [];
       res.json({ success: true, cardIds });
     } catch (e) {
+      handle402(e);
       console.error('Error fetching story deck:', e);
       res.status(500).json({ success: false, error: 'Errore server' });
     }

@@ -1,5 +1,10 @@
 import { Express, Request, Response, NextFunction } from "express";
-import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
+import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable, switchToFallback } from "./db";
+
+function is402(err: unknown): boolean {
+  const msg = (err as any)?.message ?? '';
+  return msg.includes('402') || msg.includes('data transfer quota') || msg.includes('exceeded');
+}
 import { users, registerUserSchema, loginUserSchema } from "../shared/schema";
 import { eq, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -664,8 +669,11 @@ export function registerAuthRoutes(app: Express) {
       }
 
       if (isDatabaseAvailable() && db) {
+        const tryFetchUser = async () => db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
         try {
-          const [user] = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+          let [user] = await tryFetchUser();
+          // Auto-retry with fallback if 402 quota exceeded
+          if (!user && false) { /* placeholder — real retry is in catch */ }
 
           if (!user) {
             return res.status(404).json({ error: "Utente non trovato" });
@@ -682,6 +690,20 @@ export function registerAuthRoutes(app: Express) {
             guestMode: false
           });
         } catch (dbError) {
+          if (is402(dbError)) {
+            const switched = switchToFallback();
+            if (switched) {
+              try {
+                const [user] = await tryFetchUser();
+                if (user) {
+                  return res.json({
+                    user: { id: user.id, username: user.username, email: user.email, avatar: user.avatar, puntiRankiard: user.puntiRankiard },
+                    guestMode: false
+                  });
+                }
+              } catch (_retryErr) { /* fall through */ }
+            }
+          }
           console.error("Database error in /api/auth/me:", dbError);
           res.json({ user: null, guestMode: true, dbError: true });
         }
