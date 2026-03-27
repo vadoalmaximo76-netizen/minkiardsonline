@@ -3820,6 +3820,24 @@ Rispondi SOLO in JSON:`;
 
     const player = game.players[playerName];
 
+    // ── IBERNAZIONE: block all card plays for N turns ─────────────────────────────
+    const ibernazione = (game as any).ibernazione;
+    if (ibernazione && ibernazione.turnsLeft > 0) {
+      const card = player.hand.find((c: Card) => c.id === cardId);
+      // Ibernazione blocks bonus, mosse, and personaggi plays (only attacker's existing char can remain)
+      if (card && (card.type === 'bonus' || card.type === 'mosse' || card.type === 'personaggi' || card.type === 'personaggi_speciali')) {
+        // Allow playing the card only if they have no field char yet (first char placement not blocked if it's emergency)
+        const hasFieldChar = game.field.some((c: Card) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+        if (card.type === 'bonus' || card.type === 'mosse' || (card.type !== 'bonus' && card.type !== 'mosse' && hasFieldChar)) {
+          const ioIb = (global as any).io;
+          const activatorName = ibernazione.activatedBy || 'qualcuno';
+          if (ioIb) ioIb.to(gameId).emit('chat-message', { id: `${Date.now()}-ibernazione-block`, playerName: 'Sistema', message: `❄️ IBERNAZIONE attivata da ${activatorName}! Non puoi giocare carte per ancora ${ibernazione.turnsLeft} turni!`, timestamp: Date.now() });
+          console.log(`❄️ IBERNAZIONE: blocking ${playerName}'s ${card.type} card play (${ibernazione.turnsLeft} turns left)`);
+          return {};
+        }
+      }
+    }
+
     // DADDY CONTE / FABRIZIO: player must resolve pending start-of-turn choice before playing cards
     if ((player as any).pendingDaddyConteChoice) {
       console.log(`🤵 DADDY CONTE: ${playerName} must make their choice before playing cards`);
@@ -4274,40 +4292,40 @@ Rispondi SOLO in JSON:`;
       if (!effectText && !textContent) {
         const knownNameEffects: Record<string, string> = {
           'asta': "Parte un'asta tra i partecipanti per un personaggio dal mazzo usando punti Rankiard",
-          'medicina': "Cura il tuo personaggio di 200 PTI [BERSAGLIO: scelta]",
-          'spinaci': "Aumenta i PTI del tuo personaggio di 300 [BERSAGLIO: scelta]",
+          'medicina': "[CUSTOM:medicina] +30 PTI al tuo personaggio, oppure annulla Virus e Influenza se presenti",
+          'spinaci': "[CUSTOM:spinaci] +30 PTI al tuo personaggio; +2 stelle se lo usa Popeye",
           'pesca miracolosa': "Pesca 3 carte da un mazzo a scelta",
-          'stipendio': "Guadagna 100 PTI [BERSAGLIO: scelta]",
-          'kainoken': "Raddoppia i PTI del tuo personaggio per 2 turni [BERSAGLIO: scelta]",
+          'stipendio': "[CUSTOM:stipendio] +10 PTI al tuo personaggio ogni turno (effetto ricorrente); +400 PTI/turno se lo usa Neymar JR",
+          'kainoken': "[CUSTOM:kainoken] Scegli dai mazzi una carta da dare a ogni avversario sostituendola con una dello stesso tipo dalla loro mano",
           'terremoto': "Stordisce tutti i personaggi avversari per 1 turno",
           'crisalide': "Il tuo personaggio è bloccato per 3 turni, poi si evolve 1 volta",
-          'tsunami': "Infligge 300 PTI di danno a tutti i personaggi avversari",
-          'uragano': "Infligge 200 PTI di danno a tutti i personaggi avversari",
-          'super mega uragano strano': "Infligge 500 PTI di danno a tutti i personaggi avversari",
-          'una tempesta baby': "Infligge 250 PTI di danno a tutti i personaggi avversari",
-          'ibernazione': "Congela un personaggio avversario per 3 turni [BERSAGLIO: scelta]",
-          'detonatore': "Piazza una bomba su un personaggio avversario che esplode tra 3 turni infliggendo 500 PTI di danno [BERSAGLIO: scelta]",
-          'trappola': "Infligge 200 PTI di danno al prossimo personaggio che attacca il tuo personaggio",
+          'tsunami': "[CUSTOM:tsunami] Dado automatico: pari=ogni giocatore cede la mano al giocatore successivo; dispari=al precedente",
+          'uragano': "[CUSTOM:uragano] Ogni giocatore cede le sue carte in campo al giocatore di turno precedente; le carte cambiano proprietario ma restano in campo",
+          'super mega uragano strano': "[CUSTOM:super_mega_uragano] Per N turni (N=n.giocatori), ogni turno ogni personaggio passa al giocatore precedente nel turno; vietato sostituire il personaggio durante questo periodo",
+          'una tempesta baby': "[CUSTOM:una_tempesta_baby] Pannello: scegli se tutti devono giocare tutti i loro bonus oppure tutte le loro mosse contemporaneamente; su Golden Freezer non hanno effetto",
+          'ibernazione': "[CUSTOM:ibernazione] Pannello: per 3 turni nessuno può usare bonus, mosse o mettere un altro personaggio in campo",
+          'detonatore': "[CUSTOM:detonatore] Attiva il danno della mossa BOMBA SENZA DETONATORE",
+          'trappola': "[CUSTOM:trappola] Puoi mettere la tua prossima carta in campo come carta coperta; puoi scoprirla in qualsiasi momento",
           'boomerang': "Il prossimo danno subito dal tuo personaggio viene riflesso all'attaccante [BERSAGLIO: scelta]",
           'scambio': "Scambia un tuo personaggio con uno dell'avversario [BERSAGLIO: scelta]",
           'imitazione': "Copia l'effetto dell'ultima carta BONUS giocata",
           'tabula rasa': "Rimuovi tutti gli effetti attivi dal campo di gioco",
-          'harakiri': "Sacrifica il tuo personaggio per infliggere i suoi PTI come danno a un personaggio avversario [BERSAGLIO: scelta]",
-          'sdoppiamento': "Crea una copia del tuo personaggio in campo [BERSAGLIO: scelta]",
-          'ciclone': "Infligge 150 PTI di danno a tutti i personaggi avversari",
-          'fiaschetta': "Cura il tuo personaggio di 100 PTI [BERSAGLIO: scelta]",
-          'carica': "Aumenta i PTI del tuo personaggio di 200 [BERSAGLIO: scelta]",
-          'doping': "Aumenta i PTI del tuo personaggio di 200 [BERSAGLIO: scelta]",
-          'mors tua vita mea': "Quando un personaggio avversario muore, il tuo personaggio guadagna i suoi PTI [BERSAGLIO: scelta]",
-          'rincoglionimento': "Stordisce un personaggio avversario per 2 turni [BERSAGLIO: scelta]",
-          'trauma': "Infligge 150 PTI di danno e stordisce per 1 turno [BERSAGLIO: scelta]",
-          'target acquired': "Infligge 300 PTI di danno a un personaggio avversario a scelta [BERSAGLIO: scelta]",
+          'harakiri': "[CUSTOM:harakiri] Scegli tramite pannello uno dei tuoi personaggi e sacrificalo rimettendolo nel mazzo; puoi anche non sacrificare nessuno",
+          'sdoppiamento': "[CUSTOM:sdoppiamento] Il tuo personaggio va a 1 PTI e viene immediatamente scambiato con quello di un avversario a tua scelta",
+          'ciclone': "[CUSTOM:ciclone] Ogni giocatore cede le sue carte in campo al giocatore successivo nel turno; le carte cambiano proprietario ma restano in campo",
+          'fiaschetta': "[CUSTOM:fiaschetta] +30 PTI al tuo personaggio; se lo usa Cannuccia i suoi avversari subiscono il loro prossimo attacco su sé stessi",
+          'carica': "[CUSTOM:carica] Pannello: scegli un personaggio avversario; per un intero turno tutti i personaggi devono attaccarlo e non possono svolgere altre azioni",
+          'doping': "[CUSTOM:doping] +100 PTI immediati al tuo personaggio; dopo 2 turni perde 50 PTI",
+          'mors tua vita mea': "[CUSTOM:mors_tua] Quando uccidi il prossimo personaggio avversario, invece di togliere una vita a lui ne aggiungi una a te",
+          'rincoglionimento': "[CUSTOM:rincoglionimento] Pannello: scegli un personaggio avversario; il suo prossimo attacco colpirà sé stesso",
+          'trauma': "[CUSTOM:trauma] Pannello: scegli un avversario; il prossimo personaggio che metterà in campo non può attaccare per 5 turni e perde 10 PTI/turno per sempre",
+          'target acquired': "[CUSTOM:target_acquired] Pannello: scegli un personaggio avversario; nello stesso turno puoi attaccarlo 3 volte (Il Pelux: finché non muore)",
           'distruzione totale': "Infligge 500 PTI di danno a tutti i personaggi in campo",
           'apocalisse': "Infligge 400 PTI di danno a tutti i personaggi in campo",
           'comunismo': "Tutti i personaggi in campo assumono lo stesso valore di PTI (media dei PTI di tutti)",
-          'corruzione': "Ruba 100 PTI da un personaggio avversario e li aggiunge al tuo [BERSAGLIO: scelta]",
-          'nirdosh': "Avvelena un personaggio avversario: perde 50 PTI per turno per 3 turni [BERSAGLIO: scelta]",
-          'munnezza': "Infligge 100 PTI di danno a un personaggio avversario [BERSAGLIO: scelta]",
+          'corruzione': "[CUSTOM:corruzione_v2] Cedi 50 PTI a un personaggio avversario a tua scelta tramite pannello; quell'avversario non potrà attaccarti per 3 turni",
+          'nirdosh': "[CUSTOM:nirdosh] +100 stelle al tuo personaggio in campo; dopo 2 turni quel personaggio muore",
+          'munnezza': "[CUSTOM:munnezza] +10 PTI al tuo personaggio; +500 PTI se lo usa Napoletano",
           'gasata': "Scegli un personaggio avversario tramite pannello: sia il tuo personaggio che il suo guadagnano +500 PTI [BERSAGLIO: scelta]",
           'sbirciata': "Guarda le carte in mano di un avversario",
           'inverti giro': "Inverte l'ordine dei turni",
@@ -4326,38 +4344,38 @@ Rispondi SOLO in JSON:`;
           'playback': "Ripeti l'ultimo effetto BONUS giocato",
           'portale speciale': "Pesca una carta dal mazzo PERSONAGGI SPECIALI",
           'difesa vigliacca': "Il tuo personaggio non può essere attaccato per 2 turni [BERSAGLIO: scelta]",
-          'scudo': "Il tuo personaggio blocca il prossimo attacco subito [BERSAGLIO: scelta]",
+          'scudo': "[CUSTOM:scudo_stealth] Il tuo personaggio non può essere bersagliato per 1 turno",
           'rifugio': "Il tuo personaggio non può essere attaccato per 1 turno [BERSAGLIO: scelta]",
-          'respinta': "Il prossimo attacco avversario viene respinto e non causa danni [BERSAGLIO: scelta]",
-          'schedine o tutto o niente': "Scommessa: 50% possibilità di guadagnare o perdere 300 PTI [BERSAGLIO: scelta] [DADO: Se indovina: Guadagna 300 PTI; Se sbaglia: Perde 300 PTI]",
+          'respinta': "[CUSTOM:respinta] Riflette il prossimo danno subito verso un personaggio avversario a tua scelta",
+          'schedine o tutto o niente': "[CUSTOM:schedine] Scegli se scommettere su chi saranno i due finalisti e congeli le tue carte; se indovini torni in gioco, altrimenti sei eliminato. Golden Freezer gioca obbligatoriamente",
           'bambola voodoo': "Infligge 100 PTI di danno a un personaggio avversario per 3 turni consecutivi [BERSAGLIO: scelta]",
-          'modalit frankenstein': "Il tuo personaggio diventa una versione potenziata di sé stesso per 2 turni [BERSAGLIO: scelta]",
-          'notte dello spirito': "Tutti i personaggi avversari perdono 50 PTI [DADO_AUTOMATICO: 1-3: Perde 50 PTI; 4-6: Perde 100 PTI]",
-          'ruoss e fessa': "Infligge 150 PTI di danno a un personaggio avversario [BERSAGLIO: scelta]",
-          'trinit': "Evoca 3 effetti bonus contemporaneamente [DADO_AUTOMATICO: 1-2: Cura 100 PTI; 3-4: Danno 100 PTI; 5-6: Entrambi]",
-          'un posto galattico': "Il tuo personaggio guadagna 200 PTI e 1 stella [BERSAGLIO: scelta]",
-          'vincere e vince remo': "Tutti i tuoi personaggi in campo guadagnano 100 PTI",
-          'wd 40': "Rimuove tutti gli effetti negativi dal tuo personaggio [BERSAGLIO: scelta]",
+          'modalit frankenstein': "[CUSTOM:frankenstein] Fondi tutti i tuoi personaggi morti per creare un nuovo personaggio che somma PTI e stelle di tutti; se muore vieni eliminato",
+          'notte dello spirito': "[CUSTOM:notte_spirito] Il tuo prossimo personaggio viene messo in campo come carta coperta; gli altri non possono vederlo ma tu non puoi usarlo per attaccare. Se hai Tamburello in campo, puoi usare le mosse",
+          'ruoss e fessa': "[CUSTOM:ruoss_e_fessa] Pannello: decidi se portare il tuo personaggio a 5000 PTI e 3 stelle; ogni volta che attacca perde 1000 PTI",
+          'trinit': "[CUSTOM:trinita] Scegli 3 personaggi in campo e assegnali a un solo concorrente (anche te); se tra essi ci sono Rockit/Peeo/Pap: +1000 PTI ciascuno; se ci sono tutti e 3: +10000 PTI e +10 stelle a testa",
+          'un posto galattico': "[CUSTOM:un_posto_galattico] Se il tuo personaggio non è il più forte in campo, tu e un altro partecipante vi isolate dalla partita finché non rimane uno solo; Golden Freezer può attivarlo sempre",
+          'vincere e vince remo': "[CUSTOM:vincere_vinceremo] Se Capello Smith è in campo, la partita finisce immediatamente e vince il giocatore che lo possiede",
+          'wd 40': "[CUSTOM:wd40] Interrompi immediatamente l'effetto di bonus o mosse che durano più turni; Goghi può decidere su quale personaggio deve restare l'effetto",
           'minkiard n 100': "Guadagna 100 punti Rankiard [BERSAGLIO: scelta]",
           'minkiard n 300': "Guadagna 300 punti Rankiard [BERSAGLIO: scelta]",
           'minkiard n 400': "Guadagna 400 punti Rankiard [BERSAGLIO: scelta]",
           'minkiard n 500': "Guadagna 500 punti Rankiard [BERSAGLIO: scelta]",
           'minkiards n 200': "Guadagna 200 punti Rankiard [BERSAGLIO: scelta]",
-          'modalita cieca': "Il tuo avversario non può vedere le proprie carte per 2 turni",
-          'modalit fenomeno': "Il tuo personaggio aumenta i PTI del 50% per 2 turni [BERSAGLIO: scelta]",
-          'modalita fighetto': "Il tuo personaggio non può essere bersagliato per 1 turno [BERSAGLIO: scelta]",
-          'modalit kamikaze': "Il tuo personaggio infligge il doppio del danno ma perde 200 PTI [BERSAGLIO: scelta]",
-          'modalit m mondo': "Tutti i personaggi in campo scambiano i propri PTI [DADO_AUTOMATICO: 1-3: Scambio casuale; 4-6: Scambio scelto]",
-          'modalit troll': "L'avversario deve scartare una carta a caso dalla mano",
-          'modalit truzzo': "Il tuo personaggio guadagna 150 PTI ma perde 1 stella [BERSAGLIO: scelta]",
+          'modalita cieca': "[CUSTOM:modalita_cieca] Per 3 turni tutte le carte in campo e in mano diventano coperte: i giocatori non vedono nomi, PTI, stelle né l'immagine frontale; gli effetti valgono lo stesso. Dopo 3 turni si torna alla normalità",
+          'modalit fenomeno': "[CUSTOM:modalit_fenomeno] Aggiunge 2 stelle al tuo personaggio",
+          'modalita fighetto': "[CUSTOM:modalita_fighetto] Aggiunge 1 stella al tuo personaggio",
+          'modalit kamikaze': "[CUSTOM:modalit_kamikaze] +70 PTI al tuo personaggio; +150 PTI se lo usa N-E-U-E-R",
+          'modalit m mondo': "[CUSTOM:modalit_m_mondo] +50 PTI al tuo personaggio; +100 PTI se lo usa Tony Tammaro",
+          'modalit troll': "[CUSTOM:modalit_troll] Puoi giocare un'altra carta bonus oltre a Modalità Troll prima di chiudere il turno",
+          'modalit truzzo': "[CUSTOM:modalit_truzzo] +10 PTI al tuo personaggio; +300 PTI se lo usa Michele Telo",
           'modalita zombie': "Il tuo personaggio torna in vita con la metà dei PTI se muore questo turno [BERSAGLIO: scelta]",
-          'musica ganza': "Tutti i tuoi personaggi in campo guadagnano 50 PTI",
+          'musica ganza': "[CUSTOM:musica_ganza] +10 PTI al tuo personaggio; +1 stella se lo usa Psy, One Direction, Michele Telo, Justin Biberon o Cacca",
           'non ti fa frega': "Annulla l'effetto dell'ultima carta bonus giocata dall'avversario",
           'provino per la juve': "Il tuo personaggio guadagna 2 stelle [BERSAGLIO: scelta]",
           'palio delle minkiards': "Tutti i giocatori guadagnano punti Rankiard in base ai PTI dei loro personaggi",
-          'peluria di holly': "Cura il tuo personaggio di 150 PTI [BERSAGLIO: scelta]",
+          'peluria di holly': "[CUSTOM:peluria_di_holly] +50 PTI al tuo personaggio; +70 PTI se lo usa Holly",
           'spin ta impulsiva': "Pesca 2 carte bonus a caso dal mazzo",
-          'ti porto via con me in questa morte fantastica': "Quando il tuo personaggio muore, porta con sé un personaggio avversario a scelta [BERSAGLIO: scelta]",
+          'ti porto via con me in questa morte fantastica': "[CUSTOM:ti_porto_via] Quando il tuo personaggio muore, fa morire anche il personaggio che lo ha ucciso",
           'vitello d ora': "Tutti i giocatori guadagnano 200 punti Rankiard",
         };
         if (knownNameEffects[cardNameLower]) {
@@ -6037,7 +6055,20 @@ Rispondi SOLO in JSON:`;
     }
 
     console.log(`🎴 Processing custom card effect for ${card.name || card.id}: "${card.effect}"`);
-    
+
+    // ============ [CUSTOM:name] NAMED EFFECT DISPATCHER ============
+    // Effects tagged with [CUSTOM:name] bypass AI/text-parser and route to executeNamedBonusEffect
+    if (card.effect && card.effect.includes('[CUSTOM:')) {
+      const customMatch = card.effect.match(/\[CUSTOM:(\w+)\]/);
+      if (customMatch) {
+        const customEffectName = customMatch[1];
+        console.log(`🎯 [CUSTOM] Dispatching named bonus effect: "${customEffectName}" for card "${card.name || card.id}" (player: ${playerName})`);
+        await this.executeNamedBonusEffect(gameId, customEffectName, card, playerName);
+        (card as any).effectAlreadyApplied = true;
+        return {};
+      }
+    }
+
     // ============ PTI DISTRIBUTION PATTERN (Giovanni Muciaccia) ============
     // When a personaggi_speciali card with PTI/stelle distribution effect is played directly
     if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && 
@@ -7656,6 +7687,888 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const gameState = this.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
       }
+    }
+  }
+
+  // ============ NAMED BONUS EFFECT EXECUTOR ============
+  // Handles all [CUSTOM:name] tagged BONUS card effects
+  private async executeNamedBonusEffect(gameId: string, effectName: string, card: Card, playerName: string): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game) return;
+    const io = (global as any).io;
+    const isCPU = this.isPlayerCPU(gameId, playerName);
+    const myChar = this.getPlayerActiveCharacter(game, playerName);
+    const myCharName = (myChar?.name || '').toLowerCase().trim();
+
+    const emitChat = (message: string) => {
+      if (io) io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-bonus-${effectName}-${Math.random().toString(36).substr(2,5)}`,
+        playerName: 'Sistema', message, timestamp: Date.now()
+      });
+    };
+    const emitState = () => {
+      const state = this.getSanitizedGameState(gameId);
+      if (io) io.to(gameId).emit('game-state-update', state);
+    };
+
+    console.log(`🎯 [NAMED-BONUS] Executing: ${effectName} for ${playerName} (char: ${myChar?.name || 'none'})`);
+
+    switch (effectName) {
+
+      // ─── STAT BOOSTS ────────────────────────────────────────────────────────
+      case 'medicina': {
+        if (!myChar) break;
+        const virusEffects = (game.timedEffects || []).filter((e: any) => /virus|influenza/i.test(e.description || ''));
+        if (virusEffects.length > 0) {
+          game.timedEffects = (game.timedEffects || []).filter((e: any) => !/virus|influenza/i.test(e.description || ''));
+          emitChat(`💊 MEDICINA! Effetti Virus/Influenza rimossi da ${playerName}!`);
+        } else {
+          myChar.pti = (myChar.pti || 0) + 30;
+          this.updateCardTextWithPTI(myChar);
+          emitChat(`💊 MEDICINA! ${myChar.name || playerName} +30 PTI (PTI: ${myChar.pti})`);
+        }
+        emitState(); break;
+      }
+
+      case 'fiaschetta': {
+        if (!myChar) break;
+        myChar.pti = (myChar.pti || 0) + 30;
+        this.updateCardTextWithPTI(myChar);
+        const isCannuccia = /cannuccia/i.test(myCharName);
+        if (isCannuccia) {
+          if (!(game as any).selfAttackRedirect) (game as any).selfAttackRedirect = {};
+          for (const pName of game.turnOrder) {
+            if (pName !== playerName) (game as any).selfAttackRedirect[pName] = ((game as any).selfAttackRedirect[pName] || 0) + 1;
+          }
+          emitChat(`🥤 FIASCHETTA (CANNUCCIA)! +30 PTI + gli avversari subiscono il prossimo attacco su sé stessi!`);
+        } else {
+          emitChat(`🥤 FIASCHETTA! ${myChar.name || playerName} +30 PTI (PTI: ${myChar.pti})`);
+        }
+        emitState(); break;
+      }
+
+      case 'spinaci': {
+        if (!myChar) break;
+        myChar.pti = (myChar.pti || 0) + 30;
+        this.updateCardTextWithPTI(myChar);
+        const isPopeye = /popeye/i.test(myCharName);
+        if (isPopeye) { myChar.stars = (myChar.stars || 0) + 2; emitChat(`🥬 SPINACI (POPEYE)! +30 PTI +2 stelle! (PTI: ${myChar.pti}, Stelle: ${myChar.stars})`); }
+        else { emitChat(`🥬 SPINACI! ${myChar.name || playerName} +30 PTI (PTI: ${myChar.pti})`); }
+        emitState(); break;
+      }
+
+      case 'stipendio': {
+        if (!myChar) break;
+        const isNeymar = /neymar/i.test(myCharName);
+        const ptiPerTurn = isNeymar ? 400 : 10;
+        if (!game.timedEffects) game.timedEffects = [];
+        game.timedEffects.push({
+          id: `stipendio_${Date.now()}_${playerName}`, owner: playerName, turnsLeft: 9999, recurring: true,
+          actions: [{ type: 'heal', target: 'self_char', value: ptiPerTurn, description: `Stipendio: +${ptiPerTurn} PTI/turno` }],
+          description: `Stipendio: +${ptiPerTurn} PTI/turno${isNeymar ? ' (Neymar JR)' : ''}`, cardId: card.id
+        } as any);
+        emitChat(`💰 STIPENDIO! ${myChar.name || playerName} guadagna +${ptiPerTurn} PTI ogni turno${isNeymar ? ' (NEYMAR JR!)' : ''}!`);
+        emitState(); break;
+      }
+
+      case 'peluria_di_holly': {
+        if (!myChar) break;
+        const isHolly = /holly/i.test(myCharName);
+        const pti = isHolly ? 70 : 50;
+        myChar.pti = (myChar.pti || 0) + pti;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🌿 PELURIA DI HOLLY! ${myChar.name || playerName} +${pti} PTI${isHolly ? ' (Holly!)' : ''} (PTI: ${myChar.pti})`);
+        emitState(); break;
+      }
+
+      case 'munnezza': {
+        if (!myChar) break;
+        const isNapoletano = /napoletano/i.test(myCharName);
+        const ptiM = isNapoletano ? 500 : 10;
+        myChar.pti = (myChar.pti || 0) + ptiM;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🗑️ MUNNEZZA! ${myChar.name || playerName} +${ptiM} PTI${isNapoletano ? ' (Napoletano!)' : ''} (PTI: ${myChar.pti})`);
+        emitState(); break;
+      }
+
+      case 'musica_ganza': {
+        if (!myChar) break;
+        const isMusicArtist = /psy|one.?direction|michele.?tel[oò]|justin.?biberon|cacca/i.test(myCharName);
+        myChar.pti = (myChar.pti || 0) + 10;
+        this.updateCardTextWithPTI(myChar);
+        if (isMusicArtist) { myChar.stars = (myChar.stars || 0) + 1; emitChat(`🎵 MUSICA GANZA! ${myChar.name || playerName} +10 PTI +1 stella!`); }
+        else { emitChat(`🎵 MUSICA GANZA! ${myChar.name || playerName} +10 PTI (PTI: ${myChar.pti})`); }
+        emitState(); break;
+      }
+
+      case 'modalit_kamikaze': {
+        if (!myChar) break;
+        const isNeuer = /n[\s\-]*e[\s\-]*u[\s\-]*e[\s\-]*r|neuer/i.test(myCharName);
+        const ptiK = isNeuer ? 150 : 70;
+        myChar.pti = (myChar.pti || 0) + ptiK;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`💥 MODALITÀ KAMIKAZE! ${myChar.name || playerName} +${ptiK} PTI${isNeuer ? ' (N-E-U-E-R!)' : ''} (PTI: ${myChar.pti})`);
+        emitState(); break;
+      }
+
+      case 'modalit_truzzo': {
+        if (!myChar) break;
+        const isMicheleTelo = /michele.?tel[oò]/i.test(myCharName);
+        const ptiT = isMicheleTelo ? 300 : 10;
+        myChar.pti = (myChar.pti || 0) + ptiT;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`😎 MODALITÀ TRUZZO! ${myChar.name || playerName} +${ptiT} PTI${isMicheleTelo ? ' (Michele Telò!)' : ''} (PTI: ${myChar.pti})`);
+        emitState(); break;
+      }
+
+      case 'modalit_m_mondo': {
+        if (!myChar) break;
+        const isTonyTammaro = /tony.?tammaro/i.test(myCharName);
+        const ptiMM = isTonyTammaro ? 100 : 50;
+        myChar.pti = (myChar.pti || 0) + ptiMM;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🌍 MODALITÀ M'MONDO! ${myChar.name || playerName} +${ptiMM} PTI${isTonyTammaro ? ' (Tony Tammaro!)' : ''} (PTI: ${myChar.pti})`);
+        emitState(); break;
+      }
+
+      case 'modalit_fenomeno': {
+        if (!myChar) break;
+        myChar.stars = (myChar.stars || 0) + 2;
+        emitChat(`⭐⭐ MODALITÀ FENOMENO! ${myChar.name || playerName} +2 stelle! (Stelle: ${myChar.stars})`);
+        emitState(); break;
+      }
+
+      case 'modalita_fighetto': {
+        if (!myChar) break;
+        myChar.stars = (myChar.stars || 0) + 1;
+        emitChat(`💅 MODALITÀ FIGHETTO! ${myChar.name || playerName} +1 stella! (Stelle: ${myChar.stars})`);
+        emitState(); break;
+      }
+
+      case 'scudo_stealth': {
+        if (!myChar) break;
+        (myChar as any).stealth = true;
+        (myChar as any).stealthTurnsLeft = 1;
+        if (!game.timedEffects) game.timedEffects = [];
+        game.timedEffects.push({
+          id: `scudo_${Date.now()}_${playerName}`, owner: playerName, turnsLeft: 1,
+          actions: [{ type: 'remove_stealth', target: 'self_char', value: 0, description: 'Scudo scaduto' }],
+          description: `Scudo: immune al bersaglio per 1 turno`, cardId: card.id
+        } as any);
+        emitChat(`🛡️ SCUDO! ${myChar.name || playerName} non può essere bersagliato per 1 turno!`);
+        emitState(); break;
+      }
+
+      // ─── DOPING ─────────────────────────────────────────────────────────────
+      case 'doping': {
+        if (!myChar) break;
+        myChar.pti = (myChar.pti || 0) + 100;
+        this.updateCardTextWithPTI(myChar);
+        if (!game.timedEffects) game.timedEffects = [];
+        game.timedEffects.push({
+          id: `doping_${Date.now()}_${playerName}`, owner: playerName, turnsLeft: 2,
+          actions: [{ type: 'heal', target: 'self_char', value: -50, description: 'Doping scaduto: -50 PTI' }],
+          description: `Doping: -50 PTI dopo 2 turni`, cardId: card.id
+        } as any);
+        emitChat(`💊 DOPING! ${myChar.name || playerName} +100 PTI (PTI: ${myChar.pti}) — tra 2 turni: -50 PTI`);
+        emitState(); break;
+      }
+
+      // ─── NIRDOSH ────────────────────────────────────────────────────────────
+      case 'nirdosh': {
+        if (!myChar) break;
+        myChar.stars = (myChar.stars || 0) + 100;
+        if (!game.timedEffects) game.timedEffects = [];
+        game.timedEffects.push({
+          id: `nirdosh_death_${Date.now()}_${playerName}`, owner: playerName, turnsLeft: 2,
+          actions: [{ type: 'instant_death', target: 'self_char', value: 0, description: 'Nirdosh: il personaggio muore' }],
+          description: `Nirdosh: morte tra 2 turni`, cardId: card.id
+        } as any);
+        emitChat(`☠️ NIRDOSH! ${myChar.name || playerName} +100 stelle (Stelle: ${myChar.stars}) — MORIRÀ tra 2 turni!`);
+        emitState(); break;
+      }
+
+      // ─── VINCERE E VINCEREMO ────────────────────────────────────────────────
+      case 'vincere_vinceremo': {
+        const capelloSmith = game.field.find((c: Card) =>
+          /capello.?smith|smith.?capello/i.test(c.name || '') &&
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (capelloSmith) {
+          const winner = capelloSmith.owner;
+          emitChat(`🏆 VINCERE E VINCEREMO! CAPELLO SMITH è in campo! ${winner} vince IMMEDIATAMENTE!`);
+          if (io) io.to(gameId).emit('game-over', { winner, reason: 'VINCERE_E_VINCEREMO', message: `${winner} ha vinto con VINCERE E VINCEREMO!` });
+          for (const pName of game.turnOrder) {
+            if (pName !== winner) this.processEliminationAfterDeath(gameId, pName, io, 'VINCERE_E_VINCEREMO_FORCED');
+          }
+        } else {
+          emitChat(`🏆 VINCERE E VINCEREMO! Capello Smith non è in campo — nessun effetto.`);
+        }
+        emitState(); break;
+      }
+
+      // ─── MODALITÀ TROLL (extra card play) ───────────────────────────────────
+      case 'modalit_troll': {
+        (game as any).extraCardPlay = (game as any).extraCardPlay || {};
+        (game as any).extraCardPlay[playerName] = ((game as any).extraCardPlay[playerName] || 0) + 1;
+        emitChat(`🧌 MODALITÀ TROLL! ${playerName} può giocare un'altra carta prima di chiudere il turno!`);
+        emitState(); break;
+      }
+
+      // ─── RESPINTA ────────────────────────────────────────────────────────────
+      case 'respinta': {
+        if (!myChar) break;
+        const enemiesR = game.turnOrder.filter((p: string) => p !== playerName);
+        if (isCPU || enemiesR.length === 1) {
+          const targetR = enemiesR[Math.floor(Math.random() * enemiesR.length)];
+          (myChar as any).reflectNextDamageTo = targetR;
+          emitChat(`🔄 RESPINTA! Il prossimo danno a ${myChar.name || playerName} sarà riflesso su ${targetR}!`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `respinta-${Date.now()}`;
+          (game as any).pendingRespinta = { choiceId: cId, playerName, charId: myChar.id };
+          if (psId && io) {
+            io.to(psId).emit('show-choice-panel', {
+              choiceId: cId, title: '🔄 RESPINTA',
+              question: 'Scegli il personaggio avversario verso cui riflettere il prossimo danno:',
+              options: enemiesR.map((p: string) => {
+                const ec = this.getPlayerActiveCharacter(game, p);
+                return { value: p, label: ec?.name || p, description: `PTI: ${ec?.pti ?? '?'}` };
+              }),
+              playerName, cardName: 'RESPINTA', timestamp: Date.now()
+            });
+          }
+          emitChat(`🔄 RESPINTA! ${playerName} sceglie verso chi riflettere il danno...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── RINCOGLIONIMENTO ────────────────────────────────────────────────────
+      case 'rincoglionimento': {
+        const enemiesRi = game.turnOrder.filter((p: string) => p !== playerName);
+        if (enemiesRi.length === 0) break;
+        if (isCPU || enemiesRi.length === 1) {
+          const tgt = enemiesRi[Math.floor(Math.random() * enemiesRi.length)];
+          if (!(game as any).selfAttackRedirect) (game as any).selfAttackRedirect = {};
+          (game as any).selfAttackRedirect[tgt] = ((game as any).selfAttackRedirect[tgt] || 0) + 1;
+          emitChat(`🤪 RINCOGLIONIMENTO! Il prossimo attacco di ${tgt} colpirà sé stesso!`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `rincoglionimento-${Date.now()}`;
+          (game as any).pendingRincoglionimento = { choiceId: cId, playerName };
+          if (psId && io) {
+            io.to(psId).emit('show-choice-panel', {
+              choiceId: cId, title: '🤪 RINCOGLIONIMENTO',
+              question: 'Scegli il personaggio avversario da rincoglionire:',
+              options: enemiesRi.map((p: string) => {
+                const ec = this.getPlayerActiveCharacter(game, p);
+                return { value: p, label: ec?.name || p, description: `PTI: ${ec?.pti ?? '?'}` };
+              }),
+              playerName, cardName: 'RINCOGLIONIMENTO', timestamp: Date.now()
+            });
+          }
+          emitChat(`🤪 RINCOGLIONIMENTO! ${playerName} sceglie chi rincoglionire...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── TRAUMA ─────────────────────────────────────────────────────────────
+      case 'trauma': {
+        const enemiesTr = game.turnOrder.filter((p: string) => p !== playerName);
+        if (enemiesTr.length === 0) break;
+        if (isCPU || enemiesTr.length === 1) {
+          const tgt = enemiesTr[Math.floor(Math.random() * enemiesTr.length)];
+          if (!(game as any).pendingTrauma) (game as any).pendingTrauma = {};
+          (game as any).pendingTrauma[tgt] = { stunTurns: 5, poisonPerTurn: 10 };
+          emitChat(`😱 TRAUMA! Il prossimo personaggio di ${tgt}: 5 turni senza attaccare e -10 PTI/turno per sempre!`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `trauma-${Date.now()}`;
+          (game as any).pendingTraumaChoice = { choiceId: cId, playerName };
+          if (psId && io) {
+            io.to(psId).emit('show-choice-panel', {
+              choiceId: cId, title: '😱 TRAUMA',
+              question: 'Scegli l\'avversario da traumatizzare:',
+              options: enemiesTr.map((p: string) => {
+                const ec = this.getPlayerActiveCharacter(game, p);
+                return { value: p, label: p, description: ec ? `Ha ${ec.name || '?'} in campo` : 'Nessun personaggio' };
+              }),
+              playerName, cardName: 'TRAUMA', timestamp: Date.now()
+            });
+          }
+          emitChat(`😱 TRAUMA! ${playerName} sceglie chi traumatizzare...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── TARGET ACQUIRED ────────────────────────────────────────────────────
+      case 'target_acquired': {
+        const enemiesTA = game.field.filter((c: Card) =>
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (enemiesTA.length === 0) { emitChat(`🎯 TARGET ACQUIRED! Nessun personaggio avversario in campo.`); break; }
+        const isIlPelux = /pelux/i.test(myCharName);
+        const maxAttacks = isIlPelux ? 999 : 3;
+        if (io) io.to(gameId).emit('target-acquired-animation', { playerName, isIlPelux, timestamp: Date.now() });
+        if (isCPU || enemiesTA.length === 1) {
+          const tgtC = enemiesTA[Math.floor(Math.random() * enemiesTA.length)];
+          (game as any).targetAcquired = { playerName, targetCardId: tgtC.id, targetOwner: tgtC.owner, attacksLeft: maxAttacks, isIlPelux };
+          emitChat(`🎯 TARGET ACQUIRED! ${myChar?.name || playerName} → ${tgtC.name || tgtC.owner}${isIlPelux ? ' — IL PELUX: attacca finché non muore!' : ' — 3 attacchi!'}`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `target-acquired-${Date.now()}`;
+          (game as any).pendingTargetAcquired = { choiceId: cId, playerName, maxAttacks, isIlPelux };
+          if (psId && io) {
+            io.to(psId).emit('show-choice-panel', {
+              choiceId: cId, title: '🎯 TARGET ACQUIRED',
+              question: isIlPelux ? '⚡ IL PELUX: Scegli il bersaglio da eliminare!' : 'Scegli il personaggio da attaccare 3 volte:',
+              options: enemiesTA.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` })),
+              playerName, cardName: 'TARGET ACQUIRED', timestamp: Date.now()
+            });
+          }
+          emitChat(`🎯 TARGET ACQUIRED! ${playerName} sceglie il bersaglio${isIlPelux ? ' (IL PELUX!)' : ''}...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── HARAKIRI ───────────────────────────────────────────────────────────
+      case 'harakiri': {
+        const myCharsH = game.field.filter((c: Card) =>
+          c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (myCharsH.length === 0) { emitChat(`⚔️ HARAKIRI! Nessun personaggio da sacrificare.`); break; }
+        if (isCPU) {
+          const weakChar = myCharsH.find((c: Card) => (c.pti || 0) < 200);
+          if (weakChar) {
+            this.returnToDeck(gameId, weakChar.id, playerName);
+            emitChat(`⚔️ HARAKIRI! ${weakChar.name || playerName} si sacrifica (rimesso nel mazzo)!`);
+          } else {
+            emitChat(`⚔️ HARAKIRI! ${playerName} (CPU) non sacrifica nessuno.`);
+          }
+          emitState(); break;
+        }
+        const psIdH = (game.players[playerName] as any)?.socketId;
+        const cIdH = `harakiri-${Date.now()}`;
+        (game as any).pendingHarakiri = { choiceId: cIdH, playerName };
+        if (psIdH && io) {
+          io.to(psIdH).emit('show-choice-panel', {
+            choiceId: cIdH, title: '⚔️ HARAKIRI',
+            question: 'Scegli un personaggio da sacrificare (rimesso nel mazzo), oppure "Nessuno":',
+            options: [
+              ...myCharsH.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | Stelle: ${c.stars ?? '?'}` })),
+              { value: 'none', label: '❌ Nessuno', description: 'Non sacrificare' }
+            ],
+            playerName, cardName: 'HARAKIRI', timestamp: Date.now()
+          });
+        }
+        emitChat(`⚔️ HARAKIRI! ${playerName} sceglie se sacrificare un personaggio...`);
+        emitState(); break;
+      }
+
+      // ─── SDOPPIAMENTO ───────────────────────────────────────────────────────
+      case 'sdoppiamento': {
+        if (!myChar) break;
+        myChar.pti = 1;
+        this.updateCardTextWithPTI(myChar);
+        const enemiesSD = game.field.filter((c: Card) =>
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (enemiesSD.length === 0) {
+          emitChat(`🔀 SDOPPIAMENTO! ${myChar.name || playerName} va a 1 PTI ma non ci sono avversari.`);
+          emitState(); break;
+        }
+        if (isCPU || enemiesSD.length === 1) {
+          const ec = enemiesSD[Math.floor(Math.random() * enemiesSD.length)];
+          const myOwner = myChar.owner; const eOwner = ec.owner;
+          myChar.owner = eOwner; ec.owner = myOwner;
+          emitChat(`🔀 SDOPPIAMENTO! ${myChar.name || myOwner} (1 PTI) scambiato con ${ec.name || eOwner}!`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `sdoppiamento-${Date.now()}`;
+          (game as any).pendingSdoppiamento = { choiceId: cId, playerName, myCharId: myChar.id };
+          if (psId && io) {
+            io.to(psId).emit('show-choice-panel', {
+              choiceId: cId, title: '🔀 SDOPPIAMENTO',
+              question: 'Il tuo personaggio va a 1 PTI. Scegli con chi scambiarti:',
+              options: enemiesSD.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` })),
+              playerName, cardName: 'SDOPPIAMENTO', timestamp: Date.now()
+            });
+          }
+          emitChat(`🔀 SDOPPIAMENTO! ${myChar.name || playerName} va a 1 PTI — sceglie con chi scambiarsi...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── CICLONE (campo → NEXT) ──────────────────────────────────────────────
+      case 'ciclone': {
+        const to = game.turnOrder;
+        if (to.length < 2) break;
+        const byOwner: Record<string, Card[]> = {};
+        for (const p of to) byOwner[p] = [];
+        for (const c of game.field) { if (c.owner && byOwner[c.owner]) byOwner[c.owner].push(c); }
+        for (let i = 0; i < to.length; i++) {
+          const next = to[(i + 1) % to.length];
+          for (const c of byOwner[to[i]]) c.owner = next;
+        }
+        emitChat(`🌪️ CICLONE! Tutte le carte in campo passate al giocatore SUCCESSIVO!`);
+        emitState(); break;
+      }
+
+      // ─── URAGANO (campo → PREVIOUS) ─────────────────────────────────────────
+      case 'uragano': {
+        const toU = game.turnOrder;
+        if (toU.length < 2) break;
+        const byOwnerU: Record<string, Card[]> = {};
+        for (const p of toU) byOwnerU[p] = [];
+        for (const c of game.field) { if (c.owner && byOwnerU[c.owner]) byOwnerU[c.owner].push(c); }
+        for (let i = 0; i < toU.length; i++) {
+          const prev = toU[(i - 1 + toU.length) % toU.length];
+          for (const c of byOwnerU[toU[i]]) c.owner = prev;
+        }
+        emitChat(`🌀 URAGANO! Tutte le carte in campo passate al giocatore PRECEDENTE!`);
+        emitState(); break;
+      }
+
+      // ─── TSUNAMI (mano → dado decide) ───────────────────────────────────────
+      case 'tsunami': {
+        const dieT = Math.floor(Math.random() * 6) + 1;
+        if (io) io.to(gameId).emit('dice-rolled', { result: dieT, playerName });
+        const toNext = dieT % 2 === 0;
+        const toT = game.turnOrder;
+        if (toT.length < 2) break;
+        const handsCopy: Record<string, any[]> = {};
+        for (const p of toT) handsCopy[p] = [...(game.players[p]?.hand || [])];
+        for (let i = 0; i < toT.length; i++) {
+          const tIdx = toNext ? (i + 1) % toT.length : (i - 1 + toT.length) % toT.length;
+          game.players[toT[i]].hand = handsCopy[toT[tIdx]];
+        }
+        emitChat(`🌊 TSUNAMI! Dado: ${dieT} (${toNext ? 'PARI' : 'DISPARI'}) — ogni giocatore cede la mano al ${toNext ? 'successivo' : 'precedente'}!`);
+        emitState(); break;
+      }
+
+      // ─── SUPER MEGA URAGANO STRANO (rotazione per N turni) ───────────────────
+      case 'super_mega_uragano': {
+        const N = game.turnOrder.length;
+        if (!(game as any).superMegaUragano) {
+          (game as any).superMegaUragano = { turnsLeft: N, active: true };
+          (game as any).blockCharSwap = true;
+        }
+        const toSM = game.turnOrder;
+        const byOwnerSM: Record<string, Card[]> = {};
+        for (const p of toSM) byOwnerSM[p] = [];
+        for (const c of game.field) { if (c.owner && byOwnerSM[c.owner]) byOwnerSM[c.owner].push(c); }
+        for (let i = 0; i < toSM.length; i++) {
+          const prev = toSM[(i - 1 + toSM.length) % toSM.length];
+          for (const c of byOwnerSM[toSM[i]]) c.owner = prev;
+        }
+        emitChat(`💨 SUPER MEGA URAGANO STRANO! Per ${N} turni i personaggi passano al precedente ogni turno! Vietato sostituire il personaggio.`);
+        emitState(); break;
+      }
+
+      // ─── IBERNAZIONE ────────────────────────────────────────────────────────
+      case 'ibernazione': {
+        if (isCPU) {
+          (game as any).ibernazione = { turnsLeft: 3, activatedBy: playerName };
+          emitChat(`❄️ IBERNAZIONE! Per 3 turni nessuno può usare bonus, mosse o mettere un nuovo personaggio!`);
+          emitState(); break;
+        }
+        const psIdI = (game.players[playerName] as any)?.socketId;
+        const cIdI = `ibernazione-${Date.now()}`;
+        (game as any).pendingIbernazione = { choiceId: cIdI, playerName };
+        if (psIdI && io) {
+          io.to(psIdI).emit('show-choice-panel', {
+            choiceId: cIdI, title: '❄️ IBERNAZIONE',
+            question: 'Per 3 turni nessuno può usare bonus, mosse o mettere un nuovo personaggio. Attivare?',
+            options: [
+              { value: 'yes', label: '✅ Sì, attiva', description: 'Blocco totale per 3 turni' },
+              { value: 'no', label: '❌ No, rinuncia', description: 'Non attivare' }
+            ],
+            playerName, cardName: 'IBERNAZIONE', timestamp: Date.now()
+          });
+        }
+        emitChat(`❄️ IBERNAZIONE! ${playerName} decide se attivare il blocco totale...`);
+        emitState(); break;
+      }
+
+      // ─── CARICA ─────────────────────────────────────────────────────────────
+      case 'carica': {
+        const enemiesCA = game.field.filter((c: Card) =>
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (enemiesCA.length === 0) { emitChat(`⚡ CARICA! Nessun personaggio avversario in campo.`); break; }
+        if (isCPU || enemiesCA.length === 1) {
+          const tgt = enemiesCA[Math.floor(Math.random() * enemiesCA.length)];
+          (game as any).forcedAttackTarget = { targetCardId: tgt.id, targetOwner: tgt.owner, turnsLeft: 1 };
+          emitChat(`⚡ CARICA! Tutti devono attaccare ${tgt.name || tgt.owner} per 1 turno intero!`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `carica-${Date.now()}`;
+          (game as any).pendingCarica = { choiceId: cId, playerName };
+          if (psId && io) {
+            io.to(psId).emit('show-choice-panel', {
+              choiceId: cId, title: '⚡ CARICA',
+              question: 'Scegli il personaggio avversario che tutti dovranno attaccare questo turno:',
+              options: enemiesCA.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` })),
+              playerName, cardName: 'CARICA', timestamp: Date.now()
+            });
+          }
+          emitChat(`⚡ CARICA! ${playerName} sceglie il bersaglio obbligatorio...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── DETONATORE ─────────────────────────────────────────────────────────
+      case 'detonatore': {
+        const bombCard = game.field.find((c: Card) => /bomba.?senza.?detonatore/i.test(c.name || ''))
+          || (game.graveyard || []).find((c: Card) => /bomba.?senza.?detonatore/i.test(c.name || ''));
+        if (bombCard) {
+          const bombDmg = (bombCard as any).mosseDamageValue || bombCard.pti || 500;
+          for (const c of game.field) {
+            if (c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')) {
+              c.pti = Math.max(0, (c.pti || 0) - bombDmg);
+              this.updateCardTextWithPTI(c);
+              if (c.pti === 0) {
+                const dr = this.moveToGraveyard(gameId, c.id, c.owner, playerName);
+                if (dr.eliminationCheck) this.processEliminationAfterDeath(gameId, c.owner, io, 'DETONATORE_BOMBA');
+              }
+            }
+          }
+          emitChat(`💣 DETONATORE! BOMBA SENZA DETONATORE esplode — ${bombDmg} danni a tutti gli avversari!`);
+        } else {
+          emitChat(`💣 DETONATORE! Nessuna BOMBA SENZA DETONATORE attiva.`);
+        }
+        emitState(); break;
+      }
+
+      // ─── MORS TUA VITA MEA ───────────────────────────────────────────────────
+      case 'mors_tua': {
+        if (!(game as any).morstuaVitaMea) (game as any).morstuaVitaMea = {};
+        (game as any).morstuaVitaMea[playerName] = true;
+        emitChat(`☠️ MORS TUA VITA MEA! La prossima uccisione di ${playerName} aggiunge una vita a lui invece di toglierla all'avversario!`);
+        emitState(); break;
+      }
+
+      // ─── TI PORTO VIA CON ME ────────────────────────────────────────────────
+      case 'ti_porto_via': {
+        if (!myChar) break;
+        (myChar as any).tiPortoViaMorendo = true;
+        emitChat(`💀 TI PORTO VIA! Se ${myChar.name || playerName} muore, fa morire anche il personaggio che lo ha ucciso!`);
+        emitState(); break;
+      }
+
+      // ─── SLOT MACHINE ────────────────────────────────────────────────────────
+      case 'slot_machine': {
+        if (!myChar) break;
+        myChar.pti = Math.max(0, (myChar.pti || 0) - 10);
+        this.updateCardTextWithPTI(myChar);
+        const rollsSM: number[] = [];
+        for (let i = 0; i < 3; i++) { const r = Math.floor(Math.random() * 6) + 1; rollsSM.push(r); if (io) io.to(gameId).emit('dice-rolled', { result: r, playerName }); }
+        const allSame = rollsSM[0] === rollsSM[1] && rollsSM[1] === rollsSM[2];
+        if (allSame) {
+          myChar.pti = (myChar.pti || 0) + 10000;
+          this.updateCardTextWithPTI(myChar);
+          emitChat(`🎰 SLOT MACHINE! -10 PTI. Dadi: ${rollsSM.join('-')}. 🎊 JACKPOT! Tre ${rollsSM[0]}! +10.000 PTI! (PTI: ${myChar.pti})`);
+        } else {
+          emitChat(`🎰 SLOT MACHINE! -10 PTI. Dadi: ${rollsSM.join('-')}. Nessun jackpot. (PTI: ${myChar.pti})`);
+        }
+        emitState(); break;
+      }
+
+      // ─── RUOSS E FESSA ───────────────────────────────────────────────────────
+      case 'ruoss_e_fessa': {
+        if (!myChar) break;
+        if (isCPU) {
+          myChar.pti = 5000; myChar.stars = 3;
+          (myChar as any).ruossEFessa = true;
+          this.updateCardTextWithPTI(myChar);
+          emitChat(`💪 RUOSS E FESSA! ${myChar.name || playerName}: 5000 PTI + 3 stelle, -1000 PTI per attacco!`);
+          emitState(); break;
+        }
+        const psIdR = (game.players[playerName] as any)?.socketId;
+        const cIdR = `ruoss-e-fessa-${Date.now()}`;
+        (game as any).pendingRuossEFessa = { choiceId: cIdR, playerName, charId: myChar.id };
+        if (psIdR && io) {
+          io.to(psIdR).emit('show-choice-panel', {
+            choiceId: cIdR, title: '💪 RUOSS E FESSA',
+            question: `${myChar.name || playerName} va a 5000 PTI e 3 stelle, ma perde 1000 PTI per ogni attacco. Attivare?`,
+            options: [
+              { value: 'yes', label: '✅ Sì — 5000 PTI + 3 stelle, -1000/attacco', description: '' },
+              { value: 'no', label: '❌ No, rinuncia', description: '' }
+            ],
+            playerName, cardName: 'RUOSS E FESSA', timestamp: Date.now()
+          });
+        }
+        emitChat(`💪 RUOSS E FESSA! ${playerName} decide...`);
+        emitState(); break;
+      }
+
+      // ─── CORRUZIONE V2 ───────────────────────────────────────────────────────
+      case 'corruzione_v2': {
+        const enemiesCO = game.field.filter((c: Card) =>
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (enemiesCO.length === 0) { emitChat(`💰 CORRUZIONE! Nessun personaggio avversario.`); break; }
+        if (isCPU || enemiesCO.length === 1) {
+          const tgt = enemiesCO[Math.floor(Math.random() * enemiesCO.length)];
+          tgt.pti = (tgt.pti || 0) + 50;
+          this.updateCardTextWithPTI(tgt);
+          if (!game.peaceRestrictions) game.peaceRestrictions = [];
+          (game.peaceRestrictions as any[]).push({ restrictedPlayer: tgt.owner, protectedPlayer: playerName, turnsLeft: 3, reason: 'CORRUZIONE' });
+          emitChat(`💰 CORRUZIONE! ${playerName} cede 50 PTI a ${tgt.name || tgt.owner}. ${tgt.owner} non può attaccare ${playerName} per 3 turni!`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `corruzione-v2-${Date.now()}`;
+          (game as any).pendingCorruzioneV2 = { choiceId: cId, playerName };
+          if (psId && io) {
+            io.to(psId).emit('show-choice-panel', {
+              choiceId: cId, title: '💰 CORRUZIONE',
+              question: 'Scegli l\'avversario a cui cedere 50 PTI (non potrà attaccarti per 3 turni):',
+              options: enemiesCO.map((c: Card) => ({ value: c.id, label: c.name || c.owner || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` })),
+              playerName, cardName: 'CORRUZIONE', timestamp: Date.now()
+            });
+          }
+          emitChat(`💰 CORRUZIONE! ${playerName} sceglie chi corrompere...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── NOTTE DELLO SPIRITO ─────────────────────────────────────────────────
+      case 'notte_spirito': {
+        const hasTamburello = game.field.some((c: Card) => /tamburello/i.test(c.name || ''));
+        (game as any).notteSpiritoNext = { playerName, faceDown: true, canUseMosse: hasTamburello };
+        emitChat(`👻 NOTTE DELLO SPIRITO! ${playerName}: prossimo personaggio in campo coperto${hasTamburello ? ' (Tamburello: può usare mosse!)' : ' (non può attaccare)'}!`);
+        emitState(); break;
+      }
+
+      // ─── TRAPPOLA ────────────────────────────────────────────────────────────
+      case 'trappola': {
+        (game as any).trappolaNext = { playerName, faceDown: true };
+        emitChat(`🪤 TRAPPOLA! ${playerName}: la prossima carta in campo sarà coperta. Può scoprirla in qualsiasi momento!`);
+        emitState(); break;
+      }
+
+      // ─── MODALITÀ CIECA ──────────────────────────────────────────────────────
+      case 'modalita_cieca': {
+        if (!(game as any).modalitaCieca) {
+          (game as any).modalitaCieca = { turnsLeft: 3 };
+          emitChat(`🙈 MODALITÀ CIECA! Per 3 turni tutte le carte sono coperte — nessuno vede nomi, PTI, stelle o immagini frontali!`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── WD-40 ───────────────────────────────────────────────────────────────
+      case 'wd40': {
+        const isGoghi = /goghi/i.test(myCharName);
+        const removedCount = (game.timedEffects || []).length;
+        game.timedEffects = [];
+        for (const c of game.field) {
+          delete (c as any).poisonPerTurn; delete (c as any).stunnedTurns; delete (c as any).stealth; delete (c as any).stealthTurnsLeft;
+        }
+        if (isGoghi) emitChat(`🔧 WD-40 (GOGHI)! ${removedCount} effetti interrotti — Goghi può decidere su quale personaggio mantenere l'effetto (interfaccia in sviluppo).`);
+        else emitChat(`🔧 WD-40! ${removedCount} effetti attivi interrotti!`);
+        emitState(); break;
+      }
+
+      // ─── KAINOKEN ────────────────────────────────────────────────────────────
+      case 'kainoken': {
+        const opponents = game.turnOrder.filter((p: string) => p !== playerName);
+        let swapped = 0;
+        for (const opponentName of opponents) {
+          const opp = game.players[opponentName];
+          const deckTypes = ['bonusDeck', 'mosseDeck', 'personaggiDeck'];
+          let done = false;
+          for (const deckType of deckTypes) {
+            const deck = (game.players[playerName] as any)[deckType] as any[];
+            const oppHand = opp.hand || [];
+            if (!deck || deck.length === 0) continue;
+            const oppHandCardOfType = oppHand.find((c: any) => c.type === deckType.replace('Deck', ''));
+            if (oppHandCardOfType && deck.length > 0) {
+              const deckCard = deck.splice(Math.floor(Math.random() * deck.length), 1)[0];
+              if (!deckCard) continue;
+              const idx = oppHand.indexOf(oppHandCardOfType);
+              oppHand.splice(idx, 1);
+              opp.hand = [...oppHand, deckCard];
+              game.players[playerName].hand = [...(game.players[playerName].hand || []), oppHandCardOfType];
+              emitChat(`🎴 KAINOKEN! ${playerName} scambia una carta ${deckType.replace('Deck', '')} con ${opponentName}!`);
+              swapped++; done = true; break;
+            }
+          }
+          if (!done) emitChat(`🎴 KAINOKEN! Nessuna carta compatibile da scambiare con ${opponentName}.`);
+        }
+        if (swapped === 0) emitChat(`🎴 KAINOKEN! Nessuna carta scambiata.`);
+        emitState(); break;
+      }
+
+      // ─── MODALITÀ FRANKENSTEIN ───────────────────────────────────────────────
+      case 'frankenstein': {
+        const myDead = (game.graveyard || []).filter((c: Card) =>
+          c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (myDead.length === 0) { emitChat(`🔬 FRANKENSTEIN! Nessun personaggio morto da fondere.`); break; }
+        const totalPtiF = myDead.reduce((s: number, c: Card) => s + (c.pti || 0), 0);
+        const totalStarsF = myDead.reduce((s: number, c: Card) => s + (c.stars || 0), 0);
+        game.graveyard = (game.graveyard || []).filter((c: Card) => !myDead.includes(c));
+        const currentChar = this.getPlayerActiveCharacter(game, playerName);
+        if (currentChar) {
+          currentChar.pti = (currentChar.pti || 0) + totalPtiF;
+          currentChar.stars = (currentChar.stars || 0) + totalStarsF;
+          (currentChar as any).isFrankenstein = true;
+          (currentChar as any).frankensteinDeathEliminate = true;
+          this.updateCardTextWithPTI(currentChar);
+          emitChat(`🔬 FRANKENSTEIN! ${currentChar.name || playerName} fonde ${myDead.length} morti: +${totalPtiF} PTI +${totalStarsF} stelle! ⚠️ Se muore → ${playerName} è eliminato!`);
+        }
+        emitState(); break;
+      }
+
+      // ─── TRINITÀ ─────────────────────────────────────────────────────────────
+      case 'trinita': {
+        const allFC = game.field.filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+        if (allFC.length < 3) { emitChat(`✝️ TRINITÀ! Servono almeno 3 personaggi in campo (${allFC.length} presenti).`); break; }
+        if (isCPU) {
+          const chosen = allFC.slice(0, 3);
+          for (const c of chosen) c.owner = playerName;
+          const specialNames = /the\s*rock[ki]t|peeo|pap/i;
+          const specCount = chosen.filter((c: Card) => specialNames.test(c.name || '')).length;
+          if (specCount >= 3) {
+            for (const c of chosen) { c.pti = (c.pti || 0) + 10000; c.stars = (c.stars || 0) + 10; this.updateCardTextWithPTI(c); }
+            emitChat(`✝️ TRINITÀ! Tutti e 3 (Rockit+Peeo+Pap)! +10000 PTI e +10 stelle a testa!`);
+          } else if (specCount > 0) {
+            for (const c of chosen) { c.pti = (c.pti || 0) + 1000; this.updateCardTextWithPTI(c); }
+            emitChat(`✝️ TRINITÀ! ${specCount} speciali — +1000 PTI ciascuno!`);
+          } else {
+            emitChat(`✝️ TRINITÀ! ${playerName} assegna 3 personaggi a sé stesso.`);
+          }
+          emitState(); break;
+        }
+        const psIdTr = (game.players[playerName] as any)?.socketId;
+        const cIdTr = `trinita-${Date.now()}`;
+        (game as any).pendingTrinita = { choiceId: cIdTr, playerName };
+        if (psIdTr && io) {
+          io.to(psIdTr).emit('show-trinita-panel', {
+            choiceId: cIdTr, playerName, players: game.turnOrder,
+            fieldChars: allFC.map((c: Card) => ({ id: c.id, name: c.name || c.id, owner: c.owner, pti: c.pti, stars: c.stars, image: c.frontImage })),
+            timestamp: Date.now()
+          });
+        }
+        emitChat(`✝️ TRINITÀ! ${playerName} sceglie 3 personaggi da assegnare...`);
+        emitState(); break;
+      }
+
+      // ─── UNA TEMPESTA BABY ───────────────────────────────────────────────────
+      case 'una_tempesta_baby': {
+        if (isCPU) {
+          const isGFType = (p: string) => /golden.?freezer/i.test(this.getPlayerActiveCharacter(game, p)?.name || '');
+          for (const pName of game.turnOrder) {
+            if (isGFType(pName)) continue;
+            const pData = game.players[pName];
+            const bonusCards = (pData.hand || []).filter((c: any) => c.type === 'bonus');
+            for (const bc of bonusCards) {
+              const idx = pData.hand.indexOf(bc); pData.hand.splice(idx, 1);
+              game.field.push({ ...bc, owner: pName });
+            }
+          }
+          emitChat(`🌪️ UNA TEMPESTA BABY! Tutti i bonus in mano giocati simultaneamente (Golden Freezer immune)!`);
+          emitState(); break;
+        }
+        const psIdTB = (game.players[playerName] as any)?.socketId;
+        const cIdTB = `una-tempesta-baby-${Date.now()}`;
+        (game as any).pendingUnaTempestaBaby = { choiceId: cIdTB, playerName };
+        if (psIdTB && io) {
+          io.to(psIdTB).emit('show-choice-panel', {
+            choiceId: cIdTB, title: '🌪️ UNA TEMPESTA BABY',
+            question: 'Scegli cosa devono giocare tutti i concorrenti (Golden Freezer è immune):',
+            options: [
+              { value: 'bonus', label: '🎴 Tutti i BONUS', description: 'Ogni giocatore gioca tutti i suoi bonus in mano' },
+              { value: 'mosse', label: '⚔️ Tutte le MOSSE', description: 'Ogni giocatore gioca tutte le sue mosse in mano' }
+            ],
+            playerName, cardName: 'UNA TEMPESTA BABY', timestamp: Date.now()
+          });
+        }
+        emitChat(`🌪️ UNA TEMPESTA BABY! ${playerName} sceglie...`);
+        emitState(); break;
+      }
+
+      // ─── UN POSTO GALATTICO ──────────────────────────────────────────────────
+      case 'un_posto_galattico': {
+        const isGoldenFreezerG = /golden.?freezer/i.test(myCharName);
+        if (!isGoldenFreezerG && myChar) {
+          const strongest = game.field
+            .filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali')
+            .reduce((max: Card | null, c: Card) => (!max || (c.pti || 0) > (max.pti || 0)) ? c : max, null);
+          if (strongest && strongest.id === myChar.id) {
+            emitChat(`🌌 UN POSTO GALATTICO! Il tuo personaggio è già il più forte. Effetto non attivabile.`);
+            emitState(); break;
+          }
+        }
+        const eligibles = game.turnOrder.filter((p: string) => p !== playerName);
+        if (eligibles.length === 0) { emitChat(`🌌 UN POSTO GALATTICO! Nessun avversario.`); break; }
+        if (isCPU || eligibles.length === 1) {
+          (game as any).galatticoIsolation = { players: [playerName, eligibles[0]], active: true };
+          emitChat(`🌌 UN POSTO GALATTICO! ${playerName} e ${eligibles[0]} si isolano! Ritorneranno quando uno sarà eliminato!`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `galattico-${Date.now()}`;
+          (game as any).pendingGalattico = { choiceId: cId, playerName };
+          if (psId && io) {
+            io.to(psId).emit('show-choice-panel', {
+              choiceId: cId, title: '🌌 UN POSTO GALATTICO',
+              question: 'Scegli con chi isolarti dalla partita:',
+              options: eligibles.map((p: string) => {
+                const ec = this.getPlayerActiveCharacter(game, p);
+                return { value: p, label: p, description: ec ? `${ec.name} — PTI: ${ec.pti}` : 'Nessun personaggio' };
+              }),
+              playerName, cardName: 'UN POSTO GALATTICO', timestamp: Date.now()
+            });
+          }
+          emitChat(`🌌 UN POSTO GALATTICO! ${playerName} sceglie con chi isolarsi...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── SCHEDINE ────────────────────────────────────────────────────────────
+      case 'schedine': {
+        const isGoldenFreezerS = /golden.?freezer/i.test(myCharName);
+        const allPlayersS = game.turnOrder;
+        if (allPlayersS.length < 2) { emitChat(`🎲 SCHEDINE! Serve almeno 2 giocatori.`); break; }
+        if (isCPU) {
+          const bet = [...allPlayersS].sort(() => Math.random() - 0.5).slice(0, 2);
+          if (!(game as any).schedineBet) (game as any).schedineBet = {};
+          (game as any).schedineBet[playerName] = { finalists: bet, frozen: true, goldenFreezer: isGoldenFreezerS };
+          emitChat(`🎲 SCHEDINE! ${playerName}${isGoldenFreezerS ? ' (GOLDEN FREEZER)' : ''} scommette su ${bet.join(' e ')}! Carte congelate.`);
+          emitState(); break;
+        }
+        const psIdS = (game.players[playerName] as any)?.socketId;
+        const cIdS = `schedine-${Date.now()}`;
+        (game as any).pendingSchedine = { choiceId: cIdS, playerName, goldenFreezer: isGoldenFreezerS };
+        if (psIdS && io) {
+          io.to(psIdS).emit('show-schedine-panel', {
+            choiceId: cIdS, playerName, allPlayers: allPlayersS,
+            isGoldenFreezer: isGoldenFreezerS, timestamp: Date.now()
+          });
+        }
+        emitChat(`🎲 SCHEDINE! ${playerName}${isGoldenFreezerS ? ' (GOLDEN FREEZER — gioca obbligatoriamente)' : ''} sta scommettendo sui finalisti...`);
+        emitState(); break;
+      }
+
+      default:
+        console.log(`⚠️ [NAMED-BONUS] Unknown effect: ${effectName}`);
     }
   }
 
@@ -12287,6 +13200,42 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       targetOwnerName = targetCard.owner;
     }
 
+    // ── SELF ATTACK REDIRECT (Rincoglionimento/Fiaschetta) ────────────────────────
+    // If the attacker has a selfAttackRedirect flag, redirect the attack to their own char
+    if (!isHandTarget) {
+      const redirectCount = (game as any).selfAttackRedirect?.[attackerName];
+      if (redirectCount && redirectCount > 0) {
+        const selfChar = game.field.find((c: Card) =>
+          c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (selfChar) {
+          (game as any).selfAttackRedirect[attackerName]--;
+          if ((game as any).selfAttackRedirect[attackerName] <= 0) delete (game as any).selfAttackRedirect[attackerName];
+          targetCard = selfChar;
+          targetOwnerName = attackerName;
+          targetCardId = selfChar.id;
+          console.log(`🔀 SELF-ATTACK-REDIRECT: ${attackerName}'s attack redirected to their own char (${selfChar.name || selfChar.id})`);
+          const io2 = (global as any).io;
+          if (io2) io2.to(gameId).emit('chat-message', { id: `${Date.now()}-self-attack`, playerName: 'Sistema', message: `🤪 RINCOGLIONIMENTO/FIASCHETTA! L'attacco di ${attackerName} è ricaduto su sé stesso!`, timestamp: Date.now() });
+        }
+      }
+    }
+
+    // ── FORCED ATTACK TARGET (Carica) ─────────────────────────────────────────
+    // If forcedAttackTarget is active, override the target with the mandated one
+    if (!isHandTarget && (game as any).forcedAttackTarget?.targetCardId) {
+      const forced = (game as any).forcedAttackTarget;
+      const forcedCard = game.field.find((c: Card) => c.id === forced.targetCardId);
+      if (forcedCard && forcedCard.owner !== attackerName) {
+        targetCard = forcedCard;
+        targetOwnerName = forcedCard.owner;
+        targetCardId = forcedCard.id;
+        console.log(`⚡ CARICA: ${attackerName}'s attack forced toward ${forcedCard.name || forcedCard.id}`);
+        const io3 = (global as any).io;
+        if (io3) io3.to(gameId).emit('chat-message', { id: `${Date.now()}-carica-forced`, playerName: 'Sistema', message: `⚡ CARICA! L'attacco di ${attackerName} è diretto obbligatoriamente su ${forcedCard.name || forcedCard.owner}!`, timestamp: Date.now() });
+      }
+    }
+
     // BUD SPENCER: first time attacked → TERENCE HILL enters field from owner's hand/deck
     if (!isHandTarget && targetCard && (targetCard.frontImage || '').toLowerCase().includes('bud-spencer') && !(targetCard as any).firstAttackReceived) {
       (targetCard as any).firstAttackReceived = true;
@@ -15718,6 +16667,30 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }, 100);
         }
       }
+    }
+
+    // ── TI PORTO VIA: When this char dies, kill the killer ──────────────────────
+    if (cardToCheck && (cardToCheck as any).tiPortoViaMorendo && attacker && attacker !== playerName) {
+      delete (cardToCheck as any).tiPortoViaMorendo;
+      const killerChar = game.field.find((c: Card) =>
+        c.owner === attacker && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      if (killerChar) {
+        const ioTPV = (global as any).io;
+        const dyingName = cardToCheck.name || cardId;
+        const killerName = killerChar.name || attacker;
+        if (ioTPV) ioTPV.to(gameId).emit('chat-message', { id: `${Date.now()}-ti-porto-via`, playerName: 'Sistema', message: `💀 TI PORTO VIA! ${dyingName} porta con sé nella morte ${killerName}!`, timestamp: Date.now() });
+        setTimeout(() => { this.killAndCheck(gameId, killerChar.id, attacker, playerName); }, 150);
+      }
+    }
+
+    // ── FRANKENSTEIN DEATH: If this Frankenstein char dies → player is eliminated ──
+    if (cardToCheck && (cardToCheck as any).frankensteinDeathEliminate) {
+      delete (cardToCheck as any).frankensteinDeathEliminate;
+      const ioFR = (global as any).io;
+      const cardNameFR = cardToCheck.name || cardId;
+      if (ioFR) ioFR.to(gameId).emit('chat-message', { id: `${Date.now()}-frankenstein-death`, playerName: 'Sistema', message: `🔬 FRANKENSTEIN! ${cardNameFR} è morto! ${playerName} è ELIMINATO immediatamente!`, timestamp: Date.now() });
+      setTimeout(() => { this.processEliminationAfterDeath(gameId, playerName, ioFR, 'FRANKENSTEIN_DEATH'); }, 200);
     }
 
     // Remove persistent damages if the target character is moved to graveyard
@@ -22077,6 +23050,67 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     (gameState as any).globalTurnCount = ((gameState as any).globalTurnCount || 0) + 1;
     const currentGlobalTurn: number = (gameState as any).globalTurnCount;
 
+    // ── IBERNAZIONE decrement ────────────────────────────────────────────────────
+    if ((gameState as any).ibernazione) {
+      (gameState as any).ibernazione.turnsLeft--;
+      if ((gameState as any).ibernazione.turnsLeft <= 0) {
+        delete (gameState as any).ibernazione;
+        const ioIb2 = (global as any).io;
+        if (ioIb2) ioIb2.to(gameId).emit('chat-message', { id: `${Date.now()}-ib-end`, playerName: 'Sistema', message: `❄️ IBERNAZIONE terminata! Ora è possibile giocare carte di nuovo.`, timestamp: Date.now() });
+      }
+    }
+
+    // ── FORCED ATTACK TARGET (Carica) decrement ──────────────────────────────────
+    if ((gameState as any).forcedAttackTarget) {
+      (gameState as any).forcedAttackTarget.turnsLeft--;
+      if ((gameState as any).forcedAttackTarget.turnsLeft <= 0) {
+        delete (gameState as any).forcedAttackTarget;
+      }
+    }
+
+    // ── SUPER MEGA URAGANO decrement + rotation ───────────────────────────────────
+    if ((gameState as any).superMegaUragano?.active) {
+      (gameState as any).superMegaUragano.turnsLeft--;
+      if ((gameState as any).superMegaUragano.turnsLeft <= 0) {
+        delete (gameState as any).superMegaUragano;
+        (gameState as any).blockCharSwap = false;
+        const ioSMU = (global as any).io;
+        if (ioSMU) ioSMU.to(gameId).emit('chat-message', { id: `${Date.now()}-smu-end`, playerName: 'Sistema', message: `💨 SUPER MEGA URAGANO STRANO terminato! I personaggi torneranno stabili. Ora puoi sostituire il personaggio.`, timestamp: Date.now() });
+      } else {
+        // Apply another rotation (chars pass to previous player)
+        const toSMU = gameState.turnOrder;
+        const byOwnerSMU: Record<string, any[]> = {};
+        for (const p of toSMU) byOwnerSMU[p] = [];
+        for (const c of gameState.field) { if (c.owner && byOwnerSMU[c.owner]) byOwnerSMU[c.owner].push(c); }
+        for (let i = 0; i < toSMU.length; i++) {
+          const prev = toSMU[(i - 1 + toSMU.length) % toSMU.length];
+          for (const c of byOwnerSMU[toSMU[i]]) c.owner = prev;
+        }
+      }
+    }
+
+    // ── MODALITA CIECA decrement ─────────────────────────────────────────────────
+    if ((gameState as any).modalitaCieca) {
+      (gameState as any).modalitaCieca.turnsLeft--;
+      if ((gameState as any).modalitaCieca.turnsLeft <= 0) {
+        delete (gameState as any).modalitaCieca;
+        const ioMC = (global as any).io;
+        if (ioMC) ioMC.to(gameId).emit('chat-message', { id: `${Date.now()}-mc-end`, playerName: 'Sistema', message: `🙈 MODALITÀ CIECA terminata! Le carte tornano visibili!`, timestamp: Date.now() });
+        if (ioMC) ioMC.to(gameId).emit('modalita-cieca-end', { timestamp: Date.now() });
+      }
+    }
+
+    // ── STEALTH (Scudo) decrement ─────────────────────────────────────────────────
+    for (const fc of (gameState.field || [])) {
+      if ((fc as any).stealthTurnsLeft !== undefined) {
+        (fc as any).stealthTurnsLeft--;
+        if ((fc as any).stealthTurnsLeft <= 0) {
+          delete (fc as any).stealth;
+          delete (fc as any).stealthTurnsLeft;
+        }
+      }
+    }
+
     // GIANNI GIGANTI: decrement blocked turns (only on owner's own turn-end)
     if (gameState.field) {
       const ioGG = (global as any).io;
@@ -25754,6 +26788,39 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (!targetCard || !targetOwner || (targetCard.type !== 'personaggi' && targetCard.type !== 'personaggi_speciali')) {
       console.log(`Target card ${targetCardId} not found${isHandTarget ? ' in hand' : ' on field'} or not a character`);
       return;
+    }
+
+    // ── RESPINTA: reflectNextDamageTo ───────────────────────────────────────────
+    // If the defender has Respinta active, redirect the damage to a chosen enemy of theirs
+    if (!isVoodooReflection && !isHandTarget && (targetCard as any).reflectNextDamageTo) {
+      const redirectTo = (targetCard as any).reflectNextDamageTo as string;
+      delete (targetCard as any).reflectNextDamageTo;
+      const redirectChar = this.getPlayerActiveCharacter(game, redirectTo);
+      if (redirectChar) {
+        if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-respinta-reflect`, playerName: 'Sistema', message: `🔄 RESPINTA! Il danno è stato riflesso da ${targetCard.name || targetOwner} verso ${redirectChar.name || redirectTo}!`, timestamp: Date.now() });
+        await this.processMosseDamage(gameId, attackerName, redirectChar.id, damageValue, mosseCardId, io, true, false, false, false, starsToRemove, mosseEffect);
+        return;
+      }
+    }
+
+    // ── STEALTH (Scudo): non può essere bersagliato ─────────────────────────────
+    if (!isVoodooReflection && !isHandTarget && (targetCard as any).stealth) {
+      if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-stealth-block`, playerName: 'Sistema', message: `🛡️ SCUDO! ${targetCard.name || targetOwner} non può essere bersagliato! L'attacco è bloccato.`, timestamp: Date.now() });
+      console.log(`🛡️ STEALTH BLOCK: ${targetCardId} has stealth — attack blocked`);
+      return;
+    }
+
+    // ── RUOSS E FESSA: attacker pays 1000 PTI per attack ─────────────────────────
+    if (!isVoodooReflection && !isPersistentTick) {
+      const attackerChar = this.getPlayerActiveCharacter(game, attackerName);
+      if (attackerChar && (attackerChar as any).ruossEFessa) {
+        attackerChar.pti = Math.max(0, (attackerChar.pti || 0) - 1000);
+        this.updateCardTextWithPTI(attackerChar);
+        if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-ruoss-cost`, playerName: 'Sistema', message: `💪 RUOSS E FESSA: ${attackerChar.name || attackerName} paga 1000 PTI per questo attacco (PTI: ${attackerChar.pti})`, timestamp: Date.now() });
+        if (attackerChar.pti <= 0) {
+          setTimeout(() => { this.killAndCheck(gameId, attackerChar.id, attackerName, 'SELF_DAMAGE'); }, 100);
+        }
+      }
     }
 
     // PARASITIC CARD ATTACK IMMUNITY CHECK

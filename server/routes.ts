@@ -4271,6 +4271,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
+      // ── RESPINTA ─────────────────────────────────────────────────────────────
+      const pendingRespinta = (game as any).pendingRespinta;
+      if (pendingRespinta && pendingRespinta.choiceId === choiceId && pendingRespinta.playerName === socketPlayerName) {
+        delete (game as any).pendingRespinta;
+        const myCharR = (gameManager as any).getPlayerActiveCharacter(game, socketPlayerName);
+        if (myCharR) {
+          (myCharR as any).reflectNextDamageTo = value; // value = enemy playerName
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-respinta`, playerName: 'Sistema', message: `🔄 RESPINTA! Il prossimo danno su ${myCharR.name || socketPlayerName} sarà riflesso su ${value}!`, timestamp: Date.now() });
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── RINCOGLIONIMENTO ──────────────────────────────────────────────────────
+      const pendingRinc = (game as any).pendingRincoglionimento;
+      if (pendingRinc && pendingRinc.choiceId === choiceId && pendingRinc.playerName === socketPlayerName) {
+        delete (game as any).pendingRincoglionimento;
+        if (!(game as any).selfAttackRedirect) (game as any).selfAttackRedirect = {};
+        (game as any).selfAttackRedirect[value] = ((game as any).selfAttackRedirect[value] || 0) + 1;
+        io.to(gameId).emit('chat-message', { id: `${Date.now()}-rinc`, playerName: 'Sistema', message: `🤪 RINCOGLIONIMENTO! Il prossimo attacco di ${value} colpirà sé stesso!`, timestamp: Date.now() });
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── TRAUMA ────────────────────────────────────────────────────────────────
+      const pendingTrauma = (game as any).pendingTraumaChoice;
+      if (pendingTrauma && pendingTrauma.choiceId === choiceId && pendingTrauma.playerName === socketPlayerName) {
+        delete (game as any).pendingTraumaChoice;
+        if (!(game as any).pendingTrauma) (game as any).pendingTrauma = {};
+        (game as any).pendingTrauma[value] = { stunTurns: 5, poisonPerTurn: 10 };
+        io.to(gameId).emit('chat-message', { id: `${Date.now()}-trauma`, playerName: 'Sistema', message: `😱 TRAUMA! Il prossimo personaggio di ${value}: 5 turni senza attaccare e -10 PTI/turno per sempre!`, timestamp: Date.now() });
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── TARGET ACQUIRED ───────────────────────────────────────────────────────
+      const pendingTA = (game as any).pendingTargetAcquired;
+      if (pendingTA && pendingTA.choiceId === choiceId && pendingTA.playerName === socketPlayerName) {
+        delete (game as any).pendingTargetAcquired;
+        const tgtCard = game.field.find((c: any) => c.id === value);
+        if (tgtCard) {
+          (game as any).targetAcquired = { playerName: socketPlayerName, targetCardId: tgtCard.id, targetOwner: tgtCard.owner, attacksLeft: pendingTA.maxAttacks, isIlPelux: pendingTA.isIlPelux };
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-ta`, playerName: 'Sistema', message: `🎯 TARGET ACQUIRED! ${socketPlayerName} → ${tgtCard.name || tgtCard.id}${pendingTA.isIlPelux ? ' (IL PELUX: attacca finché non muore!)' : ' — 3 attacchi!'}`, timestamp: Date.now() });
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── HARAKIRI ─────────────────────────────────────────────────────────────
+      const pendingHarakiri = (game as any).pendingHarakiri;
+      if (pendingHarakiri && pendingHarakiri.choiceId === choiceId && pendingHarakiri.playerName === socketPlayerName) {
+        delete (game as any).pendingHarakiri;
+        if (value !== 'none') {
+          (gameManager as any).returnToDeck(gameId, value, socketPlayerName);
+          const sacrificedCard = game.field.find((c: any) => c.id === value) || game.graveyard?.find((c: any) => c.id === value);
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-harakiri`, playerName: 'Sistema', message: `⚔️ HARAKIRI! ${sacrificedCard?.name || value} sacrificato (rimesso nel mazzo)!`, timestamp: Date.now() });
+        } else {
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-harakiri-no`, playerName: 'Sistema', message: `⚔️ HARAKIRI! ${socketPlayerName} non sacrifica nessun personaggio.`, timestamp: Date.now() });
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── SDOPPIAMENTO ─────────────────────────────────────────────────────────
+      const pendingSD = (game as any).pendingSdoppiamento;
+      if (pendingSD && pendingSD.choiceId === choiceId && pendingSD.playerName === socketPlayerName) {
+        delete (game as any).pendingSdoppiamento;
+        const myCharSD = game.field.find((c: any) => c.id === pendingSD.myCharId);
+        const enemyCharSD = game.field.find((c: any) => c.id === value);
+        if (myCharSD && enemyCharSD) {
+          const myOwner = myCharSD.owner; const eOwner = enemyCharSD.owner;
+          myCharSD.owner = eOwner; enemyCharSD.owner = myOwner;
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-sdopp`, playerName: 'Sistema', message: `🔀 SDOPPIAMENTO! ${myCharSD.name || myOwner} (1 PTI) scambiato con ${enemyCharSD.name || eOwner}!`, timestamp: Date.now() });
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── CARICA ────────────────────────────────────────────────────────────────
+      const pendingCarica = (game as any).pendingCarica;
+      if (pendingCarica && pendingCarica.choiceId === choiceId && pendingCarica.playerName === socketPlayerName) {
+        delete (game as any).pendingCarica;
+        const tgtCA = game.field.find((c: any) => c.id === value);
+        if (tgtCA) {
+          (game as any).forcedAttackTarget = { targetCardId: tgtCA.id, targetOwner: tgtCA.owner, turnsLeft: 1 };
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-carica`, playerName: 'Sistema', message: `⚡ CARICA! Tutti devono attaccare ${tgtCA.name || tgtCA.owner} per questo turno!`, timestamp: Date.now() });
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── RUOSS E FESSA ─────────────────────────────────────────────────────────
+      const pendingREF = (game as any).pendingRuossEFessa;
+      if (pendingREF && pendingREF.choiceId === choiceId && pendingREF.playerName === socketPlayerName) {
+        delete (game as any).pendingRuossEFessa;
+        if (value === 'yes') {
+          const charREF = game.field.find((c: any) => c.id === pendingREF.charId) || (gameManager as any).getPlayerActiveCharacter(game, socketPlayerName);
+          if (charREF) {
+            charREF.pti = 5000; charREF.stars = 3;
+            (charREF as any).ruossEFessa = true;
+            (gameManager as any).updateCardTextWithPTI(charREF);
+            io.to(gameId).emit('chat-message', { id: `${Date.now()}-ref`, playerName: 'Sistema', message: `💪 RUOSS E FESSA ATTIVATO! ${charREF.name || socketPlayerName}: 5000 PTI + 3 stelle, -1000 PTI per ogni attacco!`, timestamp: Date.now() });
+          }
+        } else {
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-ref-no`, playerName: 'Sistema', message: `💪 RUOSS E FESSA: ${socketPlayerName} rinuncia.`, timestamp: Date.now() });
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── CORRUZIONE V2 ─────────────────────────────────────────────────────────
+      const pendingCO = (game as any).pendingCorruzioneV2;
+      if (pendingCO && pendingCO.choiceId === choiceId && pendingCO.playerName === socketPlayerName) {
+        delete (game as any).pendingCorruzioneV2;
+        const tgtCO = game.field.find((c: any) => c.id === value);
+        if (tgtCO) {
+          tgtCO.pti = (tgtCO.pti || 0) + 50;
+          (gameManager as any).updateCardTextWithPTI(tgtCO);
+          if (!game.peaceRestrictions) game.peaceRestrictions = [];
+          game.peaceRestrictions.push({ restrictedPlayer: tgtCO.owner, protectedPlayer: socketPlayerName, turnsLeft: 3, reason: 'CORRUZIONE' });
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-co`, playerName: 'Sistema', message: `💰 CORRUZIONE! ${socketPlayerName} cede 50 PTI a ${tgtCO.name || tgtCO.owner}. ${tgtCO.owner} non può attaccare ${socketPlayerName} per 3 turni!`, timestamp: Date.now() });
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── IBERNAZIONE ───────────────────────────────────────────────────────────
+      const pendingIb = (game as any).pendingIbernazione;
+      if (pendingIb && pendingIb.choiceId === choiceId && pendingIb.playerName === socketPlayerName) {
+        delete (game as any).pendingIbernazione;
+        if (value === 'yes') {
+          (game as any).ibernazione = { turnsLeft: 3, activatedBy: socketPlayerName };
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-ib`, playerName: 'Sistema', message: `❄️ IBERNAZIONE ATTIVATA! Per 3 turni nessuno può usare bonus, mosse o mettere un nuovo personaggio in campo!`, timestamp: Date.now() });
+        } else {
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-ib-no`, playerName: 'Sistema', message: `❄️ IBERNAZIONE: ${socketPlayerName} rinuncia all'ibernazione.`, timestamp: Date.now() });
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── UN POSTO GALATTICO ────────────────────────────────────────────────────
+      const pendingGal = (game as any).pendingGalattico;
+      if (pendingGal && pendingGal.choiceId === choiceId && pendingGal.playerName === socketPlayerName) {
+        delete (game as any).pendingGalattico;
+        (game as any).galatticoIsolation = { players: [socketPlayerName, value], active: true };
+        io.to(gameId).emit('chat-message', { id: `${Date.now()}-gal`, playerName: 'Sistema', message: `🌌 UN POSTO GALATTICO! ${socketPlayerName} e ${value} si isolano! Ritorneranno quando uno sarà eliminato!`, timestamp: Date.now() });
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── UNA TEMPESTA BABY ─────────────────────────────────────────────────────
+      const pendingTB = (game as any).pendingUnaTempestaBaby;
+      if (pendingTB && pendingTB.choiceId === choiceId && pendingTB.playerName === socketPlayerName) {
+        delete (game as any).pendingUnaTempestaBaby;
+        const cardType = value; // 'bonus' or 'mosse'
+        const isGoldenFreezer = (p: string) => /golden.?freezer/i.test((gameManager as any).getPlayerActiveCharacter(game, p)?.name || '');
+        for (const pName of game.turnOrder) {
+          if (isGoldenFreezer(pName)) continue;
+          const pData = game.players[pName];
+          const cards = (pData.hand || []).filter((c: any) => c.type === cardType);
+          for (const bc of cards) {
+            const idx = pData.hand.indexOf(bc); pData.hand.splice(idx, 1);
+            game.field.push({ ...bc, owner: pName });
+          }
+        }
+        io.to(gameId).emit('chat-message', { id: `${Date.now()}-tb`, playerName: 'Sistema', message: `🌪️ UNA TEMPESTA BABY! Tutti i ${cardType === 'bonus' ? 'BONUS' : 'MOSSE'} in mano giocati simultaneamente (Golden Freezer immune)!`, timestamp: Date.now() });
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
       // ── BOB DYLAN ────────────────────────────────────────────────────────────
       const pending = (game as any).pendingBobDylanChoice;
       if (!pending || pending.choiceId !== choiceId || pending.playerName !== socketPlayerName) {
