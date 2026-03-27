@@ -10574,67 +10574,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Type alias for the DB instances (both share the same underlying type).
       type SyncDb = NonNullable<typeof primaryDb>;
-      type SyncResult = { copied: number; errors: number };
+      type SyncResult = { toPrimary: number; toFallback: number; errors: number };
       const report: Record<string, SyncResult> = {};
 
-      // Copies rows missing in fallbackDb from primaryDb, preserving ALL columns
-      // including the PK so FK relationships across tables remain consistent.
+      // Copies rows present in `srcDb` but absent in `destDb`, preserving ALL
+      // columns including PKs so FK relationships remain consistent.
       // onConflictDoNothing() skips rows already present — never overwrites.
-      // After any inserts into serial-PK tables, realigns the destination sequence
-      // so future auto-increment INSERTs don't collide with the copied IDs.
+      // Returns count of rows inserted and count of errors.
+      const copyMissing = async (
+        srcDb: SyncDb,
+        destDb: SyncDb,
+        table: object,
+        getKey: (row: Record<string, unknown>) => string | number
+      ): Promise<{ copied: number; errors: number }> => {
+        let copied = 0;
+        let errors = 0;
+        const srcRows: Record<string, unknown>[] = await srcDb.select().from(table as never);
+        const destRows: Record<string, unknown>[] = await destDb.select().from(table as never);
+        const destKeys = new Set(destRows.map(getKey));
+        for (const row of srcRows) {
+          if (destKeys.has(getKey(row))) continue;
+          try {
+            await destDb.insert(table as never).values(row as never).onConflictDoNothing();
+            copied++;
+          } catch (insertErr) {
+            const msg = (insertErr instanceof Error) ? insertErr.message : String(insertErr);
+            console.warn(`[sync] row insert failed:`, msg.slice(0, 100));
+            errors++;
+          }
+        }
+        return { copied, errors };
+      };
+
+      // Realigns the serial sequence on `db` after rows with explicit IDs were inserted,
+      // so future auto-increment INSERTs don't produce duplicate-key errors.
+      const realignSequence = async (targetDb: SyncDb, pgTableName: string): Promise<void> => {
+        try {
+          await targetDb.execute(sql.raw(
+            `SELECT setval(pg_get_serial_sequence('${pgTableName}', 'id'),` +
+            ` COALESCE((SELECT MAX(id) FROM "${pgTableName}"), 1))`
+          ));
+        } catch (seqErr) {
+          const msg = (seqErr instanceof Error) ? seqErr.message : String(seqErr);
+          console.warn(`[sync] Could not realign sequence for ${pgTableName}:`, msg.slice(0, 80));
+        }
+      };
+
+      // Bidirectional sync: copies missing rows in each direction independently.
+      // Rows present only in primary → written to fallback.
+      // Rows present only in fallback → written to primary (reconcile offline writes).
+      // After each direction, realigns serial sequences so no future key collisions.
       const syncTable = async (
         pgTableName: string,
         table: object,
         getKey: (row: Record<string, unknown>) => string | number,
         hasSerialId: boolean
       ): Promise<SyncResult> => {
-        let copied = 0;
+        let toPrimary = 0;
+        let toFallback = 0;
         let errors = 0;
         try {
           const pDb = primaryDb as SyncDb;
           const fDb = fallbackDb as SyncDb;
 
-          const primaryRows: Record<string, unknown>[] =
-            await pDb.select().from(table as never);
+          // primary → fallback
+          const r1 = await copyMissing(pDb, fDb, table, getKey);
+          toFallback = r1.copied;
+          errors += r1.errors;
+          if (hasSerialId && r1.copied > 0) await realignSequence(fDb, pgTableName);
 
-          const fallbackRows: Record<string, unknown>[] =
-            await fDb.select().from(table as never);
-
-          const fallbackKeys = new Set(fallbackRows.map(getKey));
-          const missing = primaryRows.filter(r => !fallbackKeys.has(getKey(r)));
-
-          for (const row of missing) {
-            try {
-              await fDb.insert(table as never).values(row as never).onConflictDoNothing();
-              copied++;
-            } catch (insertErr) {
-              const msg = (insertErr instanceof Error) ? insertErr.message : String(insertErr);
-              console.warn(`[sync] ${pgTableName} row insert failed:`, msg.slice(0, 100));
-              errors++;
-            }
-          }
-
-          // Realign the serial sequence on fallback after inserting rows with explicit IDs,
-          // so that future INSERTs without an explicit ID don't produce duplicate-key errors.
-          if (hasSerialId && copied > 0) {
-            try {
-              await fDb.execute(sql.raw(
-                `SELECT setval(pg_get_serial_sequence('${pgTableName}', 'id'),` +
-                ` COALESCE((SELECT MAX(id) FROM "${pgTableName}"), 1))`
-              ));
-            } catch (seqErr) {
-              const msg = (seqErr instanceof Error) ? seqErr.message : String(seqErr);
-              console.warn(`[sync] Could not realign sequence for ${pgTableName}:`, msg.slice(0, 80));
-            }
-          }
+          // fallback → primary (reconcile writes that landed on fallback while primary was down)
+          const r2 = await copyMissing(fDb, pDb, table, getKey);
+          toPrimary = r2.copied;
+          errors += r2.errors;
+          if (hasSerialId && r2.copied > 0) await realignSequence(pDb, pgTableName);
         } catch (err) {
           const msg = (err instanceof Error) ? err.message : String(err);
           console.error(`[sync-databases] Error syncing ${pgTableName}:`, msg);
           errors++;
         }
-        report[pgTableName] = { copied, errors };
-        console.log(`[sync-databases] ${pgTableName}: copied=${copied} errors=${errors}`);
-        return { copied, errors };
+        report[pgTableName] = { toPrimary, toFallback, errors };
+        console.log(`[sync-databases] ${pgTableName}: →primary=${toPrimary} →fallback=${toFallback} errors=${errors}`);
+        return { toPrimary, toFallback, errors };
       };
 
       // Tables with integer serial PKs — sequence realignment needed after copy
@@ -10651,15 +10672,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await syncTable('user_gym_progress', userGymProgress, r => r['id'] as number, true);
       await syncTable('user_story_deck', userStoryDeck, r => r['id'] as number, true);
 
-      // Tables with non-integer or composite PKs — no serial sequence to realign
+      // Tables with non-serial PKs — no sequence to realign
       await syncTable('game_states', gameStates, r => r['gameId'] as string, false);
       await syncTable('card_modifications', cardModifications, r => r['originalCardId'] as number, false);
 
-      const totalCopied = Object.values(report).reduce((s, r) => s + r.copied, 0);
+      const totalToFallback = Object.values(report).reduce((s, r) => s + r.toFallback, 0);
+      const totalToPrimary = Object.values(report).reduce((s, r) => s + r.toPrimary, 0);
       const totalErrors = Object.values(report).reduce((s, r) => s + r.errors, 0);
 
-      console.log(`✅ [sync-databases] Sync complete: copied=${totalCopied} errors=${totalErrors}`);
-      res.json({ success: true, totalCopied, totalErrors, report });
+      console.log(`✅ [sync-databases] Sync complete: →fallback=${totalToFallback} →primary=${totalToPrimary} errors=${totalErrors}`);
+      res.json({ success: true, totalToFallback, totalToPrimary, totalErrors, report });
     } catch (error) {
       console.error('[sync-databases] Fatal error:', error);
       res.status(500).json({ success: false, error: 'Sync failed' });

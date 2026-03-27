@@ -3539,7 +3539,7 @@ Rispondi SOLO in JSON:`;
         console.log(`🔄 Re-applied card modifications to all restored games`);
       }
     } catch (error) {
-      const msg = (error as any)?.message ?? '';
+      const msg = (error as { message?: string })?.message ?? '';
       const is402 = msg.includes('402') || msg.includes('data transfer quota') || msg.includes('exceeded');
       if (is402 && _retryCount === 0) {
         console.warn('⚠️ [loadGames] Primary DB returned 402, switching to fallback and retrying...');
