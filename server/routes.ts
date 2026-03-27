@@ -4232,6 +4232,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const socketPlayerName = gameManager.getPlayerNameFromSocket(socket.id);
       if (!socketPlayerName) return;
 
+      // ── CHOICE-PANEL-RESPONSE HANDLER PRECEDENCE ──────────────────────────
+      // Handlers are ordered by specificity. Each checks its own pending state
+      // (keyed by choiceId) so only the correct handler fires per response.
+      // Order: Roulette Russa → Respinta → Rincoglionimento → Trauma →
+      //   TargetAcquired → Harakiri → Sdoppiamento → Carica → RuossEFessa →
+      //   CorruzioneV2 → Ibernazione → Galattico → UnaTempestaBaby → Bob Dylan
+
       // ── ROULETTE RUSSA ──────────────────────────────────────────────────────
       const pendingRR = (game as any).pendingRouletteRussa;
       if (pendingRR && pendingRR.choiceId === choiceId && pendingRR.defenderName === socketPlayerName) {
