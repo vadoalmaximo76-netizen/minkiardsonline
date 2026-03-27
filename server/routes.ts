@@ -4268,6 +4268,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const rrFinalState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', rrFinalState);
         console.log(`🎲 ROULETTE_RUSSA (human): ${socketPlayerName} chose ${chosen} vs die ${diceRollRR} — ${diceRollRR === chosen ? 'SAVED' : 'DEAD'}`);
+
+        // ── CPU ATTACKER TURN CONTINUATION ──────────────────────────────────────
+        // If the attacker was a CPU, resume their turn after Roulette resolves
+        const rrAttackerName = pendingRR.attackerName;
+        const rrGameAfter = gameManager.getGameState(gameId);
+        if (rrGameAfter && rrGameAfter.players[rrAttackerName]?.isCPU) {
+          const cpuInstRR = rrGameAfter.players[rrAttackerName].cpuInstance;
+          if (cpuInstRR) {
+            cpuInstRR.resolveAttack();
+            console.log(`🎲 ROULETTE_RUSSA: CPU ${rrAttackerName} resolveAttack() called — continuing turn`);
+            setTimeout(async () => {
+              try {
+                const updState = gameManager.getSanitizedGameState(gameId);
+                const nxtAction = await cpuInstRR.takeTurn(updState);
+                if (nxtAction) {
+                  await gameManager.processCPUTurn(gameId, rrAttackerName, io);
+                } else {
+                  // No more actions — end CPU turn
+                  gameManager.processDelayedDamages(gameId, rrAttackerName, io);
+                  const nextP = gameManager.endTurn(gameId, rrAttackerName);
+                  if (nextP) {
+                    io.to(gameId).emit('next-turn', { nextPlayer: nextP });
+                    if (rrGameAfter.players[nextP]?.isCPU) {
+                      setTimeout(() => { gameManager.processCPUTurn(gameId, nextP, io); }, 1200);
+                    }
+                  }
+                }
+              } catch (e) { console.error(`Error continuing CPU ${rrAttackerName} turn after roulette:`, e); }
+            }, 500);
+          }
+        }
         return;
       }
 
