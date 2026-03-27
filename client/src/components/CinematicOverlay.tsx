@@ -10,6 +10,9 @@ export interface CinematicEventData {
   label?: string;
   defenderName?: string;
   defenderCharName?: string;
+  // Card images (frontImage URLs)
+  attackerCardImage?: string;   // mossa card used (the attacking move)
+  defenderCardImage?: string;   // defender's personaggi card being hit
   timestamp?: number;
 }
 
@@ -316,9 +319,28 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
           100% { transform: translate(-50%, -50%) scale(0.8) rotate(0deg);  opacity: 0; }
         }
         @keyframes cin-mossa-fly {
-          0%   { transform: translateX(0) scaleX(1); opacity: 1; }
-          80%  { transform: translateX(110%) scaleX(1.3); opacity: 0.7; }
-          100% { transform: translateX(140%) scaleX(1.5); opacity: 0; }
+          0%   { transform: translateX(0) rotate(-6deg) scale(1); opacity: 1; }
+          70%  { transform: translateX(130%) rotate(10deg) scale(1.1); opacity: 0.6; }
+          100% { transform: translateX(180%) rotate(15deg) scale(0.9); opacity: 0; }
+        }
+        @keyframes cin-card-attacker-in {
+          0%   { transform: translateX(-120px) rotate(-15deg) scale(0.7); opacity: 0; }
+          70%  { transform: translateX(8px)   rotate(3deg)  scale(1.05); opacity: 1; }
+          100% { transform: translateX(0)     rotate(-4deg) scale(1); opacity: 1; }
+        }
+        @keyframes cin-card-defender-in {
+          0%   { transform: translateX(120px) rotate(15deg) scale(0.7); opacity: 0; }
+          70%  { transform: translateX(-8px)  rotate(-3deg) scale(1.05); opacity: 1; }
+          100% { transform: translateX(0)     rotate(4deg)  scale(1); opacity: 1; }
+        }
+        @keyframes cin-card-defender-hit {
+          0%   { transform: rotate(4deg)    scale(1);    filter: brightness(1); }
+          10%  { transform: rotate(-12deg)  scale(1.08); filter: brightness(4) saturate(0); }
+          25%  { transform: rotate(10deg)   scale(0.95); filter: brightness(2); }
+          40%  { transform: rotate(-8deg)   scale(1.02); filter: brightness(1.5); }
+          55%  { transform: rotate(6deg)    scale(0.98); filter: brightness(1.2); }
+          70%  { transform: rotate(-3deg)   scale(1);    filter: brightness(1); }
+          100% { transform: rotate(4deg)    scale(1);    filter: brightness(1); }
         }
         @keyframes cin-glow-pulse {
           0%, 100% { opacity: 0.4; }
@@ -392,7 +414,7 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
           }}
         />
 
-        {/* ── ATTACK LAYOUT: Attacker vs Defender ── */}
+        {/* ── ATTACK LAYOUT: Attacker card vs Defender card ── */}
         {isAttackType && (attackerCharName || defenderCharName) ? (
           <div
             className="absolute inset-0 flex flex-col items-center justify-center"
@@ -400,6 +422,7 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
               animation: isExiting
                 ? 'cin-content-out 0.35s ease-in forwards'
                 : 'cin-content-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+              padding: '0 8px',
             }}
           >
             {/* Label row */}
@@ -410,7 +433,7 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
               fontWeight: 700,
               letterSpacing: '0.3em',
               textTransform: 'uppercase',
-              marginBottom: 10,
+              marginBottom: 8,
               opacity: 0,
               animation: 'cin-label-slide 0.3s ease-out forwards',
               animationDelay: '0.1s',
@@ -418,141 +441,209 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
               {theme.emoji} {labelText}
             </div>
 
-            {/* VS row */}
-            <div className="flex items-center justify-center w-full" style={{ gap: 'clamp(8px, 3vw, 40px)', maxWidth: 700 }}>
+            {/* CARDS ROW: Mossa card → VS center → Personaggi card */}
+            <div className="flex items-center justify-center w-full" style={{ gap: 'clamp(6px, 2vw, 24px)', maxWidth: 680 }}>
 
-              {/* ATTACKER side */}
+              {/* ── ATTACKER: mossa card image ── */}
               <div
                 className="flex flex-col items-center"
                 style={{
-                  flex: 1, maxWidth: 240,
+                  flex: '0 0 auto',
                   opacity: 0,
-                  animation: 'cin-attacker-in 0.35s ease-out forwards',
+                  animation: 'cin-card-attacker-in 0.45s cubic-bezier(0.34,1.4,0.64,1) forwards',
                   animationDelay: '0.12s',
                 }}
               >
+                {/* Card image */}
+                <div style={{
+                  width: 'clamp(80px, 14vw, 130px)',
+                  aspectRatio: '63/88',
+                  borderRadius: 6,
+                  overflow: 'hidden',
+                  border: `2px solid ${theme.accent}`,
+                  boxShadow: `0 0 16px ${theme.accent}99, 0 4px 20px #000a`,
+                  position: 'relative',
+                  animation: impactFired ? 'cin-mossa-fly 0.4s ease-in forwards' : 'none',
+                }}>
+                  {data.attackerCardImage ? (
+                    <img
+                      src={data.attackerCardImage}
+                      alt={cardDisplayName || 'Mossa'}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
+                  ) : (
+                    /* Fallback: styled card placeholder */
+                    <div style={{
+                      width: '100%', height: '100%',
+                      background: `linear-gradient(145deg, ${theme.accent}44, ${theme.bg})`,
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                      padding: 6,
+                    }}>
+                      <div style={{ fontSize: 'clamp(20px,4vw,32px)', marginBottom: 4 }}>⚔️</div>
+                      <div style={{
+                        color: theme.accentLight,
+                        fontFamily: 'monospace',
+                        fontSize: 'clamp(7px,1vw,10px)',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        textAlign: 'center',
+                        letterSpacing: '0.1em',
+                        lineHeight: 1.2,
+                        wordBreak: 'break-word',
+                      }}>
+                        {cardDisplayName || 'MOSSA'}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {/* Attacker char name */}
                 <div style={{
                   color: theme.accentLight,
                   fontFamily: 'monospace',
-                  fontSize: 'clamp(9px, 1.3vw, 11px)',
-                  letterSpacing: '0.25em',
+                  fontSize: 'clamp(8px, 1.1vw, 11px)',
+                  letterSpacing: '0.15em',
                   textTransform: 'uppercase',
-                  marginBottom: 4,
-                  opacity: 0.7,
-                }}>ATTACCANTE</div>
-                <div style={{
-                  color: '#fff',
-                  fontFamily: 'sans-serif',
-                  fontSize: 'clamp(14px, 2.8vw, 24px)',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  textShadow: `0 0 20px ${theme.accent}`,
-                  letterSpacing: '0.1em',
+                  marginTop: 5,
                   textAlign: 'center',
-                  lineHeight: 1.15,
+                  maxWidth: 'clamp(80px,14vw,130px)',
+                  textShadow: `0 0 10px ${theme.accent}`,
+                  opacity: 0.9,
                 }}>
                   {attackerCharName}
                 </div>
-                {/* Mossa card - flies toward defender */}
-                {cardDisplayName && (
-                  <div
-                    style={{
-                      marginTop: 8,
-                      padding: '4px 10px',
-                      background: `${theme.accent}33`,
-                      border: `1px solid ${theme.accent}`,
-                      borderRadius: 4,
-                      color: theme.accentLight,
-                      fontFamily: 'monospace',
-                      fontSize: 'clamp(8px, 1.2vw, 11px)',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.15em',
-                      textAlign: 'center',
-                      maxWidth: '100%',
-                      opacity: impactFired ? 0 : 1,
-                      animation: impactFired ? 'cin-mossa-fly 0.35s ease-in forwards' : 'none',
-                    }}
-                  >
+                {cardDisplayName && !data.attackerCardImage && (
+                  <div style={{
+                    color: theme.accent,
+                    fontFamily: 'monospace',
+                    fontSize: 'clamp(7px, 0.9vw, 10px)',
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    marginTop: 2,
+                    textAlign: 'center',
+                    maxWidth: 'clamp(80px,14vw,130px)',
+                    opacity: 0.7,
+                  }}>
                     {cardDisplayName}
                   </div>
                 )}
               </div>
 
-              {/* CENTER: impact zone */}
-              <div className="relative flex flex-col items-center" style={{ flexShrink: 0, width: 'clamp(60px, 10vw, 90px)' }}>
+              {/* ── CENTER: VS + impact ── */}
+              <div
+                className="relative flex flex-col items-center justify-center"
+                style={{ flexShrink: 0, width: 'clamp(48px, 8vw, 72px)', height: 'clamp(80px,15vw,120px)' }}
+              >
                 <div style={{
                   color: theme.accentLight,
-                  fontFamily: 'monospace',
-                  fontSize: 'clamp(10px, 1.8vw, 13px)',
-                  fontWeight: 700,
-                  letterSpacing: '0.35em',
-                  opacity: 0.5,
+                  fontFamily: '"Impact","Arial Black",sans-serif',
+                  fontSize: 'clamp(14px, 2.5vw, 20px)',
+                  fontWeight: 900,
+                  letterSpacing: '0.15em',
+                  opacity: impactFired ? 0 : 0.6,
+                  transition: 'opacity 0.1s',
                 }}>VS</div>
-                {/* Impact burst */}
+                {/* Impact burst circle */}
                 {impactFired && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '50%', left: '50%',
-                      width: 80, height: 80,
-                      background: `radial-gradient(ellipse at center, ${theme.accentLight} 0%, ${theme.accent} 40%, transparent 70%)`,
-                      borderRadius: '50%',
-                      animation: 'cin-impact-burst 0.5s ease-out forwards',
-                    }}
-                  />
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%', left: '50%',
+                    width: 90, height: 90,
+                    background: `radial-gradient(ellipse at center, ${theme.accentLight} 0%, ${theme.accent} 35%, transparent 70%)`,
+                    borderRadius: '50%',
+                    animation: 'cin-impact-burst 0.55s ease-out forwards',
+                  }} />
                 )}
                 {impactFired && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '50%', left: '50%',
-                      fontSize: 'clamp(24px, 5vw, 40px)',
-                      animation: 'cin-impact-text 0.55s ease-out forwards',
-                      pointerEvents: 'none',
-                      userSelect: 'none',
-                      zIndex: 2,
-                    }}
-                  >
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%', left: '50%',
+                    fontSize: 'clamp(28px, 6vw, 48px)',
+                    animation: 'cin-impact-text 0.6s ease-out forwards',
+                    pointerEvents: 'none',
+                    userSelect: 'none',
+                    zIndex: 2,
+                  }}>
                     {data.type === 'lethal' ? '☠️' : data.type === 'mega_attack' ? '💥' : '⚔️'}
                   </div>
                 )}
               </div>
 
-              {/* DEFENDER side */}
+              {/* ── DEFENDER: personaggi card image ── */}
               <div
                 className="flex flex-col items-center"
                 style={{
-                  flex: 1, maxWidth: 240,
+                  flex: '0 0 auto',
                   opacity: 0,
-                  animation: 'cin-defender-in 0.35s ease-out forwards',
+                  animation: 'cin-card-defender-in 0.45s cubic-bezier(0.34,1.4,0.64,1) forwards',
                   animationDelay: '0.12s',
                 }}
               >
+                {/* Card image wrapper — shakes on impact */}
                 <div style={{
-                  color: '#EF9A9A',
+                  width: 'clamp(80px, 14vw, 130px)',
+                  aspectRatio: '63/88',
+                  borderRadius: 6,
+                  overflow: 'hidden',
+                  border: `2px solid ${impactFired ? '#FF1744' : '#555'}`,
+                  boxShadow: impactFired
+                    ? `0 0 24px #FF174499, 0 4px 20px #000a`
+                    : `0 0 10px #33333399, 0 4px 12px #000a`,
+                  position: 'relative',
+                  animation: impactFired ? 'cin-card-defender-hit 0.65s ease-out forwards' : 'none',
+                  transition: 'border-color 0.1s, box-shadow 0.1s',
+                }}>
+                  {data.defenderCardImage ? (
+                    <img
+                      src={data.defenderCardImage}
+                      alt={defenderCharName || 'Difensore'}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: '100%', height: '100%',
+                      background: `linear-gradient(145deg, #33000044, #220000)`,
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                      padding: 6,
+                    }}>
+                      <div style={{ fontSize: 'clamp(20px,4vw,32px)', marginBottom: 4 }}>🛡️</div>
+                      <div style={{
+                        color: '#EF9A9A',
+                        fontFamily: 'monospace',
+                        fontSize: 'clamp(7px,1vw,10px)',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        textAlign: 'center',
+                        letterSpacing: '0.1em',
+                        lineHeight: 1.2,
+                        wordBreak: 'break-word',
+                      }}>
+                        {defenderCharName || '???'}
+                      </div>
+                    </div>
+                  )}
+                  {/* Red hit overlay flash */}
+                  {impactFired && (
+                    <div style={{
+                      position: 'absolute', inset: 0,
+                      background: 'rgba(255,23,68,0.45)',
+                      animation: 'cin-flash 0.5s ease-out forwards',
+                      pointerEvents: 'none',
+                    }} />
+                  )}
+                </div>
+                {/* Defender name */}
+                <div style={{
+                  color: impactFired ? '#FF8A80' : '#ffcccc',
                   fontFamily: 'monospace',
-                  fontSize: 'clamp(9px, 1.3vw, 11px)',
-                  letterSpacing: '0.25em',
+                  fontSize: 'clamp(8px, 1.1vw, 11px)',
+                  letterSpacing: '0.15em',
                   textTransform: 'uppercase',
-                  marginBottom: 4,
-                  opacity: 0.7,
-                }}>DIFENSORE</div>
-                <div
-                  style={{
-                    color: impactFired ? '#FF8A80' : '#ffdddd',
-                    fontFamily: 'sans-serif',
-                    fontSize: 'clamp(14px, 2.8vw, 24px)',
-                    fontWeight: 800,
-                    textTransform: 'uppercase',
-                    textShadow: impactFired ? '0 0 20px #FF1744, 0 0 40px #FF1744' : 'none',
-                    letterSpacing: '0.1em',
-                    textAlign: 'center',
-                    lineHeight: 1.15,
-                    animation: impactFired ? 'cin-defender-hit 0.6s ease-out forwards' : 'none',
-                    transition: 'text-shadow 0.1s',
-                  }}
-                >
+                  marginTop: 5,
+                  textAlign: 'center',
+                  maxWidth: 'clamp(80px,14vw,130px)',
+                  textShadow: impactFired ? '0 0 10px #FF1744' : 'none',
+                  transition: 'color 0.1s, text-shadow 0.1s',
+                }}>
                   {defenderCharName || '???'}
                 </div>
               </div>
@@ -563,7 +654,7 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
               width: 'clamp(80px, 30vw, 280px)',
               height: 2,
               background: `linear-gradient(to right, transparent, ${theme.accent}, transparent)`,
-              margin: '12px 0',
+              margin: '10px 0',
             }} />
 
             {/* Damage counter */}
@@ -575,7 +666,7 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
                 fontWeight: 900,
                 lineHeight: 1,
                 textShadow: `0 0 10px ${theme.accent}, 0 0 30px ${theme.accent}, 0 0 60px ${theme.accent}80`,
-                marginBottom: 4,
+                marginBottom: 2,
                 opacity: 0,
                 animation: 'cin-damage-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
                 animationDelay: '0.2s',

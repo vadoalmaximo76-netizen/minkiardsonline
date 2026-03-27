@@ -29620,6 +29620,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             label: '💀 MORTE ISTANTANEA!',
             defenderName: targetCard?.owner || undefined,
             defenderCharName: targetCard?.name || undefined,
+            attackerCardImage: mCard?.frontImage || undefined,
+            defenderCardImage: targetCard?.frontImage || undefined,
             timestamp: Date.now()
           });
         } else if (resolvedDamage >= 150) {
@@ -29632,6 +29634,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             damage: resolvedDamage,
             defenderName: targetCard?.owner || undefined,
             defenderCharName: targetCard?.name || undefined,
+            attackerCardImage: mCard?.frontImage || undefined,
+            defenderCardImage: targetCard?.frontImage || undefined,
             timestamp: Date.now()
           });
         }
