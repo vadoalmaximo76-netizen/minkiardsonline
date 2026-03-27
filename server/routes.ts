@@ -4488,6 +4488,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
+      // ── IMITAZIONE ───────────────────────────────────────────────────────────
+      const pendingImit = (game as any).pendingImitazione;
+      if (pendingImit && pendingImit.choiceId === choiceId && pendingImit.playerName === socketPlayerName) {
+        delete (game as any).pendingImitazione;
+        const chosenChar = pendingImit.chars.find((c: any) => c.id === value);
+        const myCharIM = (gameManager as any).getPlayerActiveCharacter(game, socketPlayerName);
+        if (myCharIM && chosenChar) {
+          (myCharIM as any).imitazioneSource = chosenChar.name || chosenChar.id;
+          (myCharIM as any).copiedEffect = chosenChar.effect || '';
+          myCharIM.effect = (myCharIM.effect || '') + ` [IMITAZIONE: ${chosenChar.name}]`;
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-imitazione`, playerName: 'Sistema', message: `🎭 IMITAZIONE! ${myCharIM.name || socketPlayerName} copia l'effetto di ${chosenChar.name || value}!`, timestamp: Date.now() });
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── PESCA MIRACOLOSA ─────────────────────────────────────────────────────
+      const pendingPM = (game as any).pendingPescaMiracolosa;
+      if (pendingPM && pendingPM.choiceId === choiceId && pendingPM.playerName === socketPlayerName) {
+        delete (game as any).pendingPescaMiracolosa;
+        const drawnPM: { card: any; deckType: string }[] = pendingPM.drawn;
+        const keptPM = drawnPM.find((d: any) => d.card.id === value);
+        if (keptPM) {
+          game.players[socketPlayerName].hand.push(keptPM.card);
+          // Return the other drawn cards to their decks
+          for (const { card: cPM, deckType: dtPM } of drawnPM) {
+            if (cPM.id !== keptPM.card.id) {
+              game.decks[dtPM as keyof typeof game.decks].push(cPM);
+            }
+          }
+          // Remove one card of the same type from the player's hand and return it to its deck
+          const sameTypePM = game.players[socketPlayerName].hand.filter((c: any) => c.type === keptPM.card.type && c.id !== keptPM.card.id);
+          if (sameTypePM.length > 0) {
+            const idx = game.players[socketPlayerName].hand.findIndex((c: any) => c.id === sameTypePM[0].id);
+            if (idx !== -1) {
+              const returnedCard = game.players[socketPlayerName].hand.splice(idx, 1)[0];
+              game.decks[keptPM.deckType as keyof typeof game.decks].push(returnedCard);
+            }
+          }
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-pesca-miracolosa`, playerName: 'Sistema', message: `🎣 PESCA MIRACOLOSA! ${socketPlayerName} tiene ${keptPM.card.name || keptPM.card.type}!`, timestamp: Date.now() });
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── MINKIARD N. 100 ──────────────────────────────────────────────────────
+      const pendingM100 = (game as any).pendingMinkiard100;
+      if (pendingM100 && pendingM100.choiceId === choiceId && pendingM100.playerName === socketPlayerName) {
+        delete (game as any).pendingMinkiard100;
+        const myCharM100 = (gameManager as any).getPlayerActiveCharacter(game, socketPlayerName);
+        if (myCharM100) {
+          if (value === '3000pti') {
+            myCharM100.pti = 3000;
+            (gameManager as any).updateCardTextWithPTI(myCharM100);
+            io.to(gameId).emit('chat-message', { id: `${Date.now()}-m100-pti`, playerName: 'Sistema', message: `💯 MINKIARD N. 100! ${myCharM100.name || socketPlayerName} → 3000 PTI!`, timestamp: Date.now() });
+          } else {
+            myCharM100.stars = 4;
+            (gameManager as any).updateCardTextWithPTI(myCharM100);
+            io.to(gameId).emit('chat-message', { id: `${Date.now()}-m100-stars`, playerName: 'Sistema', message: `💯 MINKIARD N. 100! ${myCharM100.name || socketPlayerName} → 4 stelle!`, timestamp: Date.now() });
+          }
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── VITELLO D'ORO ─────────────────────────────────────────────────────────
+      const pendingVO = (game as any).pendingVitelloDoro;
+      if (pendingVO && pendingVO.choiceId === choiceId && pendingVO.playerName === socketPlayerName) {
+        delete (game as any).pendingVitelloDoro;
+        const convertPTI = parseInt(value, 10);
+        if (!isNaN(convertPTI) && convertPTI >= 50) {
+          const myCharVO = (gameManager as any).getPlayerActiveCharacter(game, socketPlayerName);
+          if (myCharVO && (myCharVO.pti || 0) >= convertPTI) {
+            const starsGained = Math.floor(convertPTI / 50);
+            myCharVO.pti = (myCharVO.pti || 0) - convertPTI;
+            myCharVO.stars = (myCharVO.stars || 0) + starsGained;
+            (myCharVO as any).vitelloTimer = 5;
+            (gameManager as any).updateCardTextWithPTI(myCharVO);
+            io.to(gameId).emit('chat-message', { id: `${Date.now()}-vitello`, playerName: 'Sistema', message: `🐂 VITELLO D'ORO! ${myCharVO.name || socketPlayerName}: -${convertPTI} PTI → +${starsGained} stelle! Muore tra 5 turni!`, timestamp: Date.now() });
+          }
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
       // ── BOB DYLAN ────────────────────────────────────────────────────────────
       const pending = (game as any).pendingBobDylanChoice;
       if (!pending || pending.choiceId !== choiceId || pending.playerName !== socketPlayerName) {

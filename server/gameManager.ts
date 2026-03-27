@@ -3613,6 +3613,19 @@ Rispondi SOLO in JSON:`;
     }
     game.players[playerName].hand.push(card);
 
+    // ── MINKIARD N. 500: doubleDrawActive — draw an extra card of the same type ──
+    if ((game.players[playerName] as any).doubleDrawActive) {
+      const extraDeck = game.decks[deckType];
+      if (extraDeck && extraDeck.length > 0) {
+        const extraCard = extraDeck.pop()!;
+        extraCard.owner = playerName;
+        game.players[playerName].hand.push(extraCard);
+        const ioDD = (global as any).io;
+        if (ioDD) ioDD.to(gameId).emit('chat-message', { id: `${Date.now()}-double-draw-${playerName}`, playerName: 'Sistema', message: `🃏 MINKIARD N. 500: ${playerName} pesca una carta extra di tipo ${deckType}!`, timestamp: Date.now() });
+        console.log(`🃏 DOUBLE DRAW: ${playerName} draws extra ${deckType} card (Minkiard 500)`);
+      }
+    }
+
     // Record pick card event
     await this.recordEvent(gameId, 'pick-card', {
       cardId: card.id,
@@ -4294,7 +4307,7 @@ Rispondi SOLO in JSON:`;
           'asta': "Parte un'asta tra i partecipanti per un personaggio dal mazzo usando punti Rankiard",
           'medicina': "[CUSTOM:medicina] +30 PTI al tuo personaggio, oppure annulla Virus e Influenza se presenti",
           'spinaci': "[CUSTOM:spinaci] +30 PTI al tuo personaggio; +2 stelle se lo usa Popeye",
-          'pesca miracolosa': "Pesca 3 carte da un mazzo a scelta",
+          'pesca miracolosa': "[CUSTOM:pesca_miracolosa] Pesca 1 carta da ogni mazzo (bonus, mosse, personaggi); scegli quale tenere, le altre tornano nel mazzo insieme a una carta dello stesso tipo dalla tua mano",
           'stipendio': "[CUSTOM:stipendio] +10 PTI al tuo personaggio ogni turno (effetto ricorrente); +400 PTI/turno se lo usa Neymar JR",
           'kainoken': "[CUSTOM:kainoken] Scegli dai mazzi una carta da dare a ogni avversario sostituendola con una dello stesso tipo dalla loro mano",
           'terremoto': "Stordisce tutti i personaggi avversari per 1 turno",
@@ -4308,7 +4321,7 @@ Rispondi SOLO in JSON:`;
           'trappola': "[CUSTOM:trappola] Puoi mettere la tua prossima carta in campo come carta coperta; puoi scoprirla in qualsiasi momento",
           'boomerang': "Il prossimo danno subito dal tuo personaggio viene riflesso all'attaccante [BERSAGLIO: scelta]",
           'scambio': "Scambia un tuo personaggio con uno dell'avversario [BERSAGLIO: scelta]",
-          'imitazione': "Copia l'effetto dell'ultima carta BONUS giocata",
+          'imitazione': "[CUSTOM:imitazione] Pannello personaggi: scegli un personaggio in campo o nel mazzo e copia il suo effetto speciale attribuendolo al tuo",
           'tabula rasa': "Rimuovi tutti gli effetti attivi dal campo di gioco",
           'harakiri': "[CUSTOM:harakiri] Scegli tramite pannello uno dei tuoi personaggi e sacrificalo rimettendolo nel mazzo; puoi anche non sacrificare nessuno",
           'sdoppiamento': "[CUSTOM:sdoppiamento] Il tuo personaggio va a 1 PTI e viene immediatamente scambiato con quello di un avversario a tua scelta",
@@ -4330,7 +4343,7 @@ Rispondi SOLO in JSON:`;
           'sbirciata': "Guarda le carte in mano di un avversario",
           'inverti giro': "Inverte l'ordine dei turni",
           'slot machine': "Scommessa: 50% possibilità di guadagnare o perdere 200 PTI [BERSAGLIO: scelta] [DADO: Se indovina: Successo; Se sbaglia: Fallimento]",
-          'replay': "Ripeti il tuo turno: puoi giocare un'altra carta",
+          'replay': "[CUSTOM:replay] Ripristina il campo di gioco com'era all'inizio dell'ultimo turno completo (carte e posizioni)",
           'folata di venta': "Respinta: il danno viene spostato su un altro avversario tramite dado (pari = giocatore turno successivo, dispari = giocatore turno precedente)",
           'macchina del tempo': "Viaggio nel Tempo: riporta il gioco a 2 turni fa",
           'disinnesca bomba': "Rimuovi tutte le bombe attive dal campo di gioco",
@@ -4356,10 +4369,10 @@ Rispondi SOLO in JSON:`;
           'un posto galattico': "[CUSTOM:un_posto_galattico] Se il tuo personaggio non è il più forte in campo, tu e un altro partecipante vi isolate dalla partita finché non rimane uno solo; Golden Freezer può attivarlo sempre",
           'vincere e vince remo': "[CUSTOM:vincere_vinceremo] Se Capello Smith è in campo, la partita finisce immediatamente e vince il giocatore che lo possiede",
           'wd 40': "[CUSTOM:wd40] Interrompi immediatamente l'effetto di bonus o mosse che durano più turni; Goghi può decidere su quale personaggio deve restare l'effetto",
-          'minkiard n 100': "Guadagna 100 punti Rankiard [BERSAGLIO: scelta]",
+          'minkiard n 100': "[CUSTOM:minkiard_n_100] Scegli tramite pannello: porta il tuo personaggio a 3000 PTI oppure a 4 stelle",
           'minkiard n 300': "Guadagna 300 punti Rankiard [BERSAGLIO: scelta]",
-          'minkiard n 400': "Guadagna 400 punti Rankiard [BERSAGLIO: scelta]",
-          'minkiard n 500': "Guadagna 500 punti Rankiard [BERSAGLIO: scelta]",
+          'minkiard n 400': "[CUSTOM:minkiard_n_400] Aggiungi una vita extra: puoi perdere un personaggio in più prima di essere eliminato dalla partita",
+          'minkiard n 500': "[CUSTOM:minkiard_n_500] Da ora in poi, ogni volta che peschi una carta dai mazzi ne pescherai automaticamente 2 invece di 1",
           'minkiards n 200': "Guadagna 200 punti Rankiard [BERSAGLIO: scelta]",
           'modalita cieca': "[CUSTOM:modalita_cieca] Per 3 turni tutte le carte in campo e in mano diventano coperte: i giocatori non vedono nomi, PTI, stelle né l'immagine frontale; gli effetti valgono lo stesso. Dopo 3 turni si torna alla normalità",
           'modalit fenomeno': "[CUSTOM:modalit_fenomeno] Aggiunge 2 stelle al tuo personaggio",
@@ -4370,13 +4383,13 @@ Rispondi SOLO in JSON:`;
           'modalit truzzo': "[CUSTOM:modalit_truzzo] +10 PTI al tuo personaggio; +300 PTI se lo usa Michele Telo",
           'modalita zombie': "Il tuo personaggio torna in vita con la metà dei PTI se muore questo turno [BERSAGLIO: scelta]",
           'musica ganza': "[CUSTOM:musica_ganza] +10 PTI al tuo personaggio; +1 stella se lo usa Psy, One Direction, Michele Telo, Justin Biberon o Cacca",
-          'non ti fa frega': "Annulla l'effetto dell'ultima carta bonus giocata dall'avversario",
-          'provino per la juve': "Il tuo personaggio guadagna 2 stelle [BERSAGLIO: scelta]",
-          'palio delle minkiards': "Tutti i giocatori guadagnano punti Rankiard in base ai PTI dei loro personaggi",
+          'non ti fa frega': "[CUSTOM:non_ti_fa_frega] Il tuo personaggio diventa immune agli effetti di assorbimento (Parassita, Fregatura, Assorbimento)",
+          'provino per la juve': "[CUSTOM:provino_per_la_juve] Il prossimo attacco del tuo personaggio infligge il doppio dei danni",
+          'palio delle minkiards': "[CUSTOM:palio_delle_minkiards] Calcola punteggi: 100 punti per ogni personaggio vivo + 100 per il più forte in campo + PTI rankiard; il giocatore con più punti trasforma il suo personaggio",
           'peluria di holly': "[CUSTOM:peluria_di_holly] +50 PTI al tuo personaggio; +70 PTI se lo usa Holly",
-          'spin ta impulsiva': "Pesca 2 carte bonus a caso dal mazzo",
+          'spin ta impulsiva': "[CUSTOM:spin_ta_impulsiva] Effetto passivo: quando il tuo personaggio scende sotto i 100 PTI, aggiunge automaticamente 200 PTI e 5 stelle",
           'ti porto via con me in questa morte fantastica': "[CUSTOM:ti_porto_via] Quando il tuo personaggio muore, fa morire anche il personaggio che lo ha ucciso",
-          'vitello d ora': "Tutti i giocatori guadagnano 200 punti Rankiard",
+          'vitello d ora': "[CUSTOM:vitello_d_oro] Pannello: scegli quanti PTI convertire in stelle (ogni 50 PTI = 1 stella); il tuo personaggio muore dopo 5 turni",
         };
         if (knownNameEffects[cardNameLower]) {
           effectText = knownNameEffects[cardNameLower];
@@ -8564,6 +8577,243 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           });
         }
         emitChat(`🎲 SCHEDINE! ${playerName}${isGoldenFreezerS ? ' (GOLDEN FREEZER — gioca obbligatoriamente)' : ''} sta scommettendo sui finalisti...`);
+        emitState(); break;
+      }
+
+      // ─── IMITAZIONE ──────────────────────────────────────────────────────────
+      case 'imitazione': {
+        // Collect all characters from field and decks (excluding the player's own active char)
+        const fieldChars = (game.field || []).filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+        const deckCharsI: Card[] = [];
+        for (const dt of ['personaggi', 'personaggi_speciali'] as const) {
+          const d = game.decks?.[dt] || [];
+          for (const c of d) {
+            if (!deckCharsI.find((x: Card) => x.id === c.id)) deckCharsI.push(c);
+          }
+        }
+        const allCharsI = [...fieldChars, ...deckCharsI].filter((c: Card) => c.owner !== playerName || c.id !== myChar?.id);
+        if (allCharsI.length === 0) { emitChat(`🎭 IMITAZIONE: Nessun personaggio disponibile da imitare.`); break; }
+        if (isCPU) {
+          const targetI = allCharsI[Math.floor(Math.random() * allCharsI.length)];
+          if (myChar && targetI) {
+            (myChar as any).imitazioneSource = targetI.name || targetI.id;
+            (myChar as any).copiedEffect = targetI.effect || '';
+            emitChat(`🎭 IMITAZIONE! ${myChar.name || playerName} copia l'effetto di ${targetI.name || targetI.id}!`);
+          }
+          emitState(); break;
+        }
+        const cIdI = `imitazione-${Date.now()}`;
+        const psIdI = (game.players[playerName] as any)?.socketId;
+        (game as any).pendingImitazione = { choiceId: cIdI, playerName, chars: allCharsI.map((c: Card) => ({ id: c.id, name: c.name, effect: c.effect, frontImage: c.frontImage })) };
+        if (psIdI && io) {
+          io.to(psIdI).emit('show-choice-panel', {
+            choiceId: cIdI,
+            title: '🎭 IMITAZIONE',
+            message: 'Scegli il personaggio di cui copiare l\'effetto:',
+            options: allCharsI.map((c: Card) => ({ value: c.id, label: `${c.name || c.id}${c.effect ? ' — ' + c.effect.substring(0, 60) : ''}` })),
+            timestamp: Date.now()
+          });
+        }
+        emitChat(`🎭 IMITAZIONE! ${playerName} sceglie un personaggio da imitare...`);
+        emitState(); break;
+      }
+
+      // ─── NON TI FA FREGA ─────────────────────────────────────────────────────
+      case 'non_ti_fa_frega': {
+        if (!myChar) { emitChat(`❌ NON TI FA FREGA: Nessun personaggio in campo.`); break; }
+        (myChar as any).noAbsorbImmune = true;
+        emitChat(`🛡️ NON TI FA FREGA! ${myChar.name || playerName}: immune a Parassita, Fregatura e Assorbimento!`);
+        emitState(); break;
+      }
+
+      // ─── REPLAY ──────────────────────────────────────────────────────────────
+      case 'replay': {
+        const snapshot = (game as any).lastTurnSnapshot;
+        if (!snapshot) { emitChat(`⏪ REPLAY: Nessun turno precedente registrato.`); break; }
+        // Restore field and player hands from snapshot
+        game.field = JSON.parse(JSON.stringify(snapshot.field));
+        for (const pName of Object.keys(snapshot.hands)) {
+          if (game.players[pName]) game.players[pName].hand = JSON.parse(JSON.stringify(snapshot.hands[pName]));
+        }
+        emitChat(`⏪ REPLAY! ${playerName} ha ripristinato il campo com'era all'inizio dell'ultimo turno!`);
+        emitState(); break;
+      }
+
+      // ─── PROVINO PER LA JUVE ─────────────────────────────────────────────────
+      case 'provino_per_la_juve': {
+        if (!myChar) { emitChat(`❌ PROVINO PER LA JUVE: Nessun personaggio in campo.`); break; }
+        (myChar as any).doubleNextAttack = true;
+        emitChat(`⚽ PROVINO PER LA JUVE! ${myChar.name || playerName}: il prossimo attacco infliggerà il DOPPIO dei danni!`);
+        emitState(); break;
+      }
+
+      // ─── SPIN-TA IMPULSIVA ────────────────────────────────────────────────────
+      case 'spin_ta_impulsiva': {
+        if (!myChar) { emitChat(`❌ SPIN-TA IMPULSIVA: Nessun personaggio in campo.`); break; }
+        (myChar as any).spinTaImpulsiva = true;
+        emitChat(`💥 SPIN-TA IMPULSIVA! ${myChar.name || playerName}: effetto passivo attivo — appena scende sotto i 100 PTI riceverà +200 PTI e +5 stelle!`);
+        emitState(); break;
+      }
+
+      // ─── PESCA MIRACOLOSA ─────────────────────────────────────────────────────
+      case 'pesca_miracolosa': {
+        const drawnPM: { card: Card; deckType: string }[] = [];
+        for (const dtPM of ['bonus', 'mosse', 'personaggi'] as const) {
+          const deckPM = game.decks?.[dtPM];
+          if (deckPM && deckPM.length > 0) {
+            const drawnCard = deckPM.pop()!;
+            drawnCard.owner = playerName;
+            drawnPM.push({ card: drawnCard, deckType: dtPM });
+          }
+        }
+        if (drawnPM.length === 0) { emitChat(`🎣 PESCA MIRACOLOSA: Nessuna carta disponibile nei mazzi.`); break; }
+        if (isCPU) {
+          const keepPM = drawnPM[Math.floor(Math.random() * drawnPM.length)];
+          game.players[playerName].hand.push(keepPM.card);
+          for (const { card: cPM, deckType: dtPM } of drawnPM) {
+            if (cPM.id !== keepPM.card.id) game.decks[dtPM as keyof GameState['decks']].push(cPM);
+          }
+          // Remove one card of the same type as the kept card from player's hand
+          const sameTypeCards = game.players[playerName].hand.filter((c: Card) => c.type === keepPM.card.type && c.id !== keepPM.card.id);
+          if (sameTypeCards.length > 0) {
+            const idx = game.players[playerName].hand.findIndex((c: Card) => c.id === sameTypeCards[0].id);
+            if (idx !== -1) {
+              const returnedCard = game.players[playerName].hand.splice(idx, 1)[0];
+              game.decks[keepPM.deckType as keyof GameState['decks']].push(returnedCard);
+            }
+          }
+          emitChat(`🎣 PESCA MIRACOLOSA! ${playerName} tiene ${keepPM.card.name || keepPM.card.type}!`);
+          emitState(); break;
+        }
+        const cIdPM = `pesca-miracolosa-${Date.now()}`;
+        const psIdPM = (game.players[playerName] as any)?.socketId;
+        (game as any).pendingPescaMiracolosa = { choiceId: cIdPM, playerName, drawn: drawnPM };
+        if (psIdPM && io) {
+          io.to(psIdPM).emit('show-choice-panel', {
+            choiceId: cIdPM,
+            title: '🎣 PESCA MIRACOLOSA',
+            message: 'Hai pescato 1 carta da ogni mazzo. Scegli quale tenere:',
+            options: drawnPM.map(({ card: cPM, deckType: dtPM }) => ({ value: cPM.id, label: `[${dtPM.toUpperCase()}] ${cPM.name || cPM.type}` })),
+            timestamp: Date.now()
+          });
+        }
+        emitChat(`🎣 PESCA MIRACOLOSA! ${playerName} ha pescato ${drawnPM.length} carte — sceglie quale tenere...`);
+        emitState(); break;
+      }
+
+      // ─── PALIO DELLE MINKIARDS ────────────────────────────────────────────────
+      case 'palio_delle_minkiards': {
+        const paliScores: Record<string, number> = {};
+        const allPaliPlayers = Object.keys(game.players);
+        // Count available (non-dead) characters per player
+        for (const pP of allPaliPlayers) {
+          const alivePP = game.players[pP].hand.filter((c: Card) => (c.type === 'personaggi' || c.type === 'personaggi_speciali')).length;
+          const onFieldPP = game.field.filter((c: Card) => c.owner === pP && (c.type === 'personaggi' || c.type === 'personaggi_speciali')).length;
+          paliScores[pP] = (alivePP + onFieldPP) * 100;
+        }
+        // +100 for player with strongest char on field
+        let maxPtiPalio = -1; let strongestOwnerPalio = '';
+        for (const fc of game.field) {
+          if ((fc.type === 'personaggi' || fc.type === 'personaggi_speciali') && (fc.pti || 0) > maxPtiPalio) {
+            maxPtiPalio = fc.pti || 0; strongestOwnerPalio = fc.owner || '';
+          }
+        }
+        if (strongestOwnerPalio) paliScores[strongestOwnerPalio] = (paliScores[strongestOwnerPalio] || 0) + 100;
+        // Add rankiard points
+        for (const pP of allPaliPlayers) {
+          paliScores[pP] = (paliScores[pP] || 0) + (game.players[pP].rankiardPoints || 0);
+        }
+        const winnerPalio = Object.entries(paliScores).sort((a, b) => b[1] - a[1])[0];
+        const winnerNamePalio = winnerPalio?.[0] || playerName;
+        const winnerCharPalio = this.getPlayerActiveCharacter(game, winnerNamePalio);
+        if (winnerCharPalio) {
+          winnerCharPalio.pti = (winnerCharPalio.pti || 0) * 2;
+          winnerCharPalio.stars = Math.min(10, (winnerCharPalio.stars || 0) + 2);
+          this.updateCardTextWithPTI(winnerCharPalio);
+        }
+        const scoreStr = Object.entries(paliScores).map(([p, s]) => `${p}: ${s}`).join(', ');
+        emitChat(`🏆 PALIO DELLE MINKIARDS! Punteggi: ${scoreStr}. VINCITORE: ${winnerNamePalio} (${winnerPalio?.[1]} punti)! Il suo personaggio si trasforma: PTI raddoppiati e +2 stelle!`);
+        emitState(); break;
+      }
+
+      // ─── MINKIARD N. 100 ─────────────────────────────────────────────────────
+      case 'minkiard_n_100': {
+        if (!myChar) { emitChat(`❌ MINKIARD N. 100: Nessun personaggio in campo.`); break; }
+        if (isCPU) {
+          // CPU: 50% chance 3000 PTI, 50% chance 4 stars
+          if (Math.random() < 0.5) {
+            myChar.pti = 3000; this.updateCardTextWithPTI(myChar);
+            emitChat(`💯 MINKIARD N. 100! ${myChar.name || playerName} → 3000 PTI!`);
+          } else {
+            myChar.stars = 4; this.updateCardTextWithPTI(myChar);
+            emitChat(`💯 MINKIARD N. 100! ${myChar.name || playerName} → 4 stelle!`);
+          }
+          emitState(); break;
+        }
+        const cIdM100 = `minkiard100-${Date.now()}`;
+        const psIdM100 = (game.players[playerName] as any)?.socketId;
+        (game as any).pendingMinkiard100 = { choiceId: cIdM100, playerName };
+        if (psIdM100 && io) {
+          io.to(psIdM100).emit('show-choice-panel', {
+            choiceId: cIdM100,
+            title: '💯 MINKIARD N. 100',
+            message: `Scegli il potenziamento per ${myChar.name || playerName}:`,
+            options: [
+              { value: '3000pti', label: '📈 Porta il personaggio a 3000 PTI' },
+              { value: '4stelle', label: '⭐ Porta il personaggio a 4 stelle' }
+            ],
+            timestamp: Date.now()
+          });
+        }
+        emitChat(`💯 MINKIARD N. 100! ${playerName} sceglie il potenziamento...`);
+        emitState(); break;
+      }
+
+      // ─── MINKIARD N. 400 ─────────────────────────────────────────────────────
+      case 'minkiard_n_400': {
+        (game.players[playerName] as any).extraLives = ((game.players[playerName] as any).extraLives || 0) + 1;
+        emitChat(`❤️ MINKIARD N. 400! ${playerName} guadagna una vita extra: può perdere un personaggio in più prima di essere eliminato!`);
+        emitState(); break;
+      }
+
+      // ─── MINKIARD N. 500 ─────────────────────────────────────────────────────
+      case 'minkiard_n_500': {
+        (game.players[playerName] as any).doubleDrawActive = true;
+        emitChat(`🃏 MINKIARD N. 500! ${playerName}: da ora ogni pesca dai mazzi vale doppio (peschi 2 carte invece di 1)!`);
+        emitState(); break;
+      }
+
+      // ─── VITELLO D'ORO ────────────────────────────────────────────────────────
+      case 'vitello_d_oro': {
+        if (!myChar) { emitChat(`🐂 VITELLO D'ORO: Nessun personaggio in campo.`); break; }
+        if (isCPU) {
+          // CPU: convert 150 PTI → 3 stars
+          const convertPTI = Math.min(150, Math.floor((myChar.pti || 0) / 50) * 50);
+          const starsGained = convertPTI / 50;
+          myChar.pti = (myChar.pti || 0) - convertPTI;
+          myChar.stars = (myChar.stars || 0) + starsGained;
+          (myChar as any).vitelloTimer = 5;
+          this.updateCardTextWithPTI(myChar);
+          emitChat(`🐂 VITELLO D'ORO! ${myChar.name || playerName}: -${convertPTI} PTI, +${starsGained} stelle, muore tra 5 turni!`);
+          emitState(); break;
+        }
+        const cIdVO = `vitello-doro-${Date.now()}`;
+        const psIdVO = (game.players[playerName] as any)?.socketId;
+        const maxConvertiblePTI = Math.floor((myChar.pti || 0) / 50) * 50;
+        (game as any).pendingVitelloDoro = { choiceId: cIdVO, playerName, maxPTI: maxConvertiblePTI };
+        if (psIdVO && io) {
+          io.to(psIdVO).emit('show-choice-panel', {
+            choiceId: cIdVO,
+            title: '🐂 VITELLO D\'ORO',
+            message: `${myChar.name || playerName} ha ${myChar.pti} PTI. Ogni 50 PTI = 1 stella (il personaggio muore dopo 5 turni). Quanti PTI vuoi convertire?`,
+            options: Array.from({ length: Math.min(10, Math.floor((myChar.pti || 0) / 50)) }, (_, i) => ({
+              value: String((i + 1) * 50),
+              label: `${(i + 1) * 50} PTI → ${i + 1} stella${i + 1 > 1 ? 'e' : ''}`
+            })),
+            timestamp: Date.now()
+          });
+        }
+        emitChat(`🐂 VITELLO D'ORO! ${playerName} sceglie quanti PTI convertire in stelle...`);
         emitState(); break;
       }
 
@@ -13236,6 +13486,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
+    // ── PROVINO PER LA JUVE (doubleNextAttack) ────────────────────────────────
+    const attackerCharDNA = this.getPlayerActiveCharacter(game, attackerName);
+    if (attackerCharDNA && (attackerCharDNA as any).doubleNextAttack) {
+      damageValue = damageValue * 2;
+      delete (attackerCharDNA as any).doubleNextAttack;
+      const ioDNA = (global as any).io;
+      if (ioDNA) ioDNA.to(gameId).emit('chat-message', { id: `${Date.now()}-provino-double`, playerName: 'Sistema', message: `⚽ PROVINO PER LA JUVE! ${attackerCharDNA.name || attackerName} attacca con il DOPPIO della potenza! (${damageValue} PTI)`, timestamp: Date.now() });
+    }
+
     // BUD SPENCER: first time attacked → TERENCE HILL enters field from owner's hand/deck
     if (!isHandTarget && targetCard && (targetCard.frontImage || '').toLowerCase().includes('bud-spencer') && !(targetCard as any).firstAttackReceived) {
       (targetCard as any).firstAttackReceived = true;
@@ -15164,6 +15423,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return { success: false, message: 'Cannot attach to your own characters' };
     }
 
+    // NON TI FA FREGA: target is immune to absorb effects
+    if ((targetCard as any).noAbsorbImmune) {
+      const ioNTFF = (global as any).io;
+      if (ioNTFF) ioNTFF.to(gameId).emit('chat-message', { id: `${Date.now()}-ntff-block`, playerName: 'Sistema', message: `🛡️ NON TI FA FREGA! ${targetCard.name || targetCard.owner} è immune a ${parasiticType}! Attacco bloccato!`, timestamp: Date.now() });
+      return { success: false, message: 'NON TI FA FREGA: target is immune to absorb effects' };
+    }
+
     // Store original field position for returning later
     const originalPosition = game.field.findIndex(c => c.id === parasiticCardId);
 
@@ -16985,7 +17251,25 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const playerModifier = game.playerDeathModifiers.get(cardOwner) || 0;
         const effectiveLimit = Math.max(1, baseLimit + playerModifier); // Minimum 1 death required
         if (graveyardCount >= effectiveLimit && !game.eliminatedPlayers.has(cardOwner)) {
-          eliminationCheck = true;
+          // ── MINKIARD N. 400: extraLives — consume one extra life instead of eliminating ──
+          const extraLivesEL = (game.players[cardOwner] as any)?.extraLives || 0;
+          if (extraLivesEL > 0) {
+            (game.players[cardOwner] as any).extraLives = extraLivesEL - 1;
+            // Restore the just-dead character back to the player's hand with 500 PTI
+            const restoredCard = game.graveyard.find((gc: Card) => gc.id === card.id);
+            if (restoredCard) {
+              game.graveyard.splice(game.graveyard.indexOf(restoredCard), 1);
+              restoredCard.pti = 500;
+              restoredCard.stars = 0;
+              this.updateCardTextWithPTI(restoredCard);
+              game.players[cardOwner].hand.push(restoredCard);
+            }
+            const ioEL = (global as any).io;
+            if (ioEL) ioEL.to(gameId).emit('chat-message', { id: `${Date.now()}-extralives`, playerName: 'Sistema', message: `❤️ MINKIARD N. 400! ${cardOwner} usa una vita extra! Il personaggio torna in vita con 500 PTI! (${extraLivesEL - 1} vite extra rimanenti)`, timestamp: Date.now() });
+            console.log(`❤️ EXTRA LIFE: ${cardOwner} consumed extra life (${extraLivesEL} → ${extraLivesEL - 1})`);
+          } else {
+            eliminationCheck = true;
+          }
         }
       }
 
@@ -23111,6 +23395,41 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
+    // ── VITELLO D'ORO: decrement death timer ─────────────────────────────────────
+    for (const fc of (gameState.field || [])) {
+      if ((fc as any).vitelloTimer !== undefined && fc.owner === playerName) {
+        (fc as any).vitelloTimer--;
+        if ((fc as any).vitelloTimer <= 0) {
+          const ioVO = (global as any).io;
+          if (ioVO) ioVO.to(gameId).emit('chat-message', { id: `${Date.now()}-vitello-death`, playerName: 'Sistema', message: `🐂 VITELLO D'ORO: ${fc.name || fc.owner} muore per il patto con il vitello d'oro!`, timestamp: Date.now() });
+          setTimeout(() => { this.killAndCheck(gameId, fc.id, fc.owner || playerName, 'VITELLO_DORO'); }, 100);
+        }
+      }
+    }
+
+    // ── DOPING: decrement and apply penalty ──────────────────────────────────────
+    for (const fc of (gameState.field || [])) {
+      if ((fc as any).dopingTurnsLeft !== undefined && fc.owner === playerName) {
+        (fc as any).dopingTurnsLeft--;
+        if ((fc as any).dopingTurnsLeft <= 0) {
+          fc.pti = Math.max(0, (fc.pti || 0) - 50);
+          this.updateCardTextWithPTI(fc);
+          delete (fc as any).dopingTurnsLeft;
+          const ioDop = (global as any).io;
+          if (ioDop) ioDop.to(gameId).emit('chat-message', { id: `${Date.now()}-doping-penalty`, playerName: 'Sistema', message: `💊 DOPING: ${fc.name || fc.owner} perde 50 PTI per l'effetto del doping!`, timestamp: Date.now() });
+        }
+      }
+    }
+
+    // ── TURN SNAPSHOT for REPLAY ─────────────────────────────────────────────────
+    // Save snapshot of field + hands at end of this player's turn
+    try {
+      (gameState as any).lastTurnSnapshot = {
+        field: JSON.parse(JSON.stringify(gameState.field || [])),
+        hands: Object.fromEntries(Object.entries(gameState.players).map(([pn, pl]) => [pn, JSON.parse(JSON.stringify((pl as any).hand || []))]))
+      };
+    } catch (e) { /* snapshot save failed silently */ }
+
     // GIANNI GIGANTI: decrement blocked turns (only on owner's own turn-end)
     if (gameState.field) {
       const ioGG = (global as any).io;
@@ -28294,7 +28613,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     // PRESERVE: Calculate new PTI after damage (using effective damage after shield)
     // If instant death effect, set newPTI to 0
-    const newPTI = forceInstantDeath ? 0 : Math.max(0, currentPTI - effectiveDamage);
+    let newPTI = forceInstantDeath ? 0 : Math.max(0, currentPTI - effectiveDamage);
+
+    // ── SPIN-TA IMPULSIVA: if PTI drops below 100, add 200 PTI and 5 stars ──────
+    if (!forceInstantDeath && newPTI > 0 && newPTI < 100 && currentPTI >= 100 && (targetCard as any).spinTaImpulsiva) {
+      newPTI += 200;
+      targetCard.stars = (targetCard.stars || 0) + 5;
+      this.updateCardTextWithPTI(targetCard);
+      delete (targetCard as any).spinTaImpulsiva; // One-time trigger
+      const ioST = (global as any).io;
+      if (ioST) ioST.to(gameId).emit('chat-message', { id: `${Date.now()}-spinta-trigger`, playerName: 'Sistema', message: `💥 SPIN-TA IMPULSIVA! ${targetCard.name || targetOwner} è sceso sotto i 100 PTI — automaticamente +200 PTI e +5 stelle!`, timestamp: Date.now() });
+      console.log(`💥 SPIN-TA IMPULSIVA triggered for ${targetCard.name}: ${currentPTI} → ${newPTI} PTI, stars +5`);
+    }
 
     // DRAIN ON ATTACK (Fregatura / Assorbimento): add damage dealt to attacker's PTI
     if (mosseEffect === 'drain_on_attack' && !isVoodooReflection) {
