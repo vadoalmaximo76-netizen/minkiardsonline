@@ -320,7 +320,32 @@ export function registerAuthRoutes(app: Express) {
           });
         } catch (dbError) {
           console.error("Database error during login, trying fallback:", dbError);
-          
+
+          // ── Auto-retry with fallback DB on 402 quota exceeded ───────────────
+          if (is402(dbError)) {
+            const switched = switchToFallback();
+            if (switched) {
+              try {
+                let [retryUser] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+                if (retryUser) {
+                  if (!retryUser.password) {
+                    return res.status(401).json({ error: "Questo account usa Google per accedere" });
+                  }
+                  const validPwd = await bcrypt.compare(password, retryUser.password);
+                  if (!validPwd) return res.status(401).json({ error: "Email o password non corretti" });
+                  const token = generateToken(retryUser.id, retryUser.email);
+                  return res.json({
+                    success: true, token,
+                    user: { id: retryUser.id, username: retryUser.username, email: retryUser.email, avatar: retryUser.avatar, puntiRankiard: retryUser.puntiRankiard }
+                  });
+                }
+                // User not found in fallback DB — fall through to ADMIN_FALLBACK / 503
+              } catch (retryErr) {
+                console.error("Login retry with fallback DB also failed:", retryErr);
+              }
+            }
+          }
+
           if (email === ADMIN_FALLBACK.email && process.env.ADMIN_FALLBACK_PASSWORD) {
             if (password === process.env.ADMIN_FALLBACK_PASSWORD) {
               const token = generateToken(ADMIN_FALLBACK.id, ADMIN_FALLBACK.email);
