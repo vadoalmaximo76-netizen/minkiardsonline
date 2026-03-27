@@ -4364,8 +4364,7 @@ Rispondi SOLO in JSON:`;
       
       // Detect known card effects by name when effect text is missing
       const cardNameLower = (card.name || this.getCardNameFromUrl(card.frontImage || '')).toLowerCase().trim();
-      if (!effectText) {
-        const knownNameEffects: Record<string, string> = {
+      const knownNameEffects: Record<string, string> = {
           'asta': "Parte un'asta tra i partecipanti per un personaggio dal mazzo usando punti Rankiard",
           'medicina': "[CUSTOM:medicina] +30 PTI al tuo personaggio, oppure annulla Virus e Influenza se presenti",
           'spinaci': "[CUSTOM:spinaci] +30 PTI al tuo personaggio; +2 stelle se lo usa Popeye",
@@ -4471,6 +4470,7 @@ Rispondi SOLO in JSON:`;
           'vous tra vous': "[CUSTOM:vous_tra_vous] Pannello: scegli due personaggi avversari di partecipanti diversi e falli combattere in duello finché uno dei due non muore",
           'z ammonta': "[CUSTOM:z_ammonta] Tutte le carte in campo e in mano tornano nei rispettivi mazzi; i mazzi vengono mischiati e ogni giocatore ripesca le carte (i CPU ripescano automaticamente almeno 1 carta per tipo)",
         };
+      if (!effectText) {
         if (knownNameEffects[cardNameLower]) {
           effectText = knownNameEffects[cardNameLower];
           card.effect = effectText;
@@ -4478,6 +4478,11 @@ Rispondi SOLO in JSON:`;
         } else if (card.type === 'bonus') {
           console.log(`⚠️ BONUS card "${cardNameLower}" (${card.id}) has no effect configured - consider adding via wizard`);
         }
+      } else if (!effectText.includes('[CUSTOM:') && knownNameEffects[cardNameLower]) {
+        // effect is set but has no [CUSTOM:] tag — override with the known-name routing entry
+        effectText = knownNameEffects[cardNameLower];
+        card.effect = effectText;
+        console.log(`🔍 Name-based effect overriding generic effect for "${cardNameLower}": "${effectText.substring(0, 80)}..."`);
       }
       
       const combinedEffect = effectText || textContent;
@@ -7864,7 +7869,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── STAT BOOSTS ────────────────────────────────────────────────────────
       case 'medicina': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ MEDICINA: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         const virusEffects = (game.timedEffects || []).filter((e: any) => /virus|influenza/i.test(e.description || ''));
         if (virusEffects.length > 0) {
           game.timedEffects = (game.timedEffects || []).filter((e: any) => !/virus|influenza/i.test(e.description || ''));
@@ -7878,7 +7883,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'fiaschetta': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ FIASCHETTA: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         myChar.pti = (myChar.pti || 0) + 30;
         this.updateCardTextWithPTI(myChar);
         const isCannuccia = /cannuccia/i.test(myCharName);
@@ -7895,7 +7900,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'spinaci': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ SPINACI: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         myChar.pti = (myChar.pti || 0) + 30;
         this.updateCardTextWithPTI(myChar);
         const isPopeye = /popeye/i.test(myCharName);
@@ -7905,7 +7910,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'stipendio': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ STIPENDIO: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         const isNeymar = /neymar/i.test(myCharName);
         const ptiPerTurn = isNeymar ? 400 : 10;
         if (!game.timedEffects) game.timedEffects = [];
@@ -7919,7 +7924,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'peluria_di_holly': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ PELURIA DI HOLLY: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         const isHolly = /holly/i.test(myCharName);
         const pti = isHolly ? 70 : 50;
         myChar.pti = (myChar.pti || 0) + pti;
@@ -7929,7 +7934,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'munnezza': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ MUNNEZZA: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         const isNapoletano = /napoletano/i.test(myCharName);
         const ptiM = isNapoletano ? 500 : 10;
         myChar.pti = (myChar.pti || 0) + ptiM;
@@ -7939,7 +7944,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'musica_ganza': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ MUSICA GANZA: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         const isMusicArtist = /psy|one.?direction|michele.?tel[oò]|justin.?biberon|cacca/i.test(myCharName);
         myChar.pti = (myChar.pti || 0) + 10;
         this.updateCardTextWithPTI(myChar);
@@ -7949,7 +7954,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'modalit_kamikaze': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ MODALITÀ KAMIKAZE: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         const isNeuer = /n[\s\-]*e[\s\-]*u[\s\-]*e[\s\-]*r|neuer/i.test(myCharName);
         const ptiK = isNeuer ? 150 : 70;
         myChar.pti = (myChar.pti || 0) + ptiK;
@@ -7959,7 +7964,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'modalit_truzzo': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ MODALITÀ TRUZZO: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         const isMicheleTelo = /michele.?tel[oò]/i.test(myCharName);
         const ptiT = isMicheleTelo ? 300 : 10;
         myChar.pti = (myChar.pti || 0) + ptiT;
@@ -7969,7 +7974,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'modalit_m_mondo': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ MODALITÀ M'MONDO: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         const isTonyTammaro = /tony.?tammaro/i.test(myCharName);
         const ptiMM = isTonyTammaro ? 100 : 50;
         myChar.pti = (myChar.pti || 0) + ptiMM;
@@ -7979,21 +7984,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'modalit_fenomeno': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ MODALITÀ FENOMENO: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         myChar.stars = (myChar.stars || 0) + 2;
         emitChat(`⭐⭐ MODALITÀ FENOMENO! ${myChar.name || playerName} +2 stelle! (Stelle: ${myChar.stars})`);
         emitState(); break;
       }
 
       case 'modalita_fighetto': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ MODALITÀ FIGHETTO: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         myChar.stars = (myChar.stars || 0) + 1;
         emitChat(`💅 MODALITÀ FIGHETTO! ${myChar.name || playerName} +1 stella! (Stelle: ${myChar.stars})`);
         emitState(); break;
       }
 
       case 'scudo_stealth': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ SCUDO: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         (myChar as any).stealth = true;
         (myChar as any).stealthTurnsLeft = 1;
         if (!game.timedEffects) game.timedEffects = [];
@@ -8008,7 +8013,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── DOPING ─────────────────────────────────────────────────────────────
       case 'doping': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ DOPING: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         myChar.pti = (myChar.pti || 0) + 100;
         this.updateCardTextWithPTI(myChar);
         if (!game.timedEffects) game.timedEffects = [];
@@ -8023,7 +8028,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── NIRDOSH ────────────────────────────────────────────────────────────
       case 'nirdosh': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ NIRDOSH: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         myChar.stars = (myChar.stars || 0) + 100;
         if (!game.timedEffects) game.timedEffects = [];
         game.timedEffects.push({
@@ -8064,7 +8069,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── RESPINTA ────────────────────────────────────────────────────────────
       case 'respinta': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ RESPINTA: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         const enemiesR = game.turnOrder.filter((p: string) => p !== playerName);
         if (isCPU || enemiesR.length === 1) {
           const targetR = enemiesR[Math.floor(Math.random() * enemiesR.length)];
@@ -8222,7 +8227,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── SDOPPIAMENTO ───────────────────────────────────────────────────────
       case 'sdoppiamento': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ SDOPPIAMENTO: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         myChar.pti = 1;
         this.updateCardTextWithPTI(myChar);
         const enemiesSD = game.field.filter((c: Card) =>
@@ -8409,7 +8414,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── TI PORTO VIA CON ME ────────────────────────────────────────────────
       case 'ti_porto_via': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ TI PORTO VIA: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         (myChar as any).tiPortoViaMorendo = true;
         emitChat(`💀 TI PORTO VIA! Se ${myChar.name || playerName} muore, fa morire anche il personaggio che lo ha ucciso!`);
         emitState(); break;
@@ -8417,7 +8422,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── SLOT MACHINE ────────────────────────────────────────────────────────
       case 'slot_machine': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ SLOT MACHINE: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         myChar.pti = Math.max(0, (myChar.pti || 0) - 10);
         this.updateCardTextWithPTI(myChar);
         const rollsSM: number[] = [];
@@ -8435,7 +8440,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── RUOSS E FESSA ───────────────────────────────────────────────────────
       case 'ruoss_e_fessa': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ RUOSS E FESSA: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         if (isCPU) {
           myChar.pti = 5000; myChar.stars = 3;
           (myChar as any).ruossEFessa = true;
@@ -8953,7 +8958,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── SCEE ────────────────────────────────────────────────────────────────
       case 'scee': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ SCEE: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         myChar.pti = (myChar.pti || 0) + 10;
         this.updateCardTextWithPTI(myChar);
         emitChat(`🎯 SCEE! ${myChar.name || playerName} +10 PTI (PTI: ${myChar.pti})`);
@@ -8962,7 +8967,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── BALENA ──────────────────────────────────────────────────────────────
       case 'balena': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ BALENA: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         const isBear = /bear/i.test(myCharName);
         const ptiBalena = isBear ? 50 : 20;
         myChar.pti = (myChar.pti || 0) + ptiBalena;
@@ -8973,7 +8978,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── COCCO MELONE ─────────────────────────────────────────────────────────
       case 'cocco_melone': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ COCCO MELONE: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         const isNapoletanoCM = /napoletano/i.test(myCharName);
         const ptiCM = isNapoletanoCM ? 100 : 40;
         myChar.pti = (myChar.pti || 0) + ptiCM;
@@ -8984,7 +8989,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── RUSC ─────────────────────────────────────────────────────────────────
       case 'rusc': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ RUSC: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         myChar.pti = (myChar.pti || 0) + 10;
         this.updateCardTextWithPTI(myChar);
         const isMontaquilano = /montaquilano/i.test(myCharName);
@@ -9015,7 +9020,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── TU MI LASCI CADERE ───────────────────────────────────────────────────
       case 'tu_mi_lasci_cadere': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ TU MI LASCI CADERE: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         myChar.stars = 0;
         // Mark the character with a permanent per-turn star gain flag (processed in endTurn)
         (myChar as any).starPerTurnBonus = ((myChar as any).starPerTurnBonus || 0) + 1;
@@ -9065,7 +9070,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // The game engine has no true "play during another player's turn" mechanism; pre-arming flags
       // before the attack is the standard reaction pattern for all defensive bonus cards.
       case 'p_na_ntecchia': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ P NA NTECCHIA: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         (myChar as any).salvavita = true;
         emitChat(`🛟 P NA NTECCHIA! ${myChar.name || playerName}: se un attacco lo uccide, si salva rimanendo a 5 PTI!`);
         emitState(); break;
@@ -9216,7 +9221,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // to the defender (stars ≥ 1 eligibility is checked at donation time in routes.ts).
       // The flag is consumed on first use (single-activation reaction).
       case 'oooooh_che_t_ritt': {
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ OOOOOH CHE T RITT: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         (myChar as any).oooohCheTRitt = true;
         emitChat(`🤲 OOOOOH CHE T RITT! ${myChar.name || playerName}: quando un avversario attacca un altro giocatore, potrai dargli una mossa dalla tua mano (deve avere almeno 1 stella)!`);
         emitState(); break;
@@ -11259,7 +11264,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       case 'copy_power': {
         const myChar = this.getPlayerActiveCharacter(game, playerName);
-        if (!myChar) break;
+        if (!myChar) { emitChat(`⚠️ COPY POWER: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         const otherChars = game.field.filter((c: Card) =>
           c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
         );
