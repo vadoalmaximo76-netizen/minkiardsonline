@@ -17876,7 +17876,29 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           
           // Track elimination for missions/achievements (fire-and-forget)
           this.trackPlayerEvent(gameId, attacker, 'elimination', {}).catch(() => {});
-          
+
+          // ── MORS TUA VITA MEA: fires on every kill ────────────────────────────
+          // "Quando uccidi il prossimo personaggio avversario, invece di togliere
+          //  una vita a lui ne aggiungi una a te."
+          // Attacker gains +1 extraLives; defender's effective death limit is
+          // raised by 1 so this particular death does not advance them toward
+          // elimination.
+          if (attacker !== cardOwner && (game as any).morstuaVitaMea?.[attacker]) {
+            delete (game as any).morstuaVitaMea[attacker];
+            (game.players[attacker] as any).extraLives = ((game.players[attacker] as any).extraLives || 0) + 1;
+            const currentMod = game.playerDeathModifiers.get(cardOwner) || 0;
+            game.playerDeathModifiers.set(cardOwner, currentMod + 1);
+            const ioMTV = (global as any).io;
+            const cardNameMTV = card.name || this.getCardNameFromUrl(card.frontImage || '');
+            if (ioMTV) ioMTV.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-mors-tua`, playerName: 'Sistema',
+              message: `☠️ MORS TUA VITA MEA! ${attacker} ha ucciso ${cardNameMTV} di ${cardOwner}: ${cardOwner} non perde la vita, ma ${attacker} guadagna una vita extra!`,
+              timestamp: Date.now()
+            });
+            console.log(`☠️ MORS TUA VITA MEA: ${attacker} gained extraLife; ${cardOwner} deathModifier +1 (this kill skipped)`);
+          }
+          // ─────────────────────────────────────────────────────────────────────
+
           // SOROS activation at 6 eliminations
           if (attackerPlayer.eliminationCount === 6 && !sorosActivated) {
             sorosActivated = true;
@@ -17944,19 +17966,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             const ioEL = (global as any).io;
             if (ioEL) ioEL.to(gameId).emit('chat-message', { id: `${Date.now()}-extralives`, playerName: 'Sistema', message: `❤️ MINKIARD N. 400! ${cardOwner} usa una vita extra! Il personaggio torna in vita con 500 PTI! (${extraLivesEL - 1} vite extra rimanenti)`, timestamp: Date.now() });
             console.log(`❤️ EXTRA LIFE: ${cardOwner} consumed extra life (${extraLivesEL} → ${extraLivesEL - 1})`);
-          } else if (attacker && attacker !== cardOwner && (game as any).morstuaVitaMea?.[attacker]) {
-            // ── MORS TUA VITA MEA: attacker gains a life; defender does NOT lose one this kill ──
-            delete (game as any).morstuaVitaMea[attacker];
-            (game.players[attacker] as any).extraLives = ((game.players[attacker] as any).extraLives || 0) + 1;
-            const ioMTV = (global as any).io;
-            const cardNameMTV = card.name || this.getCardNameFromUrl(card.frontImage || '');
-            if (ioMTV) ioMTV.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-mors-tua`, playerName: 'Sistema',
-              message: `☠️ MORS TUA VITA MEA! ${attacker} ha ucciso ${cardNameMTV} di ${cardOwner}: ${cardOwner} non perde la vita, ma ${attacker} guadagna una vita extra!`,
-              timestamp: Date.now()
-            });
-            console.log(`☠️ MORS TUA VITA MEA: ${attacker} gained extraLife instead of ${cardOwner} losing one`);
-            // eliminationCheck stays false — defender is NOT eliminated for this kill
           } else {
             eliminationCheck = true;
           }
