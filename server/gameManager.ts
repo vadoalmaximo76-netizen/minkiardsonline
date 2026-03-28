@@ -19614,6 +19614,45 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
         }, 8000);
 
+        // ── CPU STAKU AUTO-ACTIVATION ─────────────────────────────────────
+        // If the STAKU owner is a CPU player, decide automatically based on
+        // difficulty without waiting for the 8-second human timer.
+        if (this.isPlayerCPU(gameId, targetOwner)) {
+          const cpuInstance = game.players[targetOwner]?.cpuInstance;
+          const cpuLevel = cpuInstance ? cpuInstance.getLevel() : 'medium';
+
+          // Easy: never activate STAKU (let the timer expire naturally)
+          if (cpuLevel === 'easy') {
+            console.log(`🃏 STAKU CPU [easy] ${targetOwner}: letting timer expire, STAKU not used`);
+          } else {
+            // Medium: only activate if a redirect target (caster's char) exists on field
+            // Hard: always activate
+            const casterCharsExist = game.field.some((c: Card) =>
+              (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+              c.owner === playerName
+            );
+
+            const shouldActivate = cpuLevel === 'hard' || (cpuLevel === 'medium' && casterCharsExist);
+
+            if (shouldActivate) {
+              const delay = 600 + Math.floor(Math.random() * 301); // 600–900ms
+              const capturedStakuOwner = targetOwner;
+              console.log(`🃏 STAKU CPU [${cpuLevel}] ${capturedStakuOwner}: will activate in ${delay}ms`);
+              setTimeout(async () => {
+                const freshGame = this.games.get(gameId);
+                if (!freshGame) return;
+                if ((freshGame as any).pendingStaku?.selectionId === capturedSelId) {
+                  const ioFresh = (global as any).io || io;
+                  await this.processStakuActivation(gameId, capturedStakuOwner, ioFresh);
+                }
+              }, delay);
+            } else {
+              console.log(`🃏 STAKU CPU [medium] ${targetOwner}: no redirect target, letting timer expire`);
+            }
+          }
+        }
+        // ─────────────────────────────────────────────────────────────────
+
         // Return early — wait for staku response or timeout
         return { success: true };
       }
