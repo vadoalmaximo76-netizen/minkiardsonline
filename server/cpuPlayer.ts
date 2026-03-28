@@ -87,6 +87,20 @@ export class CPUPlayer {
   private mood: 'balanced' | 'aggressive' | 'defensive' | 'random' = 'balanced';
   private moodTurnCount = 0;
 
+  // ── PLAYER PROFILING ──────────────────────────────────────────────────────────
+  // Passive observation of human player actions to inform heuristics and LLM context.
+  // Never blocks or alters the existing turn flow; falls back gracefully if empty.
+  private playerProfile: Map<string, {
+    records: Array<{
+      cardType: string;           // 'mosse' | 'bonus' | 'personaggi' | …
+      cardName: string;
+      effectCategory: string;     // 'damage' | 'heal' | 'defense' | 'special'
+      targetType: string;         // 'weakest' | 'strongest' | 'self' | 'none'
+    }>;
+  }> = new Map();
+  private profileChatSentTurns: Set<number> = new Set(); // Avoid sending the same chat twice
+  private totalObservedTurns = 0;
+
   setAttackMode(mode: 'free_for_all' | 'hunt_human') {
     this.attackMode = mode;
   }
@@ -101,6 +115,207 @@ export class CPUPlayer {
 
   getLevel(): 'easy' | 'medium' | 'hard' {
     return this.level;
+  }
+
+  // ── PLAYER PROFILING METHODS ─────────────────────────────────────────────────
+
+  /** Infer effect category from a card object */
+  private inferEffectCategory(card: any): string {
+    const eff = (card.effect || card.notes || card.text || card.name || '').toLowerCase();
+    if (!eff) return 'special';
+    if (/danno|damage|attacc|mosse|kill|morte|kainoken|staku/i.test(eff) || card.type === 'mosse') return 'damage';
+    if (/pti|heal|cure|recuper|riprist/i.test(eff)) return 'heal';
+    if (/scudo|shield|protezione|difesa|defense/i.test(eff)) return 'defense';
+    return 'special';
+  }
+
+  /**
+   * Called externally (from gameManager) when a non-CPU player plays a card.
+   * Builds a passive profile of the human's tactical preferences.
+   */
+  trackHumanAction(
+    humanPlayerName: string,
+    card: any,
+    targetOwner?: string,
+    gameState?: any
+  ): void {
+    try {
+      if (!humanPlayerName || !card) return;
+      if (!this.playerProfile.has(humanPlayerName)) {
+        this.playerProfile.set(humanPlayerName, { records: [] });
+      }
+      const profile = this.playerProfile.get(humanPlayerName)!;
+
+      const cardName = card.name || (card.frontImage ? card.frontImage.split('/').pop()?.replace(/\.[^.]+$/, '') || '' : '');
+      const effectCategory = this.inferEffectCategory(card);
+
+      // Determine target type relative to game state
+      let targetType = 'none';
+      if (targetOwner) {
+        if (targetOwner === humanPlayerName) {
+          targetType = 'self';
+        } else if (gameState) {
+          const enemies = (gameState.field || []).filter((c: any) =>
+            c.owner !== humanPlayerName &&
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          if (enemies.length > 0) {
+            const targetChar = enemies.find((c: any) => c.owner === targetOwner);
+            if (targetChar) {
+              const targetPTI = this.extractPtiFromCard(targetChar);
+              const minPTI = Math.min(...enemies.map((c: any) => this.extractPtiFromCard(c)));
+              const maxPTI = Math.max(...enemies.map((c: any) => this.extractPtiFromCard(c)));
+              if (targetPTI === minPTI && enemies.length > 1) targetType = 'weakest';
+              else if (targetPTI === maxPTI && enemies.length > 1) targetType = 'strongest';
+              else targetType = 'other_enemy';
+            } else {
+              targetType = 'other_enemy';
+            }
+          } else {
+            targetType = 'other_enemy';
+          }
+        } else {
+          targetType = 'other_enemy';
+        }
+      }
+
+      profile.records.push({ cardType: card.type || 'unknown', cardName, effectCategory, targetType });
+      this.totalObservedTurns++;
+
+      console.log(`[CPU-PROFILE] ${this.playerName} → tracking ${humanPlayerName}: ${cardName} (${effectCategory}, target: ${targetType}), total=${this.totalObservedTurns}`);
+    } catch (e) {
+      // Silent: tracking must never crash the game
+    }
+  }
+
+  /** Reset profile at the start of each new game */
+  resetProfile(): void {
+    this.playerProfile.clear();
+    this.profileChatSentTurns.clear();
+    this.totalObservedTurns = 0;
+  }
+
+  /**
+   * Produce a human-readable (LLM-friendly) summary of observed player behaviour.
+   * Returns empty string if data is insufficient (< 3 records).
+   */
+  private buildProfileSummary(): string {
+    if (this.playerProfile.size === 0) return '';
+    const allRecords: Array<{ cardType: string; effectCategory: string; targetType: string }> = [];
+    this.playerProfile.forEach(p => allRecords.push(...p.records));
+    if (allRecords.length < 3) return '';
+
+    const total = allRecords.length;
+    const countCategory = (cat: string) => allRecords.filter(r => r.effectCategory === cat).length;
+    const countTarget = (t: string) => allRecords.filter(r => r.targetType === t).length;
+
+    const damageFreq = Math.round((countCategory('damage') / total) * 100);
+    const healFreq   = Math.round((countCategory('heal') / total) * 100);
+    const defFreq    = Math.round((countCategory('defense') / total) * 100);
+    const weakestFreq   = Math.round((countTarget('weakest') / total) * 100);
+    const strongestFreq = Math.round((countTarget('strongest') / total) * 100);
+
+    const lines: string[] = [];
+    if (damageFreq >= 60) lines.push(`preferisce mosse offensive/danno (${damageFreq}% delle carte giocate)`);
+    else if (damageFreq >= 35) lines.push(`bilancia attacco e supporto`);
+    if (healFreq >= 30) lines.push(`usa frequentemente carte di cura (${healFreq}%)`);
+    if (defFreq >= 30) lines.push(`usa frequentemente carte difensive/scudo (${defFreq}%)`);
+    if (weakestFreq >= 50) lines.push(`tende ad attaccare il bersaglio più debole (${weakestFreq}%)`);
+    else if (strongestFreq >= 40) lines.push(`tende ad attaccare il bersaglio più forte (${strongestFreq}%)`);
+
+    if (lines.length === 0) return '';
+    return `PROFILO TATTICO AVVERSARIO (${total} turni osservati): ${lines.join('; ')}.`;
+  }
+
+  /**
+   * Returns a profile-based heuristic bonus/malus for an effect category.
+   * Used in evaluateCard to nudge the score by ±10-20% of a reference value.
+   * Safe: returns 0 if profile is too thin.
+   */
+  private profileScoreForEffectCategory(effectCategory: string, baseScore: number): number {
+    if (this.totalObservedTurns < 3) return 0;
+    const allRecords: Array<{ effectCategory: string }> = [];
+    this.playerProfile.forEach(p => allRecords.push(...p.records));
+    if (allRecords.length < 3) return 0;
+    const total = allRecords.length;
+    const freq = allRecords.filter(r => r.effectCategory === effectCategory).length / total;
+    // If the human plays many damage cards, the CPU should value defense a bit more
+    if (effectCategory === 'defense' && freq >= 0.5) return Math.round(baseScore * 0.15);
+    // If the human plays many heal cards, the CPU can be slightly more aggressive
+    if (effectCategory === 'damage' && freq >= 0.5) return Math.round(baseScore * 0.10);
+    return 0;
+  }
+
+  /**
+   * Returns a bonus multiplier [0..0.2] for targeting the enemy the human prefers to attack.
+   * Nudges scoreEnemyForTarget toward finishing off the enemy the human leaves alive.
+   */
+  private profileTargetBonus(enemyOwner: string, enemies: any[]): number {
+    if (this.totalObservedTurns < 3 || enemies.length <= 1) return 0;
+    const allRecords: Array<{ targetType: string }> = [];
+    this.playerProfile.forEach(p => allRecords.push(...p.records));
+    if (allRecords.length < 3) return 0;
+    const total = allRecords.length;
+    const weakestFreq = allRecords.filter(r => r.targetType === 'weakest').length / total;
+    if (weakestFreq < 0.5) return 0;
+    // Human prefers weakest → CPU should consider the strongest (human ignores it) or the weakest (easy kill)
+    const ptis = enemies.map((e: any) => ({ owner: e.owner, pti: this.extractPtiFromCard(e) }));
+    const minPTI = Math.min(...ptis.map(p => p.pti));
+    const thisEnemy = ptis.find(p => p.owner === enemyOwner);
+    if (!thisEnemy) return 0;
+    // Give a small bonus to also targeting the weakest (align with kill opportunity)
+    return thisEnemy.pti === minPTI ? 0.12 : 0;
+  }
+
+  /**
+   * Emit a one-off contextual chat message based on the player profile.
+   * Only fires when mood is aggressive/balanced and ≥3 turns observed.
+   * Capped: at most once every 3 observed turns.
+   */
+  private maybeEmitProfileChat(): void {
+    try {
+      if (this.totalObservedTurns < 3) return;
+      if (this.mood === 'defensive') return;
+      // Only every 3 observed turns
+      const bucket = Math.floor(this.totalObservedTurns / 3);
+      if (this.profileChatSentTurns.has(bucket)) return;
+      this.profileChatSentTurns.add(bucket);
+
+      const allRecords: Array<{ effectCategory: string; targetType: string }> = [];
+      this.playerProfile.forEach(p => allRecords.push(...p.records));
+      const total = allRecords.length;
+      if (total < 3) return;
+
+      const damageFreq = allRecords.filter(r => r.effectCategory === 'damage').length / total;
+      const weakestFreq = allRecords.filter(r => r.targetType === 'weakest').length / total;
+
+      const aggressivePhrases = [
+        'Ho studiato le tue mosse. Non mi sorprendi più.',
+        'La tua tattica offensiva è prevedibile. Preparati.',
+        'Attacchi sempre i bersagli più deboli? Strategia da principiante.',
+        'Ho analizzato ogni tuo colpo. Ora sono pronto.',
+      ];
+      const balancedPhrases = [
+        'Interessante approccio. Ma ho capito il tuo stile.',
+        'Ho osservato le tue scelte. Cambierò strategia di conseguenza.',
+        'Imparo dai tuoi movimenti. Stai attento.',
+        'La tua tendenza difensiva non ti salverà.',
+      ];
+
+      let pool: string[];
+      if (damageFreq >= 0.6) {
+        pool = aggressivePhrases;
+      } else if (weakestFreq >= 0.5) {
+        pool = ['Attacchi sempre i più deboli? Aspetti troppo da me.', 'I bersagli facili non dureranno per sempre.'];
+      } else {
+        pool = balancedPhrases;
+      }
+
+      const msg = pool[Math.floor(Math.random() * pool.length)];
+      this.sendChatMessage(msg);
+    } catch (e) {
+      // Silent
+    }
   }
 
   constructor(playerName: string, gameId: string, socketEmitter?: any) {
@@ -337,16 +552,26 @@ export class CPUPlayer {
       const { damage, specialEffect } = this.getMosseEffectiveDamage(card, attackerStars);
       if (specialEffect === 'morte_istantanea') return 1000000;
       if (specialEffect === 'dimezza_pti') return 500000;
-      return damage;
+      // Profile bonus: if the human plays lots of damage cards, the CPU values
+      // its own damage cards slightly more (stay competitive) — capped at +20%
+      const profileBonus = this.profileScoreForEffectCategory('damage', damage);
+      return damage + profileBonus;
     }
 
     if (type === 'bonus') {
       const ptiValue = this.extractBonusPtiValue(card);
-      if (ptiValue > 0) return ptiValue;
       const effLower = (card.effect || card.notes || card.text || '').toLowerCase();
-      if (/scudo|shield|protezione/i.test(effLower)) return 150;
-      if (/stelle|stars/i.test(effLower)) return 200;
-      return 50;
+      const isShield = /scudo|shield|protezione/i.test(effLower);
+      const isStarBuff = /stelle|stars/i.test(effLower);
+      let base: number;
+      if (ptiValue > 0) base = ptiValue;
+      else if (isShield) base = 150;
+      else if (isStarBuff) base = 200;
+      else base = 50;
+      // Profile bonus: if the human plays lots of damage cards, value defense more
+      const effectCat = isShield ? 'defense' : (ptiValue > 0 ? 'heal' : 'special');
+      const profileBonus = this.profileScoreForEffectCategory(effectCat, base);
+      return base + profileBonus;
     }
 
     if (type === 'personaggi' || type === 'personaggi_speciali') {
@@ -379,12 +604,18 @@ export class CPUPlayer {
     return 50;
   }
 
-  private scoreEnemyForTarget(enemy: any, myDmg: number): number {
+  private scoreEnemyForTarget(enemy: any, myDmg: number, allEnemies?: any[]): number {
     const pti = this.extractPtiFromCard(enemy);
     const stars = this.extractStarsFromCard(enemy);
     const canKill = pti > 0 && pti <= myDmg;
     const threatScore = stars * 50 + pti;
-    return canKill ? 100000 + threatScore : threatScore;
+    const base = canKill ? 100000 + threatScore : threatScore;
+    // Profile bonus: small additive nudge based on human target preferences (capped, never flips a kill decision)
+    if (allEnemies && allEnemies.length > 1 && !canKill) {
+      const profileMult = this.profileTargetBonus(enemy.owner, allEnemies);
+      return base + Math.round(base * profileMult);
+    }
+    return base;
   }
 
   pickEnemyTarget(): { cardId: string; owner: string; name: string } | null {
@@ -455,7 +686,7 @@ export class CPUPlayer {
     let bestScore = -Infinity;
 
     for (const enemy of enemies) {
-      const score = this.scoreEnemyForTarget(enemy, myDmg);
+      const score = this.scoreEnemyForTarget(enemy, myDmg, enemies);
       if (score > bestScore) {
         bestScore = score;
         target = enemy;
@@ -1124,6 +1355,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         : 'nessuna';
 
       // Create detailed game situation description with real computed values
+      const profileSummary = this.buildProfileSummary();
       const situationDesc = `
         MY CHARACTER: ${myCharacter ? `${this.getCardNameFromUrl(myCharacter.frontImage)} (PTI: ${myCharPTI}, Stelle: ${myCharStars})` : 'NONE - MUST PLAY ONE!'}
         BEST MOSSE IN HAND: ${bestMosseName} — danno effettivo = ${bestMosseDmgDisplay}
@@ -1133,6 +1365,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         MY FIELD CARDS: ${fieldAnalyses.map(a => `${a.name} (${a.cardType})`).join(', ')}
         TOTAL CARDS ON FIELD: ${gameState.field.length}
         CONVERSATION CONTEXT: ${conversationContext || 'Nessuna conversazione precedente'}
+        ${profileSummary ? `\n        ${profileSummary}` : ''}
       `;
 
       console.log(`[CPU-STORY] ${this.playerName}: Invoking OpenAI for game decision (hand=${cpuPlayer.hand.length} cards, field enemies=${enemyCharacters.length})`);
@@ -1606,7 +1839,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       // Best enemy target using same scoring as pickEnemyTarget
       const myDmg = moveCard ? (this.evaluateCard(moveCard, currentStars)) : currentStars * 50;
       const bestEnemyTarget = enemyCharacters.length > 0 ? enemyCharacters.reduce((best: any, e: any) => {
-        return this.scoreEnemyForTarget(e, myDmg) > this.scoreEnemyForTarget(best, myDmg) ? e : best;
+        return this.scoreEnemyForTarget(e, myDmg, enemyCharacters) > this.scoreEnemyForTarget(best, myDmg, enemyCharacters) ? e : best;
       }, enemyCharacters[0]) : null;
       
       // Check if character is dying (proportional to PTI, not fixed threshold)
@@ -1750,6 +1983,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       
       // Update mood every N turns (based on difficulty)
       this.updateMood();
+      // Profile-based contextual chat (optional, safe no-op if profile is thin)
+      this.maybeEmitProfileChat();
 
       // Reset turn state if stale (from previous turn)
       if (this.turnState.phase !== 'draw_needed' || this.turnState.playedThisTurn) {

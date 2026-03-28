@@ -3936,6 +3936,19 @@ Rispondi SOLO in JSON:`;
       const card = player.hand[cardIndex];
       const isPersonaggio = card.type === 'personaggi' || card.type === 'personaggi_speciali';
 
+      // PLAYER PROFILE TRACKING: passively inform CPU instances about human player actions
+      if (!player.isCPU) {
+        try {
+          for (const [, p] of Object.entries(game.players as Record<string, any>)) {
+            if (p?.isCPU && p.cpuInstance?.trackHumanAction) {
+              p.cpuInstance.trackHumanAction(playerName, card, undefined, game);
+            }
+          }
+        } catch (_profileTrackErr) {
+          // Silent: tracking must never crash a card play
+        }
+      }
+
       // GIANNI GIGANTI: if active character is GIANNI GIGANTI and exhausted, block all card plays
       if (!game.activeDuel) {
         const activeChar = this.getPlayerActiveCharacter(game, playerName);
