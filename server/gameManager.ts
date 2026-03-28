@@ -4536,6 +4536,7 @@ Rispondi SOLO in JSON:`;
           'sta buon rocc': "[CUSTOM:sta_buon_rocc] Tutti i personaggi in campo assumono PTI e stelle del personaggio con i PTI più alti",
           'tu mi lasci cadere e poi mi porti su': "[CUSTOM:tu_mi_lasci_cadere] Il tuo personaggio scende a 0 stelle ma poi guadagna +1 stella ogni turno per sempre",
           'u': "[CUSTOM:u_inverti] Inverte l'ordine delle cifre dei PTI di tutti i personaggi in campo (es: 1234→4321, 100→1, 1→1000)",
+          'u inverti': "[CUSTOM:u_inverti] Inverte l'ordine delle cifre dei PTI di tutti i personaggi in campo (es: 1234→4321, 100→1, 1→1000)",
           'zzeruo': "[CUSTOM:zzeruo] Per 3 turni i tuoi personaggi non possono usare bonus, ma i bonus degli avversari non hanno effetto su di te",
           'p na ntecchia': "[CUSTOM:p_na_ntecchia] Se un attacco ti uccide ti salvi rimanendo a 5 PTI; si può usare anche fuori dal proprio turno come una respinta",
           'mbacc a z vcienz': "[CUSTOM:mbacc_z_vcienz] Pannello: annulla il prossimo bonus che ti colpisce e mettilo in mano; se lo usa Zì Vcienz ruba anche i bonus in mano agli altri",
@@ -4548,19 +4549,24 @@ Rispondi SOLO in JSON:`;
           'vous tra vous': "[CUSTOM:vous_tra_vous] Pannello: scegli due personaggi avversari di partecipanti diversi e falli combattere in duello finché uno dei due non muore",
           'z ammonta': "[CUSTOM:z_ammonta] Tutte le carte in campo e in mano tornano nei rispettivi mazzi; i mazzi vengono mischiati e ogni giocatore ripesca le carte (i CPU ripescano automaticamente almeno 1 carta per tipo)",
         };
+      console.log(`🃏 playCard diagnostics: type="${card.type}", extractedName="${cardNameLower}", effectText="${(effectText || '').substring(0, 60)}"`);
       if (!effectText) {
-        if (knownNameEffects[cardNameLower]) {
+        if (card.type === 'bonus' && knownNameEffects[cardNameLower]) {
           effectText = knownNameEffects[cardNameLower];
           card.effect = effectText;
-          console.log(`🔍 Name-based effect auto-assigned for "${cardNameLower}": "${effectText.substring(0, 80)}..."`);
+          console.log(`🔍 [knownNameEffects] BONUS auto-assigned for "${cardNameLower}": "${effectText.substring(0, 80)}..."`);
+        } else if (knownNameEffects[cardNameLower] && card.type !== 'bonus') {
+          console.log(`ℹ️ [knownNameEffects] Skipping override for non-BONUS card "${cardNameLower}" (type="${card.type}") — dictionary match ignored`);
         } else if (card.type === 'bonus') {
           console.log(`⚠️ BONUS card "${cardNameLower}" (${card.id}) has no effect configured - consider adding via wizard`);
         }
-      } else if (!effectText.includes('[CUSTOM:') && knownNameEffects[cardNameLower]) {
-        // effect is set but has no [CUSTOM:] tag — override with the known-name routing entry
+      } else if (!effectText.includes('[CUSTOM:') && card.type === 'bonus' && knownNameEffects[cardNameLower]) {
+        // effect is set but has no [CUSTOM:] tag — override with the known-name routing entry (BONUS cards only)
         effectText = knownNameEffects[cardNameLower];
         card.effect = effectText;
-        console.log(`🔍 Name-based effect overriding generic effect for "${cardNameLower}": "${effectText.substring(0, 80)}..."`);
+        console.log(`🔍 [knownNameEffects] BONUS overriding generic effect for "${cardNameLower}": "${effectText.substring(0, 80)}..."`);
+      } else if (!effectText.includes('[CUSTOM:') && knownNameEffects[cardNameLower] && card.type !== 'bonus') {
+        console.log(`ℹ️ [knownNameEffects] Skipping generic-effect override for non-BONUS card "${cardNameLower}" (type="${card.type}") — dictionary match ignored`);
       }
       
       const combinedEffect = effectText || textContent;
