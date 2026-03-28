@@ -303,12 +303,45 @@ export class CPUPlayer {
     const gameState = this.gameManager.getGameState(this.gameId);
     if (!gameState) return null;
 
-    let enemies = gameState.field.filter((card: any) => 
-      (card.type === 'personaggi' || card.type === 'personaggi_speciali') && 
-      card.owner !== this.playerName && 
-      !card.eliminatedBy && 
-      !card.faceDown
-    );
+    // Build CORRUZIONE peace restriction set: owners this CPU cannot attack
+    const blockedOwners = new Set<string>();
+    const peaceRestrictions = (gameState as any).peaceRestrictions as Array<{protectedPlayer: string; restrictedPlayer: string; turnsRemaining: number}> | undefined;
+    if (peaceRestrictions) {
+      for (const p of peaceRestrictions) {
+        if (p.restrictedPlayer === this.playerName && p.turnsRemaining > 0) {
+          blockedOwners.add(p.protectedPlayer);
+          console.log(`🚫 CPU ${this.playerName}: CORRUZIONE block — cannot attack ${p.protectedPlayer} for ${p.turnsRemaining} more turns`);
+        }
+      }
+    }
+
+    let enemies = gameState.field.filter((card: any) => {
+      if (card.type !== 'personaggi' && card.type !== 'personaggi_speciali') return false;
+      if (card.owner === this.playerName) return false;
+      if (card.eliminatedBy) return false;
+      if (card.faceDown) return false;
+      // Skip stealthed targets (SCUDO — non può essere bersagliato)
+      if (card.stealth) {
+        console.log(`🚫 CPU ${this.playerName}: skipping stealthed target ${card.id} (${card.owner})`);
+        return false;
+      }
+      // Skip immune targets (Bambola del Demonio immunity)
+      if (card.immuneToAttacks) {
+        console.log(`🚫 CPU ${this.playerName}: skipping immune target ${card.id} (${card.owner})`);
+        return false;
+      }
+      // Skip AI-protected targets
+      if (card.isProtected) {
+        console.log(`🚫 CPU ${this.playerName}: skipping isProtected target ${card.id} (${card.owner})`);
+        return false;
+      }
+      // Skip CORRUZIONE-blocked owners
+      if (blockedOwners.has(card.owner)) {
+        console.log(`🚫 CPU ${this.playerName}: skipping CORRUZIONE-blocked owner ${card.owner}`);
+        return false;
+      }
+      return true;
+    });
 
     // Hunt-human mode: CPU targets only human players, ignoring other CPUs
     if (this.attackMode === 'hunt_human') {
@@ -375,11 +408,25 @@ export class CPUPlayer {
     const gameState = this.gameManager.getGameState(this.gameId);
     if (!gameState) return [];
 
+    // Build CORRUZIONE peace restriction set
+    const blockedOwners = new Set<string>();
+    const peaceRestrictions = (gameState as any).peaceRestrictions as Array<{protectedPlayer: string; restrictedPlayer: string; turnsRemaining: number}> | undefined;
+    if (peaceRestrictions) {
+      for (const p of peaceRestrictions) {
+        if (p.restrictedPlayer === this.playerName && p.turnsRemaining > 0) {
+          blockedOwners.add(p.protectedPlayer);
+        }
+      }
+    }
+
+    const isAttackable = (c: any) =>
+      !c.stealth && !c.immuneToAttacks && !c.isProtected && !blockedOwners.has(c.owner);
+
     const allChars = gameState.field.filter((c: any) =>
       (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
       !c.eliminatedBy && !c.faceDown
     );
-    const enemies = allChars.filter((c: any) => c.owner !== this.playerName);
+    const enemies = allChars.filter((c: any) => c.owner !== this.playerName && isAttackable(c));
 
     let pool: any[] = [];
     if (mode === 'all_enemies') pool = enemies;
