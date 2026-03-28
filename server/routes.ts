@@ -5913,6 +5913,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // STAKU: Player activates STAKU to reflect/cancel a bonus targeting them
+    socket.on('staku:activate', async ({ playerName }: { playerName: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) {
+        socket.emit('staku:error', { message: 'Game non trovato' });
+        return;
+      }
+      console.log(`⚡ STAKU activate by ${playerName}`);
+      const result = await gameManager.processStakuActivation(gameId, playerName, io);
+      if (!result.success) {
+        socket.emit('staku:error', { message: result.message });
+        console.log(`⚡ STAKU activation failed: ${result.message}`);
+      }
+    });
+
+    // STAKU: Player declines to use STAKU (lets the bonus proceed)
+    socket.on('staku:decline', ({ playerName }: { playerName: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      console.log(`⚡ STAKU declined by ${playerName}`);
+      const result = gameManager.processStakuDecline(gameId, playerName, io);
+      if (!result.success) {
+        console.log(`⚡ STAKU decline failed: ${result.message}`);
+      }
+    });
+
     // DUELLO: Start a duel between two characters
     socket.on('duel:start', async ({ duelCardId, initiatorPlayer, opponentCharacterId }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);

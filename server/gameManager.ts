@@ -4465,7 +4465,7 @@ Rispondi SOLO in JSON:`;
           'soft control': "Prendi il controllo di un personaggio avversario per 1 turno [BERSAGLIO: scelta]",
           'uovo': "Si schiude tra 3 turni e genera un personaggio casuale dal mazzo",
           'tangram': "Scambia i PTI di due personaggi in campo [BERSAGLIO: scelta]",
-          'staku': "Aumenta i PTI del tuo personaggio di 100 per ogni carta in mano [BERSAGLIO: scelta]",
+          'staku': "[CUSTOM:staku] Respinge i bonus il cui effetto ti coinvolge. Può essere usata fuori turno mentre l'avversario usa il bonus. Per CAIFA l'effetto si respinge su due personaggi. Se non è possibile respingere, si annulla.",
           'la bevanda del vero ciclista': "Aumenta i PTI del tuo personaggio di 250 [BERSAGLIO: scelta]",
           'playback': "Ripeti l'ultimo effetto BONUS giocato",
           'portale speciale': "Pesca una carta dal mazzo PERSONAGGI SPECIALI",
@@ -6556,7 +6556,7 @@ Rispondi SOLO in JSON:`;
 
         // Self-benefit effects: PTI boost, heal, defense, protection → target own character
         const isSelfBenefitEffect = !isAttackEffect && (
-          /\+\s*\d+\s*pti|aumenta.*pti|pti.*aumenta|guadagna.*pti|pti.*tuo|tuo.*personaggio.*pti|bevanda|staku/i.test(effectLower) ||
+          /\+\s*\d+\s*pti|aumenta.*pti|pti.*aumenta|guadagna.*pti|pti.*tuo|tuo.*personaggio.*pti|bevanda/i.test(effectLower) ||
           /cura|heal|rigenera|potenzia|buff/i.test(effectLower) ||
           /non può essere attaccato|non puo essere attaccato|immune|protez|difesa|rifugio|barriera|scudo/i.test(effectLower) ||
           /tuo personaggio.*non|non.*tuo personaggio/i.test(effectLower)
@@ -6572,7 +6572,7 @@ Rispondi SOLO in JSON:`;
           console.log(`🎯 CPU ${playerName} targeting OWN (self-benefit effect): ${ownTarget.name || ownTarget.id}`);
         } else if (enemyChars.length > 0) {
           // Default: check card name for self-benefit keywords before defaulting to enemy
-          const isSelfByName = /bevanda|staku|rifugio|barriera|difesa|scudo|protezione/i.test(cardNameLower);
+          const isSelfByName = /bevanda|rifugio|barriera|difesa|scudo|protezione/i.test(cardNameLower);
           if (isSelfByName && ownChars.length > 0) {
             const ownTarget = this.cpuPickBestOwn(ownChars);
             selectedTargets = [ownTarget];
@@ -15479,6 +15479,108 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     );
   }
   
+  // ─── STAKU: Reactive bonus-reflection card ───────────────────────
+  async processStakuActivation(gameId: string, activatingPlayer: string, io: any): Promise<{ success: boolean; message?: string }> {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false, message: 'Game non trovato' };
+
+    const pending = (game as any).pendingStaku;
+    if (!pending || pending.stakuOwner !== activatingPlayer) {
+      return { success: false, message: 'Nessun STAKU in attesa per questo giocatore' };
+    }
+
+    const { selectionId, originalTargetIds, casterName, stakuOwner, stakuCardId, cardName } = pending;
+
+    // Clear pending so the timeout doesn't fire
+    delete (game as any).pendingStaku;
+    if (!(game as any).stakuProcessed) (game as any).stakuProcessed = new Set<string>();
+    (game as any).stakuProcessed.add(selectionId);
+
+    // Remove STAKU card from the activating player's hand/field
+    const stakuOwnerData = game.players[stakuOwner];
+    if (stakuOwnerData) {
+      const idxHand = stakuOwnerData.hand?.findIndex((c: Card) => c.id === stakuCardId);
+      if (idxHand !== undefined && idxHand >= 0) {
+        const [stakuCard] = stakuOwnerData.hand.splice(idxHand, 1);
+        game.graveyard = game.graveyard || [];
+        game.graveyard.push(stakuCard);
+        console.log(`🃏 STAKU: removed from ${stakuOwner}'s hand and sent to graveyard`);
+      }
+    }
+
+    // Check if stakuOwner has CAIFA on field (reflects to 2 targets instead of 1)
+    const hasCaifa = game.field.some((c: Card) =>
+      c.owner === stakuOwner && /caifa/i.test(c.name || this.getCardNameFromUrl(c.frontImage || ''))
+    );
+    const reflectCount = hasCaifa ? 2 : 1;
+
+    // Find redirect targets: prefer the caster's own character(s); exclude original targets
+    const casterChars = game.field.filter((c: Card) =>
+      (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+      c.owner === casterName &&
+      !originalTargetIds.includes(c.id)
+    );
+
+    const emitChat = (msg: string) => io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-staku`,
+      playerName: 'Sistema',
+      message: msg,
+      timestamp: Date.now(),
+    });
+
+    if (casterChars.length === 0) {
+      // No valid redirect target → cancel the bonus
+      game.pendingTargetSelections?.delete(selectionId);
+      emitChat(`⚡ STAKU! ${stakuOwner} ha respinto il bonus "${cardName}" di ${casterName} — non c'era un personaggio valido, bonus ANNULLATO!`);
+      console.log(`🃏 STAKU: bonus "${cardName}" cancelled (no redirect target)`);
+    } else {
+      // Redirect the effect to caster's character(s)
+      const redirectTargets = casterChars.slice(0, reflectCount);
+      const redirectIds = redirectTargets.map((c: Card) => c.id);
+      const redirectNames = redirectTargets.map((c: Card) => c.name || this.getCardNameFromUrl(c.frontImage || '')).join(', ');
+      const caifaNote = hasCaifa ? ' (CAIFA: riflesso su 2 personaggi)' : '';
+      emitChat(`⚡ STAKU! ${stakuOwner} ha respinto il bonus "${cardName}" di ${casterName} → effetto rediretto su ${redirectNames}${caifaNote}!`);
+      console.log(`🃏 STAKU: bonus "${cardName}" redirected from ${stakuOwner} to ${redirectNames}${caifaNote}`);
+
+      // Apply the effect to the new target(s) via processTargetSelection (with stakuProcessed already set)
+      await this.processTargetSelection(gameId, selectionId, redirectIds, casterName, io);
+    }
+
+    const gameState = this.getSanitizedGameState(gameId);
+    io.to(gameId).emit('game-state-update', gameState);
+    return { success: true };
+  }
+
+  processStakuDecline(gameId: string, decliningPlayer: string, io: any): { success: boolean; message?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false, message: 'Game non trovato' };
+
+    const pending = (game as any).pendingStaku;
+    if (!pending || pending.stakuOwner !== decliningPlayer) {
+      return { success: false, message: 'Nessun STAKU in attesa per questo giocatore' };
+    }
+
+    const { selectionId, originalTargetIds, casterName, stakuOwner, cardName } = pending;
+    delete (game as any).pendingStaku;
+    if (!(game as any).stakuProcessed) (game as any).stakuProcessed = new Set<string>();
+    (game as any).stakuProcessed.add(selectionId);
+
+    io.to(gameId).emit('staku:expired', { gameId, stakuOwner: decliningPlayer });
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-staku-dec`,
+      playerName: 'Sistema',
+      message: `⚡ STAKU non usato — il bonus "${cardName}" di ${casterName} ha effetto normalmente.`,
+      timestamp: Date.now(),
+    });
+
+    // Proceed with original effect
+    setTimeout(async () => {
+      await this.processTargetSelection(gameId, selectionId, originalTargetIds, casterName, io);
+    }, 300);
+
+    return { success: true };
+  }
+
   // Activate BARRIERA: creates 3 copies on field with 50 PTI each
   activateBarriera(gameId: string, barrieraCardId: string, targetCharacterId: string, ownerPlayer: string, io: any): { success: boolean; message?: string } {
     const game = this.games.get(gameId);
@@ -19434,6 +19536,88 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     const targetNames = targetCards.map(c => c.name || this.getCardNameFromUrl(c.frontImage || '')).join(', ');
     console.log(`🎯 ${playerName} selected targets: ${targetNames}`);
+
+    // ─────────────────────────────────────────────────────────────────
+    // STAKU INTERCEPT: before applying any effect, check if any target's
+    // owner has STAKU in hand and the caster is a different player.
+    // This does NOT fire if we're already re-entering after a Staku decision
+    // (signalled by pendingStaku being absent when selectionId already ran).
+    // ─────────────────────────────────────────────────────────────────
+    if (!(game as any).stakuProcessed?.has(selectionId)) {
+      // Only intercept for targets that belong to opponents
+      const stakuTargets = targetCards.filter(tc => tc.owner && tc.owner !== playerName);
+      for (const tc of stakuTargets) {
+        const targetOwner = tc.owner as string;
+        const targetOwnerData = game.players[targetOwner];
+        if (!targetOwnerData) continue;
+        const stakuCard = targetOwnerData.hand?.find((c: Card) =>
+          /staku/i.test(c.name || this.getCardNameFromUrl(c.frontImage || ''))
+        );
+        if (!stakuCard) continue;
+
+        // Mark that we've already attempted staku for this selection
+        if (!(game as any).stakuProcessed) (game as any).stakuProcessed = new Set<string>();
+
+        // Store pending info
+        (game as any).pendingStaku = {
+          selectionId,
+          originalTargetIds: selectedTargetIds,
+          casterName: playerName,
+          stakuOwner: targetOwner,
+          stakuCardId: stakuCard.id,
+          cardName: selection.cardName,
+          effectText: selection.effectText,
+          io,
+        };
+
+        const ioRef = (global as any).io || io;
+        console.log(`🃏 STAKU opportunity for ${targetOwner} (opponent of ${playerName})`);
+
+        ioRef.to(gameId).emit('staku:opportunity', {
+          gameId,
+          stakuOwner: targetOwner,
+          stakuCardId: stakuCard.id,
+          casterName: playerName,
+          cardName: selection.cardName,
+          targetCardId: tc.id,
+          timeoutMs: 8000,
+        });
+
+        ioRef.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-staku-opp`,
+          playerName: 'Sistema',
+          message: `⚡ STAKU! ${targetOwner} può respingere il bonus "${selection.cardName}" usato da ${playerName}! (8 secondi)`,
+          timestamp: Date.now(),
+        });
+
+        // Auto-proceed after 8 seconds if player doesn't respond
+        const capturedSelId = selectionId;
+        const capturedTargetIds = selectedTargetIds;
+        const capturedCaster = playerName;
+        setTimeout(async () => {
+          const freshGame = this.games.get(gameId);
+          if (!freshGame) return;
+          if ((freshGame as any).pendingStaku?.selectionId === capturedSelId) {
+            // Still waiting → player did not respond, proceed normally
+            delete (freshGame as any).pendingStaku;
+            if (!(freshGame as any).stakuProcessed) (freshGame as any).stakuProcessed = new Set<string>();
+            (freshGame as any).stakuProcessed.add(capturedSelId);
+            const ioFresh = (global as any).io || io;
+            ioFresh.to(gameId).emit('staku:expired', { gameId, stakuOwner: targetOwner });
+            ioFresh.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-staku-exp`,
+              playerName: 'Sistema',
+              message: `⏱️ STAKU non attivato in tempo — il bonus di ${capturedCaster} ha effetto normalmente.`,
+              timestamp: Date.now(),
+            });
+            await this.processTargetSelection(gameId, capturedSelId, capturedTargetIds, capturedCaster, ioFresh);
+          }
+        }, 8000);
+
+        // Return early — wait for staku response or timeout
+        return { success: true };
+      }
+    }
 
     // ============ FUSION + CLONE HANDLER ============
     if (selection.fusionClone) {

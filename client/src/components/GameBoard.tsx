@@ -291,6 +291,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [choosingNotification, setChoosingNotification] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
   const [blockTypeSelection, setBlockTypeSelection] = useState<{ visible: boolean; options: string[]; turns: number } | null>(null);
   const [bobDylanPanel, setBobDylanPanel] = useState<{ visible: boolean; choiceId: string; title: string; question: string; options: Array<{value: string; label: string; description: string}> } | null>(null);
+  const [stakuOpportunity, setStakuOpportunity] = useState<{ stakuOwner: string; casterName: string; cardName: string; timeoutMs: number } | null>(null);
+  const [stakuCountdown, setStakuCountdown] = useState(0);
+  const stakuTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [daddyConteDialog, setDaddyConteDialog] = useState<{ visible: boolean; characters: Array<{id: string; name: string; frontImage: string; owner: string}> } | null>(null);
   const [fabrizioDialog, setFabrizioDialog] = useState<{ visible: boolean; characterName: string; characterId: string; currentPti: number } | null>(null);
   const [camilloDialog, setCamilloDialog] = useState<{ visible: boolean; halfPTI: number; opponents: Array<{playerName: string; charId?: string; charName: string; charImage: string}> } | null>(null);
@@ -2116,6 +2119,30 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('fusion-error', handleFusionError);
     socket.on('voodoo:error', handleVoodooError);
 
+    // STAKU reactive window
+    const handleStakuOpportunity = (data: { stakuOwner: string; casterName: string; cardName: string; timeoutMs: number }) => {
+      if (data.stakuOwner !== playerName) return;
+      if (stakuTimerRef.current) clearInterval(stakuTimerRef.current);
+      const totalSec = Math.round((data.timeoutMs || 8000) / 1000);
+      setStakuCountdown(totalSec);
+      setStakuOpportunity(data);
+      let remaining = totalSec;
+      stakuTimerRef.current = setInterval(() => {
+        remaining -= 1;
+        setStakuCountdown(remaining);
+        if (remaining <= 0) {
+          if (stakuTimerRef.current) clearInterval(stakuTimerRef.current);
+          setStakuOpportunity(null);
+        }
+      }, 1000);
+    };
+    const handleStakuExpired = () => {
+      if (stakuTimerRef.current) clearInterval(stakuTimerRef.current);
+      setStakuOpportunity(null);
+    };
+    socket.on('staku:opportunity', handleStakuOpportunity);
+    socket.on('staku:expired', handleStakuExpired);
+
     // ── Turn Timer ──────────────────────────────────────────────────────────
     const startTurnCountdown = (totalSeconds: number, timerPlayerName: string) => {
       if (turnTimerIntervalRef.current) clearInterval(turnTimerIntervalRef.current);
@@ -2273,6 +2300,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('game-end-rewards', handleGameEndRewards);
       socket.off('fusion-error', handleFusionError);
       socket.off('voodoo:error', handleVoodooError);
+      socket.off('staku:opportunity', handleStakuOpportunity);
+      socket.off('staku:expired', handleStakuExpired);
+      if (stakuTimerRef.current) clearInterval(stakuTimerRef.current);
       socket.off('player-choosing-notification', handlePlayerChoosingNotification);
       socket.off('show-graveyard-selection', handleShowGraveyardSelection);
       socket.off('show-pti-input-panel', handleShowPtiInputPanel);
@@ -5004,6 +5034,45 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                     {opt.description && <div className="text-xs opacity-70 mt-1 font-normal">{opt.description}</div>}
                   </button>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── STAKU Reactive Panel ─────────────────────────────────────────── */}
+        {stakuOpportunity && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 pointer-events-auto">
+            <div className="bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl p-6 shadow-2xl border border-yellow-500/70 max-w-sm w-full mx-4">
+              <div className="text-center mb-4">
+                <span className="text-5xl">⚡</span>
+                <h3 className="text-yellow-400 text-xl font-bold mt-2 uppercase tracking-widest">STAKU!</h3>
+                <p className="text-gray-200 text-sm mt-2">
+                  <strong>{stakuOpportunity.casterName}</strong> usa <strong>"{stakuOpportunity.cardName}"</strong> contro di te.
+                  Vuoi respingerlo?
+                </p>
+                <div className="mt-3 text-yellow-300 text-lg font-mono font-bold">{stakuCountdown}s</div>
+              </div>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    socket.emit('staku:activate', { playerName });
+                    if (stakuTimerRef.current) clearInterval(stakuTimerRef.current);
+                    setStakuOpportunity(null);
+                  }}
+                  className="py-3 px-4 rounded-lg font-bold text-sm transition-all border bg-yellow-900/80 hover:bg-yellow-800 border-yellow-600 text-yellow-100"
+                >
+                  ⚡ STAKU! Rispingo il bonus
+                </button>
+                <button
+                  onClick={() => {
+                    socket.emit('staku:decline', { playerName });
+                    if (stakuTimerRef.current) clearInterval(stakuTimerRef.current);
+                    setStakuOpportunity(null);
+                  }}
+                  className="py-3 px-4 rounded-lg font-bold text-sm transition-all border bg-gray-800 hover:bg-gray-700 border-gray-600 text-gray-300"
+                >
+                  Lascia passare
+                </button>
               </div>
             </div>
           </div>
