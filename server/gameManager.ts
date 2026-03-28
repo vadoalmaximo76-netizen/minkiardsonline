@@ -241,7 +241,7 @@ interface TimedEffect {
   sourceCardId: string;
   sourceCardName: string;
   turnsRemaining: number;
-  actions: Array<{ type: string; target: string; value: number; description: string; targetCardId?: string }>;
+  actions: Array<{ type: string; target: string; value: number; description: string; targetCardId?: string; sourceCardId?: string }>;
   createdAt: number;
 }
 
@@ -9831,11 +9831,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       case 'restore_stars': {
         // If the action carries a sourceCardId, restore stars only to that specific character.
         // This prevents the effect from firing on a replacement character after the original died.
-        if ((action as any).sourceCardId) {
-          const rsChar = game.field.find((c: Card) => c.id === (action as any).sourceCardId);
+        if (action.sourceCardId) {
+          const rsChar = game.field.find((c: Card) => c.id === action.sourceCardId);
           if (!rsChar) {
             // Original character is no longer on field (dead) — skip silently
-            console.log(`⭐ RESTORE STARS: personaggio ${(action as any).sourceCardId} non più in campo — skip`);
+            console.log(`⭐ RESTORE STARS: personaggio ${action.sourceCardId} non più in campo — skip`);
             break;
           }
           const prevStars = rsChar.stars || 0;
