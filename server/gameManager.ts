@@ -4083,6 +4083,19 @@ Rispondi SOLO in JSON:`;
 
       game.field.push(card);
 
+      // PLAYER PROFILE TRACKING: notify all CPU players of this human's move
+      if (!this.isPlayerCPU(gameId, playerName)) {
+        try {
+          for (const [, cpuData] of Object.entries(game.players)) {
+            if ((cpuData as any).isCPU && (cpuData as any).cpuInstance) {
+              (cpuData as any).cpuInstance.trackHumanAction(playerName, card, undefined, game);
+            }
+          }
+        } catch (trackErr) {
+          // non-blocking
+        }
+      }
+
       // CPU AUTO-ACTIVATION: If CPU plays BARRIERA or RIFUGIO, immediately protect their own character
       if (!isPersonaggio && this.isPlayerCPU(gameId, playerName)) {
         const ioAutoProtect = (global as any).io;

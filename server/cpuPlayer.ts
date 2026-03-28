@@ -47,6 +47,28 @@ interface GameAnalysis {
   };
 }
 
+interface PlayerTurnRecord {
+  turn: number;
+  cardType: string;
+  cardName: string;
+  effect: string;
+  targetOwner: string | null;
+  targetWasWeakest: boolean;
+  wasInstantKill: boolean;
+  wasDefensive: boolean;
+  timestamp: number;
+}
+
+interface PlayerProfile {
+  turns: PlayerTurnRecord[];
+  instantKillCount: number;
+  attackWeakestCount: number;
+  defensiveCardCount: number;
+  mosseCount: number;
+  bonusCount: number;
+  personaggiCount: number;
+}
+
 export class CPUPlayer {
   private playerName: string;
   private gameId: string;
@@ -392,6 +414,7 @@ export class CPUPlayer {
       phase: 'pick-initial', 
       pickedCards: [] 
     };
+    this.resetProfile();
     console.log(`CPU ${this.playerName} opening sequence reset for new game`);
   }
 
