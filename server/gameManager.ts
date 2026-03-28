@@ -9829,6 +9829,31 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
 
       case 'restore_stars': {
+        // If the action carries a sourceCardId, restore stars only to that specific character.
+        // This prevents the effect from firing on a replacement character after the original died.
+        if ((action as any).sourceCardId) {
+          const rsChar = game.field.find((c: Card) => c.id === (action as any).sourceCardId);
+          if (!rsChar) {
+            // Original character is no longer on field (dead) — skip silently
+            console.log(`⭐ RESTORE STARS: personaggio ${(action as any).sourceCardId} non più in campo — skip`);
+            break;
+          }
+          const prevStars = rsChar.stars || 0;
+          rsChar.stars = prevStars + (action.value || 1);
+          this.updateCardTextWithPTI(rsChar);
+          console.log(`⭐ RESTORE STARS: ${rsChar.name || rsChar.id} ora ha ${rsChar.stars} stelle`);
+          const ioRs = (global as any).io;
+          if (ioRs) {
+            ioRs.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-restore-stars`,
+              playerName: 'Sistema',
+              message: `⭐ ${rsChar.name || rsChar.id} recupera 1 stella! (ora ${rsChar.stars} stelle)`,
+              timestamp: Date.now()
+            });
+          }
+          break;
+        }
+        // Fallback for legacy effects without sourceCardId
         const rsChar = this.getPlayerActiveCharacter(game, playerName);
         if (rsChar) {
           const prevStars = rsChar.stars || 0;
@@ -29470,7 +29495,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 sourceCardId: targetCard.id,
                 sourceCardName: zeroStarsTargetName,
                 turnsRemaining: _si,
-                actions: [{ type: 'restore_stars', target: 'self_char', value: 1, description: `+1 stella a ${zeroStarsTargetName} (turno ${_si})` }],
+                actions: [{ type: 'restore_stars', target: 'self_char', value: 1, sourceCardId: targetCard.id, description: `+1 stella a ${zeroStarsTargetName} (turno ${_si})` }],
                 createdAt: Date.now()
               });
             }
