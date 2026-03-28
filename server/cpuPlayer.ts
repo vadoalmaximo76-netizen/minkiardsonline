@@ -298,6 +298,95 @@ export class CPUPlayer {
     return m ? parseInt(m[1]) : (card.stars ?? 1);
   }
 
+  private extractBonusPtiValue(card: any): number {
+    const effect = card.effect || card.notes || card.text || '';
+    const ptiPatterns = [
+      /\+\s*(\d+)\s*pti/i,
+      /(\d+)\s*pti\s+(?:in\s+più|aggiuntivi|guadagnati?|recuperati?)/i,
+      /aumenta\s+(?:di\s+)?(\d+)\s*pti/i,
+      /ripristina\s+(\d+)\s*pti/i,
+      /dona\s+(\d+)\s*pti/i,
+    ];
+    for (const pattern of ptiPatterns) {
+      const m = effect.match(pattern);
+      if (m) return parseInt(m[1], 10);
+    }
+    return 0;
+  }
+
+  private getMosseEffectiveDamage(card: any, attackerStars: number): { damage: number; specialEffect: string | null } {
+    if (!card || card.type !== 'mosse') return { damage: 0, specialEffect: null };
+    const effect = (card.effect || card.notes || card.text || '').toLowerCase();
+    const mosseName = (card.name || card.frontImage || '').toLowerCase();
+    const combined = effect + ' ' + mosseName;
+    if (/\bmorte\b.*personaggio|personaggio.*\bmorte\b|\buccide\b|\bmorte\s+istantanea\b/i.test(combined)) {
+      return { damage: 0, specialEffect: 'morte_istantanea' };
+    }
+    if (/dimezza\s+(?:i\s+)?pti|pti\s+dimezz/i.test(combined)) {
+      return { damage: 0, specialEffect: 'dimezza_pti' };
+    }
+    const baseDmg = card.mosseDamageValue || 0;
+    return { damage: baseDmg * Math.max(1, attackerStars), specialEffect: null };
+  }
+
+  private evaluateCard(card: any, attackerStars: number = 1): number {
+    if (!card) return 0;
+    const type = card.type;
+
+    if (type === 'mosse') {
+      const { damage, specialEffect } = this.getMosseEffectiveDamage(card, attackerStars);
+      if (specialEffect === 'morte_istantanea') return 1000000;
+      if (specialEffect === 'dimezza_pti') return 500000;
+      return damage;
+    }
+
+    if (type === 'bonus') {
+      const ptiValue = this.extractBonusPtiValue(card);
+      if (ptiValue > 0) return ptiValue;
+      const effLower = (card.effect || card.notes || card.text || '').toLowerCase();
+      if (/scudo|shield|protezione/i.test(effLower)) return 150;
+      if (/stelle|stars/i.test(effLower)) return 200;
+      return 50;
+    }
+
+    if (type === 'personaggi' || type === 'personaggi_speciali') {
+      const pti = this.extractPtiFromCard(card);
+      const stars = this.extractStarsFromCard(card);
+      return pti + stars * 50;
+    }
+
+    return 0;
+  }
+
+  private evaluateBonusWithHealth(card: any, myCurrentPTI: number): number {
+    if (!card || card.type !== 'bonus') return 0;
+    const ptiValue = this.extractBonusPtiValue(card);
+    const effLower = (card.effect || card.notes || card.text || '').toLowerCase();
+    const isShield = /scudo|shield|protezione/i.test(effLower);
+    const isStarBuff = /stelle|stars/i.test(effLower);
+
+    if (isShield) {
+      // Shield is most valuable when healthy (not urgently needing PTI restore).
+      // Use absolute PTI thresholds (calibrated to typical MINKIARDS character range 100–1000):
+      // > 400 PTI = healthy → shield priority is high (250)
+      // 150–400 PTI = moderate → medium shield value (150)
+      // < 150 PTI = critical → healing PTI is more urgent; shield less valuable (80)
+      const shieldValue = myCurrentPTI > 400 ? 250 : (myCurrentPTI > 150 ? 150 : 80);
+      return Math.max(shieldValue, ptiValue);
+    }
+    if (ptiValue > 0) return ptiValue;
+    if (isStarBuff) return 200;
+    return 50;
+  }
+
+  private scoreEnemyForTarget(enemy: any, myDmg: number): number {
+    const pti = this.extractPtiFromCard(enemy);
+    const stars = this.extractStarsFromCard(enemy);
+    const canKill = pti > 0 && pti <= myDmg;
+    const threatScore = stars * 50 + pti;
+    return canKill ? 100000 + threatScore : threatScore;
+  }
+
   pickEnemyTarget(): { cardId: string; owner: string; name: string } | null {
     if (!this.gameManager) return null;
     const gameState = this.gameManager.getGameState(this.gameId);
@@ -366,12 +455,7 @@ export class CPUPlayer {
     let bestScore = -Infinity;
 
     for (const enemy of enemies) {
-      const pti = this.extractPtiFromCard(enemy);
-      const stars = this.extractStarsFromCard(enemy);
-      const canKill = pti > 0 && pti <= myDmg;
-      const threatScore = stars * 50 + pti;
-      const score = canKill ? 100000 + threatScore : threatScore;
-
+      const score = this.scoreEnemyForTarget(enemy, myDmg);
       if (score > bestScore) {
         bestScore = score;
         target = enemy;
@@ -483,8 +567,12 @@ export class CPUPlayer {
       return null;
     }
 
-    // Pick random hand target (could be optimized)
-    const selectedTarget = handTargets[Math.floor(Math.random() * handTargets.length)];
+    // Pick the strongest hand target (highest PTI + stars score)
+    const selectedTarget = handTargets.reduce((best: any, t: any) => {
+      const scoreT = this.evaluateCard(t.card);
+      const scoreBest = this.evaluateCard(best.card);
+      return scoreT > scoreBest ? t : best;
+    }, handTargets[0]);
     const targetName = this.getCardNameFromUrl(selectedTarget.card.frontImage);
 
     console.log(`🎯 CPU ${this.playerName}: ATTACCO DISONESTO selected hand target: ${selectedTarget.card.id} (${targetName}) from ${selectedTarget.owner}'s hand`);
@@ -1014,10 +1102,33 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         myFieldCards.map((card: any) => this.analyzeCardImageDetailed(card.frontImage, card.type))
       );
 
-      // Create detailed game situation description
+      // Compute real card values for richer GPT context
+      const myCharStars = myCharacter ? this.extractStarsFromCard(myCharacter) : 0;
+      const myCharPTI = myCharacter ? this.extractPtiFromCard(myCharacter) : 0;
+      const handCards = cpuPlayer.hand || [];
+      const mosseCards = handCards.filter((c: any) => c.type === 'mosse');
+      const bonusCards = handCards.filter((c: any) => c.type === 'bonus');
+      const bestMosseCard = mosseCards.length > 0 ? mosseCards.reduce((best: any, c: any) =>
+        this.evaluateCard(c, myCharStars) > this.evaluateCard(best, myCharStars) ? c : best, mosseCards[0]) : null;
+      const bestBonusCard = bonusCards.length > 0 ? bonusCards.reduce((best: any, c: any) =>
+        this.evaluateBonusWithHealth(c, myCharPTI) > this.evaluateBonusWithHealth(best, myCharPTI) ? c : best, bonusCards[0]) : null;
+      const bestBonusPTI = bestBonusCard ? this.extractBonusPtiValue(bestBonusCard) : 0;
+      const bestMosseName = bestMosseCard ? this.getCardNameFromUrl(bestMosseCard.frontImage) : 'nessuna';
+      const bestBonusName = bestBonusCard ? this.getCardNameFromUrl(bestBonusCard.frontImage) : 'nessuno';
+      // Get structured MOSSE damage for display (not sentinel scores)
+      const bestMosseInfo = bestMosseCard ? this.getMosseEffectiveDamage(bestMosseCard, myCharStars) : null;
+      const bestMosseDmgDisplay = bestMosseInfo
+        ? (bestMosseInfo.specialEffect === 'morte_istantanea' ? 'MORTE ISTANTANEA'
+          : bestMosseInfo.specialEffect === 'dimezza_pti' ? 'DIMEZZA PTI nemico'
+          : `${bestMosseInfo.damage} (base × ${myCharStars} stelle)`)
+        : 'nessuna';
+
+      // Create detailed game situation description with real computed values
       const situationDesc = `
-        MY CHARACTER: ${myCharacter ? `${this.getCardNameFromUrl(myCharacter.frontImage)} (PTI: ${myCharacter.text || 'unknown'}, Stars: unknown)` : 'NONE - MUST PLAY ONE!'}
-        ENEMY CHARACTERS: ${enemyCharacters.map((c: any) => `${this.getCardNameFromUrl(c.frontImage)} (Owner: ${c.owner})`).join(', ')}
+        MY CHARACTER: ${myCharacter ? `${this.getCardNameFromUrl(myCharacter.frontImage)} (PTI: ${myCharPTI}, Stelle: ${myCharStars})` : 'NONE - MUST PLAY ONE!'}
+        BEST MOSSE IN HAND: ${bestMosseName} — danno effettivo = ${bestMosseDmgDisplay}
+        BEST BONUS IN HAND: ${bestBonusName} — PTI bonus = ${bestBonusPTI > 0 ? bestBonusPTI : 'effetto speciale'}
+        ENEMY CHARACTERS: ${enemyCharacters.map((c: any) => `${this.getCardNameFromUrl(c.frontImage)} (Owner: ${c.owner}, PTI: ${this.extractPtiFromCard(c)}, Stelle: ${this.extractStarsFromCard(c)})`).join(', ') || 'nessuno'}
         MY HAND: ${handAnalyses.map(a => `${a.name} (${a.cardType}) - ${a.effect || 'Standard effect'}`).join(', ')}
         MY FIELD CARDS: ${fieldAnalyses.map(a => `${a.name} (${a.cardType})`).join(', ')}
         TOTAL CARDS ON FIELD: ${gameState.field.length}
@@ -1471,63 +1582,87 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
     } else {
       // I have a character on field - can perform actions
-      const moveCard = cpuPlayer.hand.find((c: any) => c.type === 'mosse');
-      const bonusCard = cpuPlayer.hand.find((c: any) => c.type === 'bonus');
-      const handCharacterCard = cpuPlayer.hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
-      
-      // Parse character stats from notes (same as other parts of codebase)
-      const characterText = myCharacter.notes || myCharacter.text || '';
-      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
-      const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
-      const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100; // fallback PTI
-      const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0; // RULE: no stars = cannot attack
+      const movesInHand = cpuPlayer.hand.filter((c: any) => c.type === 'mosse');
+      const bonusesInHand = cpuPlayer.hand.filter((c: any) => c.type === 'bonus');
+      const handCharacters = cpuPlayer.hand.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      const currentStars = this.extractStarsFromCard(myCharacter);
+      const currentPTI = this.extractPtiFromCard(myCharacter);
+
+      // Best move card: highest evaluated score
+      const moveCard = movesInHand.length > 0 ? movesInHand.reduce((best: any, c: any) => {
+        return this.evaluateCard(c, currentStars) > this.evaluateCard(best, currentStars) ? c : best;
+      }, movesInHand[0]) : null;
+
+      // Best bonus card: health-aware score (shield preferred when healthy)
+      const bonusCard = bonusesInHand.length > 0 ? bonusesInHand.reduce((best: any, c: any) => {
+        return this.evaluateBonusWithHealth(c, currentPTI) > this.evaluateBonusWithHealth(best, currentPTI) ? c : best;
+      }, bonusesInHand[0]) : null;
+
+      // Best character in hand: highest PTI + stars score
+      const handCharacterCard = handCharacters.length > 0 ? handCharacters.reduce((best: any, c: any) => {
+        return this.evaluateCard(c) > this.evaluateCard(best) ? c : best;
+      }, handCharacters[0]) : null;
+
+      // Best enemy target using same scoring as pickEnemyTarget
+      const myDmg = moveCard ? (this.evaluateCard(moveCard, currentStars)) : currentStars * 50;
+      const bestEnemyTarget = enemyCharacters.length > 0 ? enemyCharacters.reduce((best: any, e: any) => {
+        return this.scoreEnemyForTarget(e, myDmg) > this.scoreEnemyForTarget(best, myDmg) ? e : best;
+      }, enemyCharacters[0]) : null;
       
       // Check if character is dying (proportional to PTI, not fixed threshold)
       const ptiThreshold = Math.max(50, Math.floor(currentPTI * 0.25)); // 25% of current PTI or minimum 50
       if (currentPTI <= ptiThreshold && handCharacterCard) {
-        // Strategic character replacement when current one is weak
-        recommendedAction = {
-          type: 'switch_character' as const,
-          cardId: handCharacterCard.id,
-          reasoning: `Il mio personaggio ha PTI bassi (${currentPTI}), lo sostituisco strategicamente`
-        };
+        const candidateScore = this.evaluateCard(handCharacterCard);
+        const currentScore = this.evaluateCard(myCharacter);
+        if (candidateScore > currentScore) {
+          recommendedAction = {
+            type: 'switch_character' as const,
+            cardId: handCharacterCard.id,
+            reasoning: `Il mio personaggio ha PTI bassi (${currentPTI}), lo sostituisco con uno più forte`
+          };
+        }
       }
       // RULE 4: Attack only if we have stars > 0 and enemies exist
-      else if (moveCard && enemyCharacters.length > 0 && currentStars > 0) {
-        // Find weakest enemy for targeting
-        const targetEnemy = enemyCharacters[0]; // Simplified target selection
+      if (!recommendedAction && moveCard && bestEnemyTarget && currentStars > 0) {
         recommendedAction = {
           type: 'attack' as const,
           cardId: moveCard.id,
-          target: targetEnemy.id,
-          reasoning: `Attacco con ${currentStars} stelle contro ${targetEnemy.owner}`
+          target: bestEnemyTarget.id,
+          reasoning: `Attacco con ${currentStars} stelle contro ${bestEnemyTarget.owner} (bersaglio: PTI=${this.extractPtiFromCard(bestEnemyTarget)}, ★=${this.extractStarsFromCard(bestEnemyTarget)})`
         };
       }
       // Use BONUS cards to strengthen character (proportional threshold)
-      else if (bonusCard && currentPTI < Math.max(150, currentPTI * 0.5)) { // Use BONUS when PTI below 50% or 150
+      if (!recommendedAction && bonusCard && currentPTI < Math.max(150, currentPTI * 0.5)) {
         recommendedAction = {
           type: 'play_card' as const,
           cardId: bonusCard.id,
           reasoning: 'Rafforzo il mio personaggio con carta BONUS'
         };
       }
-      // Character substitution for critically low stats  
-      else if (handCharacterCard && currentPTI < Math.max(30, Math.floor(currentPTI * 0.15))) {
-        recommendedAction = {
-          type: 'switch_character' as const,
-          cardId: handCharacterCard.id,
-          reasoning: 'Sostituisco il personaggio con uno più forte'
-        };
+      // Character substitution for critically low stats
+      if (!recommendedAction && handCharacterCard && currentPTI < Math.max(30, Math.floor(currentPTI * 0.15))) {
+        const candidateScore = this.evaluateCard(handCharacterCard);
+        const currentScore = this.evaluateCard(myCharacter);
+        if (candidateScore > currentScore) {
+          recommendedAction = {
+            type: 'switch_character' as const,
+            cardId: handCharacterCard.id,
+            reasoning: 'Sostituisco il personaggio con uno più forte'
+          };
+        }
       }
       // Fallback: play any available card
-      else if (cpuPlayer.hand.length > 0) {
+      if (!recommendedAction && cpuPlayer.hand.length > 0) {
         const availableCard = bonusCard || moveCard || handCharacterCard || cpuPlayer.hand[0];
-        recommendedAction = {
-          type: 'play_card' as const,
-          cardId: availableCard.id,
-          reasoning: 'Gioco una carta disponibile seguendo le regole'
-        };
-      } else {
+        if (availableCard) {
+          recommendedAction = {
+            type: 'play_card' as const,
+            cardId: availableCard.id,
+            reasoning: 'Gioco una carta disponibile seguendo le regole'
+          };
+        }
+      }
+      if (!recommendedAction) {
         // No valid actions - end turn
         recommendedAction = {
           type: 'play_card' as const,
@@ -2858,35 +2993,34 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     
     if (!hasPersonaggioOnField) {
       if (personaggiInHand.length > 0) {
-        console.log(`CPU ${this.playerName} playing PERSONAGGI (no character on field)`);
-        return personaggiInHand[0];
+        // Pick the best character to put on field
+        const bestPersonaggio = personaggiInHand.reduce((best: any, c: any) => {
+          return this.evaluateCard(c) > this.evaluateCard(best) ? c : best;
+        }, personaggiInHand[0]);
+        console.log(`CPU ${this.playerName} playing PERSONAGGI (no character on field): ${this.getCardNameFromUrl(bestPersonaggio.frontImage)}`);
+        return bestPersonaggio;
       }
     }
 
     if (myCharacter) {
-      const characterText = myCharacter.notes || myCharacter.text || '';
-      const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
-      const currentStars = starsMatch ? parseInt(starsMatch[1]) : 1;
-      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
-      const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
+      const currentStars = this.extractStarsFromCard(myCharacter);
+      const currentPTI = this.extractPtiFromCard(myCharacter);
 
-      if ((starsMatch && currentStars <= 0) || (ptiMatch && currentPTI <= 0) || characterText === "0") {
-        const replacement = personaggiInHand.find((c: any) => {
-          const replacementText = c.text || '';
-          const rStarsMatch = replacementText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
-          const rStars = rStarsMatch ? parseInt(rStarsMatch[1]) : 1;
-          const rPtiMatch = replacementText.match(/PTI[:\s]*(\d+)/i);
-          const rPti = rPtiMatch ? parseInt(rPtiMatch[1]) : 100;
-          return rStars > 0 && rPti > 0 && replacementText !== "0";
-        });
+      if (currentStars <= 0 || currentPTI <= 0) {
+        // Find the best replacement from hand (higher score than current)
+        const currentScore = this.evaluateCard(myCharacter);
+        const validReplacements = personaggiInHand.filter((c: any) => this.evaluateCard(c) > 0);
+        const bestReplacement = validReplacements.length > 0 ? validReplacements.reduce((best: any, c: any) => {
+          return this.evaluateCard(c) > this.evaluateCard(best) ? c : best;
+        }, validReplacements[0]) : null;
 
-        if (replacement) {
+        if (bestReplacement && this.evaluateCard(bestReplacement) > currentScore) {
           console.log(`CPU ${this.playerName} replacing character with 0 stars/PTI`);
-          this.sendChatMessage(`Il mio personaggio non ha più stelle o PTI! Lo sostituisco con ${this.getCardNameFromUrl(replacement.frontImage)}.`);
+          this.sendChatMessage(`Il mio personaggio non ha più stelle o PTI! Lo sostituisco con ${this.getCardNameFromUrl(bestReplacement.frontImage)}.`);
           if (this.gameManager) {
             this.gameManager.returnToHand(this.gameId, myCharacter.id, this.playerName);
           }
-          return replacement;
+          return bestReplacement;
         } else {
           console.log(`CPU ${this.playerName} character has 0 stars/PTI, but NO valid replacement in hand`);
         }
@@ -2897,7 +3031,20 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       const currentPTI = this.extractPtiFromCard(myCharacter);
       const currentStars = this.extractStarsFromCard(myCharacter);
       const isDead = currentPTI <= 0 || currentStars <= 0;
-      
+
+      // Pre-compute the best MOSSE and best BONUS using evaluateCard
+      const bestMosse = mosseInHand.length > 0 ? mosseInHand.reduce((best: any, c: any) => {
+        return this.evaluateCard(c, currentStars) > this.evaluateCard(best, currentStars) ? c : best;
+      }, mosseInHand[0]) : null;
+
+      // Use health-aware bonus scoring so shields are preferred when healthy
+      const bestBonus = bonusInHand.length > 0 ? bonusInHand.reduce((best: any, c: any) => {
+        return this.evaluateBonusWithHealth(c, currentPTI) > this.evaluateBonusWithHealth(best, currentPTI) ? c : best;
+      }, bonusInHand[0]) : null;
+
+      const bestMosseScore = bestMosse ? this.evaluateCard(bestMosse, currentStars) : 0;
+      const bestBonusScore = bestBonus ? this.evaluateBonusWithHealth(bestBonus, currentPTI) : 0;
+
       if (!isDead && effectiveEnemies.length > 0) {
         const weakestEnemy = effectiveEnemies.reduce((w: any, e: any) => {
           const ePti = this.extractPtiFromCard(e);
@@ -2905,12 +3052,6 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           return ePti < wPti ? e : w;
         }, effectiveEnemies[0]);
         const weakestPti = this.extractPtiFromCard(weakestEnemy);
-
-        const bestMosse = mosseInHand.length > 0 ? mosseInHand.reduce((best: any, c: any) => {
-          const dmg = c.mosseDamageValue || 0;
-          const bestDmg = best.mosseDamageValue || 0;
-          return dmg > bestDmg ? c : best;
-        }, mosseInHand[0]) : null;
 
         // Mood: random — pick any action card randomly
         if (this.mood === 'random') {
@@ -2922,59 +3063,63 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           }
         }
 
-        if (bestMosse) {
-          const dmg = bestMosse.mosseDamageValue || 0;
-          if (dmg >= weakestPti && weakestPti > 0) {
-            console.log(`🤖 CPU ${this.playerName}: MOSSE can kill (dmg=${dmg} ≥ enemy PTI=${weakestPti}) [MOOD:${this.mood}]`);
+        // Always prefer lethal/special MOSSE regardless of mood
+        // Note: special effects (morte=1M, dimezza_pti=500K) score above any real PTI,
+        // so this check also correctly prioritizes instant-kill and PTI-halving moves
+        if (bestMosse && bestMosseScore >= weakestPti && weakestPti > 0) {
+          const { specialEffect } = this.getMosseEffectiveDamage(bestMosse, currentStars);
+          const reason = specialEffect === 'morte_istantanea' ? 'MORTE ISTANTANEA'
+            : specialEffect === 'dimezza_pti' ? 'DIMEZZA PTI'
+            : `dmg=${bestMosseScore} ≥ enemy PTI=${weakestPti}`;
+          console.log(`🤖 CPU ${this.playerName}: MOSSE lethal/special (${reason}) [MOOD:${this.mood}]`);
+          return bestMosse;
+        }
+
+        // Mood: aggressive — prefer highest-damage MOSSE
+        if (this.mood === 'aggressive') {
+          if (bestMosse) {
+            console.log(`🤖 CPU ${this.playerName}: [MOOD:aggressive] playing best MOSSE (score=${bestMosseScore})`);
             return bestMosse;
           }
         }
 
-        // Mood: defensive — heal at higher PTI threshold (70 vs 50), only attack if lethal
+        // Mood: defensive — heal at higher PTI threshold (70 vs 50)
         const healThreshold = this.mood === 'defensive' ? 70 : 50;
-        if (currentPTI <= healThreshold && bonusInHand.length > 0) {
-          const healBonus = bonusInHand.find((c: any) => {
-            const eff = (c.effect || '').toLowerCase();
-            return eff.includes('aumenta') || eff.includes('pti') || eff.includes('cura') || eff.includes('stelle');
-          });
-          if (healBonus) {
-            // Mood: aggressive — skip heal unless critically low (< 20 PTI)
-            const skipHeal = this.mood === 'aggressive' && currentPTI >= 20;
-            if (!skipHeal) {
-              console.log(`🤖 CPU ${this.playerName}: Low PTI (${currentPTI}), playing heal/buff [MOOD:${this.mood}]`);
-              return healBonus;
-            }
+        if (currentPTI <= healThreshold && bestBonus) {
+          const skipHeal = this.mood === 'aggressive' && currentPTI >= 20;
+          if (!skipHeal) {
+            console.log(`🤖 CPU ${this.playerName}: Low PTI (${currentPTI}), playing best heal/buff (score=${bestBonusScore}) [MOOD:${this.mood}]`);
+            return bestBonus;
           }
         }
 
-        // Mood: defensive — don't attack if can't kill
+        // Mood: defensive — play best BONUS instead of risky MOSSE
         if (this.mood === 'defensive') {
-          if (bonusInHand.length > 0) {
-            console.log(`🤖 CPU ${this.playerName}: [MOOD:defensive] playing BONUS instead of risky MOSSE`);
-            return bonusInHand[0];
+          if (bestBonus) {
+            console.log(`🤖 CPU ${this.playerName}: [MOOD:defensive] playing best BONUS (score=${bestBonusScore}) instead of risky MOSSE`);
+            return bestBonus;
           }
         }
 
         if (bestMosse) {
-          console.log(`🤖 CPU ${this.playerName}: Playing MOSSE (dmg=${bestMosse.mosseDamageValue || '?'}) [MOOD:${this.mood}]`);
+          console.log(`🤖 CPU ${this.playerName}: Playing best MOSSE (score=${bestMosseScore}) [MOOD:${this.mood}]`);
           return bestMosse;
         }
       }
       
       // CRITICAL FIX: If hunt_human mode has no valid human enemies left, still play cards
-      // This handles the case where human player is eliminated but CPU still has cards
       if (!isDead && effectiveEnemies.length === 0 && enemies.length > 0 && this.attackMode === 'hunt_human') {
         console.log(`🤖 CPU ${this.playerName}: hunt_human mode - no human enemies left, falling back to playing any card`);
-        if (bonusInHand.length > 0) return bonusInHand[0];
-        if (mosseInHand.length > 0) return mosseInHand[0];
+        if (bestBonus) return bestBonus;
+        if (bestMosse) return bestMosse;
       }
       
-      if (!isDead && bonusInHand.length > 0) {
-        return bonusInHand[0];
+      if (!isDead && bestBonus) {
+        return bestBonus;
       }
       
-      if (!isDead && mosseInHand.length > 0) {
-        return mosseInHand[0];
+      if (!isDead && bestMosse) {
+        return bestMosse;
       }
     }
     
