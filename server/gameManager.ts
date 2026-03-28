@@ -4070,6 +4070,51 @@ Rispondi SOLO in JSON:`;
 
       game.field.push(card);
 
+      // CPU AUTO-ACTIVATION: If CPU plays BARRIERA or RIFUGIO, immediately protect their own character
+      if (!isPersonaggio && this.isPlayerCPU(gameId, playerName)) {
+        const ioAutoProtect = (global as any).io;
+        const cpuOwnChar = this.getPlayerActiveCharacter(game, playerName);
+        if (cpuOwnChar) {
+          if (this.isBarrieraCard(card)) {
+            console.log(`🤖🛡️ CPU ${playerName} auto-activating BARRIERA on ${cpuOwnChar.name || cpuOwnChar.id}`);
+            setTimeout(() => {
+              const freshGame = this.games.get(gameId);
+              if (!freshGame) return;
+              const stillOnField = freshGame.field.find((c: Card) => c.id === card.id && c.owner === playerName);
+              const ownChar = this.getPlayerActiveCharacter(freshGame, playerName);
+              if (stillOnField && ownChar) {
+                const result = this.activateBarriera(gameId, card.id, ownChar.id, playerName, ioAutoProtect);
+                if (result.success) {
+                  console.log(`🤖🛡️ CPU BARRIERA activated on ${ownChar.name || ownChar.id}`);
+                  if (ioAutoProtect) {
+                    const gs = this.getSanitizedGameState(gameId);
+                    if (gs) ioAutoProtect.to(gameId).emit('game-state-update', gs);
+                  }
+                }
+              }
+            }, 600);
+          } else if (this.isRifugioCard(card)) {
+            console.log(`🤖🏠 CPU ${playerName} auto-activating RIFUGIO on ${cpuOwnChar.name || cpuOwnChar.id}`);
+            setTimeout(() => {
+              const freshGame = this.games.get(gameId);
+              if (!freshGame) return;
+              const stillOnField = freshGame.field.find((c: Card) => c.id === card.id && c.owner === playerName);
+              const ownChar = this.getPlayerActiveCharacter(freshGame, playerName);
+              if (stillOnField && ownChar) {
+                const result = this.activateRifugio(gameId, card.id, ownChar.id, playerName, ioAutoProtect);
+                if (result.success) {
+                  console.log(`🤖🏠 CPU RIFUGIO activated on ${ownChar.name || ownChar.id}`);
+                  if (ioAutoProtect) {
+                    const gs = this.getSanitizedGameState(gameId);
+                    if (gs) ioAutoProtect.to(gameId).emit('game-state-update', gs);
+                  }
+                }
+              }
+            }, 600);
+          }
+        }
+      }
+
       // GIGI PROIETTILE: can attack immediately when placed on field
       if (isPersonaggio && (card.frontImage || '').toLowerCase().includes('gigi-proiettile')) {
         card.canAttackImmediately = true;
@@ -6504,23 +6549,41 @@ Rispondi SOLO in JSON:`;
         let selectedTargets: Card[] = [];
         
         const effectLower = (card.effect || '').toLowerCase();
+        const cardNameLower = (card.name || this.getCardNameFromUrl(card.frontImage || '')).toLowerCase();
+
+        // Attack effects → target enemy
         const isAttackEffect = /dado|roulette|danno|danni|damage|morte|muore|uccid|dimezza|attacc|pierce|explosion/i.test(effectLower);
-        const isHealEffect = /cura|heal|rigenera|protez|scudo|buff|potenzia/i.test(effectLower) && !isAttackEffect;
+
+        // Self-benefit effects: PTI boost, heal, defense, protection → target own character
+        const isSelfBenefitEffect = !isAttackEffect && (
+          /\+\s*\d+\s*pti|aumenta.*pti|pti.*aumenta|guadagna.*pti|pti.*tuo|tuo.*personaggio.*pti|bevanda|staku/i.test(effectLower) ||
+          /cura|heal|rigenera|potenzia|buff/i.test(effectLower) ||
+          /non può essere attaccato|non puo essere attaccato|immune|protez|difesa|rifugio|barriera|scudo/i.test(effectLower) ||
+          /tuo personaggio.*non|non.*tuo personaggio/i.test(effectLower)
+        );
         
         if (isAttackEffect && enemyChars.length > 0) {
           const enemyTarget = this.cpuPickBestEnemy(enemyChars);
           selectedTargets = [enemyTarget];
           console.log(`🎯 CPU ${playerName} targeting ENEMY (attack effect): ${enemyTarget.name || enemyTarget.id}`);
-        } else if (isHealEffect && ownChars.length > 0) {
+        } else if (isSelfBenefitEffect && ownChars.length > 0) {
           const ownTarget = this.cpuPickBestOwn(ownChars);
           selectedTargets = [ownTarget];
-          console.log(`🎯 CPU ${playerName} targeting OWN (heal effect): ${ownTarget.name || ownTarget.id}`);
+          console.log(`🎯 CPU ${playerName} targeting OWN (self-benefit effect): ${ownTarget.name || ownTarget.id}`);
         } else if (enemyChars.length > 0) {
-          const enemyTarget = this.cpuPickBestEnemy(enemyChars);
-          selectedTargets = [enemyTarget];
-          console.log(`🎯 CPU ${playerName} targeting ENEMY (default): ${enemyTarget.name || enemyTarget.id}`);
+          // Default: check card name for self-benefit keywords before defaulting to enemy
+          const isSelfByName = /bevanda|staku|rifugio|barriera|difesa|scudo|protezione/i.test(cardNameLower);
+          if (isSelfByName && ownChars.length > 0) {
+            const ownTarget = this.cpuPickBestOwn(ownChars);
+            selectedTargets = [ownTarget];
+            console.log(`🎯 CPU ${playerName} targeting OWN (name-based self-benefit): ${ownTarget.name || ownTarget.id}`);
+          } else {
+            const enemyTarget = this.cpuPickBestEnemy(enemyChars);
+            selectedTargets = [enemyTarget];
+            console.log(`🎯 CPU ${playerName} targeting ENEMY (default): ${enemyTarget.name || enemyTarget.id}`);
+          }
         } else {
-          selectedTargets = [allFieldChars[Math.floor(Math.random() * allFieldChars.length)]];
+          selectedTargets = ownChars.length > 0 ? [this.cpuPickBestOwn(ownChars)] : [allFieldChars[Math.floor(Math.random() * allFieldChars.length)]];
           console.log(`🎯 CPU ${playerName} targeting any available: ${selectedTargets[0]?.name || selectedTargets[0]?.id}`);
         }
         
