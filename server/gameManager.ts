@@ -8941,6 +8941,253 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         emitState(); break;
       }
 
+      // ─── MINKIARD N. 300 (Auto Super Dado) ────────────────────────────────────
+      case 'minkiard_n300': {
+        const superDiceCards = [
+          { name: 'AGO DI PINO', image: 'https://i.ibb.co/Ld485J59/ago-di-pino.png', type: 'mosse' },
+          { name: 'UNIONE CLANDESTINA', image: 'https://i.postimg.cc/44YxzKww/UNIONE-CLANDESTINA.png', type: 'bonus' },
+          { name: 'BARATTO', image: 'https://i.postimg.cc/sgFmd7b6/baratto.png', type: 'bonus' },
+          { name: 'PORTALE SPECIALE', image: 'https://i.postimg.cc/3JbNsXRs/portale-speciale.png', type: 'bonus' },
+          { name: 'MINKIARDS N 200', image: 'https://i.postimg.cc/7hk0Tg7s/minkiards-n-200.png', type: 'bonus' },
+          { name: 'MACUMBA', image: 'https://i.postimg.cc/SNG7CtgW/macumba.png', type: 'bonus' }
+        ];
+        const pickedDiceCard = superDiceCards[Math.floor(Math.random() * superDiceCards.length)];
+        emitChat(`🎲 MINKIARD N. 300! ${playerName} lancia automaticamente il Super Dado... risultato: ${pickedDiceCard.name}!`);
+        if (io) {
+          io.to(gameId).emit('super-dice-rolled', { playerName, rolledCard: pickedDiceCard, timestamp: Date.now() });
+        }
+        try {
+          await this.placeSuperDiceCard(gameId, playerName, pickedDiceCard);
+          const stateAfter = this.getSanitizedGameState(gameId);
+          if (io) io.to(gameId).emit('game-state-update', stateAfter);
+        } catch (e) {
+          console.error(`[MINKIARD_N300] placeSuperDiceCard error:`, e);
+        }
+        break;
+      }
+
+      // ─── MINKIARDS N. 200 (Scelta carte da mazzo) ─────────────────────────────
+      case 'minkiard_n200': {
+        if (isCPU) {
+          // CPU: auto-pick best available card from any deck
+          const cpuPlayer = game.players[playerName];
+          if (!cpuPlayer) { emitChat(`❌ MINKIARDS N. 200: giocatore non trovato.`); break; }
+          const cpuDecks = [
+            { key: 'personaggiDeck', deck: (cpuPlayer as any).personaggiDeck || [] },
+            { key: 'mosseDeck', deck: (cpuPlayer as any).mosseDeck || [] },
+            { key: 'bonusDeck', deck: (cpuPlayer as any).bonusDeck || [] },
+          ];
+          let cpuPicked = false;
+          for (const { key, deck } of cpuDecks) {
+            if (deck.length > 0) {
+              const picked = deck.splice(0, 1)[0];
+              cpuPlayer.hand.push(picked);
+              emitChat(`🎴 MINKIARDS N. 200! ${playerName} pesca ${picked.name || picked.id} dal mazzo!`);
+              cpuPicked = true;
+              break;
+            }
+          }
+          if (!cpuPicked) emitChat(`🎴 MINKIARDS N. 200! Nessuna carta disponibile nei mazzi di ${playerName}.`);
+          emitState(); break;
+        }
+        // Human: show deck selection panel
+        const socketIdN200 = (game.players[playerName] as any)?.socketId;
+        if (io && socketIdN200) {
+          io.to(socketIdN200).emit('show-deck-selection', {
+            cardId: card.id,
+            cardName: card.name || 'MINKIARDS N. 200',
+            playerName,
+            effectDescription: 'Scegli da quale mazzo vuoi pescare una carta da aggiungere alla tua mano.',
+            excludeSpeciali: false
+          });
+          emitChat(`🎴 MINKIARDS N. 200! ${playerName} sta scegliendo un mazzo...`);
+        } else {
+          emitChat(`❌ MINKIARDS N. 200: impossibile mostrare il pannello di selezione.`);
+        }
+        break;
+      }
+
+      // ─── BEVANDA DEL VERO CICLISTA ────────────────────────────────────────────
+      case 'bevanda_ciclista': {
+        if (!myChar) { emitChat(`⚠️ BEVANDA: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
+        const isTondino = /maestro.*tondino|tondino/i.test(myCharName);
+        const bevPti = isTondino ? 5000 : 30;
+        myChar.pti = (myChar.pti || 0) + bevPti;
+        this.updateCardTextWithPTI(myChar);
+        if (isTondino) {
+          emitChat(`🚴 BEVANDA DEL VERO CICLISTA! MAESTRO TONDINO guadagna ben 5000 PTI! (PTI: ${myChar.pti})`);
+        } else {
+          emitChat(`🚴 BEVANDA DEL VERO CICLISTA! ${myChar.name || playerName} +30 PTI (PTI: ${myChar.pti})`);
+        }
+        emitState(); break;
+      }
+
+      // ─── SOFT CONTROL ─────────────────────────────────────────────────────────
+      case 'soft_control': {
+        if (!myChar) { emitChat(`⚠️ SOFT CONTROL: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
+        if (!game.timedEffects) game.timedEffects = [];
+        game.timedEffects.push({
+          id: `soft_control_${Date.now()}_${playerName}`,
+          owner: playerName,
+          turnsLeft: 5,
+          recurring: false,
+          actions: [],
+          description: `Soft Control: attacchi di ${playerName} non respintabili per 5 turni`,
+          cardId: card.id,
+          softControl: true,
+          softControlOwner: playerName
+        } as any);
+        (myChar as any).softControlActive = true;
+        (myChar as any).softControlTurns = 5;
+        const isPandolfi = /pandolfi|francesco.*pandolfi/i.test(myCharName);
+        if (isPandolfi) {
+          (myChar as any).softControlDoubleDamage = true;
+          emitChat(`🎮 SOFT CONTROL! Per 5 turni gli attacchi di ${playerName} non possono essere respinti! (PANDOLFI: danni raddoppiati!)`);
+        } else {
+          emitChat(`🎮 SOFT CONTROL! Per 5 turni gli attacchi di ${playerName} non possono essere respinti in nessun modo!`);
+        }
+        if (io) io.to(gameId).emit('soft-control-active', { playerName, charName: myChar.name, turns: 5, doubleDamage: isPandolfi });
+        emitState(); break;
+      }
+
+      // ─── TANGRAM ──────────────────────────────────────────────────────────────
+      case 'tangram': {
+        // Rotate all active field characters one step to the right in turn order
+        const turnOrderT = game.turnOrder || [];
+        const fieldCharsT: Card[] = [];
+        const ownerMap: { [charId: string]: string } = {};
+        for (const pName of turnOrderT) {
+          const activeChar = this.getPlayerActiveCharacter(game, pName);
+          if (activeChar) {
+            fieldCharsT.push(activeChar);
+            ownerMap[activeChar.id] = pName;
+          }
+        }
+        if (fieldCharsT.length < 2) {
+          emitChat(`🧩 TANGRAM: non ci sono abbastanza personaggi in campo da scambiare!`);
+          break;
+        }
+        // Rotate owners: each char goes to the next player in the turn order who had a char
+        const newOwners = [...Array(fieldCharsT.length).keys()].map(i => {
+          const nextIdx = (i + 1) % fieldCharsT.length;
+          return turnOrderT.find(p => p === Object.keys(ownerMap).map(id => ownerMap[id]).find((_, ii) => ii === nextIdx));
+        });
+        // Actually: rotate characters between players
+        // char[0] → player who owned char[1], char[1] → player who owned char[2], etc.
+        const playersWithChars = fieldCharsT.map(c => ownerMap[c.id]);
+        for (let i = 0; i < fieldCharsT.length; i++) {
+          const charToMove = fieldCharsT[i];
+          const newOwnerName = playersWithChars[(i + 1) % fieldCharsT.length];
+          charToMove.owner = newOwnerName;
+          console.log(`🧩 TANGRAM: ${charToMove.name || charToMove.id} → ${newOwnerName}`);
+        }
+        // Check if Maestro Tondino is in the field — if so, also swap hands
+        const hasTondinoOnField = game.field.some((c: Card) =>
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+          /maestro.*tondino|tondino/i.test(c.name || '')
+        );
+        if (hasTondinoOnField) {
+          // Rotate hands one step as well
+          const handsSnapshot = playersWithChars.map(p => [...(game.players[p]?.hand || [])]);
+          for (let i = 0; i < playersWithChars.length; i++) {
+            const nextHandOwner = playersWithChars[(i + 1) % playersWithChars.length];
+            if (game.players[nextHandOwner]) {
+              game.players[nextHandOwner].hand = handsSnapshot[i].map((c: Card) => ({ ...c, owner: nextHandOwner }));
+            }
+          }
+          emitChat(`🧩 TANGRAM + MAESTRO TONDINO! Personaggi e mani scambiate tra tutti i giocatori!`);
+        } else {
+          emitChat(`🧩 TANGRAM! Personaggi in campo scambiati tra tutti i giocatori in rotazione!`);
+        }
+        emitState(); break;
+      }
+
+      // ─── DIFESA VIGLIACCA ─────────────────────────────────────────────────────
+      case 'difesa_vigliacca': {
+        if (!myChar) { emitChat(`⚠️ DIFESA VIGLIACCA: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
+        const opponentsDV = game.turnOrder.filter((p: string) => p !== playerName);
+        if (opponentsDV.length === 0) { emitChat(`⚠️ DIFESA VIGLIACCA: nessun avversario disponibile.`); break; }
+        if (isCPU || opponentsDV.length === 1) {
+          // CPU or only one opponent: auto-choose
+          const randomTarget = opponentsDV[Math.floor(Math.random() * opponentsDV.length)];
+          (myChar as any).reflectNextDamageTo = randomTarget;
+          emitChat(`🛡️ DIFESA VIGLIACCA! Il prossimo danno subito da ${myChar.name || playerName} verrà deviato su ${randomTarget}!`);
+          emitState(); break;
+        }
+        // Human with multiple opponents: show choice panel
+        const cIdDV = `difesa-vigliacca-${Date.now()}`;
+        const psIdDV = (game.players[playerName] as any)?.socketId;
+        (game as any).pendingDifesaVigliacca = { choiceId: cIdDV, playerName, charId: myChar.id };
+        if (psIdDV && io) {
+          io.to(psIdDV).emit('show-choice-panel', {
+            choiceId: cIdDV,
+            title: '🛡️ DIFESA VIGLIACCA',
+            message: `Scegli verso chi deviare il prossimo attacco ricevuto:`,
+            options: opponentsDV.map((p: string) => {
+              const oppChar = this.getPlayerActiveCharacter(game, p);
+              return { value: p, label: `${oppChar?.name || p} (${p})` };
+            }),
+            timestamp: Date.now()
+          });
+        }
+        emitChat(`🛡️ DIFESA VIGLIACCA! ${playerName} sceglie verso chi deviare il prossimo attacco...`);
+        break;
+      }
+
+      // ─── UOVO ─────────────────────────────────────────────────────────────────
+      case 'uovo': {
+        if (!myChar) { emitChat(`⚠️ UOVO: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
+        const eggOriginalPti = myChar.pti || 0;
+        const eggOriginalStars = myChar.stars || 0;
+        const eggOwnerId = myChar.id;
+        const eggOwnerName = myChar.name || playerName;
+        if (!game.timedEffects) game.timedEffects = [];
+        // Phase 1: after 3 turns — hatch egg with half stats
+        game.timedEffects.push({
+          id: `uovo_hatch_${Date.now()}_${playerName}`,
+          sourcePlayer: playerName,
+          sourceCardId: card.id,
+          sourceCardName: 'Uovo',
+          turnsRemaining: 3,
+          createdAt: Date.now(),
+          actions: [{ type: 'uovo_hatch', target: playerName, value: eggOriginalPti, description: `Schiusa uovo: ${eggOwnerName}` }],
+          uovoPhase: 'hatch',
+          uovoOwnerId: eggOwnerId,
+          uovoOwnerName: eggOwnerName,
+          uovoOriginalPti: eggOriginalPti,
+          uovoOriginalStars: eggOriginalStars,
+          uovoPlayerName: playerName
+        } as any);
+        // Mark the char as having laid an egg
+        (myChar as any).hasEgg = true;
+        (myChar as any).eggOriginalPti = eggOriginalPti;
+        (myChar as any).eggOriginalStars = eggOriginalStars;
+        emitChat(`🥚 UOVO! ${eggOwnerName} ha deposto un uovo! Tra 3 turni si schiuderà un personaggio con metà PTI e stelle!`);
+        if (io) io.to(gameId).emit('uovo-phase', { phase: 'laid', playerName, charName: eggOwnerName, originalPti: eggOriginalPti, originalStars: eggOriginalStars });
+        emitState(); break;
+      }
+
+      // ─── DISTRUZIONE TOTALE ──────────────────────────────────────────────────
+      case 'distruzione_totale': {
+        const dtDamage = 200;
+        const dtTargets = game.field.filter((c: any) =>
+          c.owner !== playerName && !game.eliminatedPlayers.has(c.owner) && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (dtTargets.length === 0) { emitChat(`💥 DISTRUZIONE TOTALE! Nessun personaggio avversario in campo da colpire.`); emitState(); break; }
+        emitChat(`💥 DISTRUZIONE TOTALE! Tutti i ${dtTargets.length} personaggi avversari subiscono ${dtDamage} PTI di danno!`);
+        for (const dtChar of dtTargets) {
+          const dtOldPti = dtChar.pti || 0;
+          const dtNewPti = Math.max(0, dtOldPti - dtDamage);
+          dtChar.pti = dtNewPti;
+          this.updateCardTextWithPTI(dtChar);
+          emitChat(`💥 ${dtChar.name || dtChar.owner}: ${dtOldPti} → ${dtNewPti} PTI`);
+          if (dtNewPti <= 0) {
+            this.killAndCheck(gameId, dtChar.id, dtChar.owner, playerName);
+          }
+        }
+        emitState(); break;
+      }
+
       // ─── VITELLO D'ORO ────────────────────────────────────────────────────────
       case 'vitello_d_oro': {
         if (!myChar) { emitChat(`🐂 VITELLO D'ORO: Nessun personaggio in campo.`); break; }
@@ -13972,6 +14219,80 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             title: 'Funzione DIVIDI',
             subtitle: 'Scegli un personaggio avversario: i suoi PTI e stelle verranno dimezzati'
           });
+        }
+        break;
+      }
+
+      case 'uovo_hatch': {
+        // Timed effect: Hatch egg — create a clone with halved stats in player's hand
+        const io = (global as any).io;
+        const te = (action as any)._timedEffect;
+        const uovoOwnerId = te?.uovoOwnerId || null;
+        const uovoOwnerName = te?.uovoOwnerName || playerName;
+        const uovoOriginalPti = te?.uovoOriginalPti || action.value || 0;
+        const uovoOriginalStars = te?.uovoOriginalStars || 0;
+        const sourceChar = uovoOwnerId ? game.field.find((c: Card) => c.id === uovoOwnerId) : this.getPlayerActiveCharacter(game, playerName);
+        if (sourceChar) {
+          // Halve PTI of the original char
+          const halvedPti = Math.floor(uovoOriginalPti / 2);
+          const halvedStars = Math.max(1, Math.floor(uovoOriginalStars / 2));
+          sourceChar.pti = halvedPti;
+          sourceChar.stars = halvedStars;
+          this.updateCardTextWithPTI(sourceChar);
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-uovo-hatch`,
+              playerName: 'Sistema',
+              message: `🐣 L'uovo di ${uovoOwnerName} si è schiuso! ${uovoOwnerName} perde metà PTI (${uovoOriginalPti}→${halvedPti}) e stelle (${uovoOriginalStars}→${halvedStars}) per 3 turni!`,
+              timestamp: Date.now()
+            });
+            io.to(gameId).emit('uovo-phase', { phase: 'hatched', playerName, charName: uovoOwnerName, halvedPti, halvedStars });
+          }
+          // Schedule phase-2: restore stats after 3 more turns
+          if (!game.timedEffects) game.timedEffects = [];
+          game.timedEffects.push({
+            id: `uovo_restore_${Date.now()}_${playerName}`,
+            sourcePlayer: playerName,
+            sourceCardId: card?.id || '',
+            sourceCardName: 'Uovo',
+            turnsRemaining: 3,
+            createdAt: Date.now(),
+            actions: [{ type: 'uovo_restore', target: playerName, value: uovoOriginalPti, description: `Ripristino uovo: ${uovoOwnerName}` }],
+            uovoPhase: 'restore',
+            uovoOwnerId: sourceChar.id,
+            uovoOwnerName,
+            uovoOriginalPti,
+            uovoOriginalStars
+          } as any);
+        }
+        break;
+      }
+
+      case 'uovo_restore': {
+        // Phase 2 of Uovo: restore original stats
+        const io = (global as any).io;
+        const te = (action as any)._timedEffect;
+        const uovoOwnerId = te?.uovoOwnerId || null;
+        const uovoOwnerName = te?.uovoOwnerName || playerName;
+        const uovoOriginalPti = te?.uovoOriginalPti || action.value || 0;
+        const uovoOriginalStars = te?.uovoOriginalStars || 0;
+        const sourceChar = uovoOwnerId ? game.field.find((c: Card) => c.id === uovoOwnerId) : this.getPlayerActiveCharacter(game, playerName);
+        if (sourceChar) {
+          sourceChar.pti = uovoOriginalPti;
+          sourceChar.stars = uovoOriginalStars;
+          this.updateCardTextWithPTI(sourceChar);
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-uovo-restore`,
+              playerName: 'Sistema',
+              message: `🥚✨ ${uovoOwnerName} ha completato il ciclo dell'uovo! PTI ripristinato a ${uovoOriginalPti}, stelle a ${uovoOriginalStars}!`,
+              timestamp: Date.now()
+            });
+            io.to(gameId).emit('uovo-phase', { phase: 'restored', playerName, charName: uovoOwnerName, originalPti: uovoOriginalPti, originalStars: uovoOriginalStars });
+          }
+          delete (sourceChar as any).hasEgg;
+          delete (sourceChar as any).eggOriginalPti;
+          delete (sourceChar as any).eggOriginalStars;
         }
         break;
       }
@@ -24414,6 +24735,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           delete (fc as any).stealthTurnsLeft;
         }
       }
+      // ── SOFT CONTROL: decrement turns ──────────────────────────────────────────
+      if ((fc as any).softControlActive && (fc as any).softControlTurns > 0 && fc.owner === playerName) {
+        (fc as any).softControlTurns--;
+        if ((fc as any).softControlTurns <= 0) {
+          const ioSC = (global as any).io;
+          delete (fc as any).softControlActive;
+          delete (fc as any).softControlDoubleDamage;
+          delete (fc as any).softControlTurns;
+          if (ioSC) ioSC.to(gameId).emit('chat-message', { id: `${Date.now()}-soft-control-end`, playerName: 'Sistema', message: `🎮 SOFT CONTROL terminato per ${fc.name || fc.owner}! Gli attacchi tornano ad essere normali.`, timestamp: Date.now() });
+        }
+      }
     }
 
     // ── VITELLO D'ORO: decrement death timer ─────────────────────────────────────
@@ -24699,6 +25031,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         for (const action of te.actions) {
           try {
+            // Attach parent timed effect data for special handlers like uovo_hatch
+            (action as any)._timedEffect = te;
             this.executeCustomEffectAction(gameId, action, te.sourcePlayer, sourceCard || ({} as any))
               .catch(err => console.error(`⏳ Async error executing timed action ${action.type}:`, err));
           } catch (err) {
@@ -25281,6 +25615,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         for (const action of te.actions) {
           try {
+            (action as any)._timedEffect = te;
             this.executeCustomEffectAction(gameId, action, te.sourcePlayer, sourceCard || ({} as any))
               .catch(err => console.error(`⏳ Async error executing timed action (forceEnd) ${action.type}:`, err));
           } catch (err) {
@@ -27353,6 +27688,56 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             timestamp: Date.now()
           });
         };
+
+        // ── SOFT CONTROL BYPASS: attacker's softControl makes all defense bonus cards ineffective ──
+        const attackerCharSC = this.getPlayerActiveCharacter(game, attacker);
+        if (defenseCard && defenseCardName && attackerCharSC && (attackerCharSC as any).softControlActive && (attackerCharSC as any).softControlTurns > 0) {
+          console.log(`[SOFT_CONTROL] ${attacker}'s softControl bypasses ${defenseCardName} defense for ${defender}`);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-soft-control-bypass`,
+            playerName: 'Sistema',
+            message: `🎮 SOFT CONTROL! L'attacco di ${attacker} non può essere respinto! Il bonus difensivo di ${defender} è inefficace!`,
+            timestamp: Date.now()
+          });
+          // Apply damage directly without defense
+          let scDamage = damage || 0;
+          if ((attackerCharSC as any).softControlDoubleDamage) {
+            const scOrigDmg = scDamage;
+            scDamage = scDamage * 2;
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-soft-control-double`,
+              playerName: 'Sistema',
+              message: `🎮💥 SOFT CONTROL (Francesco Pandolfi) - Danno RADDOPPIATO: ${scOrigDmg} → ${scDamage} PTI!`,
+              timestamp: Date.now()
+            });
+          }
+          if (scDamage > 0 && targetCardId) {
+            await this.processMosseDamage(gameId, attacker, targetCardId, scDamage, mosseCardId, io, false, false, false, false, starsToRemove, mosseEffect);
+          }
+          // Resolve CPU attacker if needed
+          if (game?.players[attacker]?.isCPU || attacker.startsWith('CPU-')) {
+            const cpuInst = game?.players[attacker]?.cpuInstance;
+            if (cpuInst) cpuInst.resolveAttack();
+            const scReplacement = await this.pickCard(gameId, 'mosse', attacker);
+            if (scReplacement) console.log(`🎴 CPU ${attacker}: Drew replacement MOSSE after soft_control bypass`);
+          }
+          // End turn normally
+          const scNextPlayer = this.endTurn(gameId, attacker);
+          if (scNextPlayer) {
+            io.to(gameId).emit('next-turn', { nextPlayer: scNextPlayer });
+            const freshGameSC = this.games.get(gameId);
+            if (freshGameSC?.players[scNextPlayer]?.isCPU) {
+              setTimeout(async () => {
+                const act = await this.processCPUTurn(gameId, scNextPlayer, io);
+                if (act) await this.applyCPUAction(gameId, scNextPlayer, act, io);
+              }, 2000);
+            } else {
+              this.startTurnTimer(gameId, scNextPlayer);
+            }
+          }
+          io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+          return;
+        }
 
         if (defenseCardName.includes('ALTA SALVA')) {
           if (damage && damage > 200) {

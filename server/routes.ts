@@ -4879,6 +4879,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
+      // ── DIFESA VIGLIACCA ─────────────────────────────────────────────────────
+      const pendingDV = (game as any).pendingDifesaVigliacca;
+      if (pendingDV && pendingDV.choiceId === choiceId && pendingDV.playerName === socketPlayerName) {
+        delete (game as any).pendingDifesaVigliacca;
+        const myCharDV = game.field?.find((c: any) => (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === socketPlayerName);
+        if (myCharDV && value) {
+          (myCharDV as any).reflectNextDamageTo = value;
+          const targetOppChar = (gameManager as any).getPlayerActiveCharacter(game, value);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-difesa-vigliacca`,
+            playerName: 'Sistema',
+            message: `🛡️ DIFESA VIGLIACCA! Il prossimo danno subito da ${myCharDV.name || socketPlayerName} verrà deviato su ${targetOppChar?.name || value}!`,
+            timestamp: Date.now()
+          });
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
       // ── BOB DYLAN ────────────────────────────────────────────────────────────
       const pending = (game as any).pendingBobDylanChoice;
       if (!pending || pending.choiceId !== choiceId || pending.playerName !== socketPlayerName) {
