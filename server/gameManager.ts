@@ -3563,6 +3563,14 @@ Rispondi SOLO in JSON:`;
     }
   }
 
+  removeGameFromMemory(gameId: string): boolean {
+    if (!this.games.has(gameId)) return false;
+    this.games.delete(gameId);
+    this.lastSaveTime.delete(gameId);
+    console.log(`🗑️ Game ${gameId} removed from memory`);
+    return true;
+  }
+
   // ── Cleanup inactive non-GymMode games older than 12 hours ──────────────────
   // GymMode games are always preserved regardless of inactivity.
   async cleanupInactiveGames(): Promise<{ removedMemory: number; removedDb: number }> {

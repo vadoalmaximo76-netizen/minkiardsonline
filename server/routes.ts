@@ -8806,6 +8806,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('delete-room', async ({ gameId, playerName }: { gameId: string; playerName: string }) => {
+      try {
+        const game = gameManager.getGameState(gameId);
+        if (!game) {
+          socket.emit('delete-room-error', { message: 'Stanza non trovata' });
+          return;
+        }
+        if (game.creatorName !== playerName) {
+          socket.emit('delete-room-error', { message: 'Solo il creatore può eliminare la stanza' });
+          return;
+        }
+        const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+        const createdAt = game.startTime ? game.startTime.getTime() : 0;
+        if (Date.now() - createdAt < TWO_HOURS_MS) {
+          const remainingMs = TWO_HOURS_MS - (Date.now() - createdAt);
+          const remainingMins = Math.ceil(remainingMs / 60000);
+          socket.emit('delete-room-error', { message: `Potrai eliminare la stanza tra ${remainingMins} minuti` });
+          return;
+        }
+        io.to(gameId).emit('room-deleted', { gameId, deletedBy: playerName });
+        gameManager.removeGameFromMemory(gameId);
+        await gameManager.markGameInactive(gameId);
+        console.log(`🗑️ Room ${gameId} deleted by creator ${playerName}`);
+      } catch (err) {
+        console.error('Error in delete-room:', err);
+        socket.emit('delete-room-error', { message: 'Errore durante l\'eliminazione della stanza' });
+      }
+    });
+
     // Handle elimination confirmation
     socket.on('confirm-elimination', ({ gameId, playerName, confirmed }) => {
       if (confirmed) {
