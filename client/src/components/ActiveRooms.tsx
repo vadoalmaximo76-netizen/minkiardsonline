@@ -72,8 +72,14 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
       }
     });
 
-    socket.on('room-deleted', () => {
-      onBack();
+    socket.on('room-deleted', ({ gameId: deletedGameId }: { gameId: string }) => {
+      // Only navigate home if the deleted room is one the current user was associated with
+      const wasInRoom = rooms.some(r => r.gameId === deletedGameId && r.isCreator);
+      if (wasInRoom) {
+        onBack();
+      } else {
+        fetchRooms();
+      }
     });
 
     socket.on('delete-room-error', ({ message }: { message: string }) => {

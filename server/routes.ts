@@ -8824,7 +8824,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
         // Do not allow deletion of actively playing matches
-        if ((game as any).isPlaying === true) {
+        if (game.isPlaying === true) {
           socket.emit('delete-room-error', { message: 'Non puoi eliminare una partita in corso' });
           return;
         }
