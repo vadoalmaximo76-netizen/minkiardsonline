@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Users, Lock, Unlock, RefreshCw, UserPlus, Clock, Gamepad2, Eye, Trash2 } from 'lucide-react';
 import { socket } from '../lib/socket';
 
@@ -28,6 +28,7 @@ interface ActiveRoomsProps {
 
 export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, onSpectate }: ActiveRoomsProps) {
   const [rooms, setRooms] = useState<ActiveRoom[]>([]);
+  const roomsRef = useRef<ActiveRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [joiningRoom, setJoiningRoom] = useState<string | null>(null);
   const [pendingApproval, setPendingApproval] = useState<string | null>(null);
@@ -45,6 +46,7 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
       });
       if (res.ok) {
         const data = await res.json();
+        roomsRef.current = data;
         setRooms(data);
       }
     } catch (error) {
@@ -73,9 +75,9 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
     });
 
     socket.on('room-deleted', ({ gameId: deletedGameId }: { gameId: string }) => {
-      // Only navigate home if the deleted room is one the current user was associated with
-      const wasInRoom = rooms.some(r => r.gameId === deletedGameId && r.isCreator);
-      if (wasInRoom) {
+      // Use ref to avoid stale closure — check if user was creator of the deleted room
+      const wasCreator = roomsRef.current.some(r => r.gameId === deletedGameId && r.isCreator);
+      if (wasCreator) {
         onBack();
       } else {
         fetchRooms();

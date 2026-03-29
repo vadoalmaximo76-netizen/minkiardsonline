@@ -8842,12 +8842,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
         // Notify players inside the room so they can exit
-        io.to(gameId).emit('room-deleted', { gameId, deletedBy: requesterUsername });
+        io.to(gameId).emit('room-deleted', { gameId, deletedBy: callerName });
         gameManager.removeGameFromMemory(gameId);
         await gameManager.markGameInactive(gameId);
         // Broadcast updated room list to all connected clients
         io.emit('rooms-updated');
-        console.log(`🗑️ Room ${gameId} deleted by creator ${requesterUsername}`);
+        console.log(`🗑️ Room ${gameId} deleted by creator ${callerName}`);
       } catch (err) {
         console.error('Error in delete-room:', err);
         socket.emit('delete-room-error', { message: 'Errore durante l\'eliminazione della stanza' });
