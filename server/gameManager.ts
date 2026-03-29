@@ -9168,22 +9168,31 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       // ─── OCCHIO DEL FOTOGRAFO ────────────────────────────────────────────────
+      // Player chooses a card type; one matching card is revealed from each opponent's hand.
       case 'occhio_del_fotografo': {
         const opponents = game.turnOrder.filter((p: string) => p !== playerName && !game.eliminatedPlayers.has(p));
         if (opponents.length === 0) { emitChat(`📸 OCCHIO DEL FOTOGRAFO: Nessun avversario in gioco.`); emitState(); break; }
+        const odFTypes = [
+          { value: 'bonus', label: '🃏 Bonus' },
+          { value: 'mosse', label: '⚔️ Mosse' },
+          { value: 'personaggi', label: '👤 Personaggi' },
+          { value: 'personaggi_speciali', label: '⭐ Personaggi Speciali' }
+        ];
         if (isCPU) {
-          // CPU: spy on random opponent, steal random card
-          const rndOpp = opponents[Math.floor(Math.random() * opponents.length)];
-          const oppHand = (game.players[rndOpp]?.hand || []);
-          if (oppHand.length > 0) {
-            const stolenIdx = Math.floor(Math.random() * oppHand.length);
-            const stolenCard = oppHand.splice(stolenIdx, 1)[0];
-            stolenCard.owner = playerName;
-            (game.players[playerName].hand || []).push(stolenCard);
-            emitChat(`📸 OCCHIO DEL FOTOGRAFO! ${playerName} spia la mano di ${rndOpp} e ruba una carta!`);
-          } else {
-            emitChat(`📸 OCCHIO DEL FOTOGRAFO! ${playerName} spia la mano di ${rndOpp}: è vuota!`);
+          // CPU: randomly pick a card type and reveal one card per opponent
+          const rndType = odFTypes[Math.floor(Math.random() * odFTypes.length)].value;
+          const revealedLines: string[] = [];
+          for (const opp of opponents) {
+            const oppHand = game.players[opp]?.hand || [];
+            const matching = oppHand.filter((c: any) => c.type === rndType || (rndType === 'personaggi' && c.type === 'personaggi_speciali'));
+            if (matching.length > 0) {
+              const revealed = matching[Math.floor(Math.random() * matching.length)];
+              revealedLines.push(`${opp}: ${revealed.name || revealed.type || 'carta'}`);
+            } else {
+              revealedLines.push(`${opp}: nessuna carta ${rndType}`);
+            }
           }
+          emitChat(`📸 OCCHIO DEL FOTOGRAFO! ${playerName} rivela carte "${rndType}": ${revealedLines.join(', ')}`);
           emitState(); break;
         }
         const odFChoiceId = `fotografo-${Date.now()}`;
@@ -9193,8 +9202,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           io.to(odFSocketId).emit('show-choice-panel', {
             choiceId: odFChoiceId,
             title: '📸 OCCHIO DEL FOTOGRAFO',
-            message: 'Scegli quale avversario spiare. Vedrai la sua mano e potrai rubare una carta!',
-            options: opponents.map(p => ({ value: p, label: `👁️ Spia ${p}` })),
+            message: 'Scegli il tipo di carta da rivelare dalla mano di ogni avversario:',
+            options: odFTypes,
             timestamp: Date.now()
           });
         }
@@ -9203,49 +9212,44 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       // ─── PLAYBACK ────────────────────────────────────────────────────────────
+      // Player samples stars from a chosen opponent character; next MOSSE uses those stars as attack power.
+      // If GIGIONE is in field, damage is doubled.
       case 'playback': {
         if (!myChar) { emitChat(`🎬 PLAYBACK: Nessun personaggio in campo.`); emitState(); break; }
         const pbEnemies = game.field.filter((c: any) =>
           c.owner !== playerName && !game.eliminatedPlayers.has(c.owner) && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
         );
-        if (pbEnemies.length === 0) { emitChat(`🎬 PLAYBACK: Nessun personaggio avversario in campo.`); emitState(); break; }
-        // Check if GIGIONE is in field for this player
+        if (pbEnemies.length === 0) { emitChat(`🎬 PLAYBACK: Nessun personaggio avversario in campo da cui campionare.`); emitState(); break; }
         const pbHasGigione = game.field.some((c: any) =>
           c.owner === playerName && (c.name || '').toUpperCase().includes('GIGIONE')
         );
         if (isCPU) {
-          // CPU: pick random enemy as "forced attacker", pick another enemy/target
-          const pbForcedAttacker = pbEnemies[Math.floor(Math.random() * pbEnemies.length)];
-          const pbAllTargets = game.field.filter((c: any) =>
-            c.id !== pbForcedAttacker.id && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-          );
-          if (pbAllTargets.length > 0) {
-            const pbTarget = pbAllTargets[Math.floor(Math.random() * pbAllTargets.length)];
-            const pbAttackerStars = pbForcedAttacker.stars || 1;
-            let pbDamage = pbAttackerStars * 50;
-            if (pbHasGigione) pbDamage = pbDamage * 2;
-            const pbOldPti = pbTarget.pti || 0;
-            pbTarget.pti = Math.max(0, pbOldPti - pbDamage);
-            this.updateCardTextWithPTI(pbTarget);
-            emitChat(`🎬 PLAYBACK! ${pbForcedAttacker.name || pbForcedAttacker.owner} attacca ${pbTarget.name || pbTarget.owner} con ${pbDamage} PTI di danno${pbHasGigione ? ' (GIGIONE raddoppiato!)' : ''}!`);
-            if (pbTarget.pti <= 0) this.killAndCheck(gameId, pbTarget.id, pbTarget.owner, playerName);
-          }
+          // CPU: pick random enemy char, sample their stars, apply to next CPU attack
+          const pbSampled = pbEnemies[Math.floor(Math.random() * pbEnemies.length)];
+          let pbSampledStars = pbSampled.stars || this.extractStarsFromNote(pbSampled.text || '') || 1;
+          if (pbHasGigione) pbSampledStars = pbSampledStars * 2;
+          if (!game.playbackStars) (game as any).playbackStars = {};
+          (game as any).playbackStars[playerName] = pbSampledStars;
+          emitChat(`🎬 PLAYBACK! ${playerName} campiona ${pbSampled.name || pbSampled.owner} (${pbSampledStars}★${pbHasGigione ? ' ×2 GIGIONE' : ''}): il prossimo attacco varrà ${pbSampledStars * 50} PTI!`);
           emitState(); break;
         }
-        // Human: mark playback pending, show choice of forced attacker (enemy char), then target
+        // Human: let player pick which opponent char to sample
         const pbChoiceId = `playback-${Date.now()}`;
         const pbSocketId = (game.players[playerName] as any)?.socketId;
-        (game as any).pendingPlayback = { choiceId: pbChoiceId, playerName, hasGigione: pbHasGigione, phase: 'choose_attacker' };
+        (game as any).pendingPlayback = { choiceId: pbChoiceId, playerName, hasGigione: pbHasGigione };
         if (pbSocketId && io) {
           io.to(pbSocketId).emit('show-choice-panel', {
             choiceId: pbChoiceId,
-            title: '🎬 PLAYBACK - Scegli il personaggio che attacca',
-            message: 'Scegli il personaggio avversario che sarà forzato ad attaccare:',
-            options: pbEnemies.map(c => ({ value: c.id, label: `🎭 ${c.name || c.owner} (${c.pti || 0} PTI, ${c.stars || 0}★)` })),
+            title: '🎬 PLAYBACK - Campiona le stelle',
+            message: 'Scegli il personaggio avversario di cui campionare le stelle. Le sue stelle saranno usate come potere del tuo prossimo attacco!',
+            options: pbEnemies.map(c => {
+              const cStars = c.stars || this.extractStarsFromNote(c.text || '') || 0;
+              return { value: c.id, label: `🎭 ${c.name || c.owner} — ${cStars}★ → ${cStars * 50} PTI di danno${pbHasGigione ? ' ×2' : ''}` };
+            }),
             timestamp: Date.now()
           });
         }
-        emitChat(`🎬 PLAYBACK! ${playerName} forza un avversario ad attaccare!${pbHasGigione ? ' GIGIONE in campo: il danno sarà raddoppiato!' : ''}`);
+        emitChat(`🎬 PLAYBACK! ${playerName} sceglie da chi campionare le stelle per il prossimo attacco!${pbHasGigione ? ' GIGIONE: danno raddoppiato!' : ''}`);
         emitState(); break;
       }
 
@@ -14536,6 +14540,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           if (io2) io2.to(gameId).emit('chat-message', { id: `${Date.now()}-self-attack`, playerName: 'Sistema', message: `🤪 RINCOGLIONIMENTO/FIASCHETTA! L'attacco di ${attackerName} è ricaduto su sé stesso!`, timestamp: Date.now() });
         }
       }
+    }
+
+    // ── PLAYBACK: override damageValue with sampled stars ────────────────────
+    const playbackStarsValue = (game as any).playbackStars?.[attackerName];
+    if (playbackStarsValue !== undefined && !isFurtoAttack && !isDuelAttack) {
+      const pbOldDamage = damageValue;
+      damageValue = playbackStarsValue * 50;
+      delete (game as any).playbackStars[attackerName];
+      console.log(`🎬 PLAYBACK: ${attackerName} uses sampled stars=${playbackStarsValue}, overriding damage ${pbOldDamage} → ${damageValue}`);
+      const ioGlobal = (global as any).io || io;
+      if (ioGlobal) ioGlobal.to(gameId).emit('chat-message', { id: `${Date.now()}-playback-fires`, playerName: 'Sistema', message: `🎬 PLAYBACK attivato! L'attacco di ${attackerName} vale ${damageValue} PTI (${playbackStarsValue}★ campionate)!`, timestamp: Date.now() });
     }
 
     // ── FORCED ATTACK TARGET (Carica) ─────────────────────────────────────────
