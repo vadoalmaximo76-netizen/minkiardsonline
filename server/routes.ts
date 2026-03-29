@@ -8808,18 +8808,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     socket.on('delete-room', async ({ gameId }: { gameId: string }) => {
       try {
-        // Use server-verified identity — never trust client-provided playerName
-        const requesterUsername = socket.data?.username as string | undefined;
-        if (!requesterUsername) {
-          socket.emit('delete-room-error', { message: 'Autenticazione richiesta per eliminare una stanza' });
-          return;
-        }
         const game = gameManager.getGameState(gameId);
         if (!game) {
           socket.emit('delete-room-error', { message: 'Stanza non trovata' });
           return;
         }
-        if (game.creatorName !== requesterUsername) {
+        // Determine caller identity using server-side sources only (no client payload):
+        // 1. Reverse-lookup the player name by matching socket.id to game.players entries
+        // 2. Fall back to the authenticated account username stored during JWT handshake
+        const playerBySocket = Object.entries(game.players).find(
+          ([, p]) => p.socketId === socket.id
+        )?.[0];
+        const callerName = playerBySocket ?? (socket.data?.username as string | undefined);
+        if (!callerName) {
+          socket.emit('delete-room-error', { message: 'Non sei connesso a questa stanza' });
+          return;
+        }
+        if (game.creatorName !== callerName) {
           socket.emit('delete-room-error', { message: 'Solo il creatore può eliminare la stanza' });
           return;
         }

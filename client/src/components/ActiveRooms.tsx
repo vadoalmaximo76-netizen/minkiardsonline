@@ -88,6 +88,7 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
     });
 
     socket.on('rooms-updated', () => {
+      setDeletingRoom(null);
       fetchRooms();
     });
 
