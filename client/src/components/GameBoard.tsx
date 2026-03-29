@@ -2118,8 +2118,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('game-end-rewards', handleGameEndRewards);
     socket.on('fusion-error', handleFusionError);
     socket.on('voodoo:error', handleVoodooError);
-    socket.on('room-deleted', () => {
-      onBack?.();
+    socket.on('room-deleted', ({ gameId: deletedGameId }: { gameId: string }) => {
+      if (deletedGameId === gameId) {
+        onBack?.();
+      }
     });
 
     // STAKU reactive window

@@ -315,8 +315,8 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
 
                   {/* Join/Spectate/Delete buttons */}
                   <div className="mt-4 flex justify-end gap-3 flex-wrap">
-                    {/* Delete button — only for the creator */}
-                    {deleteStatus && (
+                    {/* Delete button — only for the creator, not when match is already playing */}
+                    {deleteStatus && room.status !== 'playing' && (
                       <button
                         onClick={() => deleteStatus.canDelete && setConfirmDeleteGameId(room.gameId)}
                         disabled={!deleteStatus.canDelete || deletingRoom === room.gameId}
