@@ -1192,6 +1192,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('show-choice-panel', handleShowChoicePanel);
 
+    const handleFotografoRevealHand = (data: { playerName: string; hand: Array<{id: string; name: string; type: string}> }) => {
+      // Just log; the steal choice panel will appear immediately after
+      console.log(`[FOTOGRAFO] Revealed hand of ${data.playerName}: ${data.hand.length} cards`);
+    };
+    socket.on('fotografo-reveal-hand', handleFotografoRevealHand);
+
     const handleDaddyConteChoice = (data: { characters: Array<{id: string; name: string; frontImage: string; owner: string}> }) => {
       setDaddyConteDialog({ visible: true, characters: data.characters });
     };
@@ -2285,6 +2291,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('comic-banner', handleComicBanner);
       socket.off('block-card-type-select', handleBlockCardTypeSelect);
       socket.off('show-choice-panel', handleShowChoicePanel);
+      socket.off('fotografo-reveal-hand', handleFotografoRevealHand);
       socket.off('daddy-conte-choice', handleDaddyConteChoice);
       socket.off('fabrizio-choice', handleFabrizioChoice);
       socket.off('camillo-kill-choice', handleCamilloKillChoice);

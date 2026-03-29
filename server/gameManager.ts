@@ -9167,6 +9167,88 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         emitState(); break;
       }
 
+      // ─── OCCHIO DEL FOTOGRAFO ────────────────────────────────────────────────
+      case 'occhio_del_fotografo': {
+        const opponents = game.turnOrder.filter((p: string) => p !== playerName && !game.eliminatedPlayers.has(p));
+        if (opponents.length === 0) { emitChat(`📸 OCCHIO DEL FOTOGRAFO: Nessun avversario in gioco.`); emitState(); break; }
+        if (isCPU) {
+          // CPU: spy on random opponent, steal random card
+          const rndOpp = opponents[Math.floor(Math.random() * opponents.length)];
+          const oppHand = (game.players[rndOpp]?.hand || []);
+          if (oppHand.length > 0) {
+            const stolenIdx = Math.floor(Math.random() * oppHand.length);
+            const stolenCard = oppHand.splice(stolenIdx, 1)[0];
+            stolenCard.owner = playerName;
+            (game.players[playerName].hand || []).push(stolenCard);
+            emitChat(`📸 OCCHIO DEL FOTOGRAFO! ${playerName} spia la mano di ${rndOpp} e ruba una carta!`);
+          } else {
+            emitChat(`📸 OCCHIO DEL FOTOGRAFO! ${playerName} spia la mano di ${rndOpp}: è vuota!`);
+          }
+          emitState(); break;
+        }
+        const odFChoiceId = `fotografo-${Date.now()}`;
+        const odFSocketId = (game.players[playerName] as any)?.socketId;
+        (game as any).pendingFotografo = { choiceId: odFChoiceId, playerName };
+        if (odFSocketId && io) {
+          io.to(odFSocketId).emit('show-choice-panel', {
+            choiceId: odFChoiceId,
+            title: '📸 OCCHIO DEL FOTOGRAFO',
+            message: 'Scegli quale avversario spiare. Vedrai la sua mano e potrai rubare una carta!',
+            options: opponents.map(p => ({ value: p, label: `👁️ Spia ${p}` })),
+            timestamp: Date.now()
+          });
+        }
+        emitChat(`📸 OCCHIO DEL FOTOGRAFO! ${playerName} usa la lente d'ingrandimento...`);
+        emitState(); break;
+      }
+
+      // ─── PLAYBACK ────────────────────────────────────────────────────────────
+      case 'playback': {
+        if (!myChar) { emitChat(`🎬 PLAYBACK: Nessun personaggio in campo.`); emitState(); break; }
+        const pbEnemies = game.field.filter((c: any) =>
+          c.owner !== playerName && !game.eliminatedPlayers.has(c.owner) && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (pbEnemies.length === 0) { emitChat(`🎬 PLAYBACK: Nessun personaggio avversario in campo.`); emitState(); break; }
+        // Check if GIGIONE is in field for this player
+        const pbHasGigione = game.field.some((c: any) =>
+          c.owner === playerName && (c.name || '').toUpperCase().includes('GIGIONE')
+        );
+        if (isCPU) {
+          // CPU: pick random enemy as "forced attacker", pick another enemy/target
+          const pbForcedAttacker = pbEnemies[Math.floor(Math.random() * pbEnemies.length)];
+          const pbAllTargets = game.field.filter((c: any) =>
+            c.id !== pbForcedAttacker.id && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          if (pbAllTargets.length > 0) {
+            const pbTarget = pbAllTargets[Math.floor(Math.random() * pbAllTargets.length)];
+            const pbAttackerStars = pbForcedAttacker.stars || 1;
+            let pbDamage = pbAttackerStars * 50;
+            if (pbHasGigione) pbDamage = pbDamage * 2;
+            const pbOldPti = pbTarget.pti || 0;
+            pbTarget.pti = Math.max(0, pbOldPti - pbDamage);
+            this.updateCardTextWithPTI(pbTarget);
+            emitChat(`🎬 PLAYBACK! ${pbForcedAttacker.name || pbForcedAttacker.owner} attacca ${pbTarget.name || pbTarget.owner} con ${pbDamage} PTI di danno${pbHasGigione ? ' (GIGIONE raddoppiato!)' : ''}!`);
+            if (pbTarget.pti <= 0) this.killAndCheck(gameId, pbTarget.id, pbTarget.owner, playerName);
+          }
+          emitState(); break;
+        }
+        // Human: mark playback pending, show choice of forced attacker (enemy char), then target
+        const pbChoiceId = `playback-${Date.now()}`;
+        const pbSocketId = (game.players[playerName] as any)?.socketId;
+        (game as any).pendingPlayback = { choiceId: pbChoiceId, playerName, hasGigione: pbHasGigione, phase: 'choose_attacker' };
+        if (pbSocketId && io) {
+          io.to(pbSocketId).emit('show-choice-panel', {
+            choiceId: pbChoiceId,
+            title: '🎬 PLAYBACK - Scegli il personaggio che attacca',
+            message: 'Scegli il personaggio avversario che sarà forzato ad attaccare:',
+            options: pbEnemies.map(c => ({ value: c.id, label: `🎭 ${c.name || c.owner} (${c.pti || 0} PTI, ${c.stars || 0}★)` })),
+            timestamp: Date.now()
+          });
+        }
+        emitChat(`🎬 PLAYBACK! ${playerName} forza un avversario ad attaccare!${pbHasGigione ? ' GIGIONE in campo: il danno sarà raddoppiato!' : ''}`);
+        emitState(); break;
+      }
+
       // ─── DISTRUZIONE TOTALE ──────────────────────────────────────────────────
       case 'distruzione_totale': {
         const dtDamage = 200;

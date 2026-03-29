@@ -4898,6 +4898,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
+      // ── OCCHIO DEL FOTOGRAFO ─────────────────────────────────────────────────
+      const pendingFotografo = (game as any).pendingFotografo;
+      if (pendingFotografo && pendingFotografo.choiceId === choiceId && pendingFotografo.playerName === socketPlayerName) {
+        if (pendingFotografo.phase === 'steal') {
+          // Phase 2: player chose a card to steal (value = card ID or 'skip')
+          delete (game as any).pendingFotografo;
+          if (value && value !== 'skip') {
+            const spiedOpp = pendingFotografo.spiedOpponent;
+            const oppHand = game.players[spiedOpp]?.hand || [];
+            const stealIdx = oppHand.findIndex((c: any) => c.id === value);
+            if (stealIdx >= 0) {
+              const stolenCard = oppHand.splice(stealIdx, 1)[0];
+              stolenCard.owner = socketPlayerName;
+              (game.players[socketPlayerName].hand || []).push(stolenCard);
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-fotografo-steal`,
+                playerName: 'Sistema',
+                message: `📸 OCCHIO DEL FOTOGRAFO! ${socketPlayerName} ha rubato una carta dalla mano di ${spiedOpp}!`,
+                timestamp: Date.now()
+              });
+            }
+          } else {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-fotografo-skip`,
+              playerName: 'Sistema',
+              message: `📸 ${socketPlayerName} ha spiato la mano avversaria ma non ha rubato nulla.`,
+              timestamp: Date.now()
+            });
+          }
+          io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+          return;
+        }
+        // Phase 1: player chose which opponent to spy on (value = opponentName)
+        const spiedOpp = value;
+        if (spiedOpp && game.players[spiedOpp]) {
+          const spiedHand = game.players[spiedOpp].hand || [];
+          const playerSocketId = (game.players[socketPlayerName] as any)?.socketId;
+          // Reveal opponent's hand to the player
+          if (playerSocketId) {
+            io.to(playerSocketId).emit('fotografo-reveal-hand', {
+              playerName: spiedOpp,
+              hand: spiedHand.map((c: any) => ({ id: c.id, name: c.name, frontImage: c.frontImage, type: c.type, effect: c.effect }))
+            });
+          }
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-fotografo-spy`,
+            playerName: 'Sistema',
+            message: `📸 OCCHIO DEL FOTOGRAFO! ${socketPlayerName} spia la mano di ${spiedOpp} (${spiedHand.length} carte)!`,
+            timestamp: Date.now()
+          });
+          // Phase 2: show steal choice
+          const stealChoiceId = `fotografo-steal-${Date.now()}`;
+          (game as any).pendingFotografo = { choiceId: stealChoiceId, playerName: socketPlayerName, phase: 'steal', spiedOpponent: spiedOpp };
+          const stealOptions: any[] = spiedHand.map((c: any) => ({
+            value: c.id,
+            label: `🃏 ${c.name || c.type || 'Carta'}`
+          }));
+          stealOptions.push({ value: 'skip', label: '⏭️ Non rubare nulla' });
+          if (playerSocketId) {
+            io.to(playerSocketId).emit('show-choice-panel', {
+              choiceId: stealChoiceId,
+              title: '📸 FOTOGRAFO - Ruba una carta',
+              message: `Mano di ${spiedOpp} rivelata! Vuoi rubare una carta?`,
+              options: stealOptions,
+              timestamp: Date.now()
+            });
+          }
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
+      // ── PLAYBACK ─────────────────────────────────────────────────────────────
+      const pendingPB = (game as any).pendingPlayback;
+      if (pendingPB && pendingPB.choiceId === choiceId && pendingPB.playerName === socketPlayerName) {
+        if (pendingPB.phase === 'choose_target') {
+          // Phase 2: player chose target, execute forced attack
+          delete (game as any).pendingPlayback;
+          const forcedAttackerChar = game.field?.find((c: any) => c.id === pendingPB.forcedAttackerId);
+          const targetChar = game.field?.find((c: any) => c.id === value);
+          if (forcedAttackerChar && targetChar) {
+            const attackerStars = forcedAttackerChar.stars || 1;
+            let pbDamage = attackerStars * 50;
+            if (pendingPB.hasGigione) pbDamage = pbDamage * 2;
+            const pbOldPti = targetChar.pti || 0;
+            targetChar.pti = Math.max(0, pbOldPti - pbDamage);
+            (gameManager as any).updateCardTextWithPTI(targetChar);
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-playback-attack`,
+              playerName: 'Sistema',
+              message: `🎬 PLAYBACK! ${forcedAttackerChar.name || forcedAttackerChar.owner} attacca ${targetChar.name || targetChar.owner} per ${pbDamage} PTI${pendingPB.hasGigione ? ' (GIGIONE: raddoppiato!)' : ''}! (${pbOldPti} → ${targetChar.pti} PTI)`,
+              timestamp: Date.now()
+            });
+            if (targetChar.pti <= 0) {
+              (gameManager as any).killAndCheck(gameId, targetChar.id, targetChar.owner, socketPlayerName);
+            }
+          }
+          io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+          return;
+        }
+        // Phase 1: player chose forced attacker (enemy char), now choose target
+        const forcedAttackerId = value;
+        const forcedAttackerChar = game.field?.find((c: any) => c.id === forcedAttackerId);
+        if (!forcedAttackerChar) { delete (game as any).pendingPlayback; return; }
+        const targetChoiceId = `playback-target-${Date.now()}`;
+        (game as any).pendingPlayback = { choiceId: targetChoiceId, playerName: socketPlayerName, phase: 'choose_target', forcedAttackerId, hasGigione: pendingPB.hasGigione };
+        const pbAllTargets = game.field.filter((c: any) =>
+          c.id !== forcedAttackerId && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        const playerSocketId = (game.players[socketPlayerName] as any)?.socketId;
+        if (playerSocketId) {
+          io.to(playerSocketId).emit('show-choice-panel', {
+            choiceId: targetChoiceId,
+            title: '🎬 PLAYBACK - Scegli il bersaglio',
+            message: `${forcedAttackerChar.name || forcedAttackerChar.owner} attaccherà chi?`,
+            options: pbAllTargets.map((c: any) => ({
+              value: c.id,
+              label: `🎯 ${c.name || c.owner} (${c.pti || 0} PTI, ${c.stars || 0}★) — ${c.owner}`
+            })),
+            timestamp: Date.now()
+          });
+        }
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+
       // ── BOB DYLAN ────────────────────────────────────────────────────────────
       const pending = (game as any).pendingBobDylanChoice;
       if (!pending || pending.choiceId !== choiceId || pending.playerName !== socketPlayerName) {
