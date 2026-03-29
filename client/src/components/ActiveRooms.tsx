@@ -81,12 +81,17 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
       alert(message);
     });
 
+    socket.on('rooms-updated', () => {
+      fetchRooms();
+    });
+
     return () => {
       clearInterval(interval);
       socket.off('join-request-approved');
       socket.off('join-request-denied');
       socket.off('room-deleted');
       socket.off('delete-room-error');
+      socket.off('rooms-updated');
     };
   }, [pendingApproval, onJoinRoom, onBack]);
 
@@ -108,7 +113,7 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
   const handleDeleteRoom = (gameId: string) => {
     setDeletingRoom(gameId);
     setConfirmDeleteGameId(null);
-    socket.emit('delete-room', { gameId, playerName });
+    socket.emit('delete-room', { gameId });
   };
 
   const getDeleteStatus = (createdAt: string): { canDelete: boolean; label: string } => {

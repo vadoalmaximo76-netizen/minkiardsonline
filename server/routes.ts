@@ -8806,15 +8806,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('delete-room', async ({ gameId, playerName }: { gameId: string; playerName: string }) => {
+    socket.on('delete-room', async ({ gameId }: { gameId: string }) => {
       try {
+        // Use server-verified identity — never trust client-provided playerName
+        const requesterUsername = socket.data?.username as string | undefined;
+        if (!requesterUsername) {
+          socket.emit('delete-room-error', { message: 'Autenticazione richiesta per eliminare una stanza' });
+          return;
+        }
         const game = gameManager.getGameState(gameId);
         if (!game) {
           socket.emit('delete-room-error', { message: 'Stanza non trovata' });
           return;
         }
-        if (game.creatorName !== playerName) {
+        if (game.creatorName !== requesterUsername) {
           socket.emit('delete-room-error', { message: 'Solo il creatore può eliminare la stanza' });
+          return;
+        }
+        // Do not allow deletion of actively playing matches
+        if ((game as any).isPlaying === true) {
+          socket.emit('delete-room-error', { message: 'Non puoi eliminare una partita in corso' });
           return;
         }
         const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
@@ -8825,10 +8836,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           socket.emit('delete-room-error', { message: `Potrai eliminare la stanza tra ${remainingMins} minuti` });
           return;
         }
-        io.to(gameId).emit('room-deleted', { gameId, deletedBy: playerName });
+        // Notify players inside the room so they can exit
+        io.to(gameId).emit('room-deleted', { gameId, deletedBy: requesterUsername });
         gameManager.removeGameFromMemory(gameId);
         await gameManager.markGameInactive(gameId);
-        console.log(`🗑️ Room ${gameId} deleted by creator ${playerName}`);
+        // Broadcast updated room list to all connected clients
+        io.emit('rooms-updated');
+        console.log(`🗑️ Room ${gameId} deleted by creator ${requesterUsername}`);
       } catch (err) {
         console.error('Error in delete-room:', err);
         socket.emit('delete-room-error', { message: 'Errore durante l\'eliminazione della stanza' });

@@ -2118,6 +2118,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('game-end-rewards', handleGameEndRewards);
     socket.on('fusion-error', handleFusionError);
     socket.on('voodoo:error', handleVoodooError);
+    socket.on('room-deleted', () => {
+      onBack?.();
+    });
 
     // STAKU reactive window
     const handleStakuOpportunity = (data: { stakuOwner: string; casterName: string; cardName: string; timeoutMs: number }) => {
@@ -2300,6 +2303,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('game-end-rewards', handleGameEndRewards);
       socket.off('fusion-error', handleFusionError);
       socket.off('voodoo:error', handleVoodooError);
+      socket.off('room-deleted');
       socket.off('staku:opportunity', handleStakuOpportunity);
       socket.off('staku:expired', handleStakuExpired);
       if (stakuTimerRef.current) clearInterval(stakuTimerRef.current);
