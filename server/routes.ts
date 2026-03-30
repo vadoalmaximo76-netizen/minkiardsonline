@@ -8982,7 +8982,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ([, p]) => p.socketId === socket.id
         )?.[0];
         const callerUserId = socket.data?.userId as number | undefined;
-        const creatorUserId = (game as any).playerUserIds?.get(game.creatorName) as number | undefined;
+        const creatorUserId = game.creatorName ? game.playerUserIds.get(game.creatorName) : undefined;
         const isCreator =
           playerBySocket === game.creatorName ||
           (socket.data?.username as string | undefined) === game.creatorName ||
@@ -9020,7 +9020,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         const playerBySocket = Object.entries(game.players).find(([, p]) => p.socketId === socket.id)?.[0];
         const callerUserId2 = socket.data?.userId as number | undefined;
-        const creatorUserId2 = (game as any).playerUserIds?.get(game.creatorName) as number | undefined;
+        const creatorUserId2 = game.creatorName ? game.playerUserIds.get(game.creatorName) : undefined;
         const isCreator2 =
           playerBySocket === game.creatorName ||
           (socket.data?.username as string | undefined) === game.creatorName ||
