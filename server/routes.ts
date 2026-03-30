@@ -8974,21 +8974,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           socket.emit('delete-room-error', { message: 'Stanza non trovata' });
           return;
         }
-        // Determine caller identity using server-side sources only (no client payload):
-        // 1. Reverse-lookup the player name by matching socket.id to game.players entries
-        // 2. Fall back to the authenticated account username stored during JWT handshake
+        // Determine if the caller is the room creator using multiple server-side checks:
+        // 1. socket.id matches the creator's player entry in game.players
+        // 2. socket.data.username equals game.creatorName (username == playerName case)
+        // 3. socket.data.userId matches the userId stored for the creator in playerUserIds
         const playerBySocket = Object.entries(game.players).find(
           ([, p]) => p.socketId === socket.id
         )?.[0];
-        const callerName = playerBySocket ?? (socket.data?.username as string | undefined);
-        if (!callerName) {
-          socket.emit('delete-room-error', { message: 'Non sei connesso a questa stanza' });
-          return;
-        }
-        if (game.creatorName !== callerName) {
+        const callerUserId = socket.data?.userId as number | undefined;
+        const creatorUserId = (game as any).playerUserIds?.get(game.creatorName) as number | undefined;
+        const isCreator =
+          playerBySocket === game.creatorName ||
+          (socket.data?.username as string | undefined) === game.creatorName ||
+          (callerUserId !== undefined && creatorUserId !== undefined && callerUserId === creatorUserId);
+        if (!isCreator) {
           socket.emit('delete-room-error', { message: 'Solo il creatore può eliminare la stanza' });
           return;
         }
+        const callerName = playerBySocket ?? game.creatorName;
         // Do not allow deletion of actively playing matches
         if (game.isPlaying === true) {
           socket.emit('delete-room-error', { message: 'Non puoi eliminare una partita in corso' });
@@ -9016,16 +9019,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
         const playerBySocket = Object.entries(game.players).find(([, p]) => p.socketId === socket.id)?.[0];
-        const callerName = playerBySocket ?? (socket.data?.username as string | undefined);
-        if (!callerName || game.creatorName !== callerName) {
+        const callerUserId2 = socket.data?.userId as number | undefined;
+        const creatorUserId2 = (game as any).playerUserIds?.get(game.creatorName) as number | undefined;
+        const isCreator2 =
+          playerBySocket === game.creatorName ||
+          (socket.data?.username as string | undefined) === game.creatorName ||
+          (callerUserId2 !== undefined && creatorUserId2 !== undefined && callerUserId2 === creatorUserId2);
+        if (!isCreator2) {
           socket.emit('set-room-password-error', { message: 'Solo il creatore può impostare la password' });
           return;
         }
+        const callerName2 = playerBySocket ?? game.creatorName;
         const trimmed = (password || '').trim();
         (game as any).roomPassword = trimmed || null;
         socket.emit('room-password-updated', { hasPassword: !!trimmed });
         io.emit('rooms-updated');
-        console.log(`🔑 Room ${gameId}: password ${trimmed ? 'set' : 'removed'} by ${callerName}`);
+        console.log(`🔑 Room ${gameId}: password ${trimmed ? 'set' : 'removed'} by ${callerName2}`);
       } catch (err) {
         console.error('Error in set-room-password:', err);
         socket.emit('set-room-password-error', { message: 'Errore durante l\'impostazione della password' });
