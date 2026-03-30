@@ -640,7 +640,7 @@ function App() {
     navigateTo('play');
   };
 
-  const handleJoinRoom = (roomGameId: string) => {
+  const handleJoinRoom = (roomGameId: string, roomPassword?: string) => {
     setGameId(roomGameId);
     generateSessionId();
     
@@ -651,7 +651,8 @@ function App() {
       gameId: roomGameId, 
       playerName, 
       avatarId: pendingAvatar,
-      userId: authenticatedUser?.id 
+      userId: authenticatedUser?.id,
+      ...(roomPassword ? { roomPassword } : {})
     });
     
     setCurrentSection('play');

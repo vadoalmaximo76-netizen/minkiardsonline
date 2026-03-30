@@ -1433,7 +1433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('join-game', async ({ gameId, playerName, avatarId, userId, authToken, isDraftMode, turnTimerSeconds, tournamentMatchId, helpEnabled }) => {
+    socket.on('join-game', async ({ gameId, playerName, avatarId, userId, authToken, isDraftMode, turnTimerSeconds, tournamentMatchId, helpEnabled, roomPassword }) => {
       // SECURITY: For reconnection to existing games, require authenticated identity
       // Use socket.data.userId if already authenticated, or verify authToken if provided
       let validatedUserId = socket.data?.userId;
@@ -1516,6 +1516,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         } catch (_) {}
+      }
+
+      // Password check: if room has a password and joiner is not the creator, verify it
+      const preCheckGame = gameManager.getGameState(gameId);
+      if (preCheckGame && (preCheckGame as any).roomPassword) {
+        const isCreator = preCheckGame.creatorName === playerName || preCheckGame.creatorName === validatedUsername;
+        const isAlreadyInRoom = !!preCheckGame.players[playerName];
+        if (!isCreator && !isAlreadyInRoom) {
+          const provided = (roomPassword || '').trim();
+          if (provided !== (preCheckGame as any).roomPassword) {
+            socket.emit('join-game-error', { message: 'PASSWORD_REQUIRED', requiresPassword: true });
+            return;
+          }
+        }
       }
 
       // Wait for player to be added with identity verification
@@ -8980,14 +8994,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           socket.emit('delete-room-error', { message: 'Non puoi eliminare una partita in corso' });
           return;
         }
-        const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
-        const createdAt = game.startTime ? game.startTime.getTime() : 0;
-        if (Date.now() - createdAt < TWO_HOURS_MS) {
-          const remainingMs = TWO_HOURS_MS - (Date.now() - createdAt);
-          const remainingMins = Math.ceil(remainingMs / 60000);
-          socket.emit('delete-room-error', { message: `Potrai eliminare la stanza tra ${remainingMins} minuti` });
-          return;
-        }
         // Notify players inside the room so they can exit
         io.to(gameId).emit('room-deleted', { gameId, deletedBy: callerName });
         gameManager.removeGameFromMemory(gameId);
@@ -8998,6 +9004,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (err) {
         console.error('Error in delete-room:', err);
         socket.emit('delete-room-error', { message: 'Errore durante l\'eliminazione della stanza' });
+      }
+    });
+
+    // Set or remove a room password (creator only)
+    socket.on('set-room-password', ({ gameId, password }: { gameId: string; password: string }) => {
+      try {
+        const game = gameManager.getGameState(gameId);
+        if (!game) {
+          socket.emit('set-room-password-error', { message: 'Stanza non trovata' });
+          return;
+        }
+        const playerBySocket = Object.entries(game.players).find(([, p]) => p.socketId === socket.id)?.[0];
+        const callerName = playerBySocket ?? (socket.data?.username as string | undefined);
+        if (!callerName || game.creatorName !== callerName) {
+          socket.emit('set-room-password-error', { message: 'Solo il creatore può impostare la password' });
+          return;
+        }
+        const trimmed = (password || '').trim();
+        (game as any).roomPassword = trimmed || null;
+        socket.emit('room-password-updated', { hasPassword: !!trimmed });
+        io.emit('rooms-updated');
+        console.log(`🔑 Room ${gameId}: password ${trimmed ? 'set' : 'removed'} by ${callerName}`);
+      } catch (err) {
+        console.error('Error in set-room-password:', err);
+        socket.emit('set-room-password-error', { message: 'Errore durante l\'impostazione della password' });
       }
     });
 
@@ -14760,6 +14791,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
           createdAt: game.createdAt,
           creatorName: game.creatorName || game.players[0]?.name || 'Unknown',
           requiresApproval: game.requiresApproval,
+          hasPassword: !!((game as any).roomPassword),
           creatorSocketId: game.creatorSocketId,
           status: game.status || 'waiting',
           isFormerPlayer,
