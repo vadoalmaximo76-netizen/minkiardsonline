@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { clearGamepadFocus } from '../lib/dpadNav';
 
 export type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator' | 'admin' | 'draft' | 'leaderboard' | 'tournaments' | 'fanta' | 'gym';
 
@@ -6,6 +7,7 @@ export const BOTTOM_NAV_SECTIONS: AppSection[] = ['home', 'play', 'draft', 'tour
 
 export const GAMEPAD_DEADZONE = 0.15;
 export const GAMEPAD_CURSOR_SPEED = 8;
+export const GAMEPAD_SCROLL_SPEED = 12;
 
 export interface GamepadButtonEvents {
   onButtonA: () => void;
@@ -132,6 +134,7 @@ export function useGamepad({ currentSection, events }: UseGamepadOptions): Gamep
           const section = currentSectionRef.current;
           const isInGame = section === 'play';
 
+          // ── Left stick → move cursor ────────────────────────────────────────
           const ax = pad.axes[0] ?? 0;
           const ay = pad.axes[1] ?? 0;
           const dx = Math.abs(ax) > GAMEPAD_DEADZONE ? ax : 0;
@@ -143,6 +146,32 @@ export function useGamepad({ currentSection, events }: UseGamepadOptions): Gamep
             cursorRef.current = { x: nx, y: ny };
             setCursor({ x: nx, y: ny });
             if (!mouseActiveRef.current) setCursorVisible(true);
+            // Cursor moved → clear D-pad spatial focus
+            clearGamepadFocus();
+          }
+
+          // ── Right stick → scroll page ───────────────────────────────────────
+          const rx = pad.axes[2] ?? 0;
+          const ry = pad.axes[3] ?? 0;
+          const rdx = Math.abs(rx) > GAMEPAD_DEADZONE ? rx : 0;
+          const rdy = Math.abs(ry) > GAMEPAD_DEADZONE ? ry : 0;
+          if (rdx !== 0 || rdy !== 0) {
+            // Try to scroll the deepest scrollable element under cursor, else fall back to window
+            const ex = cursorRef.current.x;
+            const ey = cursorRef.current.y;
+            let scrolled = false;
+            let el = document.elementFromPoint(ex, ey) as HTMLElement | null;
+            while (el && el !== document.body) {
+              const ov = window.getComputedStyle(el).overflow + window.getComputedStyle(el).overflowY;
+              const scrollable = /(auto|scroll)/.test(ov) && el.scrollHeight > el.clientHeight;
+              if (scrollable) {
+                el.scrollBy(rdx * GAMEPAD_SCROLL_SPEED, rdy * GAMEPAD_SCROLL_SPEED);
+                scrolled = true;
+                break;
+              }
+              el = el.parentElement;
+            }
+            if (!scrolled) window.scrollBy(rdx * GAMEPAD_SCROLL_SPEED, rdy * GAMEPAD_SCROLL_SPEED);
           }
 
           const buttons = pad.buttons;
@@ -168,6 +197,10 @@ export function useGamepad({ currentSection, events }: UseGamepadOptions): Gamep
             const dpadDown = pad.buttons[13]?.pressed;
             const dpadLeft = pad.buttons[14]?.pressed;
             const dpadRight = pad.buttons[15]?.pressed;
+            if (dpadUp || dpadDown || dpadLeft || dpadRight) {
+              // D-pad pressed → hide the cursor so only D-pad focus highlight is shown
+              setCursorVisible(false);
+            }
             if (dpadUp) { ev.onDpadUp(); dpadCooldownRef.current = ts; }
             else if (dpadDown) { ev.onDpadDown(); dpadCooldownRef.current = ts; }
             else if (dpadLeft) { ev.onDpadLeft(); dpadCooldownRef.current = ts; }
