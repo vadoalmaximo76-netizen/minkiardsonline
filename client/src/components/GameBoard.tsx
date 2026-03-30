@@ -51,6 +51,7 @@ import { trackGameStarted, trackGameEnded, trackCardPlayed, trackFeatureUsed, id
 import { TutorialOverlay } from "./TutorialOverlay";
 import { AdBanner, InterstitialAd } from "./AdBanner";
 import { GameEndRewardsPanel } from "./GameEndRewardsPanel";
+import { TeamVictoryScreen } from "./TeamVictoryScreen";
 import { ConnectionStatus } from "./ConnectionStatus";
 import { GamepadController } from "./GamepadController";
 import { GameToastContainer, useGameToast } from "./GameToast";
@@ -84,7 +85,7 @@ import { socket } from "../lib/socket";
 import { getOptimizedUrl, onCloudNameReady, getCloudinaryCloudName } from "../lib/imagePreloader";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User, LogOut, Target, Trophy, SkipForward, ScrollText, Settings, MoreVertical, BookOpen, UserPlus, RotateCcw, PlusCircle, ChevronDown, Palette, BarChart2 } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User, LogOut, Target, Trophy, SkipForward, ScrollText, Settings, MoreVertical, BookOpen, UserPlus, RotateCcw, PlusCircle, ChevronDown, Palette, BarChart2, Gift, Shield } from "lucide-react";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
@@ -202,9 +203,28 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [lobbyCharacterLimit, setLobbyCharacterLimit] = useState('3');
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [showInvitePanel, setShowInvitePanel] = useState(false);
+  const [showDonateModal, setShowDonateModal] = useState(false);
+  const [teamCoverOpportunity, setTeamCoverOpportunity] = useState<{
+    attackId: string;
+    attackedPlayer: string;
+    attacker: string;
+    damage: number;
+    coverCardId: string;
+    coverCardName: string;
+    windowSeconds: number;
+    timeLeft: number;
+  } | null>(null);
+  const teamCoverTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const [eliminationDialogOpen, setEliminationDialogOpen] = useState(false);
   const [victoryDialogOpen, setVictoryDialogOpen] = useState(false);
   const [victoryPlayer, setVictoryPlayer] = useState<string>('');
+  const [teamVictoryData, setTeamVictoryData] = useState<{
+    isTeamVictory: boolean;
+    winningTeam: 'teamA' | 'teamB';
+    winningPlayers: string[];
+    teams: { teamA: string[]; teamB: string[] } | null;
+    teamPlayerStats: Record<string, any> | null;
+  } | null>(null);
   const [showInterstitialAd, setShowInterstitialAd] = useState(false);
   const [gameEndRewards, setGameEndRewards] = useState<{
     visible: boolean;
@@ -2053,7 +2073,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       /* 3. When banner completes (~4.8s total), restore colour — handled by onComplete */
     };
 
-    const handleGameVictory = ({ winner, lastAction, matchDuration, playerStats }: { winner: string; lastAction?: any; matchDuration?: number; playerStats?: Record<string, any> }) => {
+    const handleGameVictory = ({ winner, lastAction, matchDuration, playerStats, teamVictoryData: tvd }: { winner: string; lastAction?: any; matchDuration?: number; playerStats?: Record<string, any>; teamVictoryData?: any }) => {
+      // TEAM MODE: show team victory screen
+      if (tvd?.isTeamVictory) {
+        const myTeam = tvd.teams
+          ? (tvd.teams.teamA.includes(playerName) ? 'teamA' : tvd.teams.teamB.includes(playerName) ? 'teamB' : null)
+          : null;
+        const isWinner = myTeam === tvd.winningTeam;
+        if (isWinner) { playVictory(); shake('extreme'); } else { playDefeat(); shake('heavy'); }
+        setTeamVictoryData(tvd);
+        setVictoryPlayer(winner);
+        trackGameEnded(gameId || 'unknown', winner, matchDuration || 0, 0);
+        return;
+      }
       const isWinner = winner === playerName;
       if (isWinner) {
         playVictory();
@@ -2135,6 +2167,30 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('player-eliminated', handlePlayerEliminated);
     socket.on('game-victory', handleGameVictory);
     socket.on('game-end-rewards', handleGameEndRewards);
+
+    // TEAM MODE: Team cover opportunity notification
+    const handleTeamCoverOpportunity = (data: {
+      attackId: string; attackedPlayer: string; attacker: string; damage: number;
+      coverCardId: string; coverCardName: string; windowSeconds: number;
+    }) => {
+      if (teamCoverTimerRef.current) clearInterval(teamCoverTimerRef.current);
+      setTeamCoverOpportunity({ ...data, timeLeft: data.windowSeconds });
+      let remaining = data.windowSeconds;
+      teamCoverTimerRef.current = setInterval(() => {
+        remaining -= 1;
+        setTeamCoverOpportunity(prev => prev ? { ...prev, timeLeft: remaining } : null);
+        if (remaining <= 0) {
+          if (teamCoverTimerRef.current) clearInterval(teamCoverTimerRef.current);
+          setTeamCoverOpportunity(null);
+        }
+      }, 1000);
+    };
+    const handleTeamCoverResolved = () => {
+      if (teamCoverTimerRef.current) clearInterval(teamCoverTimerRef.current);
+      setTeamCoverOpportunity(null);
+    };
+    socket.on('team-cover-opportunity', handleTeamCoverOpportunity);
+    socket.on('team-cover-resolved', handleTeamCoverResolved);
     socket.on('fusion-error', handleFusionError);
     socket.on('voodoo:error', handleVoodooError);
     socket.on('room-deleted', ({ gameId: deletedGameId }: { gameId: string }) => {
@@ -2323,6 +2379,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('player-eliminated', handlePlayerEliminated);
       socket.off('game-victory', handleGameVictory);
       socket.off('game-end-rewards', handleGameEndRewards);
+      socket.off('team-cover-opportunity', handleTeamCoverOpportunity);
+      socket.off('team-cover-resolved', handleTeamCoverResolved);
+      if (teamCoverTimerRef.current) clearInterval(teamCoverTimerRef.current);
       socket.off('fusion-error', handleFusionError);
       socket.off('voodoo:error', handleVoodooError);
       socket.off('room-deleted');
@@ -2601,6 +2660,108 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* TEAM MODE: Donate Card Modal */}
+      {showDonateModal && gameState?.isTeamMode && gameState?.teams && playerName && (() => {
+        const myTeam = gameState.teams.teamA.includes(playerName) ? 'teamA' : gameState.teams.teamB.includes(playerName) ? 'teamB' : null;
+        const teammates = myTeam ? gameState.teams[myTeam].filter((p: string) => p !== playerName && !(gameState.eliminatedPlayers || []).includes(p)) : [];
+        const myMosseCards = (gameState.players[playerName]?.hand || []).filter((c: any) => c.type === 'mosse');
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="w-full max-w-sm bg-gray-900 rounded-2xl border border-emerald-500/30 p-5 shadow-2xl">
+              <div className="flex items-center gap-2 mb-4">
+                <Gift size={18} className="text-emerald-400" />
+                <h3 className="text-white font-bold text-base">Dona una Carta MOSSE</h3>
+                <button onClick={() => setShowDonateModal(false)} className="ml-auto text-white/40 hover:text-white/80 text-lg leading-none">✕</button>
+              </div>
+              {teammates.length === 0 ? (
+                <p className="text-white/50 text-sm text-center py-4">Nessun compagno disponibile</p>
+              ) : myMosseCards.length === 0 ? (
+                <p className="text-white/50 text-sm text-center py-4">Nessuna carta MOSSE in mano</p>
+              ) : (
+                <>
+                  <p className="text-white/50 text-xs mb-3">Seleziona una carta e un compagno a cui donarla (una volta per turno)</p>
+                  <div className="space-y-2 mb-4 max-h-40 overflow-y-auto">
+                    {myMosseCards.map((card: any) => (
+                      <div key={card.id} className="bg-white/5 rounded-xl px-3 py-2 border border-white/10">
+                        <p className="text-white/80 text-sm font-medium">{card.name || card.id}</p>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {teammates.map((teammate: string) => (
+                            <button
+                              key={teammate}
+                              onClick={() => {
+                                socket.emit('donate-card', { gameId, toPlayer: teammate, cardId: card.id });
+                                setShowDonateModal(false);
+                              }}
+                              className="text-xs bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-500/25 transition-all"
+                            >
+                              → {teammate}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* TEAM MODE: Team cover opportunity notification */}
+      {teamCoverOpportunity && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-full max-w-sm px-4">
+          <div className="bg-blue-900/95 border border-blue-400/40 rounded-2xl p-4 shadow-2xl backdrop-blur-md">
+            <div className="flex items-start gap-3">
+              <div className="text-2xl flex-shrink-0">🛡️</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-blue-200 font-bold text-sm mb-0.5">Copertura Squadra</p>
+                <p className="text-white/80 text-xs leading-snug">
+                  <span className="text-red-300 font-semibold">{teamCoverOpportunity.attacker}</span> attacca il tuo compagno{' '}
+                  <span className="text-yellow-300 font-semibold">{teamCoverOpportunity.attackedPlayer}</span>!{' '}
+                  Usa <span className="text-blue-300 font-semibold">{teamCoverOpportunity.coverCardName}</span> per proteggere?
+                </p>
+              </div>
+              <div className="flex-shrink-0 text-right">
+                <div className={`text-lg font-black tabular-nums ${teamCoverOpportunity.timeLeft <= 3 ? 'text-red-400 animate-pulse' : 'text-white/60'}`}>
+                  {teamCoverOpportunity.timeLeft}s
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => {
+                  socket.emit('team-cover-use', { gameId, attackId: teamCoverOpportunity.attackId });
+                  if (teamCoverTimerRef.current) clearInterval(teamCoverTimerRef.current);
+                  setTeamCoverOpportunity(null);
+                }}
+                className="flex-1 bg-blue-500 hover:bg-blue-400 text-white font-bold text-sm py-2 rounded-xl transition-all shadow-lg shadow-blue-500/30"
+              >
+                🛡️ Copri!
+              </button>
+              <button
+                onClick={() => {
+                  if (teamCoverTimerRef.current) clearInterval(teamCoverTimerRef.current);
+                  setTeamCoverOpportunity(null);
+                }}
+                className="px-4 bg-white/10 hover:bg-white/20 text-white/60 font-semibold text-sm py-2 rounded-xl transition-all"
+              >
+                Passa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TEAM MODE: Team victory screen */}
+      {teamVictoryData && (
+        <TeamVictoryScreen
+          teamVictoryData={teamVictoryData}
+          playerName={playerName || ''}
+          onClose={() => setTeamVictoryData(null)}
+        />
+      )}
 
       {/* Screen damage vignette — red rim flash when player's card is hit */}
       <AnimatePresence>
@@ -4372,6 +4533,29 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               <SkipForward size={16} />
             </motion.button>
 
+            {/* TEAM MODE: Donate Card button (only visible when team mode active and it's my turn) */}
+            {gameState?.isTeamMode && gameState?.teams && playerName && (() => {
+              const myTeam = gameState.teams.teamA.includes(playerName) ? 'teamA' : gameState.teams.teamB.includes(playerName) ? 'teamB' : null;
+              const teammates = myTeam ? gameState.teams[myTeam].filter((p: string) => p !== playerName) : [];
+              const isMyTurn = gameState.turnOrder[gameState.currentTurnIndex] === playerName;
+              const alreadyDonated = gameState.donatedCardsThisTurn?.includes(playerName);
+              const myMosseCards = (gameState.players[playerName]?.hand || []).filter((c: any) => c.type === 'mosse');
+              if (teammates.length === 0 || !isMyTurn || myMosseCards.length === 0 || alreadyDonated) return null;
+              return (
+                <motion.button
+                  onClick={() => { playButtonClick(); setShowDonateModal(true); }}
+                  className="p-2 rounded-xl transition-colors"
+                  style={{ color: '#86efac', background: 'rgba(34,197,94,0.12)' }}
+                  title="Dona Carta a Compagno"
+                  whileHover={{ scale: 1.12, background: 'rgba(34,197,94,0.28)' } as any}
+                  whileTap={{ scale: 0.88 }}
+                  transition={{ type: 'spring', stiffness: 600, damping: 20 }}
+                >
+                  <Gift size={16} />
+                </motion.button>
+              );
+            })()}
+
             <div className="w-px h-5 mx-0.5" style={{ background: 'rgba(99,102,241,0.25)' }} />
 
             <motion.button
@@ -4875,6 +5059,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         )}
 
         {/* Rematch Panel (overlaid over game end rewards) */}
+        {/* TEAM MODE: Team indicator badge */}
+        {gameState?.isTeamMode && gameState?.teams && playerName && (() => {
+          const myTeam = gameState.teams.teamA.includes(playerName) ? 'teamA' : gameState.teams.teamB.includes(playerName) ? 'teamB' : null;
+          if (!myTeam) return null;
+          const isTeamA = myTeam === 'teamA';
+          const teammates = gameState.teams[myTeam].filter((p: string) => p !== playerName);
+          return (
+            <div className={`fixed top-16 right-3 z-[100] flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold ${isTeamA ? 'bg-blue-900/60 border-blue-500/40 text-blue-300' : 'bg-red-900/60 border-red-500/40 text-red-300'}`}>
+              <Shield size={11} />
+              {isTeamA ? 'Team A' : 'Team B'}
+              {teammates.length > 0 && (
+                <span className="text-white/50 font-normal">· {teammates.join(', ')}</span>
+              )}
+            </div>
+          );
+        })()}
+
         {/* Series Score Badge */}
         {Object.keys(bo3State.seriesScore).length > 0 && !bo3State.seriesEnded && (
           <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[150] bg-black/80 backdrop-blur-sm border border-yellow-500/40 rounded-full px-4 py-1.5 flex items-center gap-3 text-sm font-bold">

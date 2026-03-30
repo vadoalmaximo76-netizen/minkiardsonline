@@ -93,6 +93,19 @@ interface GameState {
   playerDeathModifiers?: Record<string, number>;
   pendingDefense?: PendingDefense; // Current pending defense request
   voodooLinks?: VoodooLink[]; // BAMBOLA VOODOO active links
+  // Team mode fields
+  isTeamMode?: boolean;
+  teamSize?: 2 | 3;
+  teams?: { teamA: string[]; teamB: string[] } | null;
+  teamPlayerStats?: Record<string, {
+    damageDealt: number;
+    damageReceived: number;
+    eliminationsCount: number;
+    movesUsed: number;
+    movesDonated: number;
+  }> | null;
+  donatedCardsThisTurn?: string[];
+  creatorName?: string;
 }
 
 interface GameStateStore {

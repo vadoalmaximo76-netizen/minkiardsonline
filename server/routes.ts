@@ -8207,6 +8207,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // TEAM MODE: Configure team mode (creator only, pre-game)
+    // Security: verify caller is the game creator via stored socket identity
+    socket.on('set-team-mode', ({ gameId, isTeamMode, teamSize, teams }: {
+      gameId: string;
+      isTeamMode: boolean;
+      teamSize?: 2 | 3;
+      teams?: { teamA: string[]; teamB: string[] };
+    }) => {
+      const game = gameManager.getGame(gameId);
+      if (!game || game.isPlaying) return;
+      // Verify creator identity from socket data or socket→player mapping
+      const socketPlayerName = gameManager.getPlayerNameFromSocket(socket.id);
+      const isCreator = socketPlayerName === game.creatorName || socket.data?.username === game.creatorName;
+      if (!isCreator) return;
+
+      if (!isTeamMode) {
+        game.isTeamMode = false;
+        game.teams = undefined;
+        game.teamSize = undefined;
+        io.to(gameId).emit('team-mode-updated', { isTeamMode: false });
+        return;
+      }
+      const size = teamSize || 2;
+      const result = gameManager.setTeamMode(gameId, size, teams);
+      if (!result.success) {
+        socket.emit('team-mode-error', { message: result.error });
+        return;
+      }
+      io.to(gameId).emit('team-mode-updated', {
+        isTeamMode: true,
+        teamSize: size,
+        teams: game.teams || null
+      });
+    });
+
+    // TEAM MODE: Auto-assign teams (creator only, pre-game) — supports CPU + human
+    socket.on('auto-assign-teams', ({ gameId }: { gameId: string }) => {
+      const game = gameManager.getGame(gameId);
+      if (!game || game.isPlaying) return;
+      const socketPlayerName = gameManager.getPlayerNameFromSocket(socket.id);
+      const isCreator = socketPlayerName === game.creatorName || socket.data?.username === game.creatorName;
+      if (!isCreator || !game.isTeamMode) return;
+      const result = gameManager.autoAssignTeams(gameId);
+      if (result) {
+        io.to(gameId).emit('team-mode-updated', {
+          isTeamMode: true,
+          teamSize: game.teamSize,
+          teams: result
+        });
+      } else {
+        socket.emit('team-mode-error', { message: 'Non abbastanza giocatori per formare le squadre' });
+      }
+    });
+
+    // TEAM MODE: Manually assign a player to a team (creator only, pre-game)
+    socket.on('assign-player-to-team', ({ gameId, targetPlayer, targetTeam }: {
+      gameId: string;
+      targetPlayer: string;
+      targetTeam: 'teamA' | 'teamB';
+    }) => {
+      const game = gameManager.getGame(gameId);
+      if (!game || game.isPlaying) return;
+      const socketPlayerName = gameManager.getPlayerNameFromSocket(socket.id);
+      const isCreator = socketPlayerName === game.creatorName || socket.data?.username === game.creatorName;
+      if (!isCreator || !game.isTeamMode) return;
+      const result = gameManager.assignPlayerToTeam(gameId, targetPlayer, targetTeam);
+      if (result.success) {
+        io.to(gameId).emit('team-mode-updated', {
+          isTeamMode: true,
+          teamSize: game.teamSize,
+          teams: game.teams || null
+        });
+      } else {
+        socket.emit('team-mode-error', { message: result.error });
+      }
+    });
+
+    // TEAM MODE: Donate a MOSSE card to a teammate
+    // Security: acting player is derived from socket identity, not client-supplied field
+    socket.on('donate-card', ({ gameId, toPlayer, cardId }: {
+      gameId: string;
+      toPlayer: string;
+      cardId: string;
+    }) => {
+      // Derive the acting player from socket→game mapping (cannot be spoofed by client)
+      const fromPlayer = gameManager.getPlayerNameFromSocket(socket.id);
+      if (!fromPlayer) {
+        socket.emit('donate-card-error', { message: 'Sessione non valida' });
+        return;
+      }
+      const result = gameManager.donateCard(gameId, fromPlayer, toPlayer, cardId);
+      if (result.success) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-donate`,
+          playerName: 'Sistema',
+          message: `🤝 ${result.message}`,
+          timestamp: Date.now()
+        });
+        const updatedState = gameManager.getSanitizedGameState(gameId);
+        if (updatedState) io.to(gameId).emit('game-state-update', updatedState);
+      } else {
+        socket.emit('donate-card-error', { message: result.message });
+      }
+    });
+
+    // TEAM MODE: A teammate uses Respinta to cover an attacked ally (out-of-turn defense)
+    socket.on('team-cover-use', async ({ gameId, attackId }: { gameId: string; attackId: string }) => {
+      // Derive acting player from socket identity (security: not client-supplied)
+      const coveringPlayer = gameManager.getPlayerNameFromSocket(socket.id);
+      if (!coveringPlayer) {
+        socket.emit('team-cover-error', { message: 'Sessione non valida' });
+        return;
+      }
+      const result = await gameManager.useTeamCover(gameId, coveringPlayer, attackId, io);
+      if (!result.success) {
+        socket.emit('team-cover-error', { message: result.message });
+      }
+    });
+
     socket.on('start-game', async ({ gameId, playerName, characterLimit }) => {
       const gameState = gameManager.getSanitizedGameState(gameId);
       if (gameState) {

@@ -472,6 +472,18 @@ interface GameState {
   killTriggerBlock?: { turnsLeft: number; blockTurns: number; playedBy: string };
   fantaTournamentId?: string;
   helpEnabled?: boolean;
+  // TEAM MODE (2v2 / 3v3)
+  isTeamMode?: boolean;
+  teamSize?: 2 | 3; // 2 = 2v2, 3 = 3v3
+  teams?: { teamA: string[]; teamB: string[] };
+  teamPlayerStats?: Record<string, {
+    damageDealt: number;
+    damageReceived: number;
+    eliminationsCount: number;
+    movesUsed: number;
+    movesDonated: number;
+  }>;
+  donatedCardsThisTurn?: Set<string>; // Track players who already donated a card this turn
 }
 
 export class GameManager {
@@ -3249,7 +3261,12 @@ Rispondi SOLO in JSON:`;
       controlledPlayer: (gameState as any).controlledPlayer || null,
       controllingPlayer: (gameState as any).controllingPlayer || null,
       activeControlTurn: (gameState as any).activeControlTurn || null,
-      helpEnabled: gameState.helpEnabled || false
+      helpEnabled: gameState.helpEnabled || false,
+      isTeamMode: gameState.isTeamMode || false,
+      teamSize: gameState.teamSize || null,
+      teams: gameState.teams || null,
+      teamPlayerStats: gameState.teamPlayerStats || null,
+      donatedCardsThisTurn: gameState.donatedCardsThisTurn ? Array.from(gameState.donatedCardsThisTurn) : []
     };
 
     // Sanitize players by removing cpuInstance references
@@ -3879,6 +3896,17 @@ Rispondi SOLO in JSON:`;
     }
     const stats = game.playerStats.get(playerName)!;
     stats[statType] += amount;
+
+    // TEAM MODE: mirror relevant stats into teamPlayerStats
+    if (game.isTeamMode && game.teamPlayerStats) {
+      if (!game.teamPlayerStats[playerName]) {
+        game.teamPlayerStats[playerName] = { damageDealt: 0, damageReceived: 0, eliminationsCount: 0, movesUsed: 0, movesDonated: 0 };
+      }
+      const ts = game.teamPlayerStats[playerName];
+      if (statType === 'damageDealt') ts.damageDealt += amount;
+      else if (statType === 'damageReceived') ts.damageReceived += amount;
+      else if (statType === 'cardsPlayed') ts.movesUsed += amount;
+    }
   }
 
   private trackLastAction(game: GameState, action: { type: string; playerName: string; cardName?: string; cardImageUrl?: string; cardDeckType?: string; targetPlayer?: string; damage?: number }) {
@@ -24641,7 +24669,49 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const playerNames = Object.keys(gameState.players);
     if (playerNames.length < 2) return null; // Need at least 2 players
 
-    // Shuffle player order randomly
+    // Initialize team stats if in team mode
+    if (gameState.isTeamMode && gameState.teams) {
+      gameState.teamPlayerStats = {};
+      gameState.donatedCardsThisTurn = new Set<string>();
+      for (const pName of playerNames) {
+        gameState.teamPlayerStats[pName] = {
+          damageDealt: 0,
+          damageReceived: 0,
+          eliminationsCount: 0,
+          movesUsed: 0,
+          movesDonated: 0
+        };
+      }
+    }
+
+    // TEAM MODE: Build interleaving turn order (A1->B1->A2->B2->A3->B3)
+    if (gameState.isTeamMode && gameState.teams) {
+      const teamA = [...gameState.teams.teamA];
+      const teamB = [...gameState.teams.teamB];
+      // Shuffle each team internally
+      for (let i = teamA.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [teamA[i], teamA[j]] = [teamA[j], teamA[i]];
+      }
+      for (let i = teamB.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [teamB[i], teamB[j]] = [teamB[j], teamB[i]];
+      }
+      // Interleave: A1, B1, A2, B2, ...
+      const interleaved = [];
+      const maxLen = Math.max(teamA.length, teamB.length);
+      for (let i = 0; i < maxLen; i++) {
+        if (i < teamA.length) interleaved.push(teamA[i]);
+        if (i < teamB.length) interleaved.push(teamB[i]);
+      }
+      gameState.turnOrder = interleaved;
+      gameState.currentTurnIndex = 0;
+      gameState.isPlaying = true;
+      console.log('[TeamMode] Interleaved turn order: ' + interleaved.join(' -> '));
+      return interleaved;
+    }
+
+    // Normal (non-team) mode: Shuffle player order randomly
     const playerOrder = [...playerNames];
     for (let i = playerOrder.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -24654,6 +24724,218 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     gameState.isPlaying = true;
 
     return playerOrder;
+  }
+
+  // TEAM MODE: Get the team of a player ('teamA', 'teamB', or null)
+  getPlayerTeam(gameId: string, playerName: string): 'teamA' | 'teamB' | null {
+    const game = this.games.get(gameId);
+    if (!game?.isTeamMode || !game.teams) return null;
+    if (game.teams.teamA.includes(playerName)) return 'teamA';
+    if (game.teams.teamB.includes(playerName)) return 'teamB';
+    return null;
+  }
+
+  // TEAM MODE: Get teammates (other players on same team)
+  getTeammates(gameId: string, playerName: string): string[] {
+    const game = this.games.get(gameId);
+    if (!game?.isTeamMode || !game.teams) return [];
+    const team = this.getPlayerTeam(gameId, playerName);
+    if (!team) return [];
+    return game.teams[team].filter(p => p !== playerName);
+  }
+
+  // TEAM MODE: Donate a MOSSE card from one player to a teammate
+  donateCard(gameId: string, fromPlayer: string, toPlayer: string, cardId: string): { success: boolean; message: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false, message: 'Partita non trovata' };
+    if (!game.isTeamMode) return { success: false, message: 'Solo in modalità Coppia' };
+
+    // Must be current player's turn
+    const currentPlayer = game.turnOrder[game.currentTurnIndex];
+    if (currentPlayer !== fromPlayer) return { success: false, message: 'Non è il tuo turno' };
+
+    // Check if player already donated this turn
+    if (game.donatedCardsThisTurn?.has(fromPlayer)) {
+      return { success: false, message: 'Hai già donato una carta questo turno' };
+    }
+
+    // Must be teammates
+    const fromTeam = this.getPlayerTeam(gameId, fromPlayer);
+    const toTeam = this.getPlayerTeam(gameId, toPlayer);
+    if (!fromTeam || fromTeam !== toTeam) {
+      return { success: false, message: 'Puoi donare solo a un compagno di squadra' };
+    }
+
+    // Find card in fromPlayer's hand
+    const fromPlayerData = game.players[fromPlayer];
+    const cardIndex = fromPlayerData?.hand.findIndex(c => c.id === cardId) ?? -1;
+    if (cardIndex === -1) return { success: false, message: 'Carta non trovata nella tua mano' };
+
+    const card = fromPlayerData.hand[cardIndex];
+    // Must be a MOSSE card
+    if (card.type !== 'mosse') return { success: false, message: 'Puoi donare solo carte MOSSE' };
+
+    // Transfer the card
+    fromPlayerData.hand.splice(cardIndex, 1);
+    const toPlayerData = game.players[toPlayer];
+    if (!toPlayerData) return { success: false, message: 'Compagno non trovato' };
+    toPlayerData.hand.push(card);
+
+    // Mark donation used this turn
+    if (!game.donatedCardsThisTurn) game.donatedCardsThisTurn = new Set();
+    game.donatedCardsThisTurn.add(fromPlayer);
+
+    // Update stats
+    if (game.teamPlayerStats) {
+      if (!game.teamPlayerStats[fromPlayer]) {
+        game.teamPlayerStats[fromPlayer] = { damageDealt: 0, damageReceived: 0, eliminationsCount: 0, movesUsed: 0, movesDonated: 0 };
+      }
+      game.teamPlayerStats[fromPlayer].movesDonated++;
+    }
+
+    const cardName = card.name || card.id;
+    console.log('[TeamMode] ' + fromPlayer + ' donated card "' + cardName + '" to ' + toPlayer);
+    return { success: true, message: fromPlayer + ' ha donato "' + cardName + '" a ' + toPlayer };
+  }
+
+  // TEAM MODE: Configure team mode for a game (with validation)
+  setTeamMode(gameId: string, teamSize: 2 | 3, teams?: { teamA: string[]; teamB: string[] }): { success: boolean; error?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false, error: 'Game not found' };
+    game.isTeamMode = true;
+    game.teamSize = teamSize;
+    if (teams) {
+      // Validate all team members are current players
+      const currentPlayers = new Set(Object.keys(game.players));
+      const allTeamMembers = [...teams.teamA, ...teams.teamB];
+      for (const p of allTeamMembers) {
+        if (!currentPlayers.has(p)) {
+          return { success: false, error: 'Player not in game: ' + p };
+        }
+      }
+      // Validate sizes: each team must have exactly teamSize members
+      if (teams.teamA.length !== teamSize || teams.teamB.length !== teamSize) {
+        return { success: false, error: 'Each team must have exactly ' + teamSize + ' players' };
+      }
+      // No duplicates across teams
+      const uniqueMembers = new Set(allTeamMembers);
+      if (uniqueMembers.size !== allTeamMembers.length) {
+        return { success: false, error: 'A player cannot be on both teams' };
+      }
+      game.teams = teams;
+    }
+    console.log('[TeamMode] Game ' + gameId + ' set to ' + teamSize + 'v' + teamSize + ' mode');
+    return { success: true };
+  }
+
+  // TEAM MODE: Auto-assign teams (supports CPU players)
+  autoAssignTeams(gameId: string): { teamA: string[]; teamB: string[] } | null {
+    const game = this.games.get(gameId);
+    if (!game?.isTeamMode) return null;
+    const teamSize = game.teamSize || 2;
+    const players = Object.keys(game.players);
+    // Shuffle all players (human + CPU)
+    const shuffled = [...players];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    const teamA = shuffled.slice(0, teamSize);
+    const teamB = shuffled.slice(teamSize, teamSize * 2);
+    if (teamA.length !== teamSize || teamB.length !== teamSize) {
+      console.log('[TeamMode] Not enough players for ' + teamSize + 'v' + teamSize + ' (have ' + players.length + ')');
+      return null;
+    }
+    game.teams = { teamA, teamB };
+    console.log('[TeamMode] Auto-assigned teams: A=[' + teamA.join(',') + '] B=[' + teamB.join(',') + ']');
+    return { teamA, teamB };
+  }
+
+  // TEAM MODE: Assign a specific player to a team
+  assignPlayerToTeam(gameId: string, playerName: string, targetTeam: 'teamA' | 'teamB'): { success: boolean; error?: string } {
+    const game = this.games.get(gameId);
+    if (!game?.isTeamMode) return { success: false, error: 'Not in team mode' };
+    if (!game.players[playerName]) return { success: false, error: 'Player not in game' };
+    if (!game.teams) game.teams = { teamA: [], teamB: [] };
+    const otherTeam = targetTeam === 'teamA' ? 'teamB' : 'teamA';
+    // Remove from other team if present
+    game.teams[otherTeam] = game.teams[otherTeam].filter(p => p !== playerName);
+    // Add to target team if not already there
+    if (!game.teams[targetTeam].includes(playerName)) {
+      game.teams[targetTeam].push(playerName);
+    }
+    console.log('[TeamMode] ' + playerName + ' assigned to ' + targetTeam);
+    return { success: true };
+  }
+
+  // TEAM MODE: Teammate uses Respinta to cover an attacked ally
+  async useTeamCover(gameId: string, coveringPlayer: string, attackId: string, io: any): Promise<{ success: boolean; message: string }> {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false, message: 'Partita non trovata' };
+    if (!game.isTeamMode) return { success: false, message: 'Solo in modalità Coppia' };
+
+    const pendingDefense = game.pendingDefense;
+    if (!pendingDefense || pendingDefense.attackId !== attackId) {
+      return { success: false, message: 'Nessun attacco attivo da copertura' };
+    }
+
+    // Cannot cover your own attack defense (must be a teammate of the defender)
+    if (coveringPlayer === pendingDefense.defender) {
+      return { success: false, message: 'Non puoi coprire te stesso in questo modo' };
+    }
+
+    // Verify covering player is a teammate of the defender
+    const defenderTeam = game.teams?.teamA.includes(pendingDefense.defender) ? 'teamA'
+      : game.teams?.teamB.includes(pendingDefense.defender) ? 'teamB' : null;
+    const coveringTeam = game.teams?.teamA.includes(coveringPlayer) ? 'teamA'
+      : game.teams?.teamB.includes(coveringPlayer) ? 'teamB' : null;
+    if (!defenderTeam || defenderTeam !== coveringTeam) {
+      return { success: false, message: 'Non sei compagno di squadra del difensore' };
+    }
+
+    // Find Respinta-type card in covering player's hand
+    const coveringPlayerData = game.players[coveringPlayer];
+    if (!coveringPlayerData) return { success: false, message: 'Giocatore coprente non trovato' };
+
+    const respintaNames = ['RESPINTA', 'ALTA SALVA', 'BOOMERANG', 'CONTRO SKRAZZKOOM', 'CONVERSIONE',
+      'DIFESA VIGLIACCA', 'E NN T MITT SCUORN', 'E TAGG TRATTAT', 'FOLATA DI VENTO', 'FOLATA DI VENTA', 'FOLATA'];
+    const getCardNameLocal = (card: any): string => {
+      if (card.name) return card.name.toUpperCase();
+      if (card.frontImage) {
+        const m = card.frontImage.match(/\/([^\/]+)\.(png|jpg|jpeg|gif)$/i);
+        if (m) return m[1].replace(/-/g, ' ').toUpperCase();
+      }
+      return '';
+    };
+    const respintaCardIdx = coveringPlayerData.hand.findIndex(
+      (c: any) => c.type === 'bonus' && respintaNames.some(n => getCardNameLocal(c).includes(n))
+    );
+    if (respintaCardIdx === -1) {
+      return { success: false, message: 'Nessuna carta Respinta in mano' };
+    }
+
+    // Remove the Respinta card and discard it
+    const [respintaCard] = coveringPlayerData.hand.splice(respintaCardIdx, 1);
+    game.graveyard.push({ ...respintaCard, owner: coveringPlayer, isFaceUp: true });
+
+    // Announce the cover
+    const cardName = respintaCard.name || getCardNameLocal(respintaCard);
+    io.to(gameId).emit('chat-message', {
+      id: Date.now() + '-team-cover',
+      playerName: 'Sistema',
+      message: '🛡️ ' + coveringPlayer + ' usa ' + cardName + ' per proteggere ' + pendingDefense.defender + '!',
+      timestamp: Date.now()
+    });
+
+    console.log('[TeamMode] ' + coveringPlayer + ' covers ' + pendingDefense.defender + ' with ' + cardName);
+
+    // Clear the cover opportunity notification
+    io.to(gameId).emit('team-cover-resolved', { attackId, coveredBy: coveringPlayer });
+
+    // Resolve the defense as success (attack blocked) — use the covering player's Respinta card as defense card
+    await this.processDefenseResponse(gameId, attackId, true, io, 'client', undefined, respintaCard.id);
+
+    return { success: true, message: coveringPlayer + ' ha protetto ' + pendingDefense.defender };
   }
 
   endTurn(gameId: string, playerName: string): string | null {
@@ -24718,6 +25000,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           console.log(`⚔️ ZODY: secondMossaUsedThisTurn reset for ${pName} at end of turn`);
         }
       }
+    }
+
+    // TEAM MODE: Reset donated cards tracker for next turn
+    if (gameState.isTeamMode && gameState.donatedCardsThisTurn) {
+      gameState.donatedCardsThisTurn.clear();
     }
 
     // GIGI PROIETTILE: Reset canAttackImmediately after it was used this turn
@@ -26589,7 +26876,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   }
 
   // Add methods for elimination system
-  markPlayerEliminated(gameId: string, playerName: string): boolean {
+  markPlayerEliminated(gameId: string, playerName: string, killedBy?: string): boolean {
     const game = this.games.get(gameId);
     if (!game) return false;
 
@@ -26602,6 +26889,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     game.eliminatedPlayers.add(playerName);
     game.eliminationOrder.push(playerName);
     console.log(`Player ${playerName} marked as eliminated (position ${game.eliminationOrder.length})`);
+
+    // TEAM MODE: credit the killer's eliminationsCount
+    if (game.isTeamMode && game.teamPlayerStats) {
+      const killer = killedBy || game.lastAction?.playerName;
+      if (killer && killer !== playerName) {
+        if (!game.teamPlayerStats[killer]) {
+          game.teamPlayerStats[killer] = { damageDealt: 0, damageReceived: 0, eliminationsCount: 0, movesUsed: 0, movesDonated: 0 };
+        }
+        game.teamPlayerStats[killer].eliminationsCount++;
+        console.log(`[TeamMode] ${killer} credited with elimination of ${playerName}`);
+      }
+    }
     return true;
   }
 
@@ -26671,8 +26970,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               statsMap[pName] = pStats;
             }
           }
-          io.to(gameId).emit('game-victory', { winner, lastAction: lastAct || null, matchDuration: duration, playerStats: statsMap });
-          this.completeMatch(gameId, winner);
+          // TEAM MODE: parse the winner string to include team data
+          let teamVictoryData: any = null;
+          let actualWinner = winner;
+          if (winner.startsWith('team:')) {
+            const parts = winner.split(':');
+            const winningTeam = parts[1]; // 'teamA' or 'teamB'
+            const winningPlayers = parts[2] ? parts[2].split(',') : [];
+            teamVictoryData = {
+              isTeamVictory: true,
+              winningTeam,
+              winningPlayers,
+              teams: gameForStats?.teams || null,
+              teamPlayerStats: gameForStats?.teamPlayerStats || null
+            };
+            actualWinner = winningPlayers[0] || winner;
+          }
+          io.to(gameId).emit('game-victory', { winner: actualWinner, lastAction: lastAct || null, matchDuration: duration, playerStats: statsMap, teamVictoryData });
+          this.completeMatch(gameId, actualWinner);
         }
         return true;
       }
@@ -27165,6 +27480,46 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       message: `🛡️ ${pendingDefense.attacker} attacca ${pendingDefense.defender}! In attesa della decisione di difesa...`,
       timestamp: Date.now()
     });
+
+    // TEAM MODE: Notify teammates they can use Respinta to cover the attacked player
+    if (game.isTeamMode && game.teams) {
+      const defenderTeam = game.teams.teamA.includes(pendingDefense.defender) ? 'teamA'
+        : game.teams.teamB.includes(pendingDefense.defender) ? 'teamB' : null;
+      if (defenderTeam) {
+        const teammates = game.teams[defenderTeam].filter(p => p !== pendingDefense.defender && !game.eliminatedPlayers.has(p));
+        // Find teammates who have a Respinta card in hand and are human players
+        const respintaNames = ['RESPINTA', 'ALTA SALVA', 'BOOMERANG', 'CONTRO SKRAZZKOOM', 'CONVERSIONE',
+          'DIFESA VIGLIACCA', 'E NN T MITT SCUORN', 'E TAGG TRATTAT', 'FOLATA DI VENTO', 'FOLATA DI VENTA', 'FOLATA'];
+        const getCardName2 = (card: any): string => {
+          if (card.name) return card.name.toUpperCase();
+          if (card.frontImage) {
+            const m = card.frontImage.match(/\/([^\/]+)\.(png|jpg|jpeg|gif)$/i);
+            if (m) return m[1].replace(/-/g, ' ').toUpperCase();
+          }
+          return '';
+        };
+        for (const teammate of teammates) {
+          const tPlayer = game.players[teammate];
+          if (!tPlayer || tPlayer.isCPU) continue; // Only human teammates can intervene
+          const respintaCard = tPlayer.hand.find((c: any) => c.type === 'bonus' && respintaNames.some(n => getCardName2(c).includes(n)));
+          if (respintaCard) {
+            const tSocketId = tPlayer.socketId;
+            if (tSocketId) {
+              io.to(tSocketId).emit('team-cover-opportunity', {
+                attackId: pendingDefense.attackId,
+                attackedPlayer: pendingDefense.defender,
+                attacker: pendingDefense.attacker,
+                damage: pendingDefense.damage,
+                coverCardId: respintaCard.id,
+                coverCardName: respintaCard.name || getCardName2(respintaCard),
+                windowSeconds: 8
+              });
+              console.log(`[TeamMode] Sent team-cover-opportunity to teammate ${teammate} for defending ${pendingDefense.defender}`);
+            }
+          }
+        }
+      }
+    }
 
     // SERVER-SIDE TIMEOUT: Auto-resolve after 30 seconds if no response
     const timeoutId = setTimeout(async () => {
@@ -31097,6 +31452,37 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       .filter(playerName => !game.eliminatedPlayers.has(playerName));
 
     console.log(`Victory check: ${allActivePlayers.length} active players remaining:`, allActivePlayers);
+
+    // TEAM MODE: Check team-based win condition
+    if (game.isTeamMode && game.teams) {
+      const teamAActive = game.teams.teamA.filter(p => !game.eliminatedPlayers.has(p));
+      const teamBActive = game.teams.teamB.filter(p => !game.eliminatedPlayers.has(p));
+      console.log(`[TeamMode] Victory check: TeamA active=${teamAActive.length}, TeamB active=${teamBActive.length}`);
+
+      if (teamAActive.length === 0 && teamBActive.length > 0) {
+        // Team B wins
+        const representativeWinner = teamBActive[0];
+        game.gameEnded = true;
+        console.log(`[TeamMode] Team B wins! Representative: ${representativeWinner}`);
+        this.markGameInactive(gameId).catch(err => console.error('Failed to mark game inactive:', err));
+        return `team:teamB:${game.teams.teamB.join(',')}`;
+      }
+      if (teamBActive.length === 0 && teamAActive.length > 0) {
+        // Team A wins
+        const representativeWinner = teamAActive[0];
+        game.gameEnded = true;
+        console.log(`[TeamMode] Team A wins! Representative: ${representativeWinner}`);
+        this.markGameInactive(gameId).catch(err => console.error('Failed to mark game inactive:', err));
+        return `team:teamA:${game.teams.teamA.join(',')}`;
+      }
+      if (teamAActive.length === 0 && teamBActive.length === 0) {
+        // Draw - last survivor (should not happen normally)
+        game.gameEnded = true;
+        this.markGameInactive(gameId).catch(err => console.error('Failed to mark game inactive:', err));
+        return 'draw';
+      }
+      return null; // Game continues
+    }
 
     // If only one active player remains (human or CPU), they win
     if (allActivePlayers.length === 1) {
