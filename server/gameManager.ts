@@ -28190,12 +28190,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const cpuInstance2 = zodyAttackerPlayer.cpuInstance;
           if (cpuInstance2) {
             console.log(`⚔️ ZODY: CPU ${attacker} will auto-execute second mosse`);
-            setTimeout(() => {
-              const liveGame = this.games.get(gameId);
-              if (liveGame && liveGame.currentTurn === attacker && liveGame.players[attacker]) {
-                this.processCPUTurn(gameId, attacker, io).catch((err: any) => {
-                  console.error(`⚔️ ZODY CPU second mosse error:`, err);
-                });
+            setTimeout(async () => {
+              try {
+                const liveGame = this.games.get(gameId);
+                if (liveGame && liveGame.currentTurn === attacker && liveGame.players[attacker]) {
+                  const zodyAction = await this.processCPUTurn(gameId, attacker, io);
+                  if (zodyAction) {
+                    await this.applyCPUAction(gameId, attacker, zodyAction, io);
+                    console.log(`⚔️ ZODY CPU: second mosse executed for ${attacker}`);
+                  }
+                }
+              } catch (err: any) {
+                console.error(`⚔️ ZODY CPU second mosse error:`, err);
               }
             }, 1500);
           }
@@ -30327,20 +30333,29 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
     
     // ── BRONX: star drain per 500 PTI ───────────────────────────────────────────
-    // If the attacker's active character has starDrainPer500, remove floor(damageValue/500) additional stars,
-    // minimum 1 star drained per attack.
+    // If the attacker's active character has starDrainPer500, remove floor(effectiveDamage/500) additional
+    // stars from the target. The drain cannot reduce the target below 1 remaining star.
     if (!isVoodooReflection && !isHandTarget && !isFurtoAttack && !isPersistentTick) {
       const bronxAttackerChar = this.getPlayerActiveCharacter(game, attackerName);
       if (bronxAttackerChar && (bronxAttackerChar as any).starDrainPer500) {
-        const bronxDrainAmount = Math.max(1, Math.floor(damageValue / 500));
-        additionalStarsToRemove += bronxDrainAmount;
-        console.log(`💜 BRONX: star drain activated — damageValue=${damageValue}, draining ${bronxDrainAmount} stars from ${targetCard.name || targetCard.frontImage}`);
-        if (io) io.to(gameId).emit('chat-message', {
-          id: `${Date.now()}-bronx-drain`,
-          playerName: 'Sistema',
-          message: `💜 BRONX! ${bronxAttackerChar.name || attackerName} prosciuga ${bronxDrainAmount} ${bronxDrainAmount === 1 ? 'stella' : 'stelle'} da ${targetCard.name || targetOwner}!`,
-          timestamp: Date.now()
-        });
+        const bronxDrainRaw = Math.floor(effectiveDamage / 500);
+        if (bronxDrainRaw > 0) {
+          const bronxCurrentStars = targetCard.stars ?? this.extractStarsFromNote(targetCard.text || '') ?? 0;
+          // Ensure target keeps at least 1 star after all pending star removal + Bronx drain
+          const existingPendingStarRemoval = starsToRemove + additionalStarsToRemove;
+          const bronxMaxDrain = Math.max(0, bronxCurrentStars - existingPendingStarRemoval - 1);
+          const bronxActualDrain = Math.min(bronxDrainRaw, bronxMaxDrain);
+          if (bronxActualDrain > 0) {
+            additionalStarsToRemove += bronxActualDrain;
+            console.log(`💜 BRONX: star drain — effectiveDamage=${effectiveDamage}, raw=${bronxDrainRaw}, capped=${bronxActualDrain} stars from ${targetCard.name || targetCard.frontImage}`);
+            if (io) io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-bronx-drain`,
+              playerName: 'Sistema',
+              message: `💜 BRONX! ${bronxAttackerChar.name || attackerName} prosciuga ${bronxActualDrain} ${bronxActualDrain === 1 ? 'stella' : 'stelle'} da ${targetCard.name || targetOwner}!`,
+              timestamp: Date.now()
+            });
+          }
+        }
       }
     }
 
