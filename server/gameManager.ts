@@ -943,12 +943,12 @@ export class GameManager {
       (card as any).superAttacco = mod.superAttacco || undefined;
     }
     // ZODY: double mosse flag
-    if ((mod as any).doubleMosse !== undefined) {
-      (card as any).doubleMosse = (mod as any).doubleMosse || undefined;
+    if (mod.doubleMosse !== undefined) {
+      card.doubleMosse = mod.doubleMosse || undefined;
     }
     // BRONX: star drain per 500 PTI flag
-    if ((mod as any).starDrainPer500 !== undefined) {
-      (card as any).starDrainPer500 = (mod as any).starDrainPer500 || undefined;
+    if (mod.starDrainPer500 !== undefined) {
+      card.starDrainPer500 = mod.starDrainPer500 || undefined;
     }
   }
 
@@ -28186,25 +28186,44 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             console.log(`⚔️ ZODY: sent second-mossa-available to human player ${attacker} (socket ${attackerSocketId})`);
           }
         } else {
-          // CPU attacker: auto-execute second attack after a short delay
-          const cpuInstance2 = zodyAttackerPlayer.cpuInstance;
-          if (cpuInstance2) {
-            console.log(`⚔️ ZODY: CPU ${attacker} will auto-execute second mosse`);
-            setTimeout(async () => {
-              try {
-                const liveGame = this.games.get(gameId);
-                if (liveGame && liveGame.currentTurn === attacker && liveGame.players[attacker]) {
-                  const zodyAction = await this.processCPUTurn(gameId, attacker, io);
-                  if (zodyAction) {
-                    await this.applyCPUAction(gameId, attacker, zodyAction, io);
-                    console.log(`⚔️ ZODY CPU: second mosse executed for ${attacker}`);
-                  }
-                }
-              } catch (err: any) {
-                console.error(`⚔️ ZODY CPU second mosse error:`, err);
+          // CPU attacker: directly execute a second MOSSE attack after a short delay
+          console.log(`⚔️ ZODY: CPU ${attacker} will auto-execute second MOSSE`);
+          setTimeout(async () => {
+            try {
+              const liveGame = this.games.get(gameId);
+              if (!liveGame || liveGame.currentTurn !== attacker || !liveGame.players[attacker]) return;
+              // Find a MOSSE card in CPU's hand
+              const cpuHand: Card[] = liveGame.players[attacker].hand || [];
+              const mossesInHand = cpuHand.filter((c: Card) => c.type === 'mosse');
+              if (mossesInHand.length === 0) {
+                console.log(`⚔️ ZODY CPU: no MOSSE in hand for ${attacker}, cannot execute second attack`);
+                return;
               }
-            }, 1500);
-          }
+              // Find opponent and their active character to target
+              const opponentName = Object.keys(liveGame.players).find((p: string) => p !== attacker);
+              if (!opponentName) return;
+              const targetChar = this.getPlayerActiveCharacter(liveGame, opponentName);
+              if (!targetChar) {
+                console.log(`⚔️ ZODY CPU: no opponent character on field, cannot execute second attack`);
+                return;
+              }
+              // Select the MOSSE with highest damage value
+              const mosseCard = mossesInHand.reduce((best: Card, m: Card) => {
+                const bestDmg = best.mosseDamageValue ?? 100;
+                const mDmg = m.mosseDamageValue ?? 100;
+                return mDmg > bestDmg ? m : best;
+              }, mossesInHand[0]);
+              const damageValue = mosseCard.mosseDamageValue ?? 150;
+              console.log(`⚔️ ZODY CPU: executing second MOSSE attack — ${mosseCard.name || mosseCard.id} → ${targetChar.name || opponentName} (${damageValue} PTI)`);
+              const attackResult = await this.executeMossaAttack(gameId, attacker, mosseCard.id, targetChar.id, damageValue);
+              if (attackResult.success) {
+                console.log(`⚔️ ZODY CPU: second MOSSE attack completed successfully`);
+                if (io) io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+              }
+            } catch (err: any) {
+              console.error(`⚔️ ZODY CPU second MOSSE error:`, err);
+            }
+          }, 1500);
         }
       }
     }

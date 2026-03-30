@@ -104,6 +104,8 @@ export const cardModifications = pgTable("card_modifications", {
   specialCategory: text("special_category"), // 'supremi', 'super', 'evoluti', 'tarocchi' for PERSONAGGI_SPECIALI
   evolvedMoves: jsonb("evolved_moves"), // JSON: {range1: {name, damage}, range2: {name, damage}} for MOSSE SPECIALI EVOLUTE
   superAttacco: jsonb("super_attacco"), // JSON: {name, damage} for SUPER ATTACCO override
+  doubleMosse: boolean("double_mosse").default(false), // ZODY: character can use 2 consecutive MOSSE per turn
+  starDrainPer500: boolean("star_drain_per500").default(false), // BRONX: drains 1 star per 500 PTI of damage dealt
   isDeleted: boolean("is_deleted").default(false), // Hide card from game
   modifiedBy: text("modified_by"), // Admin email who modified
   modifiedAt: timestamp("modified_at").notNull().defaultNow(),
