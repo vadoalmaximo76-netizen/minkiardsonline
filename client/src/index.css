@@ -3,14 +3,38 @@
 @tailwind utilities;
 
 .gamepad-focus {
-  outline: 2px solid rgba(168, 85, 247, 0.9) !important;
-  outline-offset: 2px !important;
-  box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.25), 0 0 12px rgba(168, 85, 247, 0.4) !important;
-  transition: outline 0.1s, box-shadow 0.1s;
+  outline: 3px solid #e879f9 !important;
+  outline-offset: 3px !important;
+  box-shadow:
+    0 0 0 5px rgba(168, 85, 247, 0.35),
+    0 0 18px rgba(232, 121, 249, 0.75),
+    0 0 40px rgba(168, 85, 247, 0.4) !important;
+  transform: scale(1.04);
+  transition: outline 0.08s, box-shadow 0.08s, transform 0.08s;
+  animation: gamepad-focus-ring 0.9s ease-in-out infinite !important;
+  position: relative;
+  z-index: 1;
 }
 
 .gamepad-focus:not(:focus-visible) {
-  outline: 2px solid rgba(168, 85, 247, 0.9) !important;
+  outline: 3px solid #e879f9 !important;
+}
+
+@keyframes gamepad-focus-ring {
+  0%, 100% {
+    box-shadow:
+      0 0 0 5px rgba(168, 85, 247, 0.35),
+      0 0 18px rgba(232, 121, 249, 0.75),
+      0 0 40px rgba(168, 85, 247, 0.4);
+    outline-color: #e879f9;
+  }
+  50% {
+    box-shadow:
+      0 0 0 7px rgba(168, 85, 247, 0.55),
+      0 0 28px rgba(232, 121, 249, 1),
+      0 0 60px rgba(168, 85, 247, 0.65);
+    outline-color: #ffffff;
+  }
 }
 
 @keyframes floatUp {
