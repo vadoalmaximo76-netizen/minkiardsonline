@@ -28187,16 +28187,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             console.log(`⚔️ ZODY: sent second-mossa-available to human player ${attacker} (socket ${attackerSocketId})`);
           }
         } else {
-          // CPU attacker: select best available MOSSE and attack with normal selection logic.
-          // Prefer MOSSE from hand (play to field first), fall back to any MOSSE already on field.
-          const zodyFirstMosseId = mosseCardId; // captured from pendingDefense destructure
+          // CPU attacker: select best available MOSSE and execute a second attack.
+          // Mirrors standard CPU MOSSE-selection: prefer highest-value card from hand;
+          // if hand is empty of MOSSE cards, use any MOSSE already on the field.
           console.log(`⚔️ ZODY: CPU ${attacker} will auto-execute second MOSSE`);
           setTimeout(async () => {
             try {
               const liveGame = this.games.get(gameId);
               if (!liveGame || !liveGame.players[attacker]) return;
 
-              // Find opponent and their active character to target
+              // Find opponent and their active character to target (mirrors normal CPU targeting)
               const opponentName = Object.keys(liveGame.players).find((p: string) => p !== attacker);
               if (!opponentName) return;
               const targetChar2 = this.getPlayerActiveCharacter(liveGame, opponentName);
@@ -28205,24 +28205,23 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 return;
               }
 
-              // Try to find and play a MOSSE from hand (normal CPU MOSSE selection logic)
+              // Select best MOSSE from hand (mirrors cpuPlayer evaluateCard heuristic: highest damage)
               const cpuHand2: Card[] = liveGame.players[attacker].hand || [];
               const mossesInHand2 = cpuHand2.filter((c: Card) => c.type === 'mosse');
               let secondMosseId: string;
               let secondDamage: number;
 
               if (mossesInHand2.length > 0) {
-                // Select highest-damage MOSSE from hand and play it to field
                 const handMosse = mossesInHand2.reduce((best: Card, m: Card) =>
                   (m.mosseDamageValue ?? 100) > (best.mosseDamageValue ?? 100) ? m : best,
                   mossesInHand2[0]);
+                // Play from hand to field before attacking (standard play-then-attack flow)
                 await this.playCard(gameId, handMosse.id, attacker);
                 secondMosseId = handMosse.id;
                 secondDamage = handMosse.mosseDamageValue ?? 150;
                 console.log(`⚔️ ZODY CPU: played MOSSE from hand — ${handMosse.name || handMosse.id}`);
               } else {
-                // Fall back: look for any MOSSE on field belonging to attacker
-                // (covers the !defends case where the first MOSSE is still on field)
+                // No MOSSE in hand — fall back to one already on field (e.g. first attack landed)
                 const fieldMosse = liveGame.field.find(
                   (c: Card) => c.owner === attacker && c.type === 'mosse'
                 );
@@ -28243,8 +28242,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               } else {
                 console.log(`⚔️ ZODY CPU: second MOSSE attack result — ${attackResult2.error}`);
               }
-              // Note: suppress zodyFirstMosseId lint warning (used as identity reference)
-              void zodyFirstMosseId;
             } catch (err: any) {
               console.error(`⚔️ ZODY CPU second MOSSE error:`, err);
             }
