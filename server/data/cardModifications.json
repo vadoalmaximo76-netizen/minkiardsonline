@@ -5674,7 +5674,7 @@
     "imageUrl": "https://i.postimg.cc/ZqfY7T6b/33.png",
     "pti": "9000",
     "stars": "9",
-    "effect": "Può usare 2 mosse consecutivamente nello stesso turno [DETTAGLI: condition_detail: Se è in campo; condition_else: Nulla, l'effetto non si attiva; target: Il mio personaggio attivo]",
+    "effect": "Ogni 500 PTI di danno inflitto rimuove 1 stella al bersaglio (min. 1 stella rimossa).",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -5691,6 +5691,7 @@
     "transformsFrom": null,
     "cheatsInto": null,
     "specialCategory": "evoluti",
+    "starDrainPer500": true,
     "evolvedMoves": {
       "range1": {
         "name": "ASCIA FATALE",
@@ -8185,7 +8186,7 @@
     "imageUrl": "https://i.postimg.cc/hGC4ySVS/32.png",
     "pti": "9000",
     "stars": "9",
-    "effect": null,
+    "effect": "Può usare 2 mosse consecutive nello stesso turno.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8202,6 +8203,7 @@
     "transformsFrom": null,
     "cheatsInto": null,
     "specialCategory": "evoluti",
+    "doubleMosse": true,
     "evolvedMoves": {
       "range1": {
         "name": "SPADA FATALE",

@@ -143,6 +143,10 @@ interface Card {
   immuneToAttacks?: boolean;
   // GIANNI GIGANTI — blocked for N turns after kill
   blockedForTurns?: number;
+  // ZODY — can use 2 consecutive MOSSE in the same turn
+  doubleMosse?: boolean;
+  // BRONX — removes 1 star per 500 PTI of damage dealt
+  starDrainPer500?: boolean;
 }
 
 interface Player {
@@ -163,6 +167,7 @@ interface Player {
   pendingFabrizioChoice?: boolean; // FABRIZIO: must choose (play card or +100 PTI) before acting
   fabrizioChoiceConsumed?: boolean; // FABRIZIO: PTI choice already used this turn
   cpuLevel?: 'easy' | 'medium' | 'hard'; // Difficulty level for CPU players
+  secondMossaUsedThisTurn?: boolean; // ZODY: true after using the second MOSSE in a double-attack turn
 }
 
 interface TransferRequest {
@@ -936,6 +941,14 @@ export class GameManager {
     }
     if (mod.superAttacco !== undefined) {
       (card as any).superAttacco = mod.superAttacco || undefined;
+    }
+    // ZODY: double mosse flag
+    if ((mod as any).doubleMosse !== undefined) {
+      (card as any).doubleMosse = (mod as any).doubleMosse || undefined;
+    }
+    // BRONX: star drain per 500 PTI flag
+    if ((mod as any).starDrainPer500 !== undefined) {
+      (card as any).starDrainPer500 = (mod as any).starDrainPer500 || undefined;
     }
   }
 
@@ -24689,6 +24702,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     // ERNESTO: Reset extraMosseAllowed at end of turn
     // GOLDEN FREEZER: Reset consecutiveAttacksLeft at end of turn (attacks only valid within the same turn)
+    // ZODY: Reset secondMossaUsedThisTurn at end of turn
     if (gameState.players) {
       for (const pName of Object.keys(gameState.players)) {
         if (gameState.players[pName].extraMosseAllowed) {
@@ -24698,6 +24712,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if ((gameState.players[pName] as any).consecutiveAttacksLeft > 0) {
           (gameState.players[pName] as any).consecutiveAttacksLeft = 0;
           console.log(`❄️ GOLDEN FREEZER: consecutiveAttacksLeft reset for ${pName} at end of turn`);
+        }
+        if (gameState.players[pName].secondMossaUsedThisTurn) {
+          gameState.players[pName].secondMossaUsedThisTurn = false;
+          console.log(`⚔️ ZODY: secondMossaUsedThisTurn reset for ${pName} at end of turn`);
         }
       }
     }
@@ -28145,6 +28163,47 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       console.log(`🤖 CPU ${attacker} attack resolved after defense resolution`);
     }
 
+    // ── ZODY: double mosse (doppia mossa per turno) ─────────────────────────────
+    // After an attack resolves, if the attacker's active character has doubleMosse
+    // and they haven't used their second mossa yet this turn, grant a second attack.
+    const zodyAttackerPlayer = game.players[attacker];
+    if (zodyAttackerPlayer && !zodyAttackerPlayer.secondMossaUsedThisTurn) {
+      const zodyActiveChar = this.getPlayerActiveCharacter(game, attacker);
+      if (zodyActiveChar && (zodyActiveChar as any).doubleMosse) {
+        // Mark the second mossa as pending (will be consumed on next attack or end of turn)
+        zodyAttackerPlayer.secondMossaUsedThisTurn = true;
+        console.log(`⚔️ ZODY: double mosse available for ${attacker} — granting second MOSSE`);
+
+        if (!zodyAttackerPlayer.isCPU) {
+          // Human attacker: notify their socket so the client can show the prompt
+          const attackerSocketId = zodyAttackerPlayer.socketId;
+          if (attackerSocketId && io) {
+            io.to(attackerSocketId).emit('second-mossa-available', {
+              playerName: attacker,
+              characterName: zodyActiveChar.name || 'Zody',
+              timestamp: Date.now()
+            });
+            console.log(`⚔️ ZODY: sent second-mossa-available to human player ${attacker} (socket ${attackerSocketId})`);
+          }
+        } else {
+          // CPU attacker: auto-execute second attack after a short delay
+          const cpuInstance2 = zodyAttackerPlayer.cpuInstance;
+          if (cpuInstance2) {
+            console.log(`⚔️ ZODY: CPU ${attacker} will auto-execute second mosse`);
+            setTimeout(() => {
+              const liveGame = this.games.get(gameId);
+              if (liveGame && liveGame.currentTurn === attacker && liveGame.players[attacker]) {
+                this.processCPUTurn(gameId, attacker, io).catch((err: any) => {
+                  console.error(`⚔️ ZODY CPU second mosse error:`, err);
+                });
+              }
+            }, 1500);
+          }
+        }
+      }
+    }
+    // ── END ZODY ─────────────────────────────────────────────────────────────────
+
     console.log(`[DEFENSE-RESOLVE] Defense resolution completed`, {
       gameId, attackId, defends, resolveSource, attacker, defender, 
       timestamp: new Date().toISOString()
@@ -30267,6 +30326,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
     
+    // ── BRONX: star drain per 500 PTI ───────────────────────────────────────────
+    // If the attacker's active character has starDrainPer500, remove floor(damageValue/500) additional stars,
+    // minimum 1 star drained per attack.
+    if (!isVoodooReflection && !isHandTarget && !isFurtoAttack && !isPersistentTick) {
+      const bronxAttackerChar = this.getPlayerActiveCharacter(game, attackerName);
+      if (bronxAttackerChar && (bronxAttackerChar as any).starDrainPer500) {
+        const bronxDrainAmount = Math.max(1, Math.floor(damageValue / 500));
+        additionalStarsToRemove += bronxDrainAmount;
+        console.log(`💜 BRONX: star drain activated — damageValue=${damageValue}, draining ${bronxDrainAmount} stars from ${targetCard.name || targetCard.frontImage}`);
+        if (io) io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-bronx-drain`,
+          playerName: 'Sistema',
+          message: `💜 BRONX! ${bronxAttackerChar.name || attackerName} prosciuga ${bronxDrainAmount} ${bronxDrainAmount === 1 ? 'stella' : 'stelle'} da ${targetCard.name || targetOwner}!`,
+          timestamp: Date.now()
+        });
+      }
+    }
+
     // Combine star removal from both manual input and special effects
     const totalStarsToRemove = starsToRemove + additionalStarsToRemove;
     // ========== END MOSSE SPECIAL EFFECT HANDLING ==========

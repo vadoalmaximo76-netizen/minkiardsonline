@@ -1269,6 +1269,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('attack-error', handleAttackError);
     socket.on('attack-blocked', handleAttackError);
 
+    // ZODY: second mossa available notification
+    const handleSecondMossaAvailable = (data: { playerName: string; characterName: string }) => {
+      console.log(`⚔️ ZODY: second-mossa-available received for ${data.playerName}`);
+      showGameToast(
+        `⚔️ ${data.characterName} può usare una seconda MOSSE questo turno!`,
+        '⚔️',
+        'success',
+        5000
+      );
+    };
+    socket.on('second-mossa-available', handleSecondMossaAvailable);
+
     const handleDefenseResult = (data: { attackId?: string; success?: boolean; defenderName?: string; defenseCardName?: string; message?: string; damageDelayed?: boolean; damageReflected?: boolean; damageRedirected?: boolean }) => {
       if (data.success) {
         let msg = data.message || '';
@@ -2354,6 +2366,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('clash-battle-end', handleClashBattleEnd);
       socket.off('attack-error', handleAttackError);
       socket.off('attack-blocked', handleAttackError);
+      socket.off('second-mossa-available', handleSecondMossaAvailable);
       socket.off('defense:result', handleDefenseResult);
       socket.off('bonus-effect-applied', handleEffectApplied);
       if (rewardsTimeoutId) clearTimeout(rewardsTimeoutId);
