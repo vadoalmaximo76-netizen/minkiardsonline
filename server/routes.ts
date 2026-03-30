@@ -15,7 +15,7 @@ function handle402(err: unknown): boolean {
   }
   return false;
 }
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates, dailyChallengeScores } from "../shared/schema";
 import { jsonStorage, homePanelsStorage, newsTickerStorage, homeConfigStorage, rankiardTiersStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray, gt } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES } from "../client/src/lib/cardData";
@@ -58,6 +58,7 @@ import {
   claimAchievementReward,
   trackGameEvent 
 } from "./missionsAndAchievements";
+import { generateDailyScenario, getSecondsUntilReset, getTodayDateString, calculateChallengeScore } from "./dailyChallenge";
 
 const DRAFT_MISSIONS_PATH = path.join(process.cwd(), 'server', 'data', 'draftMissions.json');
 
@@ -128,6 +129,18 @@ const lastEventCounters = new Map<string, number>(); // Track eventCounter to sk
 // If a player disconnects during their turn, auto-skip after DISCONNECT_TURN_SKIP_MS
 const DISCONNECT_TURN_SKIP_MS = 30_000;
 const disconnectTurnTimers = new Map<string, NodeJS.Timeout>(); // key: `${gameId}:${playerName}`
+
+// Daily challenge server-side session tracking: userId -> session data
+// Tracks how many battles the user won, cumulative turns and mosse played, server-authoritative
+const dailyChallengeSessionMap = new Map<number, {
+  date: string;
+  battlesWon: number;
+  lastGameId: string | null;
+  cumulativeTurns: number;            // sum of turnsPlayed across all battles
+  cumulativeMosse: number;            // sum of mossePlayed across all battles
+  submitted: boolean;                  // true after score has been submitted (prevents re-submission)
+  authorizedGameIds: Set<string>;     // gameIds that are part of the authorized challenge run
+}>();
 
 // REAL-TIME UPDATE: All updates are now immediate (no throttling)
 function emitThrottledGameState(io: SocketServer, gameId: string, gameState: any) {
@@ -2064,9 +2077,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Create a training game with CPU opponent
-    socket.on('create-training-game', async ({ gameId, playerName, avatarId, userId, helpEnabled, isGymMode, playerDeck, livesCount }) => {
+    socket.on('create-training-game', async ({ gameId, playerName, avatarId, userId, helpEnabled, isGymMode, isDailyChallenge, playerDeck, livesCount }) => {
       try {
-        console.log(`Creating training game ${gameId} for ${playerName}${isGymMode ? ' [GYM MODE]' : ''}`);
+        console.log(`Creating training game ${gameId} for ${playerName}${isGymMode ? ' [GYM MODE]' : ''}${isDailyChallenge ? ' [DAILY CHALLENGE]' : ''}`);
         
         // Create the game and add the player
         const result = await gameManager.addPlayer(gameId, playerName, socket.id, false, userId);
@@ -2145,6 +2158,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         }
+
+        // Daily challenge mode: inject seeded player deck without gym-mode side effects
+        if (isDailyChallenge) {
+          // Server-side eligibility: user must have an active (attempted but not yet submitted) session for today
+          const dcUserId = typeof userId === 'number' ? userId : null;
+          const today = getTodayDateString();
+          let isEligible = false;
+          if (dcUserId && isDatabaseAvailable()) {
+            try {
+              const existing = await db.select()
+                .from(dailyChallengeScores)
+                .where(and(eq(dailyChallengeScores.userId, dcUserId), eq(dailyChallengeScores.challengeDate, today)))
+                .limit(1);
+              // Eligible if: attempted=true AND not yet completed (completed=false means score not yet submitted)
+              if (existing.length > 0 && existing[0].attempted && !existing[0].completed) {
+                // Also check in-memory session: if already submitted in this server run, reject
+                const session = dailyChallengeSessionMap.get(dcUserId);
+                if (!session || session.date !== today || !session.submitted) {
+                  isEligible = true;
+                }
+              }
+            } catch (_) {
+              // DB not available: rely on session map only
+              const session = dailyChallengeSessionMap.get(dcUserId);
+              isEligible = !!(session && session.date === today && !session.submitted);
+            }
+          }
+          if (!isEligible) {
+            console.warn(`⛔ Daily challenge: user ${dcUserId} not eligible to create game (already played or not started attempt)`);
+            socket.emit('daily-challenge-error', { message: 'Non sei autorizzato a creare questa partita.' });
+            // Remove the just-created game since it's unauthorized
+            try { gameManager.removeGameFromMemory(gameId); } catch (_) {}
+            return;
+          }
+
+          const game = gameManager.getGame(gameId);
+          if (game) {
+            game.isDailyChallenge = true;
+            // Store userId and playerName on game so game-victory can update the server-side win tracker
+            (game as any).dailyChallengeUserId = dcUserId;
+            (game as any).dailyChallengePlayerName = playerName;
+            // Bind this authorized gameId to the session
+            const session = dailyChallengeSessionMap.get(dcUserId!);
+            if (session) session.authorizedGameIds = new Set([...(session.authorizedGameIds || []), gameId]);
+            if (!game.playerDraftDecks) game.playerDraftDecks = {};
+            const deckIds: string[] = Array.isArray(playerDeck) && playerDeck.length > 0 ? playerDeck : [];
+            if (deckIds.length > 0) {
+              const resolvedDeck = await gameManager.resolveCardIdsToDecks(deckIds);
+              game.playerDraftDecks[playerName] = resolvedDeck;
+              console.log(`⚔️ Daily challenge: player ${playerName} deck set with ${resolvedDeck.personaggi.length}p/${resolvedDeck.mosse.length}m/${resolvedDeck.bonus.length}b cards`);
+            }
+            if (livesCount && livesCount > 0) {
+              game.characterLimit = String(livesCount);
+            }
+          }
+        }
         
         // Send initial game state
         const gameState = gameManager.getSanitizedGameState(gameId);
@@ -2159,10 +2228,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Add CPU player to training game
-    socket.on('add-training-cpu', async ({ gameId, isGymMode, customDeck, cpuLevel, leaderName, leaderImageUrl, leaderMessages, attackMode, gymLeaderId }) => {
+    socket.on('add-training-cpu', async ({ gameId, isGymMode, isDailyChallenge, customDeck, cpuLevel, leaderName, leaderImageUrl, leaderMessages, attackMode, gymLeaderId }) => {
       try {
-        // Use leader name as CPU name for gym mode, otherwise auto-generate
-        const cpuName = (isGymMode && leaderName)
+        // Use leader name as CPU name for gym mode/daily challenge, otherwise auto-generate
+        const cpuName = ((isGymMode || isDailyChallenge) && leaderName)
           ? await gameManager.addCPUPlayerWithName(gameId, leaderName)
           : await gameManager.addCPUPlayer(gameId);
 
@@ -2221,6 +2290,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.log(`✅ Gym mode: messages active for ${leaderName}`);
             } else {
               console.log(`ℹ️ Gym mode: no custom messages configured for ${leaderName}`);
+            }
+          }
+        }
+
+        // Daily challenge mode: inject seeded CPU deck without gym-mode side effects
+        if (isDailyChallenge) {
+          const game = gameManager.getGame(gameId);
+          if (game) {
+            game.isDailyChallenge = true;
+            if (!game.playerDraftDecks) game.playerDraftDecks = {};
+            const deckIds: string[] = Array.isArray(customDeck) && customDeck.length > 0 ? customDeck : [];
+            if (deckIds.length > 0) {
+              const resolvedDeck = await gameManager.resolveCardIdsToDecks(deckIds);
+              game.playerDraftDecks[cpuName] = resolvedDeck;
+              console.log(`⚔️ Daily challenge CPU ${cpuName} deck: ${resolvedDeck.personaggi.length}p/${resolvedDeck.mosse.length}m/${resolvedDeck.bonus.length}b cards`);
+            }
+            // Set attack mode if provided
+            if (attackMode === 'hunt_human') {
+              const cpuData = game.players[cpuName];
+              if (cpuData?.cpuInstance) {
+                cpuData.cpuInstance.setAttackMode('hunt_human');
+              }
             }
           }
         }
@@ -5357,6 +5448,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (winner) {
         io.to(gameId).emit('game-victory', { winner });
         gameManager.completeMatch(gameId, winner);
+
+        // Daily challenge: track server-authoritative battle wins and cumulative stats
+        const liveGame = gameManager.getGame(gameId);
+        if (liveGame?.isDailyChallenge) {
+          const dcUserId = (liveGame as any).dailyChallengeUserId as number | null;
+          const dcPlayerName = (liveGame as any).dailyChallengePlayerName as string | null;
+          if (dcUserId && dcPlayerName) {
+            const today = getTodayDateString();
+            const session = dailyChallengeSessionMap.get(dcUserId);
+            // Only count stats from authorized games (prevents farming across multiple runs)
+            if (session && session.date === today && !session.submitted && session.authorizedGameIds?.has(gameId)) {
+              // Accumulate turns and mosse from this battle's authoritative stats
+              const pStats = (liveGame as any).playerStats as Map<string, { turnsPlayed: number; mossePlayed?: number }> | undefined;
+              const pName = Object.keys((liveGame as any).players || {}).find(
+                (n: string) => n.toLowerCase() === dcPlayerName.toLowerCase()
+              ) || dcPlayerName;
+              if (pStats?.has(pName)) {
+                session.cumulativeTurns += pStats.get(pName)!.turnsPlayed || 0;
+                session.cumulativeMosse += pStats.get(pName)!.mossePlayed || 0;
+              }
+              if (winner?.toLowerCase() === dcPlayerName.toLowerCase()) {
+                session.battlesWon += 1;
+                console.log(`⚔️ Daily challenge: user ${dcUserId} battle win #${session.battlesWon} recorded server-side (gameId=${gameId})`);
+              }
+              session.lastGameId = gameId;
+            }
+          }
+        }
+
         const _seriesId = gameToSeriesMap.get(gameId);
         if (_seriesId) {
           const _series = rematchSeriesMap.get(_seriesId);
@@ -9174,6 +9294,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
             io.to(gameId).emit('game-victory', { winner });
             // Award Rankiard points
             gameManager.completeMatch(gameId, winner);
+
+            // Daily challenge: track server-authoritative battle wins and cumulative stats
+            const liveGame2 = gameManager.getGame(gameId);
+            if (liveGame2?.isDailyChallenge) {
+              const dcUserId2 = (liveGame2 as any).dailyChallengeUserId as number | null;
+              const dcPlayerName2 = (liveGame2 as any).dailyChallengePlayerName as string | null;
+              if (dcUserId2 && dcPlayerName2) {
+                const today2 = getTodayDateString();
+                const session2 = dailyChallengeSessionMap.get(dcUserId2);
+                // Only count from authorized games (prevents farming)
+                if (session2 && session2.date === today2 && !session2.submitted && session2.authorizedGameIds?.has(gameId)) {
+                  const pStats2 = (liveGame2 as any).playerStats as Map<string, { turnsPlayed: number; mossePlayed?: number }> | undefined;
+                  const pName2 = Object.keys((liveGame2 as any).players || {}).find(
+                    (n: string) => n.toLowerCase() === dcPlayerName2.toLowerCase()
+                  ) || dcPlayerName2;
+                  if (pStats2?.has(pName2)) {
+                    session2.cumulativeTurns += pStats2.get(pName2)!.turnsPlayed || 0;
+                    session2.cumulativeMosse += pStats2.get(pName2)!.mossePlayed || 0;
+                  }
+                  if (winner?.toLowerCase() === dcPlayerName2.toLowerCase()) {
+                    session2.battlesWon += 1;
+                  }
+                  session2.lastGameId = gameId;
+                }
+              }
+            }
+
             // Best of 3 series tracking
             const _seriesId2 = gameToSeriesMap.get(gameId);
             if (_seriesId2) {
@@ -12271,6 +12418,277 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       res.json({ success: true });
     } catch (e) {
       console.error('Error completing gym:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // ============= SFIDA QUOTIDIANA (DAILY CHALLENGE) ENDPOINTS =============
+
+  // GET /api/daily-challenge/scenario - get today's scenario and player status
+  app.get('/api/daily-challenge/scenario', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const scenario = generateDailyScenario();
+      const secondsUntilReset = getSecondsUntilReset();
+      const today = getTodayDateString();
+
+      let alreadyPlayed = false;
+      let playerScore: any = null;
+      let playerRank: number | null = null;
+
+      if (user?.userId && isDatabaseAvailable()) {
+        const existing = await db.select()
+          .from(dailyChallengeScores)
+          .where(and(eq(dailyChallengeScores.userId, user.userId), eq(dailyChallengeScores.challengeDate, today)))
+          .limit(1);
+        if (existing.length > 0) {
+          // alreadyPlayed = true as soon as attempt is recorded (not just on completion)
+          alreadyPlayed = existing[0].attempted;
+          playerScore = existing[0].completed ? existing[0] : null;
+        }
+
+        if (playerScore) {
+          const betterScores = await db.select({ count: sql<number>`count(*)` })
+            .from(dailyChallengeScores)
+            .where(and(
+              eq(dailyChallengeScores.challengeDate, today),
+              eq(dailyChallengeScores.completed, true),
+              sql`${dailyChallengeScores.totalScore} > ${playerScore.totalScore}`
+            ));
+          playerRank = Number(betterScores[0]?.count ?? 0) + 1;
+        }
+      }
+
+      res.json({
+        success: true,
+        scenario,
+        secondsUntilReset,
+        alreadyPlayed,
+        playerScore,
+        playerRank,
+        today,
+      });
+    } catch (e) {
+      console.error('[DailyChallenge] Error fetching scenario:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/daily-challenge/start-attempt - record that player started the challenge (one attempt per day)
+  app.post('/api/daily-challenge/start-attempt', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+
+      const today = getTodayDateString();
+
+      const existing = await db.select()
+        .from(dailyChallengeScores)
+        .where(and(eq(dailyChallengeScores.userId, user.userId), eq(dailyChallengeScores.challengeDate, today)))
+        .limit(1);
+
+      if (existing.length > 0 && existing[0].attempted) {
+        return res.status(400).json({ success: false, error: 'Hai già giocato la sfida di oggi' });
+      }
+
+      const [userRow] = await db.select({ username: users.username }).from(users).where(eq(users.id, user.userId)).limit(1);
+      const username = userRow?.username || 'Giocatore';
+
+      if (existing.length > 0) {
+        await db.update(dailyChallengeScores)
+          .set({ attempted: true })
+          .where(eq(dailyChallengeScores.id, existing[0].id));
+      } else {
+        await db.insert(dailyChallengeScores).values({
+          userId: user.userId,
+          username,
+          challengeDate: today,
+          totalScore: 0,
+          ptiRemaining: 0,
+          starsRemaining: 0,
+          specialMovesUsed: 0,
+          turnsUsed: 0,
+          attempted: true,
+          completed: false,
+          completedAt: null,
+        });
+      }
+
+      // Initialize server-side session tracker (resets if date changed)
+      dailyChallengeSessionMap.set(user.userId, {
+        date: today,
+        battlesWon: 0,
+        lastGameId: null,
+        cumulativeTurns: 0,
+        cumulativeMosse: 0,
+        submitted: false,
+        authorizedGameIds: new Set<string>(),
+      });
+
+      res.json({ success: true });
+    } catch (e) {
+      console.error('[DailyChallenge] Error starting attempt:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/daily-challenge/submit - server-authoritative score submission
+  // Reads game stats directly from the authoritative game state; client sends only gameId + outcome
+  app.post('/api/daily-challenge/submit', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+
+      const { gameId, totalTurns } = req.body;
+      const today = getTodayDateString();
+
+      const existing = await db.select()
+        .from(dailyChallengeScores)
+        .where(and(eq(dailyChallengeScores.userId, user.userId), eq(dailyChallengeScores.challengeDate, today)))
+        .limit(1);
+
+      if (existing.length > 0 && existing[0].completed) {
+        return res.status(400).json({ success: false, error: 'Hai già completato la sfida di oggi' });
+      }
+
+      // Also block if session was submitted in this server run (in-memory guard)
+      const earlySession = dailyChallengeSessionMap.get(user.userId);
+      if (earlySession && earlySession.date === today && earlySession.submitted) {
+        return res.status(400).json({ success: false, error: 'Hai già completato la sfida di oggi' });
+      }
+
+      // Look up the authoritative username from DB
+      const [userRow] = await db.select({ username: users.username }).from(users).where(eq(users.id, user.userId)).limit(1);
+      const playerUsername = userRow?.username || existing[0]?.username || '';
+
+      // Use server-authoritative session data (cumulative across all battles)
+      const session = dailyChallengeSessionMap.get(user.userId);
+      const battlesWonCount = (session && session.date === today) ? Math.min(session.battlesWon, 3) : 0;
+      // Use server-tracked lastGameId if client sends none
+      const resolvedGameId = gameId || (session?.lastGameId) || null;
+
+      // Cumulative turns and mosse are tracked server-side across all battles
+      // (updated by game-victory hooks; falls back to session totals accumulated up to now)
+      let turnsUsed = (session && session.date === today) ? session.cumulativeTurns : 0;
+      let specialMovesUsed = (session && session.date === today) ? session.cumulativeMosse : 0;
+
+      // PTI and stars: read from the last (current) battle's live game field state
+      let ptiRemaining = 0;
+      let starsRemaining = 0;
+      if (resolvedGameId && playerUsername) {
+        const liveGame = gameManager.getGame(resolvedGameId);
+        if (liveGame) {
+          // Sum PTI and stars of player's personaggi cards still alive on field at end of challenge
+          const fieldCards = (liveGame as any).field || [];
+          for (const card of fieldCards) {
+            if (card.owner === playerUsername && card.type === 'personaggi') {
+              ptiRemaining += Number(card.pti) || 0;
+              starsRemaining += Number(card.stars) || 0;
+            }
+          }
+        }
+      }
+
+      // battlesWon bonus: server-authoritative count (not client-supplied)
+      const completed = battlesWonCount === 3;
+      // Score formula (server-authoritative): PTI×10 + stelle×50 + mosse×30 - turni×5
+      const totalScore = calculateChallengeScore({ ptiRemaining, starsRemaining, specialMovesUsed, turnsUsed });
+
+      const username = playerUsername || 'Giocatore';
+      if (existing.length > 0) {
+        await db.update(dailyChallengeScores)
+          .set({ totalScore, ptiRemaining, starsRemaining, specialMovesUsed, turnsUsed, attempted: true, completed, completedAt: completed ? new Date() : null })
+          .where(eq(dailyChallengeScores.id, existing[0].id));
+      } else {
+        await db.insert(dailyChallengeScores).values({
+          userId: user.userId,
+          username,
+          challengeDate: today,
+          totalScore,
+          ptiRemaining,
+          starsRemaining,
+          specialMovesUsed,
+          turnsUsed,
+          attempted: true,
+          completed,
+          completedAt: completed ? new Date() : null,
+        });
+      }
+
+      // Mark session as submitted to prevent re-submission and further game creation
+      if (session && session.date === today) {
+        session.submitted = true;
+      }
+
+      const betterScores = await db.select({ count: sql<number>`count(*)` })
+        .from(dailyChallengeScores)
+        .where(and(
+          eq(dailyChallengeScores.challengeDate, today),
+          eq(dailyChallengeScores.completed, true),
+          sql`${dailyChallengeScores.totalScore} > ${totalScore}`
+        ));
+      const rank = Number(betterScores[0]?.count ?? 0) + 1;
+
+      res.json({ success: true, totalScore, rank, ptiRemaining, starsRemaining, specialMovesUsed, turnsUsed });
+    } catch (e) {
+      console.error('[DailyChallenge] Error submitting score:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // GET /api/daily-challenge/leaderboard - publicly readable top 100 scores for today
+  // Optionally includes the authenticated caller's own rank if a valid token is provided.
+  app.get('/api/daily-challenge/leaderboard', async (req, res) => {
+    try {
+      const today = getTodayDateString();
+      const secondsUntilReset = getSecondsUntilReset();
+
+      if (!isDatabaseAvailable()) {
+        return res.json({ success: true, leaderboard: [], today, secondsUntilReset, playerRank: null, playerEntry: null });
+      }
+
+      const leaderboard = await db.select()
+        .from(dailyChallengeScores)
+        .where(and(eq(dailyChallengeScores.challengeDate, today), eq(dailyChallengeScores.completed, true)))
+        .orderBy(desc(dailyChallengeScores.totalScore))
+        .limit(100);
+
+      // Optionally return caller's own rank/entry if they provide a valid auth token
+      // Uses the same jwtSecret as authMiddleware for consistency
+      let user: { userId?: number } | null = null;
+      const authHeader = req.headers.authorization;
+      if (authHeader?.startsWith('Bearer ')) {
+        try {
+          const jwt = await import('jsonwebtoken');
+          const token = authHeader.slice(7);
+          user = jwt.default.verify(token, jwtSecret) as { userId?: number };
+        } catch (_) {}
+      }
+      let playerRank: number | null = null;
+      let playerEntry: any = null;
+      if (user?.userId) {
+        const myEntry = await db.select()
+          .from(dailyChallengeScores)
+          .where(and(eq(dailyChallengeScores.userId, user.userId), eq(dailyChallengeScores.challengeDate, today)))
+          .limit(1);
+        if (myEntry.length > 0 && myEntry[0].completed) {
+          playerEntry = myEntry[0];
+          const above = await db.select({ count: sql<number>`count(*)` })
+            .from(dailyChallengeScores)
+            .where(and(
+              eq(dailyChallengeScores.challengeDate, today),
+              eq(dailyChallengeScores.completed, true),
+              sql`${dailyChallengeScores.totalScore} > ${myEntry[0].totalScore}`
+            ));
+          playerRank = Number(above[0]?.count ?? 0) + 1;
+        }
+      }
+
+      res.json({ success: true, leaderboard, today, secondsUntilReset, playerRank, playerEntry });
+    } catch (e) {
+      console.error('[DailyChallenge] Error fetching leaderboard:', e);
       res.status(500).json({ success: false, error: 'Errore server' });
     }
   });

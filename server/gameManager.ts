@@ -349,7 +349,7 @@ interface GameState {
   delayedDamages: DelayedDamage[]; // Delayed damage effects from defense
   timedEffects: TimedEffect[]; // Generic delayed effects from Wizard cards (trigger after X turns)
   playerDeathModifiers: Map<string, number>; // Per-player death limit modifiers (+/- deaths)
-  playerStats: Map<string, { cardsPlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>; // Per-player game stats
+  playerStats: Map<string, { cardsPlayed: number; mossePlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>; // Per-player game stats
   draftGrowthTracker?: Record<string, Record<string, { consecutiveTurns: number; maxConsecutiveTurns: number; killsThisMatch: number }>>; // Draft mode: per-player per-card growth tracking
   lastAction?: { type: string; playerName: string; cardName?: string; cardImageUrl?: string; cardDeckType?: string; targetPlayer?: string; damage?: number }; // Track last significant action for final blow replay
   turnTimeoutSeconds?: number; // Configurable turn timer (0 = disabled), defaults to 30
@@ -462,6 +462,7 @@ interface GameState {
   hands?: Record<string, Record<string, Card[]>>;
   isDraftMode?: boolean;
   isGymMode?: boolean;
+  isDailyChallenge?: boolean; // Daily challenge mode: uses seeded playerDraftDecks but not gym-specific behaviors
   playerDraftDecks?: Record<string, { personaggi: Card[], mosse: Card[], bonus: Card[] }>;
   gymLeaderMessages?: Record<string, string[]>;
   gymLeaderCpuName?: string;
@@ -1161,7 +1162,7 @@ export class GameManager {
       delayedDamages: [],
       timedEffects: [],
       playerDeathModifiers: new Map<string, number>(),
-      playerStats: new Map<string, { cardsPlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>()
+      playerStats: new Map<string, { cardsPlayed: number; mossePlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>()
     };
 
     // Auto-shuffle all decks when starting a new game
@@ -2412,7 +2413,7 @@ Rispondi SOLO in JSON:`;
 
           // Record per-player stats for this match
           try {
-            const statsMap: Record<string, { cardsPlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }> = {};
+            const statsMap: Record<string, { cardsPlayed: number; mossePlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }> = {};
             if (game.playerStats) {
               for (const [pName, pStats] of game.playerStats.entries()) {
                 statsMap[pName] = pStats;
@@ -3516,7 +3517,7 @@ Rispondi SOLO in JSON:`;
             prSpentThisGame: new Map(Object.entries(state.prSpentThisGame || {})),
             extraTurnPlayer: state.extraTurnPlayer,
             skipTurnPlayers: state.skipTurnPlayers,
-            playerStats: new Map<string, { cardsPlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>(),
+            playerStats: new Map<string, { cardsPlayed: number; mossePlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>(),
             isDraftMode: state.isDraftMode || false,
             playerDraftDecks: state.playerDraftDecks || {},
             fantaTournamentId: state.fantaTournamentId || undefined,
@@ -3665,7 +3666,7 @@ Rispondi SOLO in JSON:`;
 
     // In draft/gym mode, use player's personal deck — never fall back to shared deck
     let deck: Card[];
-    if ((game.isDraftMode || game.isGymMode) && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
+    if ((game.isDraftMode || game.isGymMode || game.isDailyChallenge) && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
       const personalDecks = game.playerDraftDecks[playerName];
       deck = personalDecks[deckType as 'personaggi' | 'mosse' | 'bonus'] || [];
       
@@ -3735,7 +3736,7 @@ Rispondi SOLO in JSON:`;
     if (!game || !game.players[playerName]) return null;
 
     let deck: Card[];
-    if ((game.isDraftMode || game.isGymMode) && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
+    if ((game.isDraftMode || game.isGymMode || game.isDailyChallenge) && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
       const personalDecks = game.playerDraftDecks[playerName];
       deck = personalDecks[deckType as 'personaggi' | 'mosse' | 'bonus'] || [];
     } else if (game.isGymMode && game.playerDraftDecks && !game.players[playerName]?.isCPU && deckType !== 'personaggi_speciali') {
@@ -3782,7 +3783,7 @@ Rispondi SOLO in JSON:`;
       let deck: Card[] | undefined;
 
       // In draft mode, use the player's personal deck if available
-      if ((game.isDraftMode || game.isGymMode) && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
+      if ((game.isDraftMode || game.isGymMode || game.isDailyChallenge) && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
         const personalDecks = game.playerDraftDecks[playerName];
         deck = personalDecks[deckType as 'personaggi' | 'mosse' | 'bonus'];
         if (!deck || deck.length === 0) {
@@ -3873,7 +3874,7 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return false;
 
-    const isDraft = (game as any).isDraftMode || (game as any).isGymMode;
+    const isDraft = (game as any).isDraftMode || (game as any).isGymMode || (game as any).isDailyChallenge;
     const personalDeck: any[] | undefined = isDraft ? (game as any).playerDraftDecks?.[playerName]?.[deckType] : undefined;
     const deck = personalDeck ?? game.decks[deckType];
     const cardIndex = deck.findIndex((card: any) => card.id === cardId);
@@ -3887,12 +3888,12 @@ Rispondi SOLO in JSON:`;
     return true;
   }
 
-  private trackPlayerStat(game: GameState, playerName: string, statType: 'cardsPlayed' | 'damageDealt' | 'damageReceived' | 'turnsPlayed', amount: number = 1) {
+  private trackPlayerStat(game: GameState, playerName: string, statType: 'cardsPlayed' | 'mossePlayed' | 'damageDealt' | 'damageReceived' | 'turnsPlayed', amount: number = 1) {
     if (!game.playerStats) {
-      game.playerStats = new Map<string, { cardsPlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>();
+      game.playerStats = new Map<string, { cardsPlayed: number; mossePlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>();
     }
     if (!game.playerStats.has(playerName)) {
-      game.playerStats.set(playerName, { cardsPlayed: 0, damageDealt: 0, damageReceived: 0, turnsPlayed: 0 });
+      game.playerStats.set(playerName, { cardsPlayed: 0, mossePlayed: 0, damageDealt: 0, damageReceived: 0, turnsPlayed: 0 });
     }
     const stats = game.playerStats.get(playerName)!;
     stats[statType] += amount;
@@ -4116,6 +4117,10 @@ Rispondi SOLO in JSON:`;
 
       // Track card played stat
       this.trackPlayerStat(game, playerName, 'cardsPlayed');
+      // Track mosse (special moves) separately for daily challenge scoring
+      if (card.type === 'mosse') {
+        this.trackPlayerStat(game, playerName, 'mossePlayed');
+      }
       this.trackLastAction(game, {
         type: 'play',
         playerName,
@@ -12089,8 +12094,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
         };
 
-        if (game.isGymMode && game.playerDraftDecks) {
-          // GYM MODE: route all cards back to personal decks, not the shared deck
+        if ((game.isGymMode || game.isDailyChallenge) && game.playerDraftDecks) {
+          // GYM/DAILY MODE: route all cards back to personal decks, not the shared deck
           // Step 1: return each player's hand cards to their own personal deck
           for (const pName of Object.keys(game.players)) {
             const pData = game.players[pName];

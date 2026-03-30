@@ -18,6 +18,7 @@ import { ClassicTournamentHub } from "./components/ClassicTournamentHub";
 import { DeckSelectDialog } from "./components/DeckSelectDialog";
 import { RankiardLeaderboard } from "./components/RankiardLeaderboard";
 import { GymMode } from "./components/GymMode";
+import { DailyChallengeMode } from "./components/DailyChallengeMode";
 import { SpotifyPlayer } from "./components/SpotifyPlayer";
 import { useGameState } from "./lib/stores/useGameState";
 import { socket } from "./lib/socket";
@@ -31,18 +32,19 @@ import "@fontsource/inter";
 import "./index.css";
 
 const SECTION_PATHS: Record<AppSection, string> = {
-  home:        '/',
-  play:        '/gioca',
-  training:    '/allenamento',
-  rooms:       '/stanze',
-  profile:     '/profilo',
-  spectator:   '/spettatore',
-  admin:       '/admin',
-  draft:       '/draft',
-  leaderboard: '/classifica',
-  tournaments: '/tornei',
-  fanta:       '/fanta',
-  gym:         '/palestre',
+  home:              '/',
+  play:              '/gioca',
+  training:          '/allenamento',
+  rooms:             '/stanze',
+  profile:           '/profilo',
+  spectator:         '/spettatore',
+  admin:             '/admin',
+  draft:             '/draft',
+  leaderboard:       '/classifica',
+  tournaments:       '/tornei',
+  fanta:             '/fanta',
+  gym:               '/palestre',
+  'daily-challenge': '/sfida-quotidiana',
 };
 
 const PATH_SECTIONS: Record<string, AppSection> = Object.fromEntries(
@@ -660,7 +662,7 @@ function App() {
     }
   };
 
-  const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard' | 'tournaments' | 'fanta') => {
+  const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard' | 'tournaments' | 'fanta' | 'gym' | 'daily-challenge') => {
     if (section === 'play') {
       setShowRoomDialog(true);
     }
@@ -1020,6 +1022,23 @@ function App() {
           pendingGymGame={pendingGymGame ?? undefined}
           onResumeGymGame={(gameId) => handleResumeGame(gameId, authenticatedUser?.username || playerName)}
           onClearPendingGymGame={() => setPendingGymGame(null)}
+        />
+        <SpotifyPlayer disabled={false} />
+        <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} onJoinGame={handleJoinGameFromNotification} />
+      </QueryClientProvider>
+    );
+  }
+
+  // Show Daily Challenge
+  if (currentSection === 'daily-challenge') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <DailyChallengeMode
+          playerName={authenticatedUser?.username || playerName}
+          userId={authenticatedUser?.id}
+          avatarId={authenticatedUser?.avatar}
+          onBack={handleGoHome}
         />
         <SpotifyPlayer disabled={false} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />

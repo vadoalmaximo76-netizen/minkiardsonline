@@ -850,3 +850,26 @@ export type UserGymProgress = typeof userGymProgress.$inferSelect;
 export type UserStoryDeck = typeof userStoryDeck.$inferSelect;
 export type InjuredPersonaggio = typeof injuredPersonaggi.$inferSelect;
 export type InsertGymLeader = z.infer<typeof insertGymLeaderSchema>;
+
+// ── Sfida Quotidiana (Daily Challenge) ───────────────────────────────────────
+export const dailyChallengeScores = pgTable("daily_challenge_scores", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  username: text("username").notNull(),
+  challengeDate: text("challenge_date").notNull(), // YYYY-MM-DD
+  totalScore: integer("total_score").notNull().default(0),
+  ptiRemaining: integer("pti_remaining").notNull().default(0),
+  starsRemaining: integer("stars_remaining").notNull().default(0),
+  specialMovesUsed: integer("special_moves_used").notNull().default(0),
+  turnsUsed: integer("turns_used").notNull().default(0),
+  attempted: boolean("attempted").notNull().default(false),  // Set to true when challenge starts
+  completed: boolean("completed").notNull().default(false),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  uniqueUserDate: uniqueIndex("daily_challenge_user_date_idx").on(table.userId, table.challengeDate),
+}));
+
+export const insertDailyChallengeScoreSchema = createInsertSchema(dailyChallengeScores).omit({ id: true, createdAt: true });
+export type DailyChallengeScore = typeof dailyChallengeScores.$inferSelect;
+export type InsertDailyChallengeScore = z.infer<typeof insertDailyChallengeScoreSchema>;

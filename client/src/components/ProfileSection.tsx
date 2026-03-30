@@ -83,6 +83,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
   const [initialConversationId, setInitialConversationId] = useState<number | null>(null);
   const [showMatchHistory, setShowMatchHistory] = useState(false);
   const [gymBadges, setGymBadges] = useState<Array<{ id: number; name: string; gymName: string; badgeImageUrl: string | null; leaderImageUrl: string | null; orderIndex: number }>>([]);
+  const [dailyChallengeBadge, setDailyChallengeBadge] = useState<{ rank: number; date: string } | null>(null);
 
   const [offlineStats, setOfflineStats] = useState<{ cached: number; total: number; enabled: boolean } | null>(null);
   const [offlineDownloading, setOfflineDownloading] = useState(false);
@@ -118,11 +119,12 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
         const authToken = localStorage.getItem('authToken');
         if (!authToken) return;
 
-        const [profileRes, friendsRes, tradeHistRes, gymRes] = await Promise.all([
+        const [profileRes, friendsRes, tradeHistRes, gymRes, dcLeaderboardRes] = await Promise.all([
           fetch('/api/profile', { headers: { 'Authorization': `Bearer ${authToken}` } }),
           fetch('/api/friends', { headers: { 'Authorization': `Bearer ${authToken}` } }),
           fetch('/api/marketplace/my-history', { headers: { 'Authorization': `Bearer ${authToken}` } }),
           fetch('/api/gym-leaders', { headers: { 'Authorization': `Bearer ${authToken}` } }),
+          fetch('/api/daily-challenge/leaderboard', { headers: { 'Authorization': `Bearer ${authToken}` } }),
         ]);
 
         let profileData = null;
@@ -160,6 +162,20 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
               }));
             setGymBadges(earned);
           }
+        }
+
+        // Daily challenge leaderboard: check if player is in top 3 today
+        if (dcLeaderboardRes.ok) {
+          try {
+            const dcData = await dcLeaderboardRes.json();
+            const playerRank = dcData.playerRank;
+            const today = dcData.today;
+            if (playerRank && playerRank <= 3 && today) {
+              setDailyChallengeBadge({ rank: playerRank, date: today });
+            } else {
+              setDailyChallengeBadge(null);
+            }
+          } catch (_) {}
         }
 
         if (profileData) {
@@ -596,6 +612,38 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
                 </div>
               )}
             </div>
+
+            {/* Daily Challenge Top-3 Badge */}
+            {dailyChallengeBadge && (
+              <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5 mb-2">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.3)' }}>
+                    <span style={{ fontSize: 18 }}>⚔️</span>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold text-sm">Sfida Quotidiana</h3>
+                    <p className="text-white/50 text-xs">Top 3 di oggi!</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div style={{
+                    width: 56, height: 56, borderRadius: '50%', position: 'relative',
+                    background: dailyChallengeBadge.rank === 1 ? 'linear-gradient(135deg,#78350f,#451a03)' : dailyChallengeBadge.rank === 2 ? 'linear-gradient(135deg,#334155,#1e293b)' : 'linear-gradient(135deg,#7c2d12,#431407)',
+                    boxShadow: dailyChallengeBadge.rank === 1 ? '0 0 18px rgba(234,179,8,0.5)' : dailyChallengeBadge.rank === 2 ? '0 0 14px rgba(148,163,184,0.4)' : '0 0 14px rgba(251,146,60,0.4)',
+                    border: dailyChallengeBadge.rank === 1 ? '2.5px solid rgba(234,179,8,0.7)' : dailyChallengeBadge.rank === 2 ? '2.5px solid rgba(148,163,184,0.6)' : '2.5px solid rgba(251,146,60,0.6)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <span style={{ fontSize: 24 }}>{dailyChallengeBadge.rank === 1 ? '🥇' : dailyChallengeBadge.rank === 2 ? '🥈' : '🥉'}</span>
+                  </div>
+                  <div>
+                    <div style={{ color: dailyChallengeBadge.rank === 1 ? '#eab308' : dailyChallengeBadge.rank === 2 ? '#94a3b8' : '#fb923c', fontWeight: 700, fontSize: 15 }}>
+                      {dailyChallengeBadge.rank === 1 ? '1° Posto' : dailyChallengeBadge.rank === 2 ? '2° Posto' : '3° Posto'}
+                    </div>
+                    <div className="text-white/40 text-xs mt-0.5">Classifica di oggi · {dailyChallengeBadge.date}</div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Storico Partite */}
             <div className="bg-gradient-to-r from-yellow-900/20 to-slate-800/50 rounded-2xl p-5 border border-yellow-500/20">

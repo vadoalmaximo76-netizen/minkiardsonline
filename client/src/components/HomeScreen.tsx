@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Gamepad2, GraduationCap, Users, User, Trophy, Clock, Star, Award, Sparkles,
-  Settings, Shuffle, Shield, Crown, Sword, Zap, Flame, Heart, BookOpen, Globe,
+  Settings, Shuffle, Shield, Crown, Sword, Swords, Zap, Flame, Heart, BookOpen, Globe,
   Lock, Bell, Gift, Target, Rocket, ChevronUp, ChevronDown, Trash2, Edit3,
   Plus, X, Check, GripVertical, Play, TrendingUp
 } from 'lucide-react';
 import { TournamentPanel } from './TournamentPanel';
 import { ClubPanel } from './ClubPanel';
 import { SeasonalEventsPanel } from './SeasonalEventsPanel';
+import { DailyChallengePanel } from './DailyChallengePanel';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Gamepad2, GraduationCap, Users, User, Trophy, Star, Award, Sparkles,
@@ -36,7 +37,7 @@ interface HomePanel {
 interface HomeScreenProps {
   playerName: string;
   userId?: number;
-  onNavigate: (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard' | 'tournaments' | 'fanta' | 'gym') => void;
+  onNavigate: (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard' | 'tournaments' | 'fanta' | 'gym' | 'daily-challenge') => void;
   onJoinTournamentMatch?: (gameId: string, matchId: number, tournamentName: string) => void;
   userEmail?: string;
   initialShowTournaments?: boolean;
@@ -61,6 +62,7 @@ const PANEL_KEY_ACTIONS: Record<string, string> = {
   fanta: 'navigate:fanta',
   leaderboard: 'navigate:leaderboard',
   gym: 'navigate:gym',
+  'daily-challenge': 'navigate:daily-challenge',
   'tournaments-classic': 'navigate:tournaments',
   tournaments: 'modal:tournaments',
   clubs: 'modal:clubs',
@@ -1145,10 +1147,10 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
           {/* Quick links */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
             {[
-              { id: 'training',    icon: BookOpen, label: 'Allena'     },
-              { id: 'gym',         icon: Shield,   label: 'Palestre'   },
-              { id: 'draft',       icon: Shuffle,  label: 'Draft'      },
-              { id: 'leaderboard', icon: Trophy,   label: 'Classifica' },
+              { id: 'training',       icon: BookOpen, label: 'Allena'     },
+              { id: 'gym',            icon: Shield,   label: 'Palestre'   },
+              { id: 'daily-challenge', icon: Swords,  label: 'Sfida'      },
+              { id: 'leaderboard',    icon: Trophy,   label: 'Classifica' },
             ].map(item => {
               const IconComp = item.icon;
               return (
@@ -1171,6 +1173,17 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
               );
             })}
           </div>
+
+          {/* ── Daily Challenge Panel ── */}
+          {!editMode && (
+            <div style={{ marginTop: 4 }}>
+              <DailyChallengePanel
+                userId={userId}
+                onPlay={() => onNavigate('daily-challenge')}
+                onLeaderboard={() => onNavigate('daily-challenge')}
+              />
+            </div>
+          )}
         </div>
       </div>
 
