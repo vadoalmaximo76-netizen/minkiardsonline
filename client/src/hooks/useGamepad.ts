@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { clearGamepadFocus } from '../lib/dpadNav';
+import { clearGamepadFocus, clickFocused } from '../lib/dpadNav';
 
 export type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator' | 'admin' | 'draft' | 'leaderboard' | 'tournaments' | 'fanta' | 'gym';
 
@@ -146,8 +146,11 @@ export function useGamepad({ currentSection, events }: UseGamepadOptions): Gamep
             cursorRef.current = { x: nx, y: ny };
             setCursor({ x: nx, y: ny });
             if (!mouseActiveRef.current) setCursorVisible(true);
-            // Cursor moved → clear D-pad spatial focus
-            clearGamepadFocus();
+            // Clear D-pad focus only when the stick is intentionally pushed hard
+            // (high threshold avoids clearing on controller drift at rest)
+            if (Math.abs(ax) > 0.5 || Math.abs(ay) > 0.5) {
+              clearGamepadFocus();
+            }
           }
 
           // ── Right stick → scroll page ───────────────────────────────────────
@@ -181,6 +184,8 @@ export function useGamepad({ currentSection, events }: UseGamepadOptions): Gamep
             buttons.forEach((btn, i) => {
               if (!btn.pressed || (prev[i] ?? false)) return;
               if (i === 0) {
+                // D-pad focus wins over cursor position even in-game
+                if (clickFocused()) return;
                 const el = document.elementFromPoint(cursorRef.current.x, cursorRef.current.y) as HTMLElement | null;
                 el?.click();
               }
