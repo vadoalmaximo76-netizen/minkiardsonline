@@ -52,6 +52,7 @@ import { TutorialOverlay } from "./TutorialOverlay";
 import { AdBanner, InterstitialAd } from "./AdBanner";
 import { GameEndRewardsPanel } from "./GameEndRewardsPanel";
 import { ConnectionStatus } from "./ConnectionStatus";
+import { GamepadController } from "./GamepadController";
 import { GameToastContainer, useGameToast } from "./GameToast";
 import { ContextualTooltipLoader, ContextualTooltipDisplay, useTooltipStore } from "./ContextualTooltip";
 import { haptic } from "../lib/haptic";
@@ -2467,6 +2468,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       <ContextualTooltipLoader />
       <ContextualTooltipDisplay />
       <ConnectionStatus />
+      <GamepadController />
       
       {/* Last Played Cards History */}
       <LastPlayedCards cards={lastPlayedCards} maxCards={5} />
@@ -4358,6 +4360,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             </motion.button>
 
             <motion.button
+              data-action="end-turn"
               onClick={() => { playButtonClick(); socket.emit('force-end-turn', { gameId }); }}
               className="p-2 rounded-xl transition-colors"
               style={{ color: '#a5f3fc', background: 'rgba(34,211,238,0.12)' }}

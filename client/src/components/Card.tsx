@@ -12,6 +12,7 @@ import { getOptimizedUrl, onCloudNameReady, getCloudinaryCloudName } from "../li
 import { SkinSelectionPanel } from "./SkinSelectionPanel";
 import { motion } from "framer-motion";
 import { cardRegistry } from "../lib/cardRegistry";
+import { useGamepadStore } from "../lib/stores/useGamepadStore";
 
 let _cardIdCounter = 0;
 
@@ -302,6 +303,27 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const currentTurnPlayer = gameState?.turnOrder?.[gameState?.currentTurnIndex ?? -1];
   const isMyTurn = currentTurnPlayer === playerName;
   const isPlayable = location === 'hand' && isMyTurn;
+
+  const gamepadFocusZone = useGamepadStore(s => s.focusZone);
+  const gamepadFocusIndex = useGamepadStore(s => s.focusIndex);
+  const gamepadConnected = useGamepadStore(s => s.connected);
+
+  const hasGamepadFocus = (() => {
+    if (!gamepadConnected) return false;
+    if (location === 'hand' && gamepadFocusZone === 'hand') {
+      const handCards = gameState?.players?.[playerName]?.hand || [];
+      return handCards[gamepadFocusIndex]?.id === card.id;
+    }
+    if (location === 'field' && gamepadFocusZone === 'field-own' && card.owner === playerName) {
+      const ownCards = (gameState?.field || []).filter(c => c.owner === playerName);
+      return ownCards[gamepadFocusIndex]?.id === card.id;
+    }
+    if (location === 'field' && gamepadFocusZone === 'field-enemy' && card.owner !== playerName) {
+      const enemyCards = (gameState?.field || []).filter(c => c.owner !== playerName);
+      return enemyCards[gamepadFocusIndex]?.id === card.id;
+    }
+    return false;
+  })();
 
   // Pause the turn timer while interactive attack dialogs are open; resume when they close
   useEffect(() => {
@@ -1478,7 +1500,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       ref={cardRef}
       data-card-id={card.id}
       onMouseMove={handleMouseMove3D}
-      className={`relative flex flex-col gap-2 ${location !== 'field' ? 'card-play-transition' : ''} card-3d-tilt ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? (playPriority === 'high' ? 'card-playable-priority-high' : 'card-playable-glow') : ''} ${getFieldBreathClass()} ${location === 'field' && !isNewlyPlaced && !isEliminated ? 'card-levitate-field' : ''}`}
+      className={`relative flex flex-col gap-2 ${location !== 'field' ? 'card-play-transition' : ''} card-3d-tilt ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? (playPriority === 'high' ? 'card-playable-priority-high' : 'card-playable-glow') : ''} ${getFieldBreathClass()} ${location === 'field' && !isNewlyPlaced && !isEliminated ? 'card-levitate-field' : ''} ${hasGamepadFocus ? 'card-gamepad-focus' : ''}`}
       style={{
         animationPlayState: (isAttacking || hitFlash || damageFlash) ? 'paused' : undefined,
       }}
@@ -1686,6 +1708,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         
         {/* Card image - immediately clickable */}
         <div 
+          data-card-clickable="true"
           className={`relative cursor-pointer ${isLowHealth && location === 'field' ? 'low-health-critical' : ''} ${location === 'field' && !card.faceDown ? (card.type === 'personaggi' ? 'card-border-glow-personaggi' : card.type === 'mosse' ? 'card-border-glow-mosse' : card.type === 'bonus' ? 'card-border-glow-bonus' : card.type === 'personaggi_speciali' ? 'card-border-glow-speciali' : '') : ''}`}
           onClick={handleCardClick}
         >
@@ -2427,6 +2450,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       {/* Attack Target Selection Panel */}
       {showAttackTargetSelect && ReactDOM.createPortal(
         <div 
+          data-modal="target"
           onClick={() => {
             setShowAttackTargetSelect(false);
             setSelectedTargets([]);
@@ -2488,6 +2512,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                 return (
                   <div
                     key={character.id}
+                    data-modal-option
                     onClick={() => handleToggleTarget(character.id)}
                     style={{
                       backgroundColor: isSelected ? '#166534' : '#1e293b',
@@ -2552,6 +2577,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
 
             <div style={{ display: 'flex', gap: '15px', marginTop: '15px', justifyContent: 'center' }}>
               <button
+                data-modal-option
+                data-modal-cancel
                 onClick={() => {
                   setShowAttackTargetSelect(false);
                   setSelectedTargets([]);
@@ -2571,6 +2598,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                 ANNULLA
               </button>
               <button
+                data-modal-option
                 onClick={handleConfirmTargetSelection}
                 disabled={selectedTargets.length === 0}
                 style={{ 

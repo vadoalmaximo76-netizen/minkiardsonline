@@ -67,7 +67,7 @@ export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+    <div data-modal="hand" className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
       <motion.div
         className="bg-slate-950 border border-purple-500/30 rounded-3xl p-8 w-full max-w-6xl max-h-[90vh] overflow-y-auto shadow-2xl shadow-purple-900/20"
         variants={panelVariants}
@@ -104,6 +104,7 @@ export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
             )}
           </div>
           <Button
+            data-modal-cancel
             onClick={onClose}
             className="bg-red-600 hover:bg-red-700 text-white rounded-full p-2"
             title="Chiudi"
@@ -117,6 +118,7 @@ export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
             {playerCards.map((card, i) => (
               <motion.div
                 key={card.id}
+                data-modal-option
                 className="snap-center flex-shrink-0 md:flex-shrink"
                 custom={i}
                 variants={cardVariants}

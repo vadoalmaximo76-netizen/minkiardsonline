@@ -62,13 +62,14 @@ export const DiceModal: React.FC<DiceModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
+    <div data-modal="dice" className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
       <div className="premium-panel p-8 max-w-md w-full text-center">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-white font-bold text-2xl tracking-wide" style={{ textShadow: '0 0 10px rgba(255,255,255,0.3)' }}>
             DADO
           </h3>
           <Button
+            data-modal-cancel
             onClick={onClose}
             className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-full transition-all hover:scale-110"
             size="sm"
@@ -105,6 +106,7 @@ export const DiceModal: React.FC<DiceModalProps> = ({
         )}
 
         <Button
+          data-modal-option
           onClick={handleRollDice}
           disabled={isRolling}
           className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white font-bold py-4 text-lg rounded-xl transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 shadow-lg"
