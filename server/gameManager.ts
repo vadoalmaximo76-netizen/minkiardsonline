@@ -27349,49 +27349,82 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       } else {
         // CPU: select highest-damage MOSSE from hand, play to field, then attack.
         // Guards applied in setTimeout: game exists, no pending defense in flight, opponent alive.
+        // SAFETY: if no second attack can execute, endTurn is called as fallback so the
+        //         match never stalls (critical when endTurn was deferred in defends=true path).
         console.log(`⚔️ ZODY: CPU ${attacker} queuing second MOSSE attack`);
         setTimeout(async () => {
+          let didAttack = false;
           try {
             const liveGame = this.games.get(gameId);
             if (!liveGame || !liveGame.players[attacker]) return;
             // Guard: skip if another attack/defense is already in flight
             if (liveGame.pendingDefense) {
-              console.log(`⚔️ ZODY CPU: pending defense in flight, skipping second attack`);
-              return;
-            }
-            const oppName = Object.keys(liveGame.players).find((p: string) => p !== attacker);
-            if (!oppName) return;
-            const oppChar = this.getPlayerActiveCharacter(liveGame, oppName);
-            if (!oppChar) { console.log(`⚔️ ZODY CPU: no opponent character, skipping`); return; }
-
-            // Mirror cpuPlayer selection: pick highest-value MOSSE from hand
-            const handCards: Card[] = liveGame.players[attacker].hand || [];
-            const mosseInHand = handCards.filter((c: Card) => c.type === 'mosse');
-            let mosseId: string;
-            let mosseDmg: number;
-
-            if (mosseInHand.length > 0) {
-              const best = mosseInHand.reduce((b: Card, c: Card) =>
-                (c.mosseDamageValue ?? 100) > (b.mosseDamageValue ?? 100) ? c : b, mosseInHand[0]);
-              await this.playCard(gameId, best.id, attacker);
-              mosseId = best.id;
-              mosseDmg = best.mosseDamageValue ?? 150;
-              console.log(`⚔️ ZODY CPU: played hand MOSSE — ${best.name || best.id}`);
+              console.log(`⚔️ ZODY CPU: pending defense in flight, forcing endTurn fallback`);
             } else {
-              // Fallback: MOSSE already on field (e.g. first attack landed, !defends case)
-              const fieldMosse = liveGame.field.find((c: Card) => c.owner === attacker && c.type === 'mosse');
-              if (!fieldMosse) { console.log(`⚔️ ZODY CPU: no MOSSE available`); return; }
-              mosseId = fieldMosse.id;
-              mosseDmg = fieldMosse.mosseDamageValue ?? 150;
-              console.log(`⚔️ ZODY CPU: field MOSSE fallback — ${fieldMosse.name || fieldMosse.id}`);
-            }
+              const oppName = Object.keys(liveGame.players).find((p: string) => p !== attacker);
+              const oppChar = oppName ? this.getPlayerActiveCharacter(liveGame, oppName) : null;
+              if (!oppChar) {
+                console.log(`⚔️ ZODY CPU: no opponent character`);
+              } else {
+                // Mirror cpuPlayer selection: pick highest-value MOSSE from hand
+                const handCards: Card[] = liveGame.players[attacker].hand || [];
+                const mosseInHand = handCards.filter((c: Card) => c.type === 'mosse');
+                let mosseId: string;
+                let mosseDmg: number;
+                let canAttack = false;
 
-            console.log(`⚔️ ZODY CPU: executing second MOSSE → ${oppChar.name || oppName} (${mosseDmg} PTI)`);
-            const result = await this.executeMossaAttack(gameId, attacker, mosseId, oppChar.id, mosseDmg);
-            console.log(`⚔️ ZODY CPU: second MOSSE ${result.success ? 'succeeded' : 'failed — ' + result.error}`);
-            if (result.success && io) io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+                if (mosseInHand.length > 0) {
+                  const best = mosseInHand.reduce((b: Card, c: Card) =>
+                    (c.mosseDamageValue ?? 100) > (b.mosseDamageValue ?? 100) ? c : b, mosseInHand[0]);
+                  await this.playCard(gameId, best.id, attacker);
+                  mosseId = best.id;
+                  mosseDmg = best.mosseDamageValue ?? 150;
+                  canAttack = true;
+                  console.log(`⚔️ ZODY CPU: played hand MOSSE — ${best.name || best.id}`);
+                } else {
+                  // Fallback: MOSSE already on field (e.g. first attack landed, !defends case)
+                  const fieldMosse = liveGame.field.find((c: Card) => c.owner === attacker && c.type === 'mosse');
+                  if (fieldMosse) {
+                    mosseId = fieldMosse.id;
+                    mosseDmg = fieldMosse.mosseDamageValue ?? 150;
+                    canAttack = true;
+                    console.log(`⚔️ ZODY CPU: field MOSSE fallback — ${fieldMosse.name || fieldMosse.id}`);
+                  } else {
+                    console.log(`⚔️ ZODY CPU: no MOSSE available`);
+                  }
+                }
+
+                if (canAttack) {
+                  console.log(`⚔️ ZODY CPU: executing second MOSSE → ${oppChar.name || oppName} (${mosseDmg} PTI)`);
+                  const result = await this.executeMossaAttack(gameId, attacker, mosseId!, oppChar.id, mosseDmg!);
+                  console.log(`⚔️ ZODY CPU: second MOSSE ${result.success ? 'succeeded' : 'failed — ' + result.error}`);
+                  if (result.success && io) io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+                  didAttack = true; // Turn now continues through second attack's defense flow
+                }
+              }
+            }
           } catch (err: any) {
             console.error(`⚔️ ZODY CPU second MOSSE error:`, err);
+          } finally {
+            // Fallback: if no second attack was executed, explicitly advance the turn so it never stalls
+            if (!didAttack) {
+              console.log(`⚔️ ZODY CPU: second attack skipped — advancing turn as fallback`);
+              const liveGame2 = this.games.get(gameId);
+              if (liveGame2 && liveGame2.players[attacker]) {
+                const nextPlayer = this.endTurn(gameId, attacker);
+                if (nextPlayer && io) {
+                  io.to(gameId).emit('next-turn', { nextPlayer });
+                  if (liveGame2.players[nextPlayer]?.isCPU) {
+                    setTimeout(async () => {
+                      const action = await this.processCPUTurn(gameId, nextPlayer, io);
+                      if (action) await this.applyCPUAction(gameId, nextPlayer, action, io);
+                    }, 2000);
+                  } else {
+                    this.startTurnTimer(gameId, nextPlayer);
+                  }
+                }
+              }
+            }
           }
         }, 1500);
       }
