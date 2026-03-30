@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { type AppSection, type GamepadButtonEvents, BOTTOM_NAV_SECTIONS, useGamepad } from '../hooks/useGamepad';
 import { useGamepadStore } from '../lib/stores/useGamepadStore';
+import { dpadNavigate, clickFocused, getGamepadFocused, initFromCursor, clearGamepadFocus } from '../lib/dpadNav';
 
 interface GamepadCursorProps {
   onNavigate: (section: AppSection) => void;
@@ -18,31 +19,32 @@ export function GamepadCursor({ onNavigate }: GamepadCursorProps) {
 
   const events: GamepadButtonEvents = {
     onButtonA: () => {
+      if (clickFocused()) {
+        console.log('[Gamepad] A pressed — click on focused element');
+        return;
+      }
       const x = cursorXRef.current;
       const y = cursorYRef.current;
       const el = document.elementFromPoint(x, y) as HTMLElement | null;
       if (el) {
-        console.log('[Gamepad] A pressed — click on', el.tagName, el.className?.slice?.(0, 40));
+        console.log('[Gamepad] A pressed — click on cursor pos', el.tagName, el.className?.slice?.(0, 40));
         el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
       }
     },
     onButtonB: () => {
-      const x = cursorXRef.current;
-      const y = cursorYRef.current;
-      const el = document.elementFromPoint(x, y) as HTMLElement | null;
-      if (el) {
-        el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, view: window }));
-      }
+      clearGamepadFocus();
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       console.log('[Gamepad] B pressed — ESC/close');
     },
     onLB: () => {
+      clearGamepadFocus();
       const idx = BOTTOM_NAV_SECTIONS.indexOf(navSection);
       const next = BOTTOM_NAV_SECTIONS[(idx - 1 + BOTTOM_NAV_SECTIONS.length) % BOTTOM_NAV_SECTIONS.length];
       console.log('[Gamepad] LB — navigate to', next);
       onNavigateRef.current(next);
     },
     onRB: () => {
+      clearGamepadFocus();
       const idx = BOTTOM_NAV_SECTIONS.indexOf(navSection);
       const next = BOTTOM_NAV_SECTIONS[(idx + 1) % BOTTOM_NAV_SECTIONS.length];
       console.log('[Gamepad] RB — navigate to', next);
@@ -56,26 +58,24 @@ export function GamepadCursor({ onNavigate }: GamepadCursorProps) {
       }
     },
     onDpadLeft: () => {
-      const idx = BOTTOM_NAV_SECTIONS.indexOf(navSection);
-      const next = BOTTOM_NAV_SECTIONS[(idx - 1 + BOTTOM_NAV_SECTIONS.length) % BOTTOM_NAV_SECTIONS.length];
-      onNavigateRef.current(next);
+      if (!getGamepadFocused()) initFromCursor(cursorXRef.current, cursorYRef.current);
+      dpadNavigate('left');
+      console.log('[Gamepad] D-pad left → spatial nav');
     },
     onDpadRight: () => {
-      const idx = BOTTOM_NAV_SECTIONS.indexOf(navSection);
-      const next = BOTTOM_NAV_SECTIONS[(idx + 1) % BOTTOM_NAV_SECTIONS.length];
-      onNavigateRef.current(next);
+      if (!getGamepadFocused()) initFromCursor(cursorXRef.current, cursorYRef.current);
+      dpadNavigate('right');
+      console.log('[Gamepad] D-pad right → spatial nav');
     },
     onDpadUp: () => {
-      const x = cursorXRef.current;
-      const y = Math.max(0, cursorYRef.current - 60);
-      const el = document.elementFromPoint(x, y) as HTMLElement | null;
-      if (el) el.focus();
+      if (!getGamepadFocused()) initFromCursor(cursorXRef.current, cursorYRef.current);
+      dpadNavigate('up');
+      console.log('[Gamepad] D-pad up → spatial nav');
     },
     onDpadDown: () => {
-      const x = cursorXRef.current;
-      const y = Math.min(window.innerHeight, cursorYRef.current + 60);
-      const el = document.elementFromPoint(x, y) as HTMLElement | null;
-      if (el) el.focus();
+      if (!getGamepadFocused()) initFromCursor(cursorXRef.current, cursorYRef.current);
+      dpadNavigate('down');
+      console.log('[Gamepad] D-pad down → spatial nav');
     },
   };
 

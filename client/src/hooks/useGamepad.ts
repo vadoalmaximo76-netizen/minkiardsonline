@@ -58,7 +58,7 @@ export function useGamepad({ currentSection, events }: UseGamepadOptions): Gamep
       if (mouseTimerRef.current) clearTimeout(mouseTimerRef.current);
       mouseTimerRef.current = setTimeout(() => {
         mouseActiveRef.current = false;
-        if (connectedRef.current && currentSectionRef.current !== 'play') {
+        if (connectedRef.current) {
           setCursorVisible(true);
         }
       }, 3000);
@@ -77,7 +77,7 @@ export function useGamepad({ currentSection, events }: UseGamepadOptions): Gamep
       console.log('[Gamepad] Connected:', e.gamepad.id);
       setConnected(true);
       connectedRef.current = true;
-      if (!mouseActiveRef.current && currentSectionRef.current !== 'play') {
+      if (!mouseActiveRef.current) {
         setCursorVisible(true);
       }
     };
@@ -132,43 +132,49 @@ export function useGamepad({ currentSection, events }: UseGamepadOptions): Gamep
           const section = currentSectionRef.current;
           const isInGame = section === 'play';
 
-          if (!isInGame) {
-            const ax = pad.axes[0] ?? 0;
-            const ay = pad.axes[1] ?? 0;
-            const dx = Math.abs(ax) > GAMEPAD_DEADZONE ? ax : 0;
-            const dy = Math.abs(ay) > GAMEPAD_DEADZONE ? ay : 0;
+          const ax = pad.axes[0] ?? 0;
+          const ay = pad.axes[1] ?? 0;
+          const dx = Math.abs(ax) > GAMEPAD_DEADZONE ? ax : 0;
+          const dy = Math.abs(ay) > GAMEPAD_DEADZONE ? ay : 0;
 
-            if (dx !== 0 || dy !== 0) {
-              const nx = Math.max(0, Math.min(window.innerWidth, cursorRef.current.x + dx * GAMEPAD_CURSOR_SPEED));
-              const ny = Math.max(0, Math.min(window.innerHeight, cursorRef.current.y + dy * GAMEPAD_CURSOR_SPEED));
-              cursorRef.current = { x: nx, y: ny };
-              setCursor({ x: nx, y: ny });
-              if (!mouseActiveRef.current) setCursorVisible(true);
-            }
+          if (dx !== 0 || dy !== 0) {
+            const nx = Math.max(0, Math.min(window.innerWidth, cursorRef.current.x + dx * GAMEPAD_CURSOR_SPEED));
+            const ny = Math.max(0, Math.min(window.innerHeight, cursorRef.current.y + dy * GAMEPAD_CURSOR_SPEED));
+            cursorRef.current = { x: nx, y: ny };
+            setCursor({ x: nx, y: ny });
+            if (!mouseActiveRef.current) setCursorVisible(true);
+          }
 
-            const buttons = pad.buttons;
-            const prev = prevButtonsRef.current;
+          const buttons = pad.buttons;
+          const prev = prevButtonsRef.current;
+
+          if (isInGame) {
+            buttons.forEach((btn, i) => {
+              if (!btn.pressed || (prev[i] ?? false)) return;
+              if (i === 0) {
+                const el = document.elementFromPoint(cursorRef.current.x, cursorRef.current.y) as HTMLElement | null;
+                el?.click();
+              }
+            });
+          } else {
             buttons.forEach((btn, i) => {
               handleButtonEdge(i, btn.pressed, prev[i] ?? false, ts);
             });
-
-            if (ts - dpadCooldownRef.current > 300) {
-              const ev = eventsRef.current;
-              const dpadUp = pad.buttons[12]?.pressed;
-              const dpadDown = pad.buttons[13]?.pressed;
-              const dpadLeft = pad.buttons[14]?.pressed;
-              const dpadRight = pad.buttons[15]?.pressed;
-              if (dpadUp) { ev.onDpadUp(); dpadCooldownRef.current = ts; }
-              else if (dpadDown) { ev.onDpadDown(); dpadCooldownRef.current = ts; }
-              else if (dpadLeft) { ev.onDpadLeft(); dpadCooldownRef.current = ts; }
-              else if (dpadRight) { ev.onDpadRight(); dpadCooldownRef.current = ts; }
-            }
-
-            prevButtonsRef.current = pad.buttons.map(b => b.pressed);
-          } else {
-            setCursorVisible(false);
-            prevButtonsRef.current = [];
           }
+
+          if (ts - dpadCooldownRef.current > 300) {
+            const ev = eventsRef.current;
+            const dpadUp = pad.buttons[12]?.pressed;
+            const dpadDown = pad.buttons[13]?.pressed;
+            const dpadLeft = pad.buttons[14]?.pressed;
+            const dpadRight = pad.buttons[15]?.pressed;
+            if (dpadUp) { ev.onDpadUp(); dpadCooldownRef.current = ts; }
+            else if (dpadDown) { ev.onDpadDown(); dpadCooldownRef.current = ts; }
+            else if (dpadLeft) { ev.onDpadLeft(); dpadCooldownRef.current = ts; }
+            else if (dpadRight) { ev.onDpadRight(); dpadCooldownRef.current = ts; }
+          }
+
+          prevButtonsRef.current = pad.buttons.map(b => b.pressed);
         }
       }
 
@@ -185,7 +191,7 @@ export function useGamepad({ currentSection, events }: UseGamepadOptions): Gamep
     connected,
     cursorX: cursor.x,
     cursorY: cursor.y,
-    cursorVisible: cursorVisible && connected && currentSection !== 'play',
+    cursorVisible: cursorVisible && connected,
     mode: currentSection === 'play' ? 'game' : 'cursor',
   };
 }

@@ -185,13 +185,17 @@ export function useGamepad() {
       return;
     }
 
+    const isInPlay = store.navSection === 'play';
+
     const prev = prevButtonsRef.current;
     const curr = gp.buttons.map(b => b.pressed);
 
     curr.forEach((pressed, i) => {
       const wasPrev = prev[i] ?? false;
       if (pressed && !wasPrev) {
-        handleButtonPress(i);
+        if (!(isInPlay && i === 0)) {
+          handleButtonPress(i);
+        }
         if (i === 14 || i === 15) {
           if (!buttonHeldRef.current[i]) buttonHeldRef.current[i] = { timer: null, interval: null };
           clearButtonRepeat(i);
@@ -207,16 +211,20 @@ export function useGamepad() {
     });
     prevButtonsRef.current = curr;
 
-    const lx = gp.axes[0] ?? 0;
-    const prevAxis = prevAxisRef.current;
-    if (Math.abs(lx) < AXIS_DEAD_ZONE) {
+    if (!isInPlay) {
+      const lx = gp.axes[0] ?? 0;
+      const prevAxis = prevAxisRef.current;
+      if (Math.abs(lx) < AXIS_DEAD_ZONE) {
+        prevAxisRef.current = 'neutral';
+      } else if (lx < -AXIS_DEAD_ZONE && prevAxis !== 'left') {
+        prevAxisRef.current = 'left';
+        navigate('left');
+      } else if (lx > AXIS_DEAD_ZONE && prevAxis !== 'right') {
+        prevAxisRef.current = 'right';
+        navigate('right');
+      }
+    } else {
       prevAxisRef.current = 'neutral';
-    } else if (lx < -AXIS_DEAD_ZONE && prevAxis !== 'left') {
-      prevAxisRef.current = 'left';
-      navigate('left');
-    } else if (lx > AXIS_DEAD_ZONE && prevAxis !== 'right') {
-      prevAxisRef.current = 'right';
-      navigate('right');
     }
 
     rafRef.current = requestAnimationFrame(pollGamepad);
@@ -241,8 +249,45 @@ export function useGamepad() {
       );
     };
 
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const section = useGamepadStore.getState().navSection;
+      if (section !== 'play') return;
+      const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
+      const isEditable = tag === 'input' || tag === 'textarea' || tag === 'select' ||
+        (e.target as HTMLElement | null)?.isContentEditable;
+      if (isEditable) return;
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          navigate('left');
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          navigate('right');
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          changeZone('prev');
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          changeZone('next');
+          break;
+        case 'Enter':
+          e.preventDefault();
+          confirmAction();
+          break;
+        case 'Escape':
+          cancelAction();
+          break;
+        default:
+          break;
+      }
+    };
+
     window.addEventListener('gamepadconnected', handleConnect);
     window.addEventListener('gamepaddisconnected', handleDisconnect);
+    window.addEventListener('keydown', handleKeyDown);
 
     const existing = navigator.getGamepads();
     for (let i = 0; i < existing.length; i++) {
@@ -259,8 +304,9 @@ export function useGamepad() {
     return () => {
       window.removeEventListener('gamepadconnected', handleConnect);
       window.removeEventListener('gamepaddisconnected', handleDisconnect);
+      window.removeEventListener('keydown', handleKeyDown);
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       Object.keys(buttonHeldRef.current).forEach(k => clearButtonRepeat(Number(k)));
     };
-  }, [pollGamepad, clearButtonRepeat]);
+  }, [pollGamepad, clearButtonRepeat, navigate, changeZone, confirmAction, cancelAction]);
 }
