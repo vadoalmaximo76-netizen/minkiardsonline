@@ -8984,8 +8984,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const callerUserId = socket.data?.userId as number | undefined;
         const creatorUserId = game.creatorName ? game.playerUserIds.get(game.creatorName) : undefined;
         const isCreator =
-          playerBySocket === game.creatorName ||
-          (socket.data?.username as string | undefined) === game.creatorName ||
+          (!!game.creatorName && playerBySocket === game.creatorName) ||
+          (!!game.creatorName && (socket.data?.username as string | undefined) === game.creatorName) ||
           (callerUserId !== undefined && creatorUserId !== undefined && callerUserId === creatorUserId);
         if (!isCreator) {
           socket.emit('delete-room-error', { message: 'Solo il creatore può eliminare la stanza' });
@@ -9022,8 +9022,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const callerUserId = socket.data?.userId as number | undefined;
         const creatorUserId = game.creatorName ? game.playerUserIds.get(game.creatorName) : undefined;
         const isCreator =
-          playerBySocket === game.creatorName ||
-          (socket.data?.username as string | undefined) === game.creatorName ||
+          (!!game.creatorName && playerBySocket === game.creatorName) ||
+          (!!game.creatorName && (socket.data?.username as string | undefined) === game.creatorName) ||
           (callerUserId !== undefined && creatorUserId !== undefined && callerUserId === creatorUserId);
         if (!isCreator) {
           socket.emit('set-room-password-error', { message: 'Solo il creatore può impostare la password' });
