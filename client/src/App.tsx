@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, Component, ErrorInfo, ReactNode } from "react";
+import React, { useState, useEffect, useRef, Component, ErrorInfo, ReactNode, useCallback } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GameBoard } from "./components/GameBoard";
 import { PlayerNameDialog } from "./components/PlayerNameDialog";
@@ -24,10 +24,11 @@ import { socket } from "./lib/socket";
 import { playOpen, playBack, initGlobalClickSound } from "./lib/uiSound";
 import { preloadCriticalImages } from "./lib/imagePreloader";
 import { Toaster } from "./components/ui/sonner";
+import { useGamepadStore } from "./lib/stores/useGamepadStore";
+import { GamepadCursor } from "./components/GamepadCursor";
+import type { AppSection } from "./hooks/useGamepad";
 import "@fontsource/inter";
 import "./index.css";
-
-type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator' | 'admin' | 'draft' | 'leaderboard' | 'tournaments' | 'fanta' | 'gym';
 
 const SECTION_PATHS: Record<AppSection, string> = {
   home:        '/',
@@ -143,6 +144,13 @@ function App() {
   const [openHomeTournaments, setOpenHomeTournaments] = useState(false);
   const [spectatingGameId, setSpectatingGameId] = useState<string | null>(null);
   const [fantaReturnId, setFantaReturnId] = useState<string | null>(null);
+
+  const { setNavSection, setPrimaryAction } = useGamepadStore();
+
+  useEffect(() => {
+    setNavSection(currentSection);
+  }, [currentSection, setNavSection]);
+
   useEffect(() => {
     if (currentSection !== 'fanta') setFantaReturnId(null);
   }, [currentSection]);
@@ -170,6 +178,8 @@ function App() {
     isReconnecting,
     clearSession
   } = useGameState();
+
+  const navigateToRef = useRef<((section: AppSection) => void) | null>(null);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -514,6 +524,7 @@ function App() {
     });
   };
 
+  const renderContent = () => {
   // Show reset password page if token is present in URL
   if (resetPasswordToken) {
     return (
@@ -609,7 +620,36 @@ function App() {
     overlayTimersRef.current = [t1, t2];
   };
 
+  navigateToRef.current = (section: AppSection) => navigateTo(section);
+
   const handleGoHome = () => navigateTo('home', 'back');
+
+  useEffect(() => {
+    let action: (() => void) | undefined;
+    switch (currentSection) {
+      case 'home':
+      case 'rooms':
+        action = () => { setShowRoomDialog(true); navigateTo('play'); };
+        break;
+      case 'play':
+        action = () => setShowRoomDialog(true);
+        break;
+      case 'leaderboard':
+        action = () => navigateTo('play');
+        break;
+      case 'draft':
+      case 'tournaments':
+      case 'fanta':
+      case 'gym':
+      case 'profile':
+        action = () => navigateTo('home', 'back');
+        break;
+      default:
+        action = undefined;
+        break;
+    }
+    setPrimaryAction(action);
+  }, [currentSection, setPrimaryAction]);
 
   const handleBottomNavNavigate = (section: AppSection) => {
     if (section === 'play') {
@@ -1156,6 +1196,14 @@ function App() {
         <Toaster position="top-right" richColors />
       </QueryClientProvider>
     </TooltipProvider>
+  );
+  }; // end renderContent
+
+  return (
+    <>
+      <GamepadCursor onNavigate={(section) => navigateToRef.current?.(section)} />
+      {renderContent()}
+    </>
   );
 }
 
