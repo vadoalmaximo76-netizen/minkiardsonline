@@ -3295,6 +3295,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 {deckCardPickerPanel.cards.map((card) => (
                   <div
                     key={card.id}
+                    data-modal-item="true"
+                    tabIndex={0}
                     onClick={() => {
                       socket.emit('deck-card-pick-confirm', {
                         selectedCardId: card.id,
@@ -3304,6 +3306,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                       });
                       setDeckCardPickerPanel({ visible: false, cardId: '', deckType: '', deckDisplayName: '', cards: [] });
                     }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') (e.currentTarget as HTMLElement).click(); }}
                     className="cursor-pointer rounded-lg border-2 border-amber-600 hover:border-yellow-300 hover:shadow-[0_0_15px_rgba(253,224,71,0.5)] transition-all duration-200 bg-black/30 p-1 flex flex-col items-center"
                   >
                     {card.frontImage ? (
@@ -3871,6 +3874,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 return (
                   <div
                     key={target.id}
+                    data-modal-item="true"
+                    tabIndex={0}
                     onClick={() => {
                       if (isSelected) {
                         setCustomSelectedTargets(prev => prev.filter(id => id !== target.id));
@@ -3880,6 +3885,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                         setCustomSelectedTargets(prev => [...prev, target.id]);
                       }
                     }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') (e.currentTarget as HTMLElement).click(); }}
                     className={`cursor-pointer rounded-lg p-2 border-2 transition-all transform hover:scale-105 relative ${
                       isSelected 
                         ? 'border-cyan-300 bg-cyan-600/50 shadow-[0_0_20px_rgba(34,211,238,0.6)]' 

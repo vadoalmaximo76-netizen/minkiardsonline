@@ -6,6 +6,9 @@ const FOCUSABLE_SELECTOR = [
   'textarea:not([disabled])',
   '[tabindex]:not([tabindex="-1"])',
   '[data-gamepad-focusable]',
+  '[data-card-clickable]',   // carte in mano / campo (Card.tsx)
+  '[data-deck-action]',      // mazzi (Deck.tsx img)
+  '[data-modal-item]',       // elementi selezionabili nei popup
 ].join(', ');
 
 const GAMEPAD_FOCUS_CLASS = 'gamepad-focus';

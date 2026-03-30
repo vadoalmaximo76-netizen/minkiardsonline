@@ -228,6 +228,9 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
         <img
           src={backImage}
           alt={`${name} back`}
+          data-deck-action="true"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePickCard(); } }}
           className={`w-20 sm:w-20 md:w-20 lg:w-24 aspect-[2/3] object-cover rounded-xl cursor-pointer deck-3d shadow-lg transition-all duration-150 ${isShuffling ? 'animate-shuffle' : ''} ${isPicking ? 'scale-95 opacity-70' : 'hover:scale-105'}`}
           onClick={handlePickCard}
         />
@@ -324,7 +327,14 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
                 }}
               >
                 {getSortedCards().map((card, index) => (
-                  <div key={card.id} className="flex flex-col items-center cursor-pointer hover:opacity-80 transition-opacity">
+                  <div
+                    key={card.id}
+                    data-modal-item="true"
+                    tabIndex={0}
+                    onClick={() => handleCardClick(card)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCardClick(card); }}
+                    className="flex flex-col items-center cursor-pointer hover:opacity-80 transition-opacity"
+                  >
                     <img
                       src={card.frontImage}
                       alt="Card"
@@ -333,7 +343,6 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
                           ? 'border-green-500' 
                           : 'border-gray-500'
                       }`}
-                      onClick={() => handleCardClick(card)}
                     />
                     <span className="text-white text-xs sm:text-sm lg:text-base mt-2 text-center w-full px-1 leading-tight font-medium">
                       {getCardDisplayName(card)}
