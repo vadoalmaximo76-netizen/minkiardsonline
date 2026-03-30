@@ -524,6 +524,33 @@ function App() {
     });
   };
 
+  useEffect(() => {
+    let action: (() => void) | undefined;
+    switch (currentSection) {
+      case 'home':
+      case 'rooms':
+        action = () => { setShowRoomDialog(true); navigateToRef.current?.('play'); };
+        break;
+      case 'play':
+        action = () => setShowRoomDialog(true);
+        break;
+      case 'leaderboard':
+        action = () => navigateToRef.current?.('play');
+        break;
+      case 'draft':
+      case 'tournaments':
+      case 'fanta':
+      case 'gym':
+      case 'profile':
+        action = () => navigateToRef.current?.('home', 'back');
+        break;
+      default:
+        action = undefined;
+        break;
+    }
+    setPrimaryAction(action);
+  }, [currentSection, setPrimaryAction]);
+
   const renderContent = () => {
   // Show reset password page if token is present in URL
   if (resetPasswordToken) {
@@ -623,33 +650,6 @@ function App() {
   navigateToRef.current = (section: AppSection) => navigateTo(section);
 
   const handleGoHome = () => navigateTo('home', 'back');
-
-  useEffect(() => {
-    let action: (() => void) | undefined;
-    switch (currentSection) {
-      case 'home':
-      case 'rooms':
-        action = () => { setShowRoomDialog(true); navigateTo('play'); };
-        break;
-      case 'play':
-        action = () => setShowRoomDialog(true);
-        break;
-      case 'leaderboard':
-        action = () => navigateTo('play');
-        break;
-      case 'draft':
-      case 'tournaments':
-      case 'fanta':
-      case 'gym':
-      case 'profile':
-        action = () => navigateTo('home', 'back');
-        break;
-      default:
-        action = undefined;
-        break;
-    }
-    setPrimaryAction(action);
-  }, [currentSection, setPrimaryAction]);
 
   const handleBottomNavNavigate = (section: AppSection) => {
     if (section === 'play') {
