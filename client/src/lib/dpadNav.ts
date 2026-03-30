@@ -31,7 +31,34 @@ function getCenter(el: HTMLElement): { x: number; y: number } {
   return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 }
 
+/**
+ * Returns the topmost open modal container if any [data-modal] overlay is visible,
+ * otherwise returns null (meaning we're in the normal game/page context).
+ */
+function getOpenModalContainer(): HTMLElement | null {
+  // Look for any fixed overlay with data-modal attribute
+  const modals = Array.from(document.querySelectorAll<HTMLElement>('[data-modal]'))
+    .filter(el => {
+      const s = window.getComputedStyle(el);
+      return s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0';
+    });
+  if (modals.length === 0) return null;
+  // Return the one with highest z-index
+  let top = modals[0];
+  let topZ = parseInt(window.getComputedStyle(modals[0]).zIndex) || 0;
+  for (const m of modals) {
+    const z = parseInt(window.getComputedStyle(m).zIndex) || 0;
+    if (z > topZ) { topZ = z; top = m; }
+  }
+  return top;
+}
+
 function getFocusableElements(): HTMLElement[] {
+  // When a modal overlay is open, restrict focus to elements inside it
+  const modal = getOpenModalContainer();
+  if (modal) {
+    return Array.from(modal.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(isVisible);
+  }
   return Array.from(document.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(isVisible);
 }
 
@@ -140,36 +167,22 @@ export function clickFocused(): boolean {
 /**
  * Closes the topmost visible modal/popup on screen.
  * Strategy:
- *  1. Click element with [data-modal-cancel] (highest z-index wins)
- *  2. Click a ✕ / "Chiudi" / "Annulla" button inside the top fixed overlay
- *  3. Return false (caller can fall back to Escape)
+ *  1. Click element with [data-modal-cancel] inside the topmost [data-modal] overlay
+ *  2. Click a ✕ / "Chiudi" / "Annulla" button inside the top overlay
+ *  3. Click the backdrop itself (if it closes on click)
+ *  4. Return false (caller can fall back to Escape)
  */
 export function closeTopModal(): boolean {
-  // Collect all fixed/overlay elements that are currently visible
-  const allFixed = Array.from(
-    document.querySelectorAll<HTMLElement>('*')
-  ).filter(el => {
-    const s = window.getComputedStyle(el);
-    return s.position === 'fixed' && s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0';
-  });
+  const modal = getOpenModalContainer();
+  if (!modal) return false;
 
-  if (allFixed.length === 0) return false;
-
-  // Pick the one with the highest z-index
-  let topEl: HTMLElement = allFixed[0];
-  let topZ = parseInt(window.getComputedStyle(allFixed[0]).zIndex) || 0;
-  for (const el of allFixed) {
-    const z = parseInt(window.getComputedStyle(el).zIndex) || 0;
-    if (z > topZ) { topZ = z; topEl = el; }
-  }
-
-  // 1. Look for [data-modal-cancel] inside or equal to topEl
-  const cancelEl = topEl.querySelector<HTMLElement>('[data-modal-cancel]')
-    ?? (topEl.matches('[data-modal-cancel]') ? topEl : null);
+  // 1. Look for [data-modal-cancel] inside the modal
+  const cancelEl = modal.querySelector<HTMLElement>('[data-modal-cancel]')
+    ?? (modal.matches('[data-modal-cancel]') ? modal : null);
   if (cancelEl) { cancelEl.click(); clearGamepadFocus(); return true; }
 
-  // 2. Look for a close/cancel button by text
-  const btns = Array.from(topEl.querySelectorAll<HTMLElement>('button, [role="button"]'));
+  // 2. Look for a close/cancel button by text inside the modal
+  const btns = Array.from(modal.querySelectorAll<HTMLElement>('button, [role="button"]'));
   const closeBtn = btns.find(b => {
     const txt = (b.textContent ?? '').trim().toLowerCase();
     return txt === '✕' || txt === '×' || txt === 'x' || txt === '✖'
@@ -177,5 +190,6 @@ export function closeTopModal(): boolean {
   });
   if (closeBtn) { closeBtn.click(); clearGamepadFocus(); return true; }
 
-  return false;
+  // 3. Click the backdrop itself (many modals close on backdrop click)
+  modal.click(); clearGamepadFocus(); return true;
 }
