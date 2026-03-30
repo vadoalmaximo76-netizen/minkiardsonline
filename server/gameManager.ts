@@ -13570,9 +13570,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (transferSource && transferSource.pti != null && transferAmount > 0) {
           transferSource.pti -= transferAmount;
           this.updateCardTextWithPTI(transferSource);
-          const transferTargets = action.type === 'transfer_pti_to_enemy' 
-            ? game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))
-            : game.field.filter(c => c.owner === playerName && c.id !== transferSource.id && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+          // In team mode, "ally" includes teammates too
+          const allyOwners = new Set<string>([playerName]);
+          if (game.isTeamMode && game.teams) {
+            const myTeamKey = game.teams.teamA.includes(playerName) ? 'teamA' : game.teams.teamB.includes(playerName) ? 'teamB' : null;
+            if (myTeamKey) game.teams[myTeamKey].forEach((p: string) => allyOwners.add(p));
+          }
+          const transferTargets = action.type === 'transfer_pti_to_enemy'
+            ? game.field.filter((c: Card) => !allyOwners.has(c.owner || '') && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))
+            : game.field.filter((c: Card) => allyOwners.has(c.owner || '') && c.id !== transferSource.id && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
           if (transferTargets.length > 0) {
             transferTargets[0].pti = (transferTargets[0].pti || 0) + transferAmount;
             this.updateCardTextWithPTI(transferTargets[0]);
@@ -14566,6 +14572,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         return { success: false, error: 'Invalid target: must be a character on field' };
       }
       targetOwnerName = targetCard.owner;
+
+      // ── TEAM MODE: Block friendly fire ────────────────────────────────────────────
+      // Teammates cannot attack each other (isDuelAttack may be from BONUS cards, skip that check)
+      if (game.isTeamMode && game.teams && !isDuelAttack) {
+        const attackerTeam = this.getPlayerTeam(gameId, attackerName);
+        const targetTeam = this.getPlayerTeam(gameId, targetOwnerName);
+        if (attackerTeam && targetTeam && attackerTeam === targetTeam) {
+          console.log(`[TeamMode] Friendly fire blocked: ${attackerName} tried to attack ${targetOwnerName} (same team: ${attackerTeam})`);
+          return { success: false, error: 'Non puoi attaccare il tuo compagno di squadra!' };
+        }
+      }
     }
 
     // ── SELF ATTACK REDIRECT (Rincoglionimento/Fiaschetta) ────────────────────────
@@ -24777,8 +24794,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (cardIndex === -1) return { success: false, message: 'Carta non trovata nella tua mano' };
 
     const card = fromPlayerData.hand[cardIndex];
-    // Must be a MOSSE card
-    if (card.type !== 'mosse') return { success: false, message: 'Puoi donare solo carte MOSSE' };
+    // In team mode, MOSSE and BONUS cards can be donated
+    if (card.type !== 'mosse' && card.type !== 'bonus') return { success: false, message: 'Puoi donare solo carte MOSSE o BONUS al tuo compagno' };
 
     // Transfer the card
     fromPlayerData.hand.splice(cardIndex, 1);
@@ -27493,8 +27510,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       if (defenderTeam) {
         const teammates = game.teams[defenderTeam].filter(p => p !== pendingDefense.defender && !game.eliminatedPlayers.has(p));
         // Find teammates who have a Respinta card in hand and are human players
-        const respintaNames = ['RESPINTA', 'ALTA SALVA', 'BOOMERANG', 'CONTRO SKRAZZKOOM', 'CONVERSIONE',
-          'DIFESA VIGLIACCA', 'E NN T MITT SCUORN', 'E TAGG TRATTAT', 'FOLATA DI VENTO', 'FOLATA DI VENTA', 'FOLATA'];
+        // Any bonus card with a defensive / counter name qualifies for team cover
+        const respintaNames = [
+          'RESPINTA', 'ALTA SALVA', 'BOOMERANG', 'CONTRO SKRAZZKOOM', 'CONVERSIONE',
+          'DIFESA VIGLIACCA', 'E NN T MITT SCUORN', 'E TAGG TRATTAT', 'FOLATA DI VENTO',
+          'FOLATA DI VENTA', 'FOLATA', 'SCUDO', 'SCHIVATA', 'PROTEZIONE', 'PARATA',
+          'BLOCCATO', 'BLOCCA', 'INTERCETTA', 'CONTRATTACCO', 'CONTRO', 'DEFEND', 'BLOCK',
+        ];
         const getCardName2 = (card: any): string => {
           if (card.name) return card.name.toUpperCase();
           if (card.frontImage) {

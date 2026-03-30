@@ -2665,27 +2665,32 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       {showDonateModal && gameState?.isTeamMode && gameState?.teams && playerName && (() => {
         const myTeam = gameState.teams.teamA.includes(playerName) ? 'teamA' : gameState.teams.teamB.includes(playerName) ? 'teamB' : null;
         const teammates = myTeam ? gameState.teams[myTeam].filter((p: string) => p !== playerName && !(gameState.eliminatedPlayers || []).includes(p)) : [];
-        const myMosseCards = (gameState.players[playerName]?.hand || []).filter((c: any) => c.type === 'mosse');
+        const donateableCards = (gameState.players[playerName]?.hand || []).filter((c: any) => c.type === 'mosse' || c.type === 'bonus');
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
             <div className="w-full max-w-sm bg-gray-900 rounded-2xl border border-emerald-500/30 p-5 shadow-2xl">
               <div className="flex items-center gap-2 mb-4">
                 <Gift size={18} className="text-emerald-400" />
-                <h3 className="text-white font-bold text-base">Dona una Carta MOSSE</h3>
+                <h3 className="text-white font-bold text-base">Presta una Carta al Compagno</h3>
                 <button onClick={() => setShowDonateModal(false)} className="ml-auto text-white/40 hover:text-white/80 text-lg leading-none">✕</button>
               </div>
               {teammates.length === 0 ? (
                 <p className="text-white/50 text-sm text-center py-4">Nessun compagno disponibile</p>
-              ) : myMosseCards.length === 0 ? (
-                <p className="text-white/50 text-sm text-center py-4">Nessuna carta MOSSE in mano</p>
+              ) : donateableCards.length === 0 ? (
+                <p className="text-white/50 text-sm text-center py-4">Nessuna carta MOSSE o BONUS in mano</p>
               ) : (
                 <>
-                  <p className="text-white/50 text-xs mb-3">Seleziona una carta e un compagno a cui donarla (una volta per turno)</p>
-                  <div className="space-y-2 mb-4 max-h-40 overflow-y-auto">
-                    {myMosseCards.map((card: any) => (
+                  <p className="text-white/50 text-xs mb-3">Seleziona una carta (MOSSE o BONUS) e un compagno a cui prestarla (una volta per turno)</p>
+                  <div className="space-y-2 mb-4 max-h-52 overflow-y-auto">
+                    {donateableCards.map((card: any) => (
                       <div key={card.id} className="bg-white/5 rounded-xl px-3 py-2 border border-white/10">
-                        <p className="text-white/80 text-sm font-medium">{card.name || card.id}</p>
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${card.type === 'mosse' ? 'bg-red-500/30 text-red-300' : 'bg-blue-500/30 text-blue-300'}`}>
+                            {card.type === 'mosse' ? 'MOSSE' : 'BONUS'}
+                          </span>
+                          <p className="text-white/80 text-sm font-medium">{card.name || card.id}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
                           {teammates.map((teammate: string) => (
                             <button
                               key={teammate}
@@ -4539,8 +4544,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               const teammates = myTeam ? gameState.teams[myTeam].filter((p: string) => p !== playerName) : [];
               const isMyTurn = gameState.turnOrder[gameState.currentTurnIndex] === playerName;
               const alreadyDonated = gameState.donatedCardsThisTurn?.includes(playerName);
-              const myMosseCards = (gameState.players[playerName]?.hand || []).filter((c: any) => c.type === 'mosse');
-              if (teammates.length === 0 || !isMyTurn || myMosseCards.length === 0 || alreadyDonated) return null;
+              const myDonateableCards = (gameState.players[playerName]?.hand || []).filter((c: any) => c.type === 'mosse' || c.type === 'bonus');
+              if (teammates.length === 0 || !isMyTurn || myDonateableCards.length === 0 || alreadyDonated) return null;
               return (
                 <motion.button
                   onClick={() => { playButtonClick(); setShowDonateModal(true); }}
