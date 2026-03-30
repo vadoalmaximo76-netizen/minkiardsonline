@@ -2513,6 +2513,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                   <div
                     key={character.id}
                     data-modal-option
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleToggleTarget(character.id); }}
                     onClick={() => handleToggleTarget(character.id)}
                     style={{
                       backgroundColor: isSelected ? '#166534' : '#1e293b',

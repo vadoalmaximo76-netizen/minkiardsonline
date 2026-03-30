@@ -8,7 +8,8 @@ const FOCUSABLE_SELECTOR = [
   '[data-gamepad-focusable]',
   '[data-card-clickable]',   // carte in mano / campo (Card.tsx)
   '[data-deck-action]',      // mazzi (Deck.tsx img)
-  '[data-modal-item]',       // elementi selezionabili nei popup
+  '[data-modal-item]',       // elementi selezionabili nei popup (GameBoard)
+  '[data-modal-option]',     // opzioni dentro popup carte (Card.tsx)
 ].join(', ');
 
 const GAMEPAD_FOCUS_CLASS = 'gamepad-focus';
@@ -134,4 +135,47 @@ export function clickFocused(): boolean {
   if (!currentFocused) return false;
   currentFocused.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
   return true;
+}
+
+/**
+ * Closes the topmost visible modal/popup on screen.
+ * Strategy:
+ *  1. Click element with [data-modal-cancel] (highest z-index wins)
+ *  2. Click a ✕ / "Chiudi" / "Annulla" button inside the top fixed overlay
+ *  3. Return false (caller can fall back to Escape)
+ */
+export function closeTopModal(): boolean {
+  // Collect all fixed/overlay elements that are currently visible
+  const allFixed = Array.from(
+    document.querySelectorAll<HTMLElement>('*')
+  ).filter(el => {
+    const s = window.getComputedStyle(el);
+    return s.position === 'fixed' && s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0';
+  });
+
+  if (allFixed.length === 0) return false;
+
+  // Pick the one with the highest z-index
+  let topEl: HTMLElement = allFixed[0];
+  let topZ = parseInt(window.getComputedStyle(allFixed[0]).zIndex) || 0;
+  for (const el of allFixed) {
+    const z = parseInt(window.getComputedStyle(el).zIndex) || 0;
+    if (z > topZ) { topZ = z; topEl = el; }
+  }
+
+  // 1. Look for [data-modal-cancel] inside or equal to topEl
+  const cancelEl = topEl.querySelector<HTMLElement>('[data-modal-cancel]')
+    ?? (topEl.matches('[data-modal-cancel]') ? topEl : null);
+  if (cancelEl) { cancelEl.click(); clearGamepadFocus(); return true; }
+
+  // 2. Look for a close/cancel button by text
+  const btns = Array.from(topEl.querySelectorAll<HTMLElement>('button, [role="button"]'));
+  const closeBtn = btns.find(b => {
+    const txt = (b.textContent ?? '').trim().toLowerCase();
+    return txt === '✕' || txt === '×' || txt === 'x' || txt === '✖'
+      || txt.includes('chiudi') || txt.includes('annulla') || txt.includes('cancel');
+  });
+  if (closeBtn) { closeBtn.click(); clearGamepadFocus(); return true; }
+
+  return false;
 }

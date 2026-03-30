@@ -196,14 +196,17 @@ export function useGamepad() {
         if (!(isInPlay && i === 0)) {
           handleButtonPress(i);
         }
-        if (i === 14 || i === 15) {
-          if (!buttonHeldRef.current[i]) buttonHeldRef.current[i] = { timer: null, interval: null };
-          clearButtonRepeat(i);
-          const dir: 'left' | 'right' = i === 14 ? 'left' : 'right';
-          navigate(dir);
-          buttonHeldRef.current[i].timer = setTimeout(() => {
-            buttonHeldRef.current[i].interval = setInterval(() => navigate(dir), REPEAT_INTERVAL_MS);
-          }, REPEAT_DELAY_MS);
+        // D-pad (12=up,13=down,14=left,15=right): in-play mode the new dpadNav system handles all directions
+        if ((i >= 12 && i <= 15) && !isInPlay) {
+          if (i === 14 || i === 15) {
+            if (!buttonHeldRef.current[i]) buttonHeldRef.current[i] = { timer: null, interval: null };
+            clearButtonRepeat(i);
+            const dir: 'left' | 'right' = i === 14 ? 'left' : 'right';
+            navigate(dir);
+            buttonHeldRef.current[i].timer = setTimeout(() => {
+              buttonHeldRef.current[i].interval = setInterval(() => navigate(dir), REPEAT_INTERVAL_MS);
+            }, REPEAT_DELAY_MS);
+          }
         }
       } else if (!pressed && wasPrev) {
         clearButtonRepeat(i);

@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { type AppSection, type GamepadButtonEvents, BOTTOM_NAV_SECTIONS, useGamepad } from '../hooks/useGamepad';
 import { useGamepadStore } from '../lib/stores/useGamepadStore';
-import { dpadNavigate, clickFocused, getGamepadFocused, initFromCursor, clearGamepadFocus } from '../lib/dpadNav';
+import { dpadNavigate, clickFocused, getGamepadFocused, initFromCursor, clearGamepadFocus, closeTopModal } from '../lib/dpadNav';
 
 interface GamepadCursorProps {
   onNavigate: (section: AppSection) => void;
@@ -33,8 +33,11 @@ export function GamepadCursor({ onNavigate }: GamepadCursorProps) {
     },
     onButtonB: () => {
       clearGamepadFocus();
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      console.log('[Gamepad] B pressed — ESC/close');
+      // Try to close the topmost visible modal first; fall back to Escape
+      if (!closeTopModal()) {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      }
+      console.log('[Gamepad] B pressed — close modal / ESC');
     },
     onLB: () => {
       clearGamepadFocus();
