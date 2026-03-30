@@ -9019,22 +9019,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
         const playerBySocket = Object.entries(game.players).find(([, p]) => p.socketId === socket.id)?.[0];
-        const callerUserId2 = socket.data?.userId as number | undefined;
-        const creatorUserId2 = game.creatorName ? game.playerUserIds.get(game.creatorName) : undefined;
-        const isCreator2 =
+        const callerUserId = socket.data?.userId as number | undefined;
+        const creatorUserId = game.creatorName ? game.playerUserIds.get(game.creatorName) : undefined;
+        const isCreator =
           playerBySocket === game.creatorName ||
           (socket.data?.username as string | undefined) === game.creatorName ||
-          (callerUserId2 !== undefined && creatorUserId2 !== undefined && callerUserId2 === creatorUserId2);
-        if (!isCreator2) {
+          (callerUserId !== undefined && creatorUserId !== undefined && callerUserId === creatorUserId);
+        if (!isCreator) {
           socket.emit('set-room-password-error', { message: 'Solo il creatore può impostare la password' });
           return;
         }
-        const callerName2 = playerBySocket ?? game.creatorName;
+        const callerName = playerBySocket ?? game.creatorName;
         const trimmed = (password || '').trim();
         (game as any).roomPassword = trimmed || null;
         socket.emit('room-password-updated', { hasPassword: !!trimmed });
         io.emit('rooms-updated');
-        console.log(`🔑 Room ${gameId}: password ${trimmed ? 'set' : 'removed'} by ${callerName2}`);
+        console.log(`🔑 Room ${gameId}: password ${trimmed ? 'set' : 'removed'} by ${callerName}`);
       } catch (err) {
         console.error('Error in set-room-password:', err);
         socket.emit('set-room-password-error', { message: 'Errore durante l\'impostazione della password' });
