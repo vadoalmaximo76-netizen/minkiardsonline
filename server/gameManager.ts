@@ -28164,66 +28164,67 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
 
     // ── ZODY: double mosse (doppia mossa per turno) ─────────────────────────────
-    // After an attack resolves, if the attacker's active character has doubleMosse
-    // and they haven't used their second mossa yet this turn, grant a second attack.
-    const zodyAttackerPlayer = game.players[attacker];
-    if (zodyAttackerPlayer && !zodyAttackerPlayer.secondMossaUsedThisTurn) {
-      const zodyActiveChar = this.getPlayerActiveCharacter(game, attacker);
-      if (zodyActiveChar && (zodyActiveChar as any).doubleMosse) {
-        // Mark the second mossa as pending (will be consumed on next attack or end of turn)
-        zodyAttackerPlayer.secondMossaUsedThisTurn = true;
-        console.log(`⚔️ ZODY: double mosse available for ${attacker} — granting second MOSSE`);
+    // Only grant a second attack when the first attack LANDED (defends=false).
+    // When the defense succeeded, the MOSSE is returned to deck so second attack is skipped.
+    if (!defends) {
+      const zodyAttackerPlayer = game.players[attacker];
+      if (zodyAttackerPlayer && !zodyAttackerPlayer.secondMossaUsedThisTurn) {
+        const zodyActiveChar = this.getPlayerActiveCharacter(game, attacker);
+        if (zodyActiveChar && (zodyActiveChar as any).doubleMosse) {
+          // Mark so this doesn't trigger again (reset at endTurn)
+          zodyAttackerPlayer.secondMossaUsedThisTurn = true;
+          console.log(`⚔️ ZODY: double mosse available for ${attacker} — granting second MOSSE`);
 
-        if (!zodyAttackerPlayer.isCPU) {
-          // Human attacker: notify their socket so the client can show the prompt
-          const attackerSocketId = zodyAttackerPlayer.socketId;
-          if (attackerSocketId && io) {
-            io.to(attackerSocketId).emit('second-mossa-available', {
-              playerName: attacker,
-              characterName: zodyActiveChar.name || 'Zody',
-              timestamp: Date.now()
-            });
-            console.log(`⚔️ ZODY: sent second-mossa-available to human player ${attacker} (socket ${attackerSocketId})`);
-          }
-        } else {
-          // CPU attacker: directly execute a second MOSSE attack after a short delay
-          console.log(`⚔️ ZODY: CPU ${attacker} will auto-execute second MOSSE`);
-          setTimeout(async () => {
-            try {
-              const liveGame = this.games.get(gameId);
-              if (!liveGame || liveGame.currentTurn !== attacker || !liveGame.players[attacker]) return;
-              // Find a MOSSE card in CPU's hand
-              const cpuHand: Card[] = liveGame.players[attacker].hand || [];
-              const mossesInHand = cpuHand.filter((c: Card) => c.type === 'mosse');
-              if (mossesInHand.length === 0) {
-                console.log(`⚔️ ZODY CPU: no MOSSE in hand for ${attacker}, cannot execute second attack`);
-                return;
-              }
-              // Find opponent and their active character to target
-              const opponentName = Object.keys(liveGame.players).find((p: string) => p !== attacker);
-              if (!opponentName) return;
-              const targetChar = this.getPlayerActiveCharacter(liveGame, opponentName);
-              if (!targetChar) {
-                console.log(`⚔️ ZODY CPU: no opponent character on field, cannot execute second attack`);
-                return;
-              }
-              // Select the MOSSE with highest damage value
-              const mosseCard = mossesInHand.reduce((best: Card, m: Card) => {
-                const bestDmg = best.mosseDamageValue ?? 100;
-                const mDmg = m.mosseDamageValue ?? 100;
-                return mDmg > bestDmg ? m : best;
-              }, mossesInHand[0]);
-              const damageValue = mosseCard.mosseDamageValue ?? 150;
-              console.log(`⚔️ ZODY CPU: executing second MOSSE attack — ${mosseCard.name || mosseCard.id} → ${targetChar.name || opponentName} (${damageValue} PTI)`);
-              const attackResult = await this.executeMossaAttack(gameId, attacker, mosseCard.id, targetChar.id, damageValue);
-              if (attackResult.success) {
-                console.log(`⚔️ ZODY CPU: second MOSSE attack completed successfully`);
-                if (io) io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
-              }
-            } catch (err: any) {
-              console.error(`⚔️ ZODY CPU second MOSSE error:`, err);
+          if (!zodyAttackerPlayer.isCPU) {
+            // Human attacker: notify their socket so the client can show the prompt
+            const attackerSocketId = zodyAttackerPlayer.socketId;
+            if (attackerSocketId && io) {
+              io.to(attackerSocketId).emit('second-mossa-available', {
+                playerName: attacker,
+                characterName: zodyActiveChar.name || 'Zody',
+                timestamp: Date.now()
+              });
+              console.log(`⚔️ ZODY: sent second-mossa-available to human player ${attacker} (socket ${attackerSocketId})`);
             }
-          }, 1500);
+          } else {
+            // CPU attacker: when the attack landed (!defends), the MOSSE card (mosseCardId) is
+            // still on the field. Reuse it directly for the second attack after a short delay.
+            const zodyMosseId = mosseCardId; // captured from pendingDefense destructure
+            console.log(`⚔️ ZODY: CPU ${attacker} will auto-execute second MOSSE (card=${zodyMosseId})`);
+            setTimeout(async () => {
+              try {
+                const liveGame = this.games.get(gameId);
+                if (!liveGame || liveGame.currentTurn !== attacker || !liveGame.players[attacker]) return;
+                // Find opponent and their active character to target
+                const opponentName = Object.keys(liveGame.players).find((p: string) => p !== attacker);
+                if (!opponentName) return;
+                const targetChar2 = this.getPlayerActiveCharacter(liveGame, opponentName);
+                if (!targetChar2) {
+                  console.log(`⚔️ ZODY CPU: no opponent character on field, skipping second attack`);
+                  return;
+                }
+                // Verify the MOSSE is still on the field (it should be when !defends)
+                const zodyMosseOnField = liveGame.field.find(
+                  (c: Card) => c.id === zodyMosseId && c.owner === attacker && c.type === 'mosse'
+                );
+                if (!zodyMosseOnField) {
+                  console.log(`⚔️ ZODY CPU: MOSSE ${zodyMosseId} no longer on field, skipping second attack`);
+                  return;
+                }
+                const damageValue2 = zodyMosseOnField.mosseDamageValue ?? 150;
+                console.log(`⚔️ ZODY CPU: executing second MOSSE attack — ${zodyMosseOnField.name || zodyMosseId} → ${targetChar2.name || opponentName} (${damageValue2} PTI)`);
+                const attackResult2 = await this.executeMossaAttack(gameId, attacker, zodyMosseId, targetChar2.id, damageValue2);
+                if (attackResult2.success) {
+                  console.log(`⚔️ ZODY CPU: second MOSSE attack completed successfully`);
+                  if (io) io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+                } else {
+                  console.log(`⚔️ ZODY CPU: second MOSSE attack failed — ${attackResult2.error}`);
+                }
+              } catch (err: any) {
+                console.error(`⚔️ ZODY CPU second MOSSE error:`, err);
+              }
+            }, 1500);
+          }
         }
       }
     }
