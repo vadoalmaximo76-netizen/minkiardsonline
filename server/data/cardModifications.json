@@ -5674,7 +5674,7 @@
     "imageUrl": "https://i.postimg.cc/ZqfY7T6b/33.png",
     "pti": "9000",
     "stars": "9",
-    "effect": "Ogni 500 PTI di danno inflitto rimuove 1 stella al bersaglio (min. 1 stella rimossa).",
+    "effect": "Ogni 500 PTI di danno inflitto rimuove 1 stella al bersaglio (il bersaglio conserva sempre almeno 1 stella).",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,

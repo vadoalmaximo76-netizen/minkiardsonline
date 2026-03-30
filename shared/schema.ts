@@ -176,6 +176,8 @@ export const insertCardModificationSchema = createInsertSchema(cardModifications
   mosseTargetingMode: true,
   mosseTargetCount: true,
   modifiedBy: true,
+  doubleMosse: true,
+  starDrainPer500: true,
 });
 
 export const trainingTips = pgTable("training_tips", {
