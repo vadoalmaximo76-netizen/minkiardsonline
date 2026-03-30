@@ -141,13 +141,122 @@ export class CPUPlayer {
 
   // ── PLAYER PROFILING METHODS ─────────────────────────────────────────────────
 
+  // ── SPECIAL CARD EFFECTS REGISTRY ────────────────────────────────────────────
+  // Maps every named bonus effect key (from gameManager.ts executeNamedBonusEffect switch)
+  // to its real category, estimated PTI-equivalent value, Italian description, and
+  // whether the effect requires an active character on field.
+  private static readonly SPECIAL_CARD_EFFECTS: Record<string, {
+    category: 'heal' | 'buff_stars' | 'shield' | 'disrupt' | 'field_control' | 'risky' | 'instant_win' | 'swap' | 'special';
+    estimatedValue: number;
+    description: string;
+    requiresCharacter: boolean;
+  }> = {
+    medicina:            { category: 'heal',          estimatedValue: 30,   description: 'Rimuove effetti Virus/Influenza oppure dà +30 PTI al tuo personaggio.', requiresCharacter: true },
+    fiaschetta:          { category: 'heal',          estimatedValue: 30,   description: '+30 PTI al tuo personaggio; con Cannuccia, il prossimo attacco avversario colpisce l\'avversario stesso.', requiresCharacter: true },
+    spinaci:             { category: 'heal',          estimatedValue: 30,   description: '+30 PTI al tuo personaggio; con Popeye +2 stelle extra.', requiresCharacter: true },
+    stipendio:           { category: 'heal',          estimatedValue: 100,  description: '+10 PTI per turno (permanente); con Neymar JR +400 PTI per turno.', requiresCharacter: true },
+    peluria_di_holly:    { category: 'heal',          estimatedValue: 50,   description: '+50 PTI (+70 PTI con Holly) al tuo personaggio.', requiresCharacter: true },
+    munnezza:            { category: 'heal',          estimatedValue: 10,   description: '+10 PTI al tuo personaggio (+500 PTI con Napoletano).', requiresCharacter: true },
+    musica_ganza:        { category: 'heal',          estimatedValue: 10,   description: '+10 PTI; con artista musicale +1 stella extra.', requiresCharacter: true },
+    modalit_kamikaze:    { category: 'heal',          estimatedValue: 70,   description: '+70 PTI (+150 PTI con N-E-U-E-R) al tuo personaggio.', requiresCharacter: true },
+    modalit_truzzo:      { category: 'heal',          estimatedValue: 10,   description: '+10 PTI (+300 PTI con Michele Telò) al tuo personaggio.', requiresCharacter: true },
+    modalit_m_mondo:     { category: 'heal',          estimatedValue: 50,   description: '+50 PTI (+100 PTI con Tony Tammaro) al tuo personaggio.', requiresCharacter: true },
+    modalit_fenomeno:    { category: 'buff_stars',    estimatedValue: 200,  description: '+2 stelle al tuo personaggio.', requiresCharacter: true },
+    modalita_fighetto:   { category: 'buff_stars',    estimatedValue: 100,  description: '+1 stella al tuo personaggio.', requiresCharacter: true },
+    scudo_stealth:       { category: 'shield',        estimatedValue: 150,  description: 'Il tuo personaggio non può essere bersagliato per 1 turno (stealth).', requiresCharacter: true },
+    doping:              { category: 'risky',         estimatedValue: 50,   description: '+100 PTI subito, poi -50 PTI dopo 2 turni. Rischioso se il personaggio è già debole.', requiresCharacter: true },
+    nirdosh:             { category: 'risky',         estimatedValue: -200, description: '+100 stelle ma il personaggio MUORE tra 2 turni. Da evitare se il personaggio è prezioso.', requiresCharacter: true },
+    vincere_vinceremo:   { category: 'instant_win',   estimatedValue: 0,    description: 'Vince immediatamente la partita SE Capello Smith è in campo, altrimenti nessun effetto.', requiresCharacter: false },
+    modalit_troll:       { category: 'special',       estimatedValue: 80,   description: 'Permette di giocare un\'altra carta prima di chiudere il turno.', requiresCharacter: false },
+    respinta:            { category: 'shield',        estimatedValue: 120,  description: 'Il prossimo danno subito viene riflesso su un avversario a scelta.', requiresCharacter: true },
+    rincoglionimento:    { category: 'disrupt',       estimatedValue: 150,  description: 'Il prossimo attacco di un avversario colpisce sé stesso.', requiresCharacter: false },
+    trauma:              { category: 'disrupt',       estimatedValue: 200,  description: 'Un avversario: 5 turni senza attaccare e -10 PTI/turno permanenti sul suo prossimo personaggio.', requiresCharacter: false },
+    target_acquired:     { category: 'field_control', estimatedValue: 300,  description: 'Il tuo personaggio attacca un bersaglio scelto 3 volte (Il Pelux: fino alla morte).', requiresCharacter: true },
+    harakiri:            { category: 'special',       estimatedValue: 30,   description: 'Sacrifica un tuo personaggio (rimesso nel mazzo). Utile per liberarsi di personaggi deboli.', requiresCharacter: true },
+    sdoppiamento:        { category: 'swap',          estimatedValue: 120,  description: 'Il tuo personaggio va a 1 PTI e si scambia con un personaggio avversario.', requiresCharacter: true },
+    ciclone:             { category: 'field_control', estimatedValue: 100,  description: 'Ruota tutti i personaggi in campo tra i giocatori (ciclicamente).', requiresCharacter: false },
+    kainoken:            { category: 'swap',          estimatedValue: 130,  description: 'Scambia le carte in mano con un avversario scelto. Ottimo se hai una mano debole.', requiresCharacter: false },
+    frankenstein:        { category: 'field_control', estimatedValue: 180,  description: 'Unisce due personaggi in campo sommando PTI e stelle sotto un unico proprietario.', requiresCharacter: false },
+    trinita:             { category: 'field_control', estimatedValue: 250,  description: 'Assegna 3 personaggi dal campo a sé stessi; se sono Rockit+Peeo+Pap → +10000 PTI e +10 stelle a testa.', requiresCharacter: false },
+    baratto:             { category: 'swap',          estimatedValue: 100,  description: 'Scambia una carta dalla tua mano con una carta dalla mano di un avversario.', requiresCharacter: false },
+    pesca_miracolosa:    { category: 'special',       estimatedValue: 80,   description: 'Pesca 1 carta da ogni mazzo; tieni solo quella che preferisci.', requiresCharacter: false },
+    palio_delle_minkiards: { category: 'field_control', estimatedValue: 200, description: 'Chi ha più personaggi/punti raddoppia i PTI del suo personaggio attivo e guadagna +2 stelle.', requiresCharacter: false },
+    minkiard_n_100:      { category: 'special',       estimatedValue: 250,  description: 'Scegli: porta il tuo personaggio a 3000 PTI OPPURE a 4 stelle.', requiresCharacter: true },
+    minkiard_n_400:      { category: 'special',       estimatedValue: 300,  description: 'Guadagni una vita extra: puoi perdere un personaggio in più prima di essere eliminato.', requiresCharacter: false },
+    minkiard_n_500:      { category: 'special',       estimatedValue: 200,  description: 'Ogni pesca dai mazzi vale doppio (peschi 2 carte invece di 1) per tutta la partita.', requiresCharacter: false },
+    minkiard_n300:       { category: 'special',       estimatedValue: 180,  description: 'Lancia automaticamente il Super Dado e ottieni l\'effetto della carta estratta.', requiresCharacter: false },
+    minkiard_n200:       { category: 'special',       estimatedValue: 120,  description: 'Pesca una carta a tua scelta da uno dei tuoi mazzi.', requiresCharacter: false },
+    bevanda_ciclista:    { category: 'heal',          estimatedValue: 30,   description: '+30 PTI (+5000 PTI con Maestro Tondino) al tuo personaggio.', requiresCharacter: true },
+    soft_control:        { category: 'shield',        estimatedValue: 130,  description: 'Per 5 turni i tuoi attacchi non possono essere respinti; con Pandolfi danni raddoppiati.', requiresCharacter: true },
+    tangram:             { category: 'field_control', estimatedValue: 90,   description: 'Ruota i personaggi in campo di un turno; con Maestro Tondino scambia anche le mani.', requiresCharacter: false },
+    difesa_vigliacca:    { category: 'shield',        estimatedValue: 110,  description: 'Devia il prossimo danno subito verso un avversario a scelta.', requiresCharacter: true },
+    uovo:                { category: 'special',       estimatedValue: 90,   description: 'Il tuo personaggio depone un uovo: tra 3 turni appare un nuovo personaggio con metà PTI e stelle.', requiresCharacter: true },
+    occhio_del_fotografo: { category: 'disrupt',     estimatedValue: 150,  description: 'Spia la mano di un avversario e ruba una carta dalla sua mano.', requiresCharacter: false },
+    playback:            { category: 'field_control', estimatedValue: 180,  description: 'Forza un personaggio avversario ad attaccare un bersaglio a tua scelta.', requiresCharacter: true },
+    distruzione_totale:  { category: 'field_control', estimatedValue: 250,  description: 'Infligge 200 PTI di danno a TUTTI i personaggi avversari in campo.', requiresCharacter: false },
+    vitello_d_oro:       { category: 'risky',         estimatedValue: 60,   description: 'Converti PTI del tuo personaggio in stelle (50 PTI = 1 stella), ma muore dopo 5 turni.', requiresCharacter: true },
+    scee:                { category: 'heal',          estimatedValue: 10,   description: '+10 PTI al tuo personaggio.', requiresCharacter: true },
+    balena:              { category: 'heal',          estimatedValue: 20,   description: '+20 PTI (+50 PTI con Bear) al tuo personaggio.', requiresCharacter: true },
+    cocco_melone:        { category: 'heal',          estimatedValue: 40,   description: '+40 PTI (+100 PTI con Napoletano) al tuo personaggio.', requiresCharacter: true },
+    rusc:                { category: 'heal',          estimatedValue: 10,   description: '+10 PTI; con Montaquilano il prossimo attacco è raddoppiato.', requiresCharacter: true },
+    sta_buon_rocc:       { category: 'field_control', estimatedValue: 120,  description: 'Tutti i personaggi assumono i PTI e stelle del personaggio più forte in campo.', requiresCharacter: false },
+    tu_mi_lasci_cadere:  { category: 'buff_stars',    estimatedValue: 150,  description: 'Azzera le stelle del tuo personaggio, poi guadagna +1 stella ogni turno per sempre.', requiresCharacter: true },
+    u_inverti:           { category: 'field_control', estimatedValue: 100,  description: 'Inverte le cifre dei PTI di tutti i personaggi in campo.', requiresCharacter: false },
+    zzeruo:              { category: 'shield',        estimatedValue: 140,  description: 'Per 3 turni non puoi usare bonus, ma sei immune ai bonus avversari.', requiresCharacter: false },
+    p_na_ntecchia:       { category: 'shield',        estimatedValue: 160,  description: 'Se un attacco ucciderebbe il tuo personaggio, si salva rimanendo a 5 PTI.', requiresCharacter: true },
+    mbacc_z_vcienz:      { category: 'disrupt',       estimatedValue: 130,  description: 'Intercetta il prossimo bonus avversario che ti colpisce, annullandolo e aggiungendolo alla tua mano.', requiresCharacter: false },
+    mini_semaforo:       { category: 'disrupt',       estimatedValue: 200,  description: 'Blocca TUTTI i personaggi in campo; ogni turno tirano un dado per sbloccarsi (Il Pelux immune).', requiresCharacter: false },
+    oh_ma_quello:        { category: 'field_control', estimatedValue: 200,  description: 'Sostituisce un personaggio avversario in campo con uno casuale dal mazzo.', requiresCharacter: false },
+    oooooh_che_t_ritt:   { category: 'special',       estimatedValue: 80,   description: 'Puoi donare una mossa dalla tua mano a un giocatore attaccato da un avversario.', requiresCharacter: true },
+    scart_frusc:         { category: 'special',       estimatedValue: 90,   description: 'Riutilizza l\'ultima carta giocata: se personaggio avversario, lo sottrai; altrimenti la aggiungi alla mano.', requiresCharacter: false },
+    stai_fa_cazzata:     { category: 'disrupt',       estimatedValue: 120,  description: 'Puoi annullare un attacco avversario e spiare le carte del difensore.', requiresCharacter: false },
+    totaleeee:           { category: 'field_control', estimatedValue: 180,  description: 'Tutti i personaggi si fondono in uno centrale; chi lo uccide lo conquista con tutti i suoi valori.', requiresCharacter: false },
+    vous_tra_vous:       { category: 'field_control', estimatedValue: 160,  description: 'Forza un duello tra due avversari: il vincitore assorbe il personaggio del perdente.', requiresCharacter: false },
+    z_ammonta:           { category: 'field_control', estimatedValue: 110,  description: 'Rimescola tutte le carte (campo e mani) nei mazzi e ridistribuisce 1 carta per tipo a ciascuno.', requiresCharacter: false },
+    uragano:             { category: 'field_control', estimatedValue: 100,  description: 'Tutte le carte in campo passano al giocatore PRECEDENTE nel turno.', requiresCharacter: false },
+    tsunami:             { category: 'field_control', estimatedValue: 100,  description: 'Lancia un dado: PARI → ogni giocatore cede la mano al successivo; DISPARI → al precedente.', requiresCharacter: false },
+    super_mega_uragano:  { category: 'field_control', estimatedValue: 140,  description: 'Per N turni i personaggi in campo passano al giocatore precedente ogni turno; vietato sostituire il personaggio.', requiresCharacter: false },
+    ibernazione:         { category: 'disrupt',       estimatedValue: 220,  description: 'Per 3 turni nessuno può usare bonus, mosse o mettere un nuovo personaggio in campo.', requiresCharacter: false },
+    carica:              { category: 'field_control', estimatedValue: 150,  description: 'Forza tutti i giocatori ad attaccare un personaggio avversario scelto per 1 turno intero.', requiresCharacter: false },
+    detonatore:          { category: 'field_control', estimatedValue: 200,  description: 'Attiva la BOMBA SENZA DETONATORE: infligge i suoi PTI come danno a tutti i personaggi avversari.', requiresCharacter: false },
+    mors_tua:            { category: 'special',       estimatedValue: 100,  description: 'La prossima uccisione ti dà una vita invece di toglierla all\'avversario.', requiresCharacter: false },
+    ti_porto_via:        { category: 'special',       estimatedValue: 90,   description: 'Se il tuo personaggio muore, fa morire anche il personaggio che lo ha ucciso.', requiresCharacter: true },
+    slot_machine:        { category: 'risky',         estimatedValue: 30,   description: '-10 PTI; tira 3 dadi: se tutti uguali JACKPOT +10.000 PTI, altrimenti nessun bonus.', requiresCharacter: true },
+    ruoss_e_fessa:       { category: 'risky',         estimatedValue: 80,   description: 'Il tuo personaggio va a 5000 PTI e 3 stelle, ma perde 1000 PTI per ogni attacco effettuato.', requiresCharacter: true },
+    corruzione_v2:       { category: 'special',       estimatedValue: 80,   description: 'Cedi 50 PTI a un personaggio avversario; il suo proprietario non potrà attaccarti per 3 turni.', requiresCharacter: false },
+    notte_spirito:       { category: 'special',       estimatedValue: 70,   description: 'Il prossimo personaggio che metti in campo è coperto e non può attaccare (con Tamburello può usare mosse).', requiresCharacter: false },
+    trappola:            { category: 'special',       estimatedValue: 60,   description: 'La prossima carta che metti in campo è coperta; puoi scoprirla in qualsiasi momento.', requiresCharacter: false },
+    modalita_cieca:      { category: 'disrupt',       estimatedValue: 130,  description: 'Per 3 turni tutte le carte sono coperte: nessuno vede nomi, PTI, stelle o immagini.', requiresCharacter: false },
+    wd40:                { category: 'special',       estimatedValue: 90,   description: 'Rimuove tutti gli effetti attivi (veleni, stun, scudi) dal campo.', requiresCharacter: false },
+    una_tempesta_baby:   { category: 'field_control', estimatedValue: 130,  description: 'Tutti i giocatori giocano simultaneamente tutti i loro bonus (o mosse) in mano. Golden Freezer immune.', requiresCharacter: false },
+    un_posto_galattico:  { category: 'field_control', estimatedValue: 150,  description: 'Tu e un avversario vi isolate dalla partita; tornate quando uno dei due è eliminato.', requiresCharacter: false },
+    schedine:            { category: 'special',       estimatedValue: 100,  description: 'Scommetti su due finalisti; le tue carte sono congelate fino alla fine della scommessa.', requiresCharacter: false },
+    imitazione:          { category: 'special',       estimatedValue: 100,  description: 'Il tuo personaggio copia l\'effetto di un personaggio a scelta dal campo o dal mazzo.', requiresCharacter: true },
+    non_ti_fa_frega:     { category: 'shield',        estimatedValue: 100,  description: 'Il tuo personaggio diventa immune a Parassita, Fregatura e Assorbimento.', requiresCharacter: true },
+    replay:              { category: 'field_control', estimatedValue: 120,  description: 'Ripristina il campo e le mani com\'erano all\'inizio dell\'ultimo turno.', requiresCharacter: false },
+    provino_per_la_juve: { category: 'special',       estimatedValue: 120,  description: 'Il prossimo attacco del tuo personaggio infligge il DOPPIO dei danni.', requiresCharacter: true },
+    spin_ta_impulsiva:   { category: 'special',       estimatedValue: 100,  description: 'Effetto passivo: quando il tuo personaggio scende sotto 100 PTI, riceve +200 PTI e +5 stelle.', requiresCharacter: true },
+  };
+
+  /** Extract the [CUSTOM:key] effect name from a card's effect text, or null if absent. */
+  private getCardEffectKey(card: any): string | null {
+    const eff = card.effect || '';
+    const m = eff.match(/\[CUSTOM:(\w+)\]/i);
+    return m ? m[1].toLowerCase() : null;
+  }
+
   /** Infer effect category from a card object */
   private inferEffectCategory(card: any): string {
-    const eff = (card.effect || card.notes || card.text || card.name || '').toLowerCase();
-    if (!eff) return 'special';
-    if (/danno|damage|attacc|mosse|kill|morte|kainoken|staku/i.test(eff) || card.type === 'mosse') return 'damage';
-    if (/pti|heal|cure|recuper|riprist/i.test(eff)) return 'heal';
-    if (/scudo|shield|protezione|difesa|defense/i.test(eff)) return 'defense';
+    if (card.type === 'mosse') return 'damage';
+    const key = this.getCardEffectKey(card);
+    if (key && CPUPlayer.SPECIAL_CARD_EFFECTS[key]) {
+      const regCat = CPUPlayer.SPECIAL_CARD_EFFECTS[key].category;
+      // Normalize registry category to profiling categories:
+      // 'shield' → 'defense', 'buff_stars' → 'special', others as-is
+      if (regCat === 'shield') return 'defense';
+      if (regCat === 'buff_stars') return 'special';
+      return regCat;
+    }
     return 'special';
   }
 
@@ -567,7 +676,7 @@ export class CPUPlayer {
     return { damage: baseDmg * Math.max(1, attackerStars), specialEffect: null };
   }
 
-  private evaluateCard(card: any, attackerStars: number = 1): number {
+  private evaluateCard(card: any, attackerStars: number = 1, gameState?: any): number {
     if (!card) return 0;
     const type = card.type;
 
@@ -583,17 +692,86 @@ export class CPUPlayer {
 
     if (type === 'bonus') {
       const ptiValue = this.extractBonusPtiValue(card);
-      const effLower = (card.effect || card.notes || card.text || '').toLowerCase();
-      const isShield = /scudo|shield|protezione/i.test(effLower);
-      const isStarBuff = /stelle|stars/i.test(effLower);
+      const effKey = this.getCardEffectKey(card);
+      const reg = effKey ? CPUPlayer.SPECIAL_CARD_EFFECTS[effKey] : null;
+
       let base: number;
-      if (ptiValue > 0) base = ptiValue;
-      else if (isShield) base = 150;
-      else if (isStarBuff) base = 200;
-      else base = 50;
-      // Profile bonus: if the human plays lots of damage cards, value defense more
-      const effectCat = isShield ? 'defense' : (ptiValue > 0 ? 'heal' : 'special');
-      const profileBonus = this.profileScoreForEffectCategory(effectCat, base);
+      let effectCat: string;
+
+      if (reg) {
+        const regCat = reg.category;
+        effectCat = regCat === 'heal' ? 'heal' : (regCat === 'shield' ? 'defense' : 'special');
+
+        if (regCat === 'risky') {
+          // Risky cards: scale by current character health.
+          // A character with high PTI can afford the gamble (doping, slot_machine);
+          // nirdosh is nearly always negative unless the character is already at death's door.
+          const gs = gameState ?? (this.gameManager ? this.gameManager.getGameState(this.gameId) : null);
+          const myChar = gs ? gs.field?.find((c: any) =>
+            c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          ) : null;
+          const myPti = myChar ? (myChar.pti ?? 0) : 0;
+          if (effKey === 'nirdosh') {
+            // Only valuable if char already near death (<= 50 PTI) — might as well gamble
+            base = myPti <= 50 ? 80 : -300;
+          } else if (effKey === 'slot_machine') {
+            // Jackpot (1/216) expected value negative; avoid unless in desperate shape
+            base = myPti <= 30 ? 50 : 10;
+          } else if (effKey === 'ruoss_e_fessa') {
+            // 5000 PTI is great if you haven't attacked much yet; risky long-term
+            base = myPti < 1000 ? reg.estimatedValue : Math.floor(reg.estimatedValue * 0.6);
+          } else {
+            // doping, vitello_d_oro, etc: worth more when char is healthy (can absorb downside)
+            base = myPti >= 150 ? reg.estimatedValue : Math.floor(reg.estimatedValue * 0.4);
+          }
+          effectCat = 'special';
+        } else if (regCat === 'instant_win') {
+          // vincere_vinceremo: check whether Capello Smith is on the field
+          const gs = gameState ?? (this.gameManager ? this.gameManager.getGameState(this.gameId) : null);
+          const capelloOnField = gs ? gs.field?.some((c: any) =>
+            /capello.*smith|smith.*capello/i.test(c.name || '')
+          ) : false;
+          base = capelloOnField ? 9999999 : 5; // Nearly worthless without the condition
+          effectCat = 'special';
+        } else if (regCat === 'disrupt') {
+          // Disrupt cards scale with how many cards + how threatening enemies are.
+          const gs = gameState ?? (this.gameManager ? this.gameManager.getGameState(this.gameId) : null);
+          let enemyThreat = 1.0;
+          if (gs) {
+            const enemies = (gs.field ?? []).filter((c: any) =>
+              c.owner !== this.playerName &&
+              (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+            );
+            const enemyHandTotal = (gs.turnOrder ?? [])
+              .filter((p: string) => p !== this.playerName)
+              .reduce((sum: number, p: string) => sum + ((gs.players?.[p]?.hand?.length) ?? 0), 0);
+            // More enemies / more enemy hand cards = disrupt is more valuable
+            const enemyCount = enemies.length;
+            const maxEnemyPti = enemies.reduce((m: number, c: any) => Math.max(m, c.pti ?? 0), 0);
+            enemyThreat = 1.0
+              + Math.min(enemyCount * 0.15, 0.6)        // up to +60% for 4 enemies
+              + Math.min(enemyHandTotal * 0.05, 0.3)    // up to +30% for 6+ hand cards
+              + (maxEnemyPti > 500 ? 0.2 : 0);          // +20% if a strong enemy exists
+          }
+          base = Math.round(reg.estimatedValue * enemyThreat);
+          effectCat = 'special';
+        } else {
+          base = reg.estimatedValue;
+        }
+      } else if (ptiValue > 0) {
+        base = ptiValue;
+        effectCat = 'heal';
+      } else {
+        const effLower = (card.effect || card.notes || card.text || '').toLowerCase();
+        const isShield = /scudo|shield|protezione/i.test(effLower);
+        const isStarBuff = /stelle|stars/i.test(effLower);
+        if (isShield) { base = 150; effectCat = 'defense'; }
+        else if (isStarBuff) { base = 200; effectCat = 'special'; }
+        else { base = 50; effectCat = 'special'; }
+      }
+
+      const safeBase = Math.max(0, base);
+      const profileBonus = this.profileScoreForEffectCategory(effectCat, safeBase);
       return base + profileBonus;
     }
 
@@ -608,17 +786,34 @@ export class CPUPlayer {
 
   private evaluateBonusWithHealth(card: any, myCurrentPTI: number): number {
     if (!card || card.type !== 'bonus') return 0;
+
+    // Prefer registry-aware evaluation when a known key is present
+    const effKey = this.getCardEffectKey(card);
+    const reg = effKey ? CPUPlayer.SPECIAL_CARD_EFFECTS[effKey] : null;
+    if (reg) {
+      const gs = this.gameManager ? this.gameManager.getGameState(this.gameId) : null;
+      const regScore = this.evaluateCard(card, 1, gs ?? undefined);
+
+      // For heal/shield categories: apply same PTI-threshold modulation
+      if (reg.category === 'heal') {
+        const healScore = Math.max(this.extractBonusPtiValue(card), regScore);
+        return myCurrentPTI < 100 ? healScore * 1.3 : healScore;
+      }
+      if (reg.category === 'shield') {
+        const shieldValue = myCurrentPTI > 400 ? Math.max(250, regScore) :
+          (myCurrentPTI > 150 ? Math.max(150, regScore) : Math.max(80, regScore));
+        return shieldValue;
+      }
+      return regScore;
+    }
+
+    // Fallback: regex-based for unknown cards
     const ptiValue = this.extractBonusPtiValue(card);
     const effLower = (card.effect || card.notes || card.text || '').toLowerCase();
     const isShield = /scudo|shield|protezione/i.test(effLower);
     const isStarBuff = /stelle|stars/i.test(effLower);
 
     if (isShield) {
-      // Shield is most valuable when healthy (not urgently needing PTI restore).
-      // Use absolute PTI thresholds (calibrated to typical MINKIARDS character range 100–1000):
-      // > 400 PTI = healthy → shield priority is high (250)
-      // 150–400 PTI = moderate → medium shield value (150)
-      // < 150 PTI = critical → healing PTI is more urgent; shield less valuable (80)
       const shieldValue = myCurrentPTI > 400 ? 250 : (myCurrentPTI > 150 ? 150 : 80);
       return Math.max(shieldValue, ptiValue);
     }
@@ -1384,7 +1579,16 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         BEST MOSSE IN HAND: ${bestMosseName} — danno effettivo = ${bestMosseDmgDisplay}
         BEST BONUS IN HAND: ${bestBonusName} — PTI bonus = ${bestBonusPTI > 0 ? bestBonusPTI : 'effetto speciale'}
         ENEMY CHARACTERS: ${enemyCharacters.map((c: any) => `${this.getCardNameFromUrl(c.frontImage)} (Owner: ${c.owner}, PTI: ${this.extractPtiFromCard(c)}, Stelle: ${this.extractStarsFromCard(c)})`).join(', ') || 'nessuno'}
-        MY HAND: ${handAnalyses.map(a => `${a.name} (${a.cardType}) - ${a.effect || 'Standard effect'}`).join(', ')}
+        MY HAND: ${handAnalyses.map((a, i) => {
+          const rawCard = cpuPlayer.hand[i];
+          if (rawCard && rawCard.type === 'bonus') {
+            const effKey = this.getCardEffectKey(rawCard);
+            const reg = effKey ? CPUPlayer.SPECIAL_CARD_EFFECTS[effKey] : null;
+            const desc = reg ? reg.description : (a.effect || 'Effetto bonus speciale');
+            return `${a.name} (${a.cardType}) - ${desc}`;
+          }
+          return `${a.name} (${a.cardType}) - ${a.effect || 'Standard effect'}`;
+        }).join(', ')}
         MY FIELD CARDS: ${fieldAnalyses.map(a => `${a.name} (${a.cardType})`).join(', ')}
         TOTAL CARDS ON FIELD: ${gameState.field.length}
         CONVERSATION CONTEXT: ${conversationContext || 'Nessuna conversazione precedente'}
