@@ -672,7 +672,15 @@ export class CPUPlayer {
     if (/dimezza\s+(?:i\s+)?pti|pti\s+dimezz/i.test(combined)) {
       return { damage: 0, specialEffect: 'dimezza_pti' };
     }
+    // FURTO: steals stars equal to attackerStars. Lethality is checked against enemy stars.
+    if (/\bfurto\b/i.test(mosseName)) {
+      return { damage: attackerStars, specialEffect: 'furto_stelle' };
+    }
     const baseDmg = card.mosseDamageValue || 0;
+    // MOSSE PROGRESSIVE: damage grows each turn (e.g. 5→10→20→40). Estimate 2× effective value.
+    if (baseDmg > 0 && /ogni\s+turno|turno\s+dopo|si\s+raddoppia|raddoppia\s+ogni|cresce\s+ogni|aumenta\s+ogni|continua\s+a\s+crescere/i.test(effect)) {
+      return { damage: baseDmg * Math.max(1, attackerStars) * 2, specialEffect: 'progressiva' };
+    }
     return { damage: baseDmg * Math.max(1, attackerStars), specialEffect: null };
   }
 
@@ -684,10 +692,53 @@ export class CPUPlayer {
       const { damage, specialEffect } = this.getMosseEffectiveDamage(card, attackerStars);
       if (specialEffect === 'morte_istantanea') return 1000000;
       if (specialEffect === 'dimezza_pti') return 500000;
+
+      // FURTO STELLE: lethal when enemy stars ≤ attackerStars. Score it accordingly.
+      if (specialEffect === 'furto_stelle') {
+        const gs = gameState ?? (this.gameManager ? this.gameManager.getGameState(this.gameId) : null);
+        if (gs) {
+          const enemies = (gs.field ?? []).filter((c: any) =>
+            c.owner !== this.playerName &&
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+            !c.stealth && !c.eliminatedBy
+          );
+          const canKill = enemies.some((e: any) => this.extractStarsFromCard(e) <= attackerStars);
+          if (canKill) return 400000;
+        }
+        return attackerStars * 200;
+      }
+
+      let finalDamage = damage;
+
+      // MOSSE ORIGINALI: if the CPU's active character matches a usedBy override on this card,
+      // the damage is higher (card is a "mossa originale" for this character). Boost its score.
+      if (card.mosseCharacterOverrides && Array.isArray(card.mosseCharacterOverrides) && card.mosseCharacterOverrides.length > 0) {
+        const gs = gameState ?? (this.gameManager ? this.gameManager.getGameState(this.gameId) : null);
+        if (gs) {
+          const myChar = (gs.field ?? []).find((c: any) =>
+            c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          if (myChar) {
+            const myCharName = (myChar.name || this.getCardNameFromUrl(myChar.frontImage || '')).toUpperCase().replace(/[_-]/g, ' ').trim();
+            const override = card.mosseCharacterOverrides.find((o: any) => {
+              const charNorm = (o.characterName || o.characterId || '').toUpperCase().replace(/[_-]/g, ' ').trim();
+              return charNorm === myCharName;
+            });
+            if (override?.usedBy?.damageValue != null) {
+              const overrideDmg = override.usedBy.damageValue * Math.max(1, attackerStars);
+              // Use override damage if higher; apply a 1.5× bonus to prefer "mossa originale"
+              if (overrideDmg > finalDamage) {
+                finalDamage = Math.round(overrideDmg * 1.5);
+              }
+            }
+          }
+        }
+      }
+
       // Profile bonus: if the human plays lots of damage cards, the CPU values
       // its own damage cards slightly more (stay competitive) — capped at +20%
-      const profileBonus = this.profileScoreForEffectCategory('damage', damage);
-      return damage + profileBonus;
+      const profileBonus = this.profileScoreForEffectCategory('damage', finalDamage);
+      return finalDamage + profileBonus;
     }
 
     if (type === 'bonus') {
@@ -928,6 +979,31 @@ export class CPUPlayer {
       if (score > bestScore) {
         bestScore = score;
         target = enemy;
+      }
+    }
+
+    // HARD MULTI-PLAYER TARGETING: 30% chance to target the most dangerous enemy
+    // (highest PTI×stars threat) when no lethal kill is available and 3+ enemies are present.
+    // This prevents the CPU from always ignoring powerful opponents just because they have high HP.
+    if (this.level === 'hard' && enemies.length >= 3) {
+      const anyLethal = enemies.some((e: any) => {
+        const pti = this.extractPtiFromCard(e);
+        return pti > 0 && pti <= myDmg;
+      });
+      if (!anyLethal && Math.random() < 0.30) {
+        let mostDangerous = enemies[0];
+        let highestThreat = -Infinity;
+        for (const enemy of enemies) {
+          const pti = this.extractPtiFromCard(enemy);
+          const stars = this.extractStarsFromCard(enemy);
+          const threat = pti + stars * 200;
+          if (threat > highestThreat) {
+            highestThreat = threat;
+            mostDangerous = enemy;
+          }
+        }
+        console.log(`🎯 [hard-multi] CPU ${this.playerName}: targeting most dangerous enemy (PTI=${this.extractPtiFromCard(mostDangerous)}, ★=${this.extractStarsFromCard(mostDangerous)})`);
+        target = mostDangerous;
       }
     }
 
@@ -3517,10 +3593,46 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       const currentStars = this.extractStarsFromCard(myCharacter);
       const isDead = currentPTI <= 0 || currentStars <= 0;
 
+      // SCAMBIO PERSONAGGIO PRE-ATTACCO: If a hand character has ≥ 2 more stars than the active
+      // character, swapping now will significantly boost the next attack. Only swap in aggressive/balanced
+      // moods when there are enemies to attack and the damage gain is worthwhile.
+      if (!isDead && personaggiInHand.length > 0 && mosseInHand.length > 0 && effectiveEnemies.length > 0 &&
+          (this.mood === 'aggressive' || this.mood === 'balanced') &&
+          (this.level === 'medium' || this.level === 'hard')) {
+        const bestHandChar = personaggiInHand.reduce((best: any, c: any) =>
+          this.extractStarsFromCard(c) > this.extractStarsFromCard(best) ? c : best, personaggiInHand[0]
+        );
+        const handStars = this.extractStarsFromCard(bestHandChar);
+        if (handStars >= currentStars + 2) {
+          // Estimate damage gain from swapping
+          const damageGain = mosseInHand.reduce((maxGain: number, m: any) => {
+            const { damage: withCurrent } = this.getMosseEffectiveDamage(m, currentStars);
+            const { damage: withHand } = this.getMosseEffectiveDamage(m, handStars);
+            return Math.max(maxGain, withHand - withCurrent);
+          }, 0);
+          if (damageGain > 50) {
+            const handCharName = this.getCardNameFromUrl(bestHandChar.frontImage || '');
+            console.log(`⭐ CPU ${this.playerName}: swapping to ${handCharName} (+${handStars - currentStars} stelle, +${damageGain} danno stimato)`);
+            this.sendChatMessage(`Cambio personaggio per massimizzare il danno con ${handCharName}!`);
+            return bestHandChar;
+          }
+        }
+      }
+
+      // LOW HEALTH — avoid RESPINGIBILI: When the CPU is critically weak (PTI ≤ 150),
+      // filter out moves that can be countered (canBeCountered: true). A reflected attack
+      // could kill the CPU's character immediately.
+      const isLowHealth = currentPTI > 0 && currentPTI <= 150;
+      const safeMosse = isLowHealth ? mosseInHand.filter((c: any) => !c.canBeCountered) : mosseInHand;
+      const mossesToConsider = (isLowHealth && safeMosse.length > 0) ? safeMosse : mosseInHand;
+      if (isLowHealth && safeMosse.length < mosseInHand.length) {
+        console.log(`🛡️ CPU ${this.playerName}: Low health (${currentPTI} PTI) — preferring non-respingibile moves (${safeMosse.length}/${mosseInHand.length} safe)`);
+      }
+
       // Pre-compute the best MOSSE and best BONUS using evaluateCard
-      const bestMosse = mosseInHand.length > 0 ? mosseInHand.reduce((best: any, c: any) => {
+      const bestMosse = mossesToConsider.length > 0 ? mossesToConsider.reduce((best: any, c: any) => {
         return this.evaluateCard(c, currentStars) > this.evaluateCard(best, currentStars) ? c : best;
-      }, mosseInHand[0]) : null;
+      }, mossesToConsider[0]) : null;
 
       // Use health-aware bonus scoring so shields are preferred when healthy
       // Exclude purely defensive/reactive cards that only work in reaction to an incoming attack
@@ -3551,12 +3663,14 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         }
 
         // Always prefer lethal/special MOSSE regardless of mood
-        // Note: special effects (morte=1M, dimezza_pti=500K) score above any real PTI,
-        // so this check also correctly prioritizes instant-kill and PTI-halving moves
+        // Note: special effects (morte=1M, dimezza_pti=500K, furto_stelle=400K) score above any real PTI,
+        // so this check also correctly prioritizes instant-kill, PTI-halving, and lethal Furto moves
         if (bestMosse && bestMosseScore >= weakestPti && weakestPti > 0) {
           const { specialEffect } = this.getMosseEffectiveDamage(bestMosse, currentStars);
           const reason = specialEffect === 'morte_istantanea' ? 'MORTE ISTANTANEA'
             : specialEffect === 'dimezza_pti' ? 'DIMEZZA PTI'
+            : specialEffect === 'furto_stelle' ? 'FURTO STELLE LETALE'
+            : specialEffect === 'progressiva' ? `PROGRESSIVA dmg=${bestMosseScore}`
             : `dmg=${bestMosseScore} ≥ enemy PTI=${weakestPti}`;
           console.log(`🤖 CPU ${this.playerName}: MOSSE lethal/special (${reason}) [MOOD:${this.mood}]`);
           return bestMosse;
