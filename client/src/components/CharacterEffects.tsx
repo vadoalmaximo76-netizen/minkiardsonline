@@ -485,7 +485,7 @@ function getEffectConfig(effectType: CharacterEffectType | 'attack') {
         bg: 'from-yellow-900/70 via-red-900/60 to-transparent',
         emoji: '💫',
         label: (name?: string) => name ? `CRITICO SU ${name}!` : 'COLPO CRITICO!',
-        duration: 1400,
+        duration: 3000,
         borderClass: 'bg-yellow-900/80 border-yellow-400/50',
         textShadow: '0 0 20px rgba(255,200,0,0.9)',
       };

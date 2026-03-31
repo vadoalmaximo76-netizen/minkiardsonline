@@ -2093,7 +2093,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           isCurrentPlayer: isMe,
         });
       }, 420);
-      /* 3. When banner completes (~4.8s total), restore colour — handled by onComplete */
+      /* 3. When banner completes (~3s total), restore colour — handled by onComplete */
     };
 
     const handleGameVictory = ({ winner, lastAction, matchDuration, playerStats, teamVictoryData: tvd }: { winner: string; lastAction?: any; matchDuration?: number; playerStats?: Record<string, any>; teamVictoryData?: any }) => {

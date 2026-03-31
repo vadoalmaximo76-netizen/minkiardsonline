@@ -19,8 +19,8 @@ export function KOBanner({
 }: KOBannerProps) {
   const [phase, setPhase] = useState<'flash' | 'in' | 'hold' | 'out'>('flash');
 
-  const holdMs  = eliminationMode ? 3200 : 1900;
-  const totalMs = eliminationMode ? 4800 : 2700;
+  const holdMs  = eliminationMode ? 1800 : 1900;
+  const totalMs = eliminationMode ? 3000 : 2700;
 
   useEffect(() => {
     const t0 = setTimeout(() => setPhase('in'),   eliminationMode ? 180 : 0);
