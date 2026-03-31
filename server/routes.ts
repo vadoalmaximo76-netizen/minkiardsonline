@@ -8652,6 +8652,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }).catch(err => console.error('[HelpCoach] Error on turn start:', err));
         }
 
+        // Check if next CPU player is in skipTurnPlayers — if so, skip their turn
+        if (nextPlayerData && (nextPlayerData.isCPU || nextPlayer.startsWith('CPU-'))) {
+          const rawGame = gameManager.games.get(gameId) as any;
+          if (rawGame?.skipTurnPlayers?.includes(nextPlayer)) {
+            const skipIdx = rawGame.skipTurnPlayers.indexOf(nextPlayer);
+            rawGame.skipTurnPlayers.splice(skipIdx, 1);
+            console.log(`⏭️ [BLOCCO] ${nextPlayer} salta il turno (skipTurnPlayers)`);
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-skip-${nextPlayer}`,
+              playerName: 'SISTEMA',
+              message: `🚫 ${nextPlayer} salta il turno! (effetto BLOCCO)`,
+              timestamp: Date.now()
+            });
+            emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+            // Advance to the next player
+            const afterSkip = gameManager.forceEndTurn(gameId);
+            if (afterSkip) {
+              io.to(gameId).emit('next-turn', { nextPlayer: afterSkip });
+              emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+            }
+            return;
+          }
+        }
+
         if (nextPlayerData && (nextPlayerData.isCPU || nextPlayer.startsWith('CPU-')) && !cpuTurnIsControlled) {
           // Give a moment for UI to update, then process CPU turn
           setTimeout(async () => {
@@ -9497,6 +9521,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
               generateHelpMessage(gameId, 'human_turn_start', helpCtx).then(helpMsg => {
                 emitHelpMessage(io, gameId, helpMsg);
               });
+            }
+          }
+
+          // Check if next CPU player is in skipTurnPlayers (e.g. due to BLOCCO) — skip if so
+          if (nextPlayer && nextPlayerIsCPU) {
+            const rawGame2 = gameManager.games.get(gameId) as any;
+            if (rawGame2?.skipTurnPlayers?.includes(nextPlayer)) {
+              const skipIdx2 = rawGame2.skipTurnPlayers.indexOf(nextPlayer);
+              rawGame2.skipTurnPlayers.splice(skipIdx2, 1);
+              console.log(`⏭️ [BLOCCO] ${nextPlayer} salta il turno (skipTurnPlayers, force-end path)`);
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-skip-${nextPlayer}`,
+                playerName: 'SISTEMA',
+                message: `🚫 ${nextPlayer} salta il turno! (effetto BLOCCO)`,
+                timestamp: Date.now()
+              });
+              emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+              const afterSkip2 = gameManager.forceEndTurn(gameId);
+              if (afterSkip2) {
+                io.to(gameId).emit('next-turn', { nextPlayer: afterSkip2 });
+                emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+              }
+              return;
             }
           }
 
