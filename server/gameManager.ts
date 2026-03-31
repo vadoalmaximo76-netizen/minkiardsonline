@@ -4497,6 +4497,24 @@ Rispondi SOLO in JSON:`;
       // Card name for diagnostics only — effects are EXCLUSIVELY from wizard/agent configuration
       const cardNameLower = (card.name || this.getCardNameFromUrl(card.frontImage || '')).toLowerCase().trim();
       console.log(`🃏 playCard: type="${card.type}", name="${cardNameLower}", effect="${(effectText || '').substring(0, 60)}"`);
+
+      // ── NAME-BASED EFFECT INJECTION ──────────────────────────────────────────
+      // For bonus cards whose effect field is missing/empty but have a known named effect,
+      // inject the [CUSTOM:key] tag so the normal path routes them correctly.
+      if (card.type === 'bonus' && !effectText) {
+        const NAME_INJECT_MAP: Array<[RegExp, string]> = [
+          [/sta\s+buon\s+rocc/i, 'sta_buon_rocc'],
+        ];
+        for (const [pattern, key] of NAME_INJECT_MAP) {
+          if (pattern.test(cardNameLower)) {
+            effectText = `[CUSTOM:${key}]`;
+            console.log(`🎯 [NAME-INJECT] Injected effect "[CUSTOM:${key}]" for card "${cardNameLower}" (effect was empty)`);
+            break;
+          }
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────────────
+
       if (!effectText && card.type === 'bonus') {
         console.log(`⚠️ BONUS card "${cardNameLower}" (id=${card.id}) has no effect configured in wizard — no effect will fire`);
       }
@@ -30664,16 +30682,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
 
         case 'lellelelle_chaos': {
-          // LELLELLELELLE (mosse-45): target draws up to 5 MOSSE from their own deck.
-          // Drawing stops as soon as a card with damage >= 100 is found (the target is SAVED).
-          // If none has damage >= 100, target drops to 5 PTI + 1 star.
+          // LELLELLELELLE (mosse-45): target always draws exactly 5 MOSSE from their own deck.
+          // ALL 5 cards are always revealed for suspense. The first card with damage >= 100 saves the target.
+          // If none has damage >= 100, target drops to 5 PTI + 1 star (only after all 5 are drawn).
+          // After the animation the drawn cards return to the deck automatically.
           if (!game) break;
           const llTargetOwner = targetCard.owner;
           const llOwnerPlayer = game.players[llTargetOwner];
           const llMosseDeck = game.playerDraftDecks?.[llTargetOwner]?.mosse || llOwnerPlayer?.playerDraftDecks?.mosse || game.decks?.['mosse'] || [];
-          const llDrawnCards: Array<{ name: string; dmg: number; image: string | null; isSave: boolean }> = [];
-          let llSaved = false;
-          for (let i = 0; i < 5 && llMosseDeck.length > 0; i++) {
+          const LL_TOTAL = 5;
+          const llDrawnCards: Array<{ cardRef: any; name: string; dmg: number; image: string | null; isSave: boolean }> = [];
+          let llSaveIdx = -1; // index of first saving card (-1 = none found)
+          for (let i = 0; i < LL_TOTAL && llMosseDeck.length > 0; i++) {
             const llDrawnCard = llMosseDeck.shift()!;
             const llDrawnName = llDrawnCard.name || this.getCardNameFromUrl(llDrawnCard.frontImage || '') || llDrawnCard.id;
             let llDrawnDmg = llDrawnCard.mosseDamageValue ?? 0;
@@ -30681,27 +30701,32 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               const dmgMatch = llDrawnCard.effect.match(/\b(\d{2,4})\s*(?:PTI|pti|punti)\b/i);
               if (dmgMatch) llDrawnDmg = parseInt(dmgMatch[1]);
             }
-            const isSaveCard = llDrawnDmg >= 100;
-            llDrawnCards.push({ name: llDrawnName, dmg: llDrawnDmg, image: llDrawnCard.frontImage || null, isSave: isSaveCard });
+            const isSaveCard = llDrawnDmg >= 100 && llSaveIdx === -1;
+            if (isSaveCard) llSaveIdx = i;
+            llDrawnCards.push({ cardRef: llDrawnCard, name: llDrawnName, dmg: llDrawnDmg, image: llDrawnCard.frontImage || null, isSave: isSaveCard });
+            // Temporarily place on field for visibility (will be returned to deck after animation)
             llDrawnCard.placedByLellelelle = true;
             llDrawnCard.owner = llTargetOwner;
             game.field.push(llDrawnCard);
-            if (isSaveCard) { llSaved = true; break; }
           }
+          const llSaved = llSaveIdx !== -1;
 
-          // Emit animated reveal events with 1.2s gap per card (non-blocking for attack resolution)
+          // Announce start — always show 5 slots in client
           io.to(gameId).emit('lellelelle-start', {
             targetOwner: llTargetOwner,
             attackerName,
-            totalCards: llDrawnCards.length,
+            totalCards: LL_TOTAL,
             saved: llSaved
           });
+
+          // Reveal all drawn cards with 1.2s gap each
           const LL_DELAY_MS = 1200;
+          const LL_TOTAL_REVEAL_MS = llDrawnCards.length * LL_DELAY_MS + 600;
           llDrawnCards.forEach((d, idx) => {
             setTimeout(() => {
               io.to(gameId).emit('lellelelle-reveal', {
                 cardIndex: idx + 1,
-                totalCards: llDrawnCards.length,
+                totalCards: LL_TOTAL,
                 cardName: d.name,
                 cardImage: d.image,
                 damage: d.dmg,
@@ -30710,10 +30735,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 isLast: idx === llDrawnCards.length - 1,
                 saved: llSaved
               });
+              // After last card, emit the result message
               if (idx === llDrawnCards.length - 1) {
+                const saveCard = llSaveIdx !== -1 ? llDrawnCards[llSaveIdx] : null;
                 const finalMsg = llSaved
-                  ? `🎴 LELLELLELELLE! ${llTargetOwner} è SALVO — la MOSSA "${d.name}" ha ${d.dmg} PTI di danno (≥100)!`
-                  : `🎴 LELLELLELELLE! ${llTargetOwner} non è stato salvo — nessuna MOSSA con ≥100 PTI! Scende a 5 PTI e 1 stella!`;
+                  ? `🎴 LELLELLELELLE! ${llTargetOwner} è SALVO — la MOSSA "${saveCard!.name}" ha ${saveCard!.dmg} PTI di danno (≥100)!`
+                  : `🎴 LELLELLELELLE! ${llTargetOwner} non ha una MOSSA con ≥100 PTI — scende a 5 PTI e 1 stella!`;
                 setTimeout(() => {
                   io.to(gameId).emit('chat-message', {
                     id: `${Date.now()}-lellelelle-end`,
@@ -30726,15 +30753,34 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             }, idx * LL_DELAY_MS + 600);
           });
 
-          const llDrawnNames = llDrawnCards.map(d => `${d.name}(${d.dmg}PTI)`).join(', ') || '(nessuna)';
+          // Return all drawn MOSSE cards to the target's deck (bottom) after the animation finishes
+          const llReturnDelay = LL_TOTAL_REVEAL_MS + 900 + 1500; // after last reveal + result msg + buffer
+          setTimeout(() => {
+            const currentGame = this.games.get(gameId);
+            if (!currentGame) return;
+            const returnDeck = currentGame.playerDraftDecks?.[llTargetOwner]?.mosse
+              || currentGame.players?.[llTargetOwner]?.playerDraftDecks?.mosse;
+            for (const d of llDrawnCards) {
+              // Remove from field
+              const fieldIdx = currentGame.field.findIndex((fc: Card) => fc === d.cardRef);
+              if (fieldIdx !== -1) currentGame.field.splice(fieldIdx, 1);
+              // Return to deck bottom
+              d.cardRef.placedByLellelelle = false;
+              if (returnDeck) returnDeck.push(d.cardRef);
+            }
+            console.log(`🎴 LELLELLELELLE: returned ${llDrawnCards.length} MOSSE to ${llTargetOwner}'s deck`);
+            const gsAfterReturn = this.getSanitizedGameState(gameId);
+            io.to(gameId).emit('game-state-update', gsAfterReturn);
+          }, llReturnDelay);
+
           if (llSaved) {
             effectiveDamage = 0;
-            effectMessage = `🎴 LELLELLELELLE! Rivelazione in corso (${llTargetOwner} è salvo).`;
+            effectMessage = `🎴 LELLELLELELLE! Rivelazione in corso — ${llTargetOwner} è salvo.`;
           } else {
             const llTargetPTI = this.extractPTIFromNote(targetCard.text || '');
             effectiveDamage = Math.max(0, llTargetPTI - 5);
             additionalStarsToRemove = Math.max(0, (targetCard.stars ?? this.extractStarsFromNote(targetCard.text || '')) - 1);
-            effectMessage = `🎴 LELLELLELELLE! Rivelazione in corso (${llTargetOwner} punito).`;
+            effectMessage = `🎴 LELLELLELELLE! Rivelazione in corso — ${llTargetOwner} scende a 5 PTI e 1 stella!`;
           }
           break;
         }
