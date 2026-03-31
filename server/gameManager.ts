@@ -1148,14 +1148,15 @@ export class GameManager {
       const eventIds = activeEvents.map(e => e.id);
       let totalInjected = 0;
 
+      // In Draft mode, seasonal cards are handled per-player in playerDraftDecks.
+      // Shared decks are only used by non-draft games, so skip in draft.
+      if (game.isDraftMode) return;
+
       for (const eventId of eventIds) {
         const cards = await db.select().from(seasonalCards)
-          .where(eq(seasonalCards.eventId, eventId));
+          .where(and(eq(seasonalCards.eventId, eventId), eq(seasonalCards.gameMode, 'all')));
 
         for (const sc of cards) {
-          // Determine target game mode: 'draft' cards only go into draft games; 'all' go everywhere
-          const isDraftOnly = sc.gameMode === 'draft';
-          if (isDraftOnly && !game.isDraftMode) continue;
 
           // Map seasonalCard deckType (uppercase) to GameState deck key (lowercase)
           const deckTypeMap: Record<string, keyof typeof game.decks> = {
@@ -1542,8 +1543,10 @@ export class GameManager {
             const activeDraftEvents = await db.select().from(seasonalEvents)
               .where(and(eq(seasonalEvents.isActive, true), lte(seasonalEvents.startDate, nowDraft), gt(seasonalEvents.endDate, nowDraft)));
             for (const ev of activeDraftEvents) {
-              const draftSeasonalCards = await db.select().from(seasonalCards)
-                .where(and(eq(seasonalCards.eventId, ev.id), eq(seasonalCards.gameMode, 'draft')));
+              // In draft, inject both 'all' and 'draft' mode cards into the player's personal deck
+              const draftSeasonalCards = (await db.select().from(seasonalCards)
+                .where(eq(seasonalCards.eventId, ev.id)))
+                .filter(sc => sc.gameMode === 'all' || sc.gameMode === 'draft');
               const deckTypeMapDraft: Record<string, 'personaggi' | 'mosse' | 'bonus'> = {
                 'PERSONAGGI': 'personaggi', 'MOSSE': 'mosse', 'BONUS': 'bonus',
               };
