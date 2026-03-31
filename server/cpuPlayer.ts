@@ -672,9 +672,17 @@ export class CPUPlayer {
     if (/dimezza\s+(?:i\s+)?pti|pti\s+dimezz/i.test(combined)) {
       return { damage: 0, specialEffect: 'dimezza_pti' };
     }
-    // FURTO: steals stars equal to attackerStars. Lethality is checked against enemy stars.
+    // FURTO: steals stars from the target. The number of stars stolen per use is determined by
+    // card.mosseDamageValue (primary) or parsed from effect text ("ruba N stelle"), defaulting to 1.
+    // Total stars stolen = furtoValue * attackerStars.
     if (/\bfurto\b/i.test(mosseName)) {
-      return { damage: attackerStars, specialEffect: 'furto_stelle' };
+      let furtoValue = card.mosseDamageValue ?? 1;
+      if (furtoValue <= 0) {
+        const m = effect.match(/ruba\s+(\d+)\s+stelle/i);
+        furtoValue = m ? parseInt(m[1]) : 1;
+      }
+      const stolenStars = furtoValue * Math.max(1, attackerStars);
+      return { damage: stolenStars, specialEffect: 'furto_stelle' };
     }
     const baseDmg = card.mosseDamageValue || 0;
     // MOSSE PROGRESSIVE: damage grows each turn (e.g. 5→10→20→40).
@@ -1006,42 +1014,58 @@ export class CPUPlayer {
     }
 
     // FURTO STELLE TARGET OVERRIDE: when the CPU's hand contains a Furto move,
-    // re-score enemies by star-lethality first. An enemy whose stars ≤ attackerStars
-    // will DIE from the steal — this should take highest priority (same tier as PTI lethal).
+    // override the target with the MOST DANGEROUS star-lethal enemy. An enemy whose stars
+    // ≤ (furtoValue × myStars) will be eliminated by the star steal — highest priority kill.
     const cpuHand = (gameState.players?.[this.playerName]?.hand ?? []) as any[];
     const furtoInHand = cpuHand.find((c: any) => c.type === 'mosse' && /\bfurto\b/i.test(c.name || c.frontImage || ''));
     if (furtoInHand && myChar) {
       const myStars = this.extractStarsFromCard(myChar);
-      const furtoLethalTarget = enemies.find((e: any) => this.extractStarsFromCard(e) <= myStars);
-      if (furtoLethalTarget) {
-        console.log(`⭐ CPU ${this.playerName}: FURTO — targeting star-lethal enemy (${this.extractStarsFromCard(furtoLethalTarget)} stelle ≤ ${myStars})`);
-        target = furtoLethalTarget;
+      let furtoValue = furtoInHand.mosseDamageValue ?? 1;
+      if (furtoValue <= 0) {
+        const m = (furtoInHand.effect || '').match(/ruba\s+(\d+)\s+stelle/i);
+        furtoValue = m ? parseInt(m[1]) : 1;
+      }
+      const stolenStars = furtoValue * Math.max(1, myStars);
+      // Among lethal-Furto enemies, pick the one with the highest threat (most dangerous lethal)
+      const furtoLethalEnemies = enemies.filter((e: any) => this.extractStarsFromCard(e) <= stolenStars);
+      if (furtoLethalEnemies.length > 0) {
+        const furtoTarget = furtoLethalEnemies.reduce((best: any, e: any) => {
+          const threat = this.extractPtiFromCard(e) + this.extractStarsFromCard(e) * 200;
+          const bestThreat = this.extractPtiFromCard(best) + this.extractStarsFromCard(best) * 200;
+          return threat > bestThreat ? e : best;
+        }, furtoLethalEnemies[0]);
+        console.log(`⭐ CPU ${this.playerName}: FURTO — targeting most dangerous star-lethal enemy (${this.extractStarsFromCard(furtoTarget)} stelle ≤ ${stolenStars})`);
+        target = furtoTarget;
       }
     }
 
-    // HARD MULTI-PLAYER TARGETING: 30% chance to target the most dangerous enemy
-    // (highest PTI×stars threat) when no lethal kill is available and there are 3+ players total.
-    // This prevents the CPU from always ignoring powerful opponents just because they have high HP.
+    // HARD MULTI-PLAYER TARGETING (70/30): in hard+3 players games, when there is no lethal
+    // PTI kill available, explicitly apply a 70% weakest / 30% most-dangerous split instead of
+    // always going for the highest-threat score. This prevents the CPU from ignoring powerhouses.
     const totalPlayers = ((gameState.turnOrder as string[] | undefined) ?? Object.keys(gameState.players ?? {})).length;
     if (this.level === 'hard' && totalPlayers >= 3) {
       const anyLethal = enemies.some((e: any) => {
         const pti = this.extractPtiFromCard(e);
         return pti > 0 && pti <= myDmg;
       });
-      if (!anyLethal && Math.random() < 0.30) {
-        let mostDangerous = enemies[0];
-        let highestThreat = -Infinity;
-        for (const enemy of enemies) {
-          const pti = this.extractPtiFromCard(enemy);
-          const stars = this.extractStarsFromCard(enemy);
-          const threat = pti + stars * 200;
-          if (threat > highestThreat) {
-            highestThreat = threat;
-            mostDangerous = enemy;
-          }
+      if (!anyLethal) {
+        // Weakest: lowest PTI
+        const weakestEnemy = enemies.reduce((w: any, e: any) =>
+          this.extractPtiFromCard(e) < this.extractPtiFromCard(w) ? e : w, enemies[0]);
+        // Most dangerous: highest PTI + stars×200 threat
+        const mostDangerous = enemies.reduce((d: any, e: any) => {
+          const threat = this.extractPtiFromCard(e) + this.extractStarsFromCard(e) * 200;
+          const dThreat = this.extractPtiFromCard(d) + this.extractStarsFromCard(d) * 200;
+          return threat > dThreat ? e : d;
+        }, enemies[0]);
+
+        if (Math.random() < 0.30) {
+          console.log(`🎯 [hard-multi 30%] CPU ${this.playerName}: targeting most dangerous (PTI=${this.extractPtiFromCard(mostDangerous)}, ★=${this.extractStarsFromCard(mostDangerous)})`);
+          target = mostDangerous;
+        } else {
+          console.log(`🎯 [hard-multi 70%] CPU ${this.playerName}: targeting weakest (PTI=${this.extractPtiFromCard(weakestEnemy)})`);
+          target = weakestEnemy;
         }
-        console.log(`🎯 [hard-multi] CPU ${this.playerName}: targeting most dangerous enemy (PTI=${this.extractPtiFromCard(mostDangerous)}, ★=${this.extractStarsFromCard(mostDangerous)})`);
-        target = mostDangerous;
       }
     }
 
