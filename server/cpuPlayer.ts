@@ -703,8 +703,15 @@ export class CPUPlayer {
       if (specialEffect === 'morte_istantanea') return 1000000;
       if (specialEffect === 'dimezza_pti') return 500000;
 
-      // FURTO STELLE: lethal when enemy stars ≤ attackerStars. Score it accordingly.
+      // FURTO STELLE: lethal when enemy stars ≤ stolenStars (furtoValue × attackerStars).
+      // Re-derive furtoValue here (same formula as getMosseEffectiveDamage) to ensure consistency.
       if (specialEffect === 'furto_stelle') {
+        let furtoValue = card.mosseDamageValue ?? 1;
+        if (furtoValue <= 0) {
+          const m = (card.effect || '').match(/ruba\s+(\d+)\s+stelle/i);
+          furtoValue = m ? parseInt(m[1]) : 1;
+        }
+        const stolenStars = furtoValue * Math.max(1, attackerStars);
         const gs = gameState ?? (this.gameManager ? this.gameManager.getGameState(this.gameId) : null);
         if (gs) {
           const enemies = (gs.field ?? []).filter((c: any) =>
@@ -712,10 +719,10 @@ export class CPUPlayer {
             (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
             !c.stealth && !c.eliminatedBy
           );
-          const canKill = enemies.some((e: any) => this.extractStarsFromCard(e) <= attackerStars);
+          const canKill = enemies.some((e: any) => this.extractStarsFromCard(e) <= stolenStars);
           if (canKill) return 400000;
         }
-        return attackerStars * 200;
+        return stolenStars * 200;
       }
 
       // MOSSE PROGRESSIVE: scale value proportionally to the weakest enemy's PTI.
@@ -741,8 +748,10 @@ export class CPUPlayer {
         finalDamage = Math.round(damage * progMultiplier);
       }
 
-      // MOSSE ORIGINALI: if the CPU's active character matches a usedBy override on this card,
-      // the damage is higher (card is a "mossa originale" for this character). Boost its score.
+      // MOSSE ORIGINALI: if the CPU's active character matches a usedBy override OR originalCharacter
+      // on this card, it is a "mossa originale" for this character — always boost its score.
+      // The 1.5× multiplier is applied consistently on top of the best damage estimate regardless
+      // of whether the override damage is strictly greater (encourages the CPU to use its own moves).
       if (card.mosseCharacterOverrides && Array.isArray(card.mosseCharacterOverrides) && card.mosseCharacterOverrides.length > 0) {
         const gs = gameState ?? (this.gameManager ? this.gameManager.getGameState(this.gameId) : null);
         if (gs) {
@@ -752,14 +761,18 @@ export class CPUPlayer {
           if (myChar) {
             const myCharName = (myChar.name || this.getCardNameFromUrl(myChar.frontImage || '')).toUpperCase().replace(/[_-]/g, ' ').trim();
             const override = card.mosseCharacterOverrides.find((o: any) => {
-              const charNorm = (o.characterName || o.characterId || '').toUpperCase().replace(/[_-]/g, ' ').trim();
+              // Check both 'characterName/characterId' (usedBy) and 'originalCharacter' fields
+              const charNorm = (o.characterName || o.characterId || o.originalCharacter || '').toUpperCase().replace(/[_-]/g, ' ').trim();
               return charNorm === myCharName;
             });
-            if (override?.usedBy?.damageValue != null) {
-              const overrideDmg = override.usedBy.damageValue * Math.max(1, attackerStars);
-              // Use override damage if higher; apply a 1.5× bonus to prefer "mossa originale"
-              if (overrideDmg > finalDamage) {
-                finalDamage = Math.round(overrideDmg * 1.5);
+            if (override) {
+              // Apply the best available damage: take the override value if it exists, else use current
+              if (override.usedBy?.damageValue != null) {
+                const overrideDmg = override.usedBy.damageValue * Math.max(1, attackerStars);
+                finalDamage = Math.round(Math.max(finalDamage, overrideDmg) * 1.5);
+              } else {
+                // No damage override — still boost score 1.5× to signal "mossa originale" preference
+                finalDamage = Math.round(finalDamage * 1.5);
               }
             }
           }
@@ -1016,8 +1029,10 @@ export class CPUPlayer {
     // FURTO STELLE TARGET OVERRIDE: when the CPU's hand contains a Furto move,
     // override the target with the MOST DANGEROUS star-lethal enemy. An enemy whose stars
     // ≤ (furtoValue × myStars) will be eliminated by the star steal — highest priority kill.
+    // Guard: once a Furto-lethal target is selected, skip the Hard 70/30 override below.
     const cpuHand = (gameState.players?.[this.playerName]?.hand ?? []) as any[];
     const furtoInHand = cpuHand.find((c: any) => c.type === 'mosse' && /\bfurto\b/i.test(c.name || c.frontImage || ''));
+    let furtoLethalSelected = false;
     if (furtoInHand && myChar) {
       const myStars = this.extractStarsFromCard(myChar);
       let furtoValue = furtoInHand.mosseDamageValue ?? 1;
@@ -1036,14 +1051,15 @@ export class CPUPlayer {
         }, furtoLethalEnemies[0]);
         console.log(`⭐ CPU ${this.playerName}: FURTO — targeting most dangerous star-lethal enemy (${this.extractStarsFromCard(furtoTarget)} stelle ≤ ${stolenStars})`);
         target = furtoTarget;
+        furtoLethalSelected = true;
       }
     }
 
     // HARD MULTI-PLAYER TARGETING (70/30): in hard+3 players games, when there is no lethal
     // PTI kill available, explicitly apply a 70% weakest / 30% most-dangerous split instead of
-    // always going for the highest-threat score. This prevents the CPU from ignoring powerhouses.
+    // always going for the highest-threat score. Skip if Furto already selected a lethal target.
     const totalPlayers = ((gameState.turnOrder as string[] | undefined) ?? Object.keys(gameState.players ?? {})).length;
-    if (this.level === 'hard' && totalPlayers >= 3) {
+    if (!furtoLethalSelected && this.level === 'hard' && totalPlayers >= 3) {
       const anyLethal = enemies.some((e: any) => {
         const pti = this.extractPtiFromCard(e);
         return pti > 0 && pti <= myDmg;
