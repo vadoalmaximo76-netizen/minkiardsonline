@@ -316,6 +316,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [stakuOpportunity, setStakuOpportunity] = useState<{ stakuOwner: string; casterName: string; cardName: string; timeoutMs: number } | null>(null);
   const [stakuCountdown, setStakuCountdown] = useState(0);
   const stakuTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [trinitaPanel, setTrinitaPanel] = useState<{ visible: boolean; choiceId: string; playerName: string; fieldChars: Array<{id: string; name: string; owner: string; pti?: number; stars?: number; image?: string}>; selected: string[] } | null>(null);
+  const [schedinePanel, setSchedinePanel] = useState<{ visible: boolean; choiceId: string; playerName: string; allPlayers: string[]; isGoldenFreezer: boolean; selected: string[] } | null>(null);
   const [daddyConteDialog, setDaddyConteDialog] = useState<{ visible: boolean; characters: Array<{id: string; name: string; frontImage: string; owner: string}> } | null>(null);
   const [fabrizioDialog, setFabrizioDialog] = useState<{ visible: boolean; characterName: string; characterId: string; currentPti: number } | null>(null);
   const [camilloDialog, setCamilloDialog] = useState<{ visible: boolean; halfPTI: number; opponents: Array<{playerName: string; charId?: string; charName: string; charImage: string}> } | null>(null);
@@ -1247,6 +1249,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       console.log(`[FOTOGRAFO] Revealed hand of ${data.playerName}: ${data.hand.length} cards`);
     };
     socket.on('fotografo-reveal-hand', handleFotografoRevealHand);
+
+    const handleShowTrinitaPanel = (data: { choiceId: string; playerName: string; fieldChars: Array<{id: string; name: string; owner: string; pti?: number; stars?: number; image?: string}> }) => {
+      console.log('[TRINITÀ] show-trinita-panel received', data);
+      setTrinitaPanel({ visible: true, choiceId: data.choiceId, playerName: data.playerName, fieldChars: data.fieldChars, selected: [] });
+    };
+    socket.on('show-trinita-panel', handleShowTrinitaPanel);
+
+    const handleShowSchedinePanel = (data: { choiceId: string; playerName: string; allPlayers: string[]; isGoldenFreezer: boolean }) => {
+      console.log('[SCHEDINE] show-schedine-panel received', data);
+      setSchedinePanel({ visible: true, choiceId: data.choiceId, playerName: data.playerName, allPlayers: data.allPlayers, isGoldenFreezer: data.isGoldenFreezer, selected: [] });
+    };
+    socket.on('show-schedine-panel', handleShowSchedinePanel);
 
     const handleDaddyConteChoice = (data: { characters: Array<{id: string; name: string; frontImage: string; owner: string}> }) => {
       setDaddyConteDialog({ visible: true, characters: data.characters });
@@ -2406,6 +2420,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('block-card-type-select', handleBlockCardTypeSelect);
       socket.off('show-choice-panel', handleShowChoicePanel);
       socket.off('fotografo-reveal-hand', handleFotografoRevealHand);
+      socket.off('show-trinita-panel', handleShowTrinitaPanel);
+      socket.off('show-schedine-panel', handleShowSchedinePanel);
       socket.off('daddy-conte-choice', handleDaddyConteChoice);
       socket.off('fabrizio-choice', handleFabrizioChoice);
       socket.off('camillo-kill-choice', handleCamilloKillChoice);
@@ -5410,6 +5426,105 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   className="py-3 px-4 rounded-lg font-bold text-sm transition-all border bg-gray-800 hover:bg-gray-700 border-gray-600 text-gray-300"
                 >
                   Lascia passare
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── TRINITÀ Panel ────────────────────────────────────────────────── */}
+        {trinitaPanel?.visible && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80">
+            <div className="bg-gradient-to-b from-indigo-950 to-gray-900 rounded-xl p-6 shadow-2xl border border-indigo-400/50 max-w-md w-full mx-4 max-h-[85vh] overflow-y-auto">
+              <div className="text-center mb-4">
+                <span className="text-4xl">✝️</span>
+                <h3 className="text-white text-xl font-bold mt-2 uppercase tracking-widest">TRINITÀ</h3>
+                <p className="text-indigo-200 text-sm mt-1">Scegli 3 personaggi da assegnare a te stesso</p>
+                <p className="text-indigo-300 text-xs mt-1">Selezionati: <strong>{trinitaPanel.selected.length}/3</strong></p>
+              </div>
+              <div className="flex flex-col gap-2 mb-4">
+                {trinitaPanel.fieldChars.map((char) => {
+                  const isSel = trinitaPanel.selected.includes(char.id);
+                  return (
+                    <button
+                      key={char.id}
+                      onClick={() => {
+                        setTrinitaPanel(prev => {
+                          if (!prev) return prev;
+                          const sel = isSel
+                            ? prev.selected.filter(id => id !== char.id)
+                            : prev.selected.length < 3 ? [...prev.selected, char.id] : prev.selected;
+                          return { ...prev, selected: sel };
+                        });
+                      }}
+                      className={`w-full px-3 py-2 rounded-lg font-bold transition-all flex items-center gap-2 border ${isSel ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-200 hover:bg-gray-700'}`}
+                    >
+                      {char.image && <img src={char.image} alt={char.name} className="w-8 h-8 rounded object-cover" />}
+                      <span className="text-sm flex-1 text-left">{char.name} <span className="text-gray-400 text-xs">({char.owner}) — {char.pti ?? '?'} PTI ⭐{char.stars ?? '?'}</span></span>
+                      {isSel && <span className="text-indigo-300 text-xs">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  disabled={trinitaPanel.selected.length !== 3}
+                  onClick={() => {
+                    socket.emit('trinita-response', { choiceId: trinitaPanel.choiceId, selectedIds: trinitaPanel.selected, gameId });
+                    setTrinitaPanel(null);
+                  }}
+                  className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg"
+                >
+                  ✝️ Conferma selezione ({trinitaPanel.selected.length}/3)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── SCHEDINE Panel ───────────────────────────────────────────────── */}
+        {schedinePanel?.visible && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80">
+            <div className="bg-gradient-to-b from-green-950 to-gray-900 rounded-xl p-6 shadow-2xl border border-green-400/50 max-w-sm w-full mx-4">
+              <div className="text-center mb-4">
+                <span className="text-4xl">🎲</span>
+                <h3 className="text-white text-xl font-bold mt-2 uppercase tracking-widest">SCHEDINE{schedinePanel.isGoldenFreezer ? ' 🥶' : ''}</h3>
+                <p className="text-green-200 text-sm mt-1">Scommetti su 2 finalisti{schedinePanel.isGoldenFreezer ? ' (Golden Freezer — gioco obbligatorio)' : ''}</p>
+                <p className="text-green-300 text-xs mt-1">Selezionati: <strong>{schedinePanel.selected.length}/2</strong></p>
+              </div>
+              <div className="flex flex-col gap-2 mb-4">
+                {schedinePanel.allPlayers.map((pName) => {
+                  const isSel = schedinePanel.selected.includes(pName);
+                  return (
+                    <button
+                      key={pName}
+                      onClick={() => {
+                        setSchedinePanel(prev => {
+                          if (!prev) return prev;
+                          const sel = isSel
+                            ? prev.selected.filter(n => n !== pName)
+                            : prev.selected.length < 2 ? [...prev.selected, pName] : prev.selected;
+                          return { ...prev, selected: sel };
+                        });
+                      }}
+                      className={`w-full px-4 py-3 rounded-lg font-bold transition-all flex items-center justify-between border ${isSel ? 'bg-green-700 border-green-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-200 hover:bg-gray-700'}`}
+                    >
+                      <span>{pName}</span>
+                      {isSel && <span className="text-green-300 text-xs">✓ Finalista</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  disabled={schedinePanel.selected.length !== 2}
+                  onClick={() => {
+                    socket.emit('schedine-response', { choiceId: schedinePanel.choiceId, finalists: schedinePanel.selected, gameId });
+                    setSchedinePanel(null);
+                  }}
+                  className="flex-1 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg"
+                >
+                  🎲 Scommetti su {schedinePanel.selected.join(' e ') || '...'}
                 </button>
               </div>
             </div>

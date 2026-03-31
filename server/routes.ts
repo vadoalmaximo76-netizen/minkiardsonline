@@ -5189,6 +5189,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
+      // ── TRINITÀ ───────────────────────────────────────────────────────────────
+      // (response sent via 'trinita-response' dedicated event, handled below)
+
+      // ── SCHEDINE ──────────────────────────────────────────────────────────────
+      // (response sent via 'schedine-response' dedicated event, handled below)
+
       // ── BOB DYLAN ────────────────────────────────────────────────────────────
       const pending = (game as any).pendingBobDylanChoice;
       if (!pending || pending.choiceId !== choiceId || pending.playerName !== socketPlayerName) {
@@ -5258,6 +5264,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const gs = gameManager.getSanitizedGameState(gameId);
       emitImmediateGameState(io, gameId, gs);
+    });
+
+    // ── TRINITÀ response ────────────────────────────────────────────────────────
+    socket.on('trinita-response', ({ gameId: gId, choiceId, selectedIds }: { gameId: string; choiceId: string; selectedIds: string[] }) => {
+      const gameId = gId || gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = (gameManager as any).games?.get(gameId);
+      if (!game) return;
+      const socketPlayerName = gameManager.getPlayerNameFromSocket(socket.id);
+      if (!socketPlayerName) return;
+      const pendingTrinita = (game as any).pendingTrinita;
+      if (!pendingTrinita || pendingTrinita.choiceId !== choiceId || pendingTrinita.playerName !== socketPlayerName) {
+        console.warn(`✝️ TRINITÀ: invalid or expired trinita-response from ${socketPlayerName}`);
+        return;
+      }
+      delete (game as any).pendingTrinita;
+      // Validate: exactly 3 distinct personaggi in campo
+      const allFC = game.field.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      const validIds = new Set(allFC.map((c: any) => c.id));
+      const chosen = Array.from(new Set((selectedIds || []).filter((id: string) => validIds.has(id)))).slice(0, 3);
+      if (chosen.length !== 3) {
+        io.to(gameId).emit('chat-message', { id: `${Date.now()}-trinita-invalid`, playerName: 'Sistema', message: `✝️ TRINITÀ: selezione non valida (${chosen.length}/3).`, timestamp: Date.now() });
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+      const chosenCards = chosen.map((id: string) => game.field.find((c: any) => c.id === id)).filter(Boolean);
+      for (const c of chosenCards) c.owner = socketPlayerName;
+      const specialNames = /the\s*rock[ki]t|peeo|pap/i;
+      const specCount = chosenCards.filter((c: any) => specialNames.test(c.name || '')).length;
+      if (specCount >= 3) {
+        for (const c of chosenCards) { c.pti = (c.pti || 0) + 10000; c.stars = (c.stars || 0) + 10; (gameManager as any).updateCardTextWithPTI(c); }
+        io.to(gameId).emit('chat-message', { id: `${Date.now()}-trinita-max`, playerName: 'Sistema', message: `✝️ TRINITÀ! Tutti e 3 (Rockit+Peeo+Pap)! +10000 PTI e +10 stelle a testa!`, timestamp: Date.now() });
+      } else if (specCount > 0) {
+        for (const c of chosenCards) { c.pti = (c.pti || 0) + 1000; (gameManager as any).updateCardTextWithPTI(c); }
+        io.to(gameId).emit('chat-message', { id: `${Date.now()}-trinita-spec`, playerName: 'Sistema', message: `✝️ TRINITÀ! ${specCount} speciali tra i 3 scelti — +1000 PTI ciascuno!`, timestamp: Date.now() });
+      } else {
+        io.to(gameId).emit('chat-message', { id: `${Date.now()}-trinita-ok`, playerName: 'Sistema', message: `✝️ TRINITÀ! ${socketPlayerName} ha assegnato 3 personaggi a sé stesso.`, timestamp: Date.now() });
+      }
+      console.log(`✝️ TRINITÀ (human): ${socketPlayerName} chose ${chosen.join(',')}, specials=${specCount}`);
+      io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+    });
+
+    // ── SCHEDINE response ───────────────────────────────────────────────────────
+    socket.on('schedine-response', ({ gameId: gId, choiceId, finalists }: { gameId: string; choiceId: string; finalists: string[] }) => {
+      const gameId = gId || gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = (gameManager as any).games?.get(gameId);
+      if (!game) return;
+      const socketPlayerName = gameManager.getPlayerNameFromSocket(socket.id);
+      if (!socketPlayerName) return;
+      const pendingSchedine = (game as any).pendingSchedine;
+      if (!pendingSchedine || pendingSchedine.choiceId !== choiceId || pendingSchedine.playerName !== socketPlayerName) {
+        console.warn(`🎲 SCHEDINE: invalid or expired schedine-response from ${socketPlayerName}`);
+        return;
+      }
+      delete (game as any).pendingSchedine;
+      // Validate: exactly 2 distinct players from turnOrder
+      const validPlayers = new Set(game.turnOrder as string[]);
+      const bet = Array.from(new Set((finalists || []).filter((p: string) => validPlayers.has(p)))).slice(0, 2);
+      if (bet.length !== 2) {
+        io.to(gameId).emit('chat-message', { id: `${Date.now()}-schedine-invalid`, playerName: 'Sistema', message: `🎲 SCHEDINE: selezione non valida (${bet.length}/2 giocatori).`, timestamp: Date.now() });
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        return;
+      }
+      if (!(game as any).schedineBet) (game as any).schedineBet = {};
+      (game as any).schedineBet[socketPlayerName] = { finalists: bet, frozen: true, goldenFreezer: pendingSchedine.goldenFreezer };
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-schedine-ok`, playerName: 'Sistema',
+        message: `🎲 SCHEDINE! ${socketPlayerName}${pendingSchedine.goldenFreezer ? ' (GOLDEN FREEZER)' : ''} scommette su ${bet.join(' e ')}! Carte congelate fino alla fine.`,
+        timestamp: Date.now()
+      });
+      console.log(`🎲 SCHEDINE (human): ${socketPlayerName} bet on ${bet.join(',')}, goldenFreezer=${pendingSchedine.goldenFreezer}`);
+      io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
     });
 
     // TASK-24: EVIL FAKE graveyard absorb
