@@ -10427,19 +10427,44 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             io.to(ffSockId).emit('fantafinanza-reveal', { allHands: allHandsData });
           }
 
-          // Store pending state — resolved by fantafinanza-apply route in routes.ts
+          // Gather human player's eligible cards
           const ffEligible = (game.players[playerName]?.hand as Card[] || []).filter((c: Card) => !(c as any).receivedThisTurn);
-          (game as any).pendingFantafinanza = { playerName, cardId: card.id, isFenomeno };
 
-          if (io && ffSockId) {
-            io.to(ffSockId).emit('fantafinanza-prompt', {
-              cards: ffEligible.map((c: Card) => ({
-                id: c.id, name: c.name || '', frontImage: c.frontImage || '', pti: c.pti || 0,
-              })),
-              isFenomeno,
-            });
+          if (ffEligible.length === 0) {
+            // Human has no eligible cards — auto-resolve all swaps (CPU auto-picks, human is skipped)
+            const ffSnapshot2: Record<string, Card[]> = {};
+            for (const p of ffOrder) ffSnapshot2[p] = [...(game.players[p]?.hand || [])];
+            const ffSwaps2: string[] = [];
+            for (let i = 0; i < ffOrder.length; i++) {
+              const curr = ffOrder[i];
+              const prev = ffOrder[(i - 1 + ffOrder.length) % ffOrder.length];
+              if (curr === playerName) continue; // human skipped — no eligible cards
+              const eligible2 = ffSnapshot2[curr].filter((c: Card) => !(c as any).receivedThisTurn);
+              if (eligible2.length === 0) continue;
+              eligible2.sort((a: Card, b: Card) => ((a.pti || 0) - (b.pti || 0)));
+              const swapCard2 = eligible2[0];
+              const actualIdx2 = (game.players[curr]?.hand as Card[] || []).findIndex((c: Card) => c.id === swapCard2.id);
+              if (actualIdx2 !== -1) (game.players[curr].hand as Card[]).splice(actualIdx2, 1);
+              const delivered2 = { ...swapCard2, owner: prev, receivedThisTurn: true } as Card;
+              (game.players[prev].hand as Card[]).push(delivered2);
+              ffSwaps2.push(`${curr}→${prev}`);
+            }
+            emitChat(`💰 FANTAFINANZA! ${playerName} non aveva carte cedibili — gli altri scambiano comunque! (${ffSwaps2.join(', ')})`);
+            emitState();
+          } else {
+            // Store pending state — resolved by fantafinanza-apply route in routes.ts
+            (game as any).pendingFantafinanza = { playerName, cardId: card.id, isFenomeno };
+
+            if (io && ffSockId) {
+              io.to(ffSockId).emit('fantafinanza-prompt', {
+                cards: ffEligible.map((c: Card) => ({
+                  id: c.id, name: c.name || '', frontImage: c.frontImage || '', pti: c.pti || 0,
+                })),
+                isFenomeno,
+              });
+            }
+            emitChat(`💰 FANTAFINANZA! Ogni giocatore cederà una carta al precedente. ${playerName}${isFenomeno ? ' (IL FENOMENO) ha guardato le mani avversarie e' : ''} sta scegliendo quale carta cedere...`);
           }
-          emitChat(`💰 FANTAFINANZA! Ogni giocatore cederà una carta al precedente. ${playerName}${isFenomeno ? ' (IL FENOMENO) ha guardato le mani avversarie e' : ''} sta scegliendo quale carta cedere...`);
         }
         break;
       }
