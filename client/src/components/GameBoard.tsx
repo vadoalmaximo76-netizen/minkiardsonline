@@ -2724,27 +2724,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           transition: 'opacity 0.4s ease',
         }} />
       )}
-      {/* Scenario background overlay (blurred card image) */}
-      {activeScenarioBanner?.cardImageUrl && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
-          backgroundImage: `url(${activeScenarioBanner.cardImageUrl})`,
-          backgroundSize: 'cover', backgroundPosition: 'center',
-          filter: 'blur(12px) brightness(0.35)',
-          transition: 'opacity 0.8s ease',
-        }} />
-      )}
-
       <div className="game-field-aurora" />
       <GameToastContainer />
 
       {/* ── SCENARIO SYSTEM UI ──────────────────────────────────────────────────── */}
 
-      {/* Scenario animated CSS overlay for 7 special scenarios */}
+      {/* Scenario animated CSS overlay for 7 special scenarios — zIndex:20 to sit above z-10 content wrapper */}
       {activeScenarioBanner && (() => {
         const scenarioName = activeScenarioBanner.name;
         if (scenarioName === 'CALDO INFERNALE') return (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 20, pointerEvents: 'none' }}>
             <div style={{
               position: 'absolute', inset: 0,
               background: 'linear-gradient(0deg, rgba(255,50,0,0.50) 0%, rgba(255,120,0,0.30) 50%, rgba(255,80,0,0.12) 100%)',
@@ -2758,7 +2747,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </div>
         );
         if (scenarioName === 'GUERRA') return (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 20, pointerEvents: 'none' }}>
             <div style={{
               position: 'absolute', inset: 0,
               background: 'repeating-linear-gradient(135deg, rgba(80,80,80,0.25) 0px, transparent 60px, rgba(60,60,60,0.20) 120px)',
@@ -2771,7 +2760,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </div>
         );
         if (scenarioName === 'MONDO SOMMERSO') return (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 20, pointerEvents: 'none' }}>
             <div style={{
               position: 'absolute', inset: 0,
               background: 'linear-gradient(180deg, rgba(0,60,180,0.50) 0%, rgba(0,120,255,0.35) 60%, rgba(0,80,200,0.15) 100%)',
@@ -2785,7 +2774,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </div>
         );
         if (scenarioName === 'PACIFISMO') return (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 20, pointerEvents: 'none' }}>
             <div style={{
               position: 'absolute', inset: 0,
               background: 'linear-gradient(135deg, rgba(255,100,100,0.20) 0%, rgba(255,200,0,0.20) 16%, rgba(0,255,0,0.20) 33%, rgba(0,200,255,0.20) 50%, rgba(100,0,255,0.20) 66%, rgba(255,0,200,0.20) 83%, rgba(255,100,100,0.20) 100%)',
@@ -2794,7 +2783,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </div>
         );
         if (scenarioName === 'REGNO DEGLI INFERI') return (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 20, pointerEvents: 'none' }}>
             <div style={{
               position: 'absolute', inset: 0,
               background: 'linear-gradient(0deg, rgba(80,0,0,0.55) 0%, rgba(40,0,80,0.40) 60%, rgba(20,0,40,0.15) 100%)',
@@ -2807,7 +2796,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </div>
         );
         if (scenarioName === 'REGNO SPECIALE') return (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 20, pointerEvents: 'none' }}>
             <div style={{
               position: 'absolute', inset: 0,
               background: 'linear-gradient(135deg, rgba(255,215,0,0.22), rgba(200,100,255,0.25), rgba(0,200,255,0.22))',
@@ -2821,7 +2810,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </div>
         );
         if (scenarioName === 'VEDI NAPOLI E POI MUORI') return (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none', overflow: 'hidden' }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 20, pointerEvents: 'none', overflow: 'hidden' }}>
             <div style={{
               position: 'absolute', inset: 0,
               background: 'linear-gradient(180deg, rgba(0,80,200,0.35) 0%, transparent 50%, rgba(200,0,0,0.30) 100%)',

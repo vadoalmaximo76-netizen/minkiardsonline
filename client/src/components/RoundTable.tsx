@@ -346,12 +346,29 @@ const RoundTableComponent: React.FC = () => {
           boxShadow: `0 0 60px ${tableTheme.tableBorder}30, 0 0 120px rgba(30,0,60,0.4), inset 0 0 80px rgba(30,0,60,0.15)`,
         }}
       >
+        {/* Scenario background image overlay — replaces fixed div at zIndex:0 in GameBoard */}
+        {gameState?.activeScenario?.cardImageUrl && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              borderRadius: '22px',
+              backgroundImage: `url(${gameState.activeScenario.cardImageUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              filter: 'blur(10px) brightness(0.35)',
+              zIndex: 0,
+              transition: 'opacity 0.8s ease',
+            }}
+          />
+        )}
+
         {/* Theme colour overlay */}
         <div
           className="absolute inset-0 arena-overlay-pulse pointer-events-none"
           style={{
             borderRadius: '20px',
             background: tableTheme.backgroundGradient,
+            zIndex: 0,
           }}
         />
         
