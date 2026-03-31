@@ -12272,11 +12272,13 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
-      const { name, deckType, imageUrl, pti, stars, effect, rarity } = req.body;
+      const { name, deckType, imageUrl, pti, stars, effect, rarity, gameMode } = req.body;
 
       if (!name || !deckType) {
         return res.status(400).json({ success: false, error: 'Name and deck type are required' });
       }
+
+      const validGameMode = gameMode === 'draft' ? 'draft' : 'all';
 
       const newCard = await db.insert(seasonalCards).values({
         eventId,
@@ -12286,10 +12288,11 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         pti: pti || null,
         stars: stars || null,
         effect: effect || null,
-        rarity: rarity || 'rare'
+        rarity: rarity || 'rare',
+        gameMode: validGameMode
       }).returning();
 
-      emitSync('seasonal_cards', 'insert', { eventId, name, deckType, imageUrl: imageUrl || null, pti: pti || null, stars: stars || null, effect: effect || null, rarity: rarity || 'rare' });
+      emitSync('seasonal_cards', 'insert', { eventId, name, deckType, imageUrl: imageUrl || null, pti: pti || null, stars: stars || null, effect: effect || null, rarity: rarity || 'rare', gameMode: validGameMode });
       res.json({ success: true, card: newCard[0] });
     } catch (error) {
       console.error('Error adding seasonal card:', error);

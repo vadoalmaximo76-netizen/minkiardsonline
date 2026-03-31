@@ -478,6 +478,7 @@ export const seasonalCards = pgTable("seasonal_cards", {
   stars: integer("stars"),
   effect: text("effect"),
   rarity: text("rarity").default("rare"),
+  gameMode: text("game_mode").notNull().default("all"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

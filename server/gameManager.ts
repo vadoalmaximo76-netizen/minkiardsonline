@@ -1,7 +1,7 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db, isDatabaseAvailable, switchToFallback, getFallbackDb } from './db';
-import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, tournamentParticipants, draftDecks, draftCharacterGrowth, draftTournaments, injuredPersonaggi, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
-import { eq, ilike, sql, and, gt } from 'drizzle-orm';
+import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, tournamentParticipants, draftDecks, draftCharacterGrowth, draftTournaments, injuredPersonaggi, seasonalEvents, seasonalCards, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
+import { eq, ilike, sql, and, gt, lte } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 import { trackGameEvent } from './missionsAndAchievements';
 import { awardSeasonPassXP } from './seasonPassHelper';
@@ -1129,6 +1129,85 @@ export class GameManager {
     }
   }
 
+  async loadSeasonalCardsIntoDeck(gameId: string): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game || !isDatabaseAvailable()) return;
+
+    try {
+      const now = new Date();
+      // Fetch all active events whose period covers today
+      const activeEvents = await db.select().from(seasonalEvents)
+        .where(and(
+          eq(seasonalEvents.isActive, true),
+          lte(seasonalEvents.startDate, now),
+          gt(seasonalEvents.endDate, now)
+        ));
+
+      if (activeEvents.length === 0) return;
+
+      const eventIds = activeEvents.map(e => e.id);
+      let totalInjected = 0;
+
+      for (const eventId of eventIds) {
+        const cards = await db.select().from(seasonalCards)
+          .where(eq(seasonalCards.eventId, eventId));
+
+        for (const sc of cards) {
+          // Determine target game mode: 'draft' cards only go into draft games; 'all' go everywhere
+          const isDraftOnly = sc.gameMode === 'draft';
+          if (isDraftOnly && !game.isDraftMode) continue;
+
+          // Map seasonalCard deckType (uppercase) to GameState deck key (lowercase)
+          const deckTypeMap: Record<string, keyof typeof game.decks> = {
+            'PERSONAGGI': 'personaggi',
+            'MOSSE': 'mosse',
+            'BONUS': 'bonus',
+            'PERSONAGGI_SPECIALI': 'personaggi_speciali',
+          };
+          const deckKey = deckTypeMap[sc.deckType?.toUpperCase()] || null;
+          if (!deckKey) continue;
+
+          const targetDeck = game.decks[deckKey];
+          const cardId = `seasonal-${sc.id}`;
+
+          // Avoid duplicates
+          if (targetDeck.some(c => c.id === cardId)) continue;
+
+          const isCharacterCard = deckKey === 'personaggi' || deckKey === 'personaggi_speciali';
+          let cardText = '';
+          if (isCharacterCard && (sc.pti != null || sc.stars != null)) {
+            const ptiText = sc.pti != null ? `PTI: ${sc.pti}` : '';
+            const starsText = sc.stars != null ? `Stelle: ${sc.stars}` : '';
+            cardText = [ptiText, starsText].filter(Boolean).join(' | ');
+          }
+
+          const card: Card = {
+            id: cardId,
+            type: deckKey as 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali',
+            frontImage: sc.imageUrl || this.getBackImageForDeck(deckKey),
+            backImage: this.getBackImageForDeck(deckKey),
+            owner: '',
+            name: sc.name,
+            text: cardText || undefined,
+            pti: isCharacterCard ? (sc.pti ?? null) : null,
+            stars: isCharacterCard ? (sc.stars ?? null) : null,
+            effect: sc.effect || undefined,
+          };
+
+          targetDeck.push(card);
+          totalInjected++;
+        }
+      }
+
+      if (totalInjected > 0) {
+        console.log(`🎉 [SeasonalCards] Injected ${totalInjected} seasonal card(s) into game ${gameId} (${game.isDraftMode ? 'draft' : 'regular'} mode)`);
+        this.shuffleGameDecks(game);
+      }
+    } catch (error) {
+      console.error('[SeasonalCards] Error loading seasonal cards into deck:', error);
+    }
+  }
+
   private initializeGame(gameId: string, deletedCardIds: Set<string> = new Set()): GameState {
     const gameState = {
       decks: {
@@ -1302,6 +1381,7 @@ export class GameManager {
       this.games.set(gameId, this.initializeGame(gameId, deletedCardIds));
       await this.createMatchRecord(gameId);
       await this.loadPermanentCardsIntoDeck(gameId);
+      await this.loadSeasonalCardsIntoDeck(gameId);
       await this.applyCardModificationsToDecks(gameId);
     }
 

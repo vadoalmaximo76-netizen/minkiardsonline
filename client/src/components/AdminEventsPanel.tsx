@@ -22,7 +22,13 @@ interface SeasonalCard {
   stars: number | null;
   effect: string | null;
   rarity: string;
+  gameMode: string;
 }
+
+const GAME_MODE_OPTIONS = [
+  { value: 'all', label: 'Tutte le modalità' },
+  { value: 'draft', label: 'Solo Draft' },
+];
 
 interface AdminEventsPanelProps {
   isOpen: boolean;
@@ -67,7 +73,8 @@ export function AdminEventsPanel({ isOpen, onClose, authToken }: AdminEventsPane
     pti: '',
     stars: '',
     effect: '',
-    rarity: 'rare'
+    rarity: 'rare',
+    gameMode: 'all'
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -253,7 +260,8 @@ export function AdminEventsPanel({ isOpen, onClose, authToken }: AdminEventsPane
       pti: '',
       stars: '',
       effect: '',
-      rarity: 'rare'
+      rarity: 'rare',
+      gameMode: 'all'
     });
   };
 
@@ -543,6 +551,18 @@ export function AdminEventsPanel({ isOpen, onClose, authToken }: AdminEventsPane
                       </select>
                     </div>
                     <div>
+                      <label className="block text-sm text-purple-300 mb-1">Modalità di gioco *</label>
+                      <select
+                        value={cardFormData.gameMode}
+                        onChange={(e) => setCardFormData({ ...cardFormData, gameMode: e.target.value })}
+                        className="w-full px-3 py-2 bg-purple-900/50 border border-purple-500/30 rounded-lg text-white"
+                      >
+                        {GAME_MODE_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
                       <label className="block text-sm text-purple-300 mb-1">PTI</label>
                       <input
                         type="number"
@@ -605,7 +625,7 @@ export function AdminEventsPanel({ isOpen, onClose, authToken }: AdminEventsPane
                         <div>
                           <h4 className="font-semibold text-white">{card.name}</h4>
                           <p className="text-xs text-purple-400">{card.deckType}</p>
-                          <div className="flex items-center gap-2 mt-2 text-sm">
+                          <div className="flex items-center gap-2 mt-2 text-sm flex-wrap">
                             <span className={getRarityColor(card.rarity)}>
                               {RARITY_OPTIONS.find(r => r.value === card.rarity)?.label || card.rarity}
                             </span>
@@ -616,6 +636,11 @@ export function AdminEventsPanel({ isOpen, onClose, authToken }: AdminEventsPane
                                 {card.stars}
                               </span>
                             )}
+                          </div>
+                          <div className="mt-1">
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full ${card.gameMode === 'draft' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-green-500/20 text-green-300'}`}>
+                              {GAME_MODE_OPTIONS.find(m => m.value === card.gameMode)?.label || 'Tutte le modalità'}
+                            </span>
                           </div>
                         </div>
                         <button
