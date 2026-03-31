@@ -748,32 +748,48 @@ export class CPUPlayer {
         finalDamage = Math.round(damage * progMultiplier);
       }
 
-      // MOSSE ORIGINALI: if the CPU's active character matches a usedBy override OR originalCharacter
-      // on this card, it is a "mossa originale" for this character — always boost its score.
-      // The 1.5× multiplier is applied consistently on top of the best damage estimate regardless
-      // of whether the override damage is strictly greater (encourages the CPU to use its own moves).
-      if (card.mosseCharacterOverrides && Array.isArray(card.mosseCharacterOverrides) && card.mosseCharacterOverrides.length > 0) {
-        const gs = gameState ?? (this.gameManager ? this.gameManager.getGameState(this.gameId) : null);
-        if (gs) {
-          const myChar = (gs.field ?? []).find((c: any) =>
-            c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-          );
-          if (myChar) {
-            const myCharName = (myChar.name || this.getCardNameFromUrl(myChar.frontImage || '')).toUpperCase().replace(/[_-]/g, ' ').trim();
+      // MOSSE ORIGINALI: if the CPU's active character is the "original owner" of this card,
+      // boost the score 1.5× consistently. Detection checks both:
+      //   - card.mosseCharacterOverrides[].{characterName|characterId|originalCharacter}
+      //   - top-level card.originalCharacter (some cards use this flat field instead)
+      // The 1.5× multiplier is applied regardless of whether the override damage is strictly greater,
+      // so the CPU always prefers its own moves even when their raw damage equals another card.
+      const gs2 = gameState ?? (this.gameManager ? this.gameManager.getGameState(this.gameId) : null);
+      if (gs2) {
+        const myCharForOrig = (gs2.field ?? []).find((c: any) =>
+          c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (myCharForOrig) {
+          const myCharName = (myCharForOrig.name || this.getCardNameFromUrl(myCharForOrig.frontImage || '')).toUpperCase().replace(/[_-]/g, ' ').trim();
+          let isOriginalMove = false;
+          let overrideDmgValue: number | null = null;
+
+          // Check top-level card.originalCharacter
+          if (card.originalCharacter) {
+            const topLevelNorm = card.originalCharacter.toUpperCase().replace(/[_-]/g, ' ').trim();
+            if (topLevelNorm === myCharName) isOriginalMove = true;
+          }
+
+          // Check mosseCharacterOverrides array
+          if (!isOriginalMove && card.mosseCharacterOverrides && Array.isArray(card.mosseCharacterOverrides)) {
             const override = card.mosseCharacterOverrides.find((o: any) => {
-              // Check both 'characterName/characterId' (usedBy) and 'originalCharacter' fields
               const charNorm = (o.characterName || o.characterId || o.originalCharacter || '').toUpperCase().replace(/[_-]/g, ' ').trim();
               return charNorm === myCharName;
             });
             if (override) {
-              // Apply the best available damage: take the override value if it exists, else use current
+              isOriginalMove = true;
               if (override.usedBy?.damageValue != null) {
-                const overrideDmg = override.usedBy.damageValue * Math.max(1, attackerStars);
-                finalDamage = Math.round(Math.max(finalDamage, overrideDmg) * 1.5);
-              } else {
-                // No damage override — still boost score 1.5× to signal "mossa originale" preference
-                finalDamage = Math.round(finalDamage * 1.5);
+                overrideDmgValue = override.usedBy.damageValue * Math.max(1, attackerStars);
               }
+            }
+          }
+
+          if (isOriginalMove) {
+            // Use override damage if available and higher; always apply 1.5× boost
+            if (overrideDmgValue != null) {
+              finalDamage = Math.round(Math.max(finalDamage, overrideDmgValue) * 1.5);
+            } else {
+              finalDamage = Math.round(finalDamage * 1.5);
             }
           }
         }
@@ -951,7 +967,7 @@ export class CPUPlayer {
     return base;
   }
 
-  pickEnemyTarget(): { cardId: string; owner: string; name: string } | null {
+  pickEnemyTarget(playingMosse?: any): { cardId: string; owner: string; name: string } | null {
     if (!this.gameManager) return null;
     const gameState = this.gameManager.getGameState(this.gameId);
     if (!gameState) return null;
@@ -1026,18 +1042,23 @@ export class CPUPlayer {
       }
     }
 
-    // FURTO STELLE TARGET OVERRIDE: when the CPU's hand contains a Furto move,
-    // override the target with the MOST DANGEROUS star-lethal enemy. An enemy whose stars
-    // ≤ (furtoValue × myStars) will be eliminated by the star steal — highest priority kill.
+    // FURTO STELLE TARGET OVERRIDE: when the mosse being played IS a Furto card, override the
+    // target with the MOST DANGEROUS star-lethal enemy. If playingMosse is provided (known context),
+    // only run when it's a Furto; otherwise fall back to checking the hand (legacy path).
     // Guard: once a Furto-lethal target is selected, skip the Hard 70/30 override below.
     const cpuHand = (gameState.players?.[this.playerName]?.hand ?? []) as any[];
-    const furtoInHand = cpuHand.find((c: any) => c.type === 'mosse' && /\bfurto\b/i.test(c.name || c.frontImage || ''));
+    const isFurtoContext = playingMosse
+      ? /\bfurto\b/i.test(playingMosse.name || playingMosse.frontImage || '')
+      : cpuHand.some((c: any) => c.type === 'mosse' && /\bfurto\b/i.test(c.name || c.frontImage || ''));
+    const furtoCard = playingMosse && isFurtoContext
+      ? playingMosse
+      : cpuHand.find((c: any) => c.type === 'mosse' && /\bfurto\b/i.test(c.name || c.frontImage || ''));
     let furtoLethalSelected = false;
-    if (furtoInHand && myChar) {
+    if (isFurtoContext && furtoCard && myChar) {
       const myStars = this.extractStarsFromCard(myChar);
-      let furtoValue = furtoInHand.mosseDamageValue ?? 1;
+      let furtoValue = furtoCard.mosseDamageValue ?? 1;
       if (furtoValue <= 0) {
-        const m = (furtoInHand.effect || '').match(/ruba\s+(\d+)\s+stelle/i);
+        const m = (furtoCard.effect || '').match(/ruba\s+(\d+)\s+stelle/i);
         furtoValue = m ? parseInt(m[1]) : 1;
       }
       const stolenStars = furtoValue * Math.max(1, myStars);
@@ -2864,7 +2885,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           console.log(`🎯 CPU ${this.playerName}: ATTACCO DISONESTO detected - using hand target`);
           target = this.pickEnemyHandTarget();
         } else {
-          target = this.pickEnemyTarget();
+          target = this.pickEnemyTarget(cardToPlay);
         }
         
         if (target) {
@@ -3020,7 +3041,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         return null;
       }
     } else {
-      target = this.pickEnemyTarget();
+      // Look up the playing mosse card to bind Furto target override to the specific card context
+      const playingMosseCard = (gameState.players?.[this.playerName]?.hand ?? []).find((c: any) => c.id === cardId)
+        ?? (gameState.field ?? []).find((c: any) => c.id === cardId);
+      target = this.pickEnemyTarget(playingMosseCard);
     }
     
     if (!target) {
