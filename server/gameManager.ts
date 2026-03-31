@@ -10376,13 +10376,34 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'fantafinanza': {
+        // FANTAFINANZA: each player passes their lowest-PTI non-received card to the previous player.
+        // IL FENOMENO special: see all hands before the swap; received card is protected from steal.
         const ffOrder = game.turnOrder as string[];
         if (ffOrder.length < 2) {
-          emitChat(`💰 FANTAFINANZA! Servono almeno 2 giocatori per lo scambio.`);
+          emitChat(`💰 FANTAFINANZA! Servono almeno 2 giocatori.`);
           break;
         }
-        // Each player passes one random card to the PREVIOUS player in turn order.
-        // Take a snapshot so order doesn't matter during iteration.
+
+        const isFenomeno = /fenomeno/i.test(myCharName);
+
+        // IL FENOMENO reveals all opponents' hands before the swap
+        if (isFenomeno) {
+          const ffSockId = (game.players[playerName] as any)?.socketId;
+          if (io && ffSockId) {
+            const allHandsData: Record<string, { id: string; name: string; frontImage: string; pti: number; stars: number }[]> = {};
+            for (const [pName, pState] of Object.entries(game.players)) {
+              if (pName !== playerName) {
+                allHandsData[pName] = ((pState as any).hand || []).map((c: Card) => ({
+                  id: c.id, name: c.name || '', frontImage: c.frontImage || '',
+                  pti: c.pti || 0, stars: c.stars || 0,
+                }));
+              }
+            }
+            io.to(ffSockId).emit('fantafinanza-reveal', { allHands: allHandsData });
+          }
+        }
+
+        // Snapshot hands; each player gives their lowest-PTI card (excluding cards received this turn)
         const ffSnapshot: Record<string, Card[]> = {};
         for (const p of ffOrder) ffSnapshot[p] = [...(game.players[p]?.hand || [])];
 
@@ -10390,59 +10411,76 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         for (let i = 0; i < ffOrder.length; i++) {
           const curr = ffOrder[i];
           const prev = ffOrder[(i - 1 + ffOrder.length) % ffOrder.length];
-          const currSnap = ffSnapshot[curr];
-          if (currSnap.length === 0) continue;
-          const pickIdx = Math.floor(Math.random() * currSnap.length);
-          const swapCard = currSnap[pickIdx];
-          // Remove from current player's actual hand
+          const eligible = ffSnapshot[curr].filter((c: Card) => !(c as any).receivedThisTurn);
+          if (eligible.length === 0) continue;
+          eligible.sort((a: Card, b: Card) => ((a.pti || 0) - (b.pti || 0)));
+          const swapCard = eligible[0];
           const actualIdx = (game.players[curr]?.hand as Card[] || []).findIndex((c: Card) => c.id === swapCard.id);
           if (actualIdx !== -1) (game.players[curr].hand as Card[]).splice(actualIdx, 1);
-          // Give to previous player
-          swapCard.owner = prev;
-          (game.players[prev].hand as Card[]).push(swapCard);
+          const deliveredCard = { ...swapCard, owner: prev, receivedThisTurn: true } as Card;
+          if (isFenomeno && prev === playerName) (deliveredCard as any).protectedFromSteal = true;
+          (game.players[prev].hand as Card[]).push(deliveredCard);
           ffSwaps.push(`${curr}→${prev}`);
         }
 
-        const isFenomeno = /fenomeno/i.test(myCharName);
-        if (isFenomeno && myChar) {
-          myChar.stars = (myChar.stars || 0) + 3;
-          this.updateCardTextWithPTI(myChar);
-          emitChat(`💰 FANTAFINANZA! Ogni giocatore cede una carta al giocatore precedente! (${ffSwaps.join(', ')}) — IL FENOMENO usa il potere: +3 stelle!`);
+        if (isFenomeno) {
+          emitChat(`💰 FANTAFINANZA (IL FENOMENO)! Ogni giocatore cede la carta più debole al giocatore precedente. ${playerName} ha visto le mani degli altri e la carta ricevuta è protetta! (${ffSwaps.join(', ')})`);
         } else {
-          emitChat(`💰 FANTAFINANZA! Ogni giocatore cede una carta al giocatore precedente! (${ffSwaps.join(', ')})`);
+          emitChat(`💰 FANTAFINANZA! Ogni giocatore cede la carta più debole al giocatore precedente! (${ffSwaps.join(', ')})`);
         }
         emitState();
         break;
       }
 
       case 'faccio_quello_che_voglio': {
+        // FACCIO QUELLO CHE VOGLIO: swap entire hands between players (only whole hands).
+        // AL BANO: can swap individual cards (blind). CPU auto-plays; human gets a panel.
         const fqvOrder = game.turnOrder as string[];
         if (fqvOrder.length < 2) {
           emitChat(`🎲 FACCIO QUELLO CHE VOGLIO! Servono almeno 2 giocatori.`);
           break;
         }
-        // Snapshot all hands and redistribute randomly among all players
-        const fqvHands: Card[][] = fqvOrder.map(p => [...(game.players[p]?.hand || [])]);
-        const shuffledHands = [...fqvHands].sort(() => Math.random() - 0.5);
-        for (let i = 0; i < fqvOrder.length; i++) {
-          const newOwner = fqvOrder[i];
-          game.players[newOwner].hand = shuffledHands[i].map((c: Card) => ({ ...c, owner: newOwner }));
-        }
-
         const isAlBano = /al\s*bano/i.test(myCharName);
-        if (isAlBano) {
-          // Al Bano special: all field characters lose 1 star
-          for (const fc of game.field as Card[]) {
-            if (fc.type === 'personaggi' || fc.type === 'personaggi_speciali') {
-              fc.stars = Math.max(0, (fc.stars || 0) - 1);
-              this.updateCardTextWithPTI(fc);
+
+        if (isCPU) {
+          if (isAlBano) {
+            // AL BANO CPU: swap one random card between pairs of players (blind)
+            const fqvPairs = Math.floor(fqvOrder.length / 2);
+            const fqvShuffled = [...fqvOrder].sort(() => Math.random() - 0.5);
+            for (let p = 0; p < fqvPairs; p++) {
+              const p1 = fqvShuffled[p * 2]; const p2 = fqvShuffled[p * 2 + 1];
+              const h1 = game.players[p1]?.hand as Card[];
+              const h2 = game.players[p2]?.hand as Card[];
+              if (!h1?.length || !h2?.length) continue;
+              const i1 = Math.floor(Math.random() * h1.length);
+              const i2 = Math.floor(Math.random() * h2.length);
+              const [c1] = h1.splice(i1, 1); const [c2] = h2.splice(i2, 1);
+              c1.owner = p2; c2.owner = p1;
+              h2.push(c1); h1.push(c2);
             }
+            emitChat(`🎲 FACCIO QUELLO CHE VOGLIO! AL BANO ${playerName} scambia singole carte tra i giocatori (alla cieca)!`);
+          } else {
+            // CPU standard: rotate all whole hands forward by 1
+            const fqvHands = fqvOrder.map((p: string) => [...(game.players[p]?.hand || [])]);
+            for (let i = 0; i < fqvOrder.length; i++) {
+              const newOwner = fqvOrder[i];
+              const srcIdx = (i + 1) % fqvOrder.length;
+              game.players[newOwner].hand = fqvHands[srcIdx].map((c: Card) => ({ ...c, owner: newOwner }));
+            }
+            emitChat(`🎲 FACCIO QUELLO CHE VOGLIO! ${playerName} fa ruotare le mani intere di tutti i giocatori!`);
           }
-          emitChat(`🎲 FACCIO QUELLO CHE VOGLIO! ${playerName} ridistribuisce tutte le mani! AL BANO: ogni personaggio in campo perde 1 stella!`);
+          emitState();
         } else {
-          emitChat(`🎲 FACCIO QUELLO CHE VOGLIO! ${playerName} ridistribuisce tutte le mani dei giocatori a caso!`);
+          // Human: emit an interactive panel to choose which players' whole hands to swap
+          const fqvSockId = (game.players[playerName] as any)?.socketId;
+          (game as any).pendingFaccio = { playerName, cardId: card.id, isAlBano };
+          if (io && fqvSockId) {
+            io.to(fqvSockId).emit('faccio-quello-prompt', {
+              players: fqvOrder, isAlBano, cardId: card.id,
+            });
+          }
+          emitChat(`🎲 FACCIO QUELLO CHE VOGLIO! ${playerName} sta scegliendo come scambiare le mani...${isAlBano ? ' (AL BANO: può scambiare singole carte)' : ''}`);
         }
-        emitState();
         break;
       }
 

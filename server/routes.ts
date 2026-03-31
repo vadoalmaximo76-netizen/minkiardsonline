@@ -4133,6 +4133,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // ============ FACCIO QUELLO CHE VOGLIO INTERACTIVE HANDLERS ============
+
+    socket.on('faccio-quello-apply', ({ swapPairs }: { swapPairs: [string, string][] }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+      const actingPlayer = gameManager.getPlayerNameFromSocket(socket.id);
+      const pending = (game as any).pendingFaccio;
+      if (!pending || actingPlayer !== pending.playerName) return;
+      delete (game as any).pendingFaccio;
+
+      const validPlayers = new Set(game.turnOrder as string[]);
+      const processed = new Set<string>();
+
+      for (const [p1, p2] of (swapPairs || [])) {
+        if (!validPlayers.has(p1) || !validPlayers.has(p2) || p1 === p2) continue;
+        const key = [p1, p2].sort().join(':');
+        if (processed.has(key)) continue;
+        processed.add(key);
+
+        if (pending.isAlBano) {
+          // AL BANO: swap one random card each (blind)
+          const h1 = game.players[p1]?.hand as any[];
+          const h2 = game.players[p2]?.hand as any[];
+          if (!h1?.length || !h2?.length) continue;
+          const i1 = Math.floor(Math.random() * h1.length);
+          const i2 = Math.floor(Math.random() * h2.length);
+          const [c1] = h1.splice(i1, 1);
+          const [c2] = h2.splice(i2, 1);
+          c1.owner = p2; c2.owner = p1;
+          h2.push(c1); h1.push(c2);
+        } else {
+          // Standard: swap entire hands
+          const hand1 = [...(game.players[p1]?.hand || [])];
+          const hand2 = [...(game.players[p2]?.hand || [])];
+          game.players[p1].hand = hand2.map((c: any) => ({ ...c, owner: p1 }));
+          game.players[p2].hand = hand1.map((c: any) => ({ ...c, owner: p2 }));
+        }
+      }
+
+      const swapDesc = (swapPairs || []).map(([a, b]) => `${a}↔${b}`).join(', ');
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-faccio-done`,
+        playerName: 'Sistema',
+        message: `🎲 FACCIO QUELLO CHE VOGLIO! ${actingPlayer} ha scambiato le mani: ${swapDesc || 'nessuno scambio'}${pending.isAlBano ? ' (AL BANO)' : ''}`,
+        timestamp: Date.now(),
+      });
+
+      const updatedState = gameManager.getSanitizedGameState(gameId);
+      if (updatedState) io.to(gameId).emit('game-state-update', updatedState);
+    });
+
+    socket.on('faccio-quello-cancel', () => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+      const actingPlayer = gameManager.getPlayerNameFromSocket(socket.id);
+      const pending = (game as any).pendingFaccio;
+      if (pending && actingPlayer === pending.playerName) {
+        delete (game as any).pendingFaccio;
+        console.log(`🎲 FACCIO QUELLO CHE VOGLIO: ${actingPlayer} cancelled`);
+      }
+    });
+
     // ============ KAINOKEN INTERACTIVE HANDLERS ============
 
     socket.on('kainoken-apply', ({ assignments }: { assignments: { [opponentName: string]: string } }) => {
