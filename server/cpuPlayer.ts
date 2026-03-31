@@ -3706,9 +3706,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       const currentStars = this.extractStarsFromCard(myCharacter);
       const isDead = currentPTI <= 0 || currentStars <= 0;
 
-      // SCAMBIO PERSONAGGIO PRE-ATTACCO: If a hand character has ≥ 2 more stars than the active
-      // character, swapping now will significantly boost the next attack. Only swap in aggressive/balanced
-      // moods when there are enemies to attack and the damage gain is worthwhile.
+      // SCAMBIO PERSONAGGIO PRE-ATTACCO: If a hand character has MORE stars than the active
+      // character and swapping gives a worthwhile damage gain, swap first. The gain threshold is
+      // dynamic: +1 star requires > 50 gain, +2 stars requires > 30 gain, +3+ stars requires > 15 gain.
+      // Only swaps in aggressive/balanced moods at medium/hard when enemies are present.
       if (!isDead && personaggiInHand.length > 0 && mosseInHand.length > 0 && effectiveEnemies.length > 0 &&
           (this.mood === 'aggressive' || this.mood === 'balanced') &&
           (this.level === 'medium' || this.level === 'hard')) {
@@ -3716,16 +3717,19 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           this.extractStarsFromCard(c) > this.extractStarsFromCard(best) ? c : best, personaggiInHand[0]
         );
         const handStars = this.extractStarsFromCard(bestHandChar);
-        if (handStars >= currentStars + 2) {
+        const starDiff = handStars - currentStars;
+        if (starDiff >= 1) {
+          // Dynamic gain threshold: smaller diff = stricter threshold
+          const gainThreshold = starDiff >= 3 ? 15 : starDiff === 2 ? 30 : 50;
           // Estimate damage gain from swapping
           const damageGain = mosseInHand.reduce((maxGain: number, m: any) => {
             const { damage: withCurrent } = this.getMosseEffectiveDamage(m, currentStars);
             const { damage: withHand } = this.getMosseEffectiveDamage(m, handStars);
             return Math.max(maxGain, withHand - withCurrent);
           }, 0);
-          if (damageGain > 50) {
+          if (damageGain > gainThreshold) {
             const handCharName = this.getCardNameFromUrl(bestHandChar.frontImage || '');
-            console.log(`⭐ CPU ${this.playerName}: swapping to ${handCharName} (+${handStars - currentStars} stelle, +${damageGain} danno stimato)`);
+            console.log(`⭐ CPU ${this.playerName}: swapping to ${handCharName} (+${starDiff} stelle, +${damageGain} danno stimato, threshold=${gainThreshold})`);
             this.sendChatMessage(`Cambio personaggio per massimizzare il danno con ${handCharName}!`);
             return bestHandChar;
           }
@@ -3736,6 +3740,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       // PTI), filter out moves with canBeCountered=true. A reflected attack at this HP could be lethal.
       // Max PTI estimation: card.pti is the base value before in-game modifications; use it when
       // available, otherwise fall back to a conservative 500-PTI baseline.
+      // When ALL mosse are counterable, prefer a defensive bonus card over risking a reflect.
       const estimatedMaxPTI = Math.max(myCharacter.pti ?? 500, currentPTI);
       const lowHealthThreshold = Math.max(30, Math.round(estimatedMaxPTI * 0.15));
       const isLowHealth = currentPTI > 0 && currentPTI <= lowHealthThreshold;
@@ -3743,6 +3748,19 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       const mossesToConsider = (isLowHealth && safeMosse.length > 0) ? safeMosse : mosseInHand;
       if (isLowHealth && safeMosse.length < mosseInHand.length) {
         console.log(`🛡️ CPU ${this.playerName}: Low health (${currentPTI}/${estimatedMaxPTI} PTI, threshold=${lowHealthThreshold}) — avoiding respingibili (${safeMosse.length}/${mosseInHand.length} safe)`);
+        // If no safe mosse exist, strongly prefer a defensive/healing bonus card over a counterable attack
+        if (safeMosse.length === 0 && bonusInHand.length > 0) {
+          const defensiveBonuses = bonusInHand.filter((c: any) => !this.isDefensiveOnlyBonus(c));
+          const healBonus = defensiveBonuses.find((c: any) => {
+            const key = this.getCardEffectKey(c);
+            const reg = key ? CPUPlayer.SPECIAL_CARD_EFFECTS[key] : null;
+            return reg && (reg.category === 'heal' || reg.category === 'shield');
+          });
+          if (healBonus) {
+            console.log(`🛡️ CPU ${this.playerName}: All mosse counterable at low health — preferring defensive bonus instead`);
+            return healBonus;
+          }
+        }
       }
 
       // Pre-compute the best MOSSE and best BONUS using evaluateCard
