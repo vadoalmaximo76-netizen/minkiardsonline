@@ -4322,6 +4322,30 @@ Rispondi SOLO in JSON:`;
         }
       }
 
+      // CPU AUTO-RETURN: bonus/mosse cards played by CPU automatically return to deck after 10 seconds
+      // Gives enough time for any immediate effect to resolve before the card is recycled
+      // Protection cards (barriera, rifugio) are excluded — they have their own lifecycle
+      if (!isPersonaggio && this.isPlayerCPU(gameId, playerName) &&
+          (card.type === 'bonus' || card.type === 'mosse') &&
+          !this.isBarrieraCard(card) && !this.isRifugioCard(card)) {
+        const autoReturnCardId = card.id;
+        const autoReturnOwner = playerName;
+        setTimeout(() => {
+          const freshGame = this.games.get(gameId);
+          if (!freshGame) return;
+          const stillOnField = freshGame.field.find((c: Card) => c.id === autoReturnCardId);
+          if (stillOnField) {
+            console.log(`🔄 CPU AUTO-RETURN: ${(stillOnField as any).name || autoReturnCardId} (${stillOnField.type}) returned to deck for ${autoReturnOwner}`);
+            this.returnToDeck(gameId, autoReturnCardId, autoReturnOwner);
+            const ioReturn = (global as any).io;
+            if (ioReturn) {
+              const gs = this.getSanitizedGameState(gameId);
+              if (gs) ioReturn.to(gameId).emit('game-state-update', gs);
+            }
+          }
+        }, 10000);
+      }
+
       // GIGI PROIETTILE: can attack immediately when placed on field
       if (isPersonaggio && (card.frontImage || '').toLowerCase().includes('gigi-proiettile')) {
         card.canAttackImmediately = true;
