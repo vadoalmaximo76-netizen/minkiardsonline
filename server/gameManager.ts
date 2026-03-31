@@ -1554,8 +1554,10 @@ export class GameManager {
                 const dk = deckTypeMapDraft[sc.deckType?.toUpperCase()];
                 if (!dk) continue;
                 const playerDeck = game.playerDraftDecks![playerName][dk];
-                const cardId = `seasonal-${sc.id}`;
-                if (playerDeck.some(c => c.id === cardId)) continue;
+                // Use instance-unique ID (player + random suffix) to avoid cross-player ID conflicts
+                const cardId = `seasonal-${sc.id}-${Math.random().toString(36).substr(2, 6)}`;
+                // Base ID check: skip if a seasonal card with the same event card already present
+                if (playerDeck.some(c => c.id.startsWith(`seasonal-${sc.id}-`))) continue;
                 const isChar = dk === 'personaggi';
                 let cardTxt = '';
                 if (isChar && (sc.pti != null || sc.stars != null)) {
@@ -1573,7 +1575,9 @@ export class GameManager {
                 } as Card);
               }
             }
-          } catch (_) {}
+          } catch (seasonalErr) {
+            console.error(`[SeasonalCards] Error injecting seasonal cards into draft deck for player ${playerName} in game ${gameId}:`, seasonalErr);
+          }
 
           // Initialize growth tracker for this player
           if (!game.draftGrowthTracker) game.draftGrowthTracker = {};
