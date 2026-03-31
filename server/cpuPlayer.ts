@@ -661,6 +661,17 @@ export class CPUPlayer {
     return 0;
   }
 
+  /** Returns true when a card is a "Furto Stelle" type move.
+   *  Checks card name, frontImage URL, AND effect text so future star-steal
+   *  cards with different names are still recognized correctly.
+   */
+  private isFurtoCard(card: any): boolean {
+    if (!card) return false;
+    const name = (card.name || card.frontImage || '').toLowerCase();
+    const effect = (card.effect || card.notes || card.text || '').toLowerCase();
+    return /\bfurto\b/i.test(name) || /ruba\s+stelle|furto\s+stelle|sottrae\s+stelle|toglie\s+stelle/i.test(effect);
+  }
+
   private getMosseEffectiveDamage(card: any, attackerStars: number): { damage: number; specialEffect: string | null } {
     if (!card || card.type !== 'mosse') return { damage: 0, specialEffect: null };
     const effect = (card.effect || card.notes || card.text || '').toLowerCase();
@@ -674,8 +685,8 @@ export class CPUPlayer {
     }
     // FURTO: steals stars from the target. The number of stars stolen per use is determined by
     // card.mosseDamageValue (primary) or parsed from effect text ("ruba N stelle"), defaulting to 1.
-    // Total stars stolen = furtoValue * attackerStars.
-    if (/\bfurto\b/i.test(mosseName)) {
+    // Total stars stolen = furtoValue * attackerStars. Uses isFurtoCard() for effect-aware detection.
+    if (this.isFurtoCard(card)) {
       let furtoValue = card.mosseDamageValue ?? 1;
       if (furtoValue <= 0) {
         const m = effect.match(/ruba\s+(\d+)\s+stelle/i);
@@ -1048,11 +1059,11 @@ export class CPUPlayer {
     // Guard: once a Furto-lethal target is selected, skip the Hard 70/30 override below.
     const cpuHand = (gameState.players?.[this.playerName]?.hand ?? []) as any[];
     const isFurtoContext = playingMosse
-      ? /\bfurto\b/i.test(playingMosse.name || playingMosse.frontImage || '')
-      : cpuHand.some((c: any) => c.type === 'mosse' && /\bfurto\b/i.test(c.name || c.frontImage || ''));
+      ? this.isFurtoCard(playingMosse)
+      : cpuHand.some((c: any) => c.type === 'mosse' && this.isFurtoCard(c));
     const furtoCard = playingMosse && isFurtoContext
       ? playingMosse
-      : cpuHand.find((c: any) => c.type === 'mosse' && /\bfurto\b/i.test(c.name || c.frontImage || ''));
+      : cpuHand.find((c: any) => c.type === 'mosse' && this.isFurtoCard(c));
     let furtoLethalSelected = false;
     if (isFurtoContext && furtoCard && myChar) {
       const myStars = this.extractStarsFromCard(myChar);
