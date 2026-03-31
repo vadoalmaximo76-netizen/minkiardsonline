@@ -1671,6 +1671,17 @@ export class GameManager {
       existingPlayer.socketId = socketId;
       existingPlayer.disconnectedAt = undefined;
       this.playerToGame.set(socketId, gameId);
+
+      // Resume turn timer if it's this player's turn (timer was paused on disconnect)
+      const currentGame = this.games.get(gameId);
+      if (currentGame) {
+        const currentTurnPlayer = currentGame.turnOrder[currentGame.currentTurnIndex];
+        if (currentTurnPlayer === playerName && this.turnTimerDurationMs.has(gameId) && !this.turnTimers.has(gameId)) {
+          console.log(`▶️ Resuming paused turn timer for reconnected player ${playerName} in ${gameId}`);
+          this.resumeTurnTimer(gameId, playerName);
+        }
+      }
+
       return { success: true };
     }
 
@@ -3153,6 +3164,13 @@ Rispondi SOLO in JSON:`;
             player.socketId = null; // Mark as disconnected
             player.disconnectedAt = new Date();
             console.log(`Player ${playerName} disconnected from game ${gameId}, marked as offline`);
+
+            // Pause the turn timer if it's this player's turn
+            const currentTurnPlayer = game.turnOrder[game.currentTurnIndex];
+            if (currentTurnPlayer === playerName) {
+              const remaining = this.pauseTurnTimer(gameId);
+              console.log(`⏸️ Turn timer paused for disconnected player ${playerName} in ${gameId} (${remaining !== null ? Math.round(remaining / 1000) + 's remaining' : 'no active timer'})`);
+            }
             break;
           }
         }

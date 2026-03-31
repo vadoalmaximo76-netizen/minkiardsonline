@@ -60,3 +60,9 @@ socket.on('connect_error', (error) => {
   console.error('Connection error:', error);
   window.dispatchEvent(new CustomEvent('socket-status', { detail: { connected: false, error: error.message } }));
 });
+
+// Acknowledge server heartbeat to keep the WebSocket connection alive
+// through the production proxy (which drops idle connections after ~5 min).
+socket.on('heartbeat', () => {
+  socket.emit('heartbeat-ack');
+});

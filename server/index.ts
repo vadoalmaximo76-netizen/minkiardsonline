@@ -146,6 +146,16 @@ app.use((req, res, next) => {
       reusePort: true,
     }, () => {
       log(`serving on ${host}:${port}`);
+
+      // Keepalive heartbeat: emit a lightweight 'heartbeat' event every 20s to all
+      // connected sockets. This prevents the production proxy from dropping idle
+      // WebSocket connections (which typically have a ~5-minute idle timeout).
+      setInterval(() => {
+        const io = (global as any).io;
+        if (io) {
+          io.emit('heartbeat', { ts: Date.now() });
+        }
+      }, 20_000);
     });
   } catch (error) {
     console.error('Failed to initialize server:', error);
