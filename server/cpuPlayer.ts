@@ -677,9 +677,11 @@ export class CPUPlayer {
       return { damage: attackerStars, specialEffect: 'furto_stelle' };
     }
     const baseDmg = card.mosseDamageValue || 0;
-    // MOSSE PROGRESSIVE: damage grows each turn (e.g. 5→10→20→40). Estimate 2× effective value.
+    // MOSSE PROGRESSIVE: damage grows each turn (e.g. 5→10→20→40).
+    // Return the base per-turn damage and flag as 'progressiva' so evaluateCard can scale
+    // it contextually against the target's PTI.
     if (baseDmg > 0 && /ogni\s+turno|turno\s+dopo|si\s+raddoppia|raddoppia\s+ogni|cresce\s+ogni|aumenta\s+ogni|continua\s+a\s+crescere/i.test(effect)) {
-      return { damage: baseDmg * Math.max(1, attackerStars) * 2, specialEffect: 'progressiva' };
+      return { damage: baseDmg * Math.max(1, attackerStars), specialEffect: 'progressiva' };
     }
     return { damage: baseDmg * Math.max(1, attackerStars), specialEffect: null };
   }
@@ -708,7 +710,28 @@ export class CPUPlayer {
         return attackerStars * 200;
       }
 
+      // MOSSE PROGRESSIVE: scale value proportionally to the weakest enemy's PTI.
+      // A progressive move (5→10→20→40...) is much more valuable against a high-PTI target
+      // because the total damage over several turns exceeds a one-shot move's damage.
       let finalDamage = damage;
+      if (specialEffect === 'progressiva') {
+        const gs = gameState ?? (this.gameManager ? this.gameManager.getGameState(this.gameId) : null);
+        let targetPTI = 300; // default baseline
+        if (gs) {
+          const enemies = (gs.field ?? []).filter((c: any) =>
+            c.owner !== this.playerName &&
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+            !c.stealth && !c.eliminatedBy
+          );
+          if (enemies.length > 0) {
+            targetPTI = Math.max(...enemies.map((e: any) => this.extractPtiFromCard(e)));
+          }
+        }
+        // Scale: each doubling tier of target PTI adds a multiplier step.
+        // < 200 PTI → 1.2×, 200–500 → 1.5×, 500–1000 → 2×, > 1000 → 3×
+        const progMultiplier = targetPTI > 1000 ? 3 : targetPTI > 500 ? 2 : targetPTI > 200 ? 1.5 : 1.2;
+        finalDamage = Math.round(damage * progMultiplier);
+      }
 
       // MOSSE ORIGINALI: if the CPU's active character matches a usedBy override on this card,
       // the damage is higher (card is a "mossa originale" for this character). Boost its score.
@@ -982,10 +1005,25 @@ export class CPUPlayer {
       }
     }
 
+    // FURTO STELLE TARGET OVERRIDE: when the CPU's hand contains a Furto move,
+    // re-score enemies by star-lethality first. An enemy whose stars ≤ attackerStars
+    // will DIE from the steal — this should take highest priority (same tier as PTI lethal).
+    const cpuHand = (gameState.players?.[this.playerName]?.hand ?? []) as any[];
+    const furtoInHand = cpuHand.find((c: any) => c.type === 'mosse' && /\bfurto\b/i.test(c.name || c.frontImage || ''));
+    if (furtoInHand && myChar) {
+      const myStars = this.extractStarsFromCard(myChar);
+      const furtoLethalTarget = enemies.find((e: any) => this.extractStarsFromCard(e) <= myStars);
+      if (furtoLethalTarget) {
+        console.log(`⭐ CPU ${this.playerName}: FURTO — targeting star-lethal enemy (${this.extractStarsFromCard(furtoLethalTarget)} stelle ≤ ${myStars})`);
+        target = furtoLethalTarget;
+      }
+    }
+
     // HARD MULTI-PLAYER TARGETING: 30% chance to target the most dangerous enemy
-    // (highest PTI×stars threat) when no lethal kill is available and 3+ enemies are present.
+    // (highest PTI×stars threat) when no lethal kill is available and there are 3+ players total.
     // This prevents the CPU from always ignoring powerful opponents just because they have high HP.
-    if (this.level === 'hard' && enemies.length >= 3) {
+    const totalPlayers = ((gameState.turnOrder as string[] | undefined) ?? Object.keys(gameState.players ?? {})).length;
+    if (this.level === 'hard' && totalPlayers >= 3) {
       const anyLethal = enemies.some((e: any) => {
         const pti = this.extractPtiFromCard(e);
         return pti > 0 && pti <= myDmg;
@@ -3619,14 +3657,17 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         }
       }
 
-      // LOW HEALTH — avoid RESPINGIBILI: When the CPU is critically weak (PTI ≤ 150),
-      // filter out moves that can be countered (canBeCountered: true). A reflected attack
-      // could kill the CPU's character immediately.
-      const isLowHealth = currentPTI > 0 && currentPTI <= 150;
+      // LOW HEALTH — avoid RESPINGIBILI: When the CPU is critically weak (≤ 15% of estimated max
+      // PTI), filter out moves with canBeCountered=true. A reflected attack at this HP could be lethal.
+      // Max PTI estimation: card.pti is the base value before in-game modifications; use it when
+      // available, otherwise fall back to a conservative 500-PTI baseline.
+      const estimatedMaxPTI = Math.max(myCharacter.pti ?? 500, currentPTI);
+      const lowHealthThreshold = Math.max(30, Math.round(estimatedMaxPTI * 0.15));
+      const isLowHealth = currentPTI > 0 && currentPTI <= lowHealthThreshold;
       const safeMosse = isLowHealth ? mosseInHand.filter((c: any) => !c.canBeCountered) : mosseInHand;
       const mossesToConsider = (isLowHealth && safeMosse.length > 0) ? safeMosse : mosseInHand;
       if (isLowHealth && safeMosse.length < mosseInHand.length) {
-        console.log(`🛡️ CPU ${this.playerName}: Low health (${currentPTI} PTI) — preferring non-respingibile moves (${safeMosse.length}/${mosseInHand.length} safe)`);
+        console.log(`🛡️ CPU ${this.playerName}: Low health (${currentPTI}/${estimatedMaxPTI} PTI, threshold=${lowHealthThreshold}) — avoiding respingibili (${safeMosse.length}/${mosseInHand.length} safe)`);
       }
 
       // Pre-compute the best MOSSE and best BONUS using evaluateCard
