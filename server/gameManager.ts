@@ -6440,32 +6440,20 @@ Rispondi SOLO in JSON:`;
       const activeChar = this.getPlayerActiveCharacter(game, playerName);
       
       if (isCPU) {
-        const cpuChoice = Math.random() < 0.5 ? 'SI' : 'NO';
-        if (cpuChoice === 'SI' && activeChar) {
+        // CPU always takes the pact (maximizes PTI gain: +10000 PTI at cost of all stars)
+        if (activeChar) {
           activeChar.stars = 0;
           activeChar.pti = (activeChar.pti || 0) + 10000;
           this.updateCardTextWithPTI(activeChar);
-          if (ioBD) {
-            ioBD.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-bob-dylan-si`,
-              playerName: 'Sistema',
-              message: `😈 ${playerName} ha fatto il PATTO CON QUELLO DI GIÙ! ${activeChar.name || 'Il personaggio'} va a 0 stelle ma guadagna +10000 PTI!`,
-              timestamp: Date.now()
-            });
-          }
-        } else {
-          if (ioBD) {
-            ioBD.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-bob-dylan-no`,
-              playerName: 'Sistema',
-              message: `🎸 ${playerName} ha rifiutato il patto con quello di giù. Resta tutto invariato.`,
-              timestamp: Date.now()
-            });
-          }
         }
         if (ioBD) {
-          const gsUpdate = this.getSanitizedGameState(gameId);
-          ioBD.to(gameId).emit('game-state-update', gsUpdate);
+          ioBD.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-bob-dylan-si`,
+            playerName: 'Sistema',
+            message: `😈 ${playerName} (CPU) ha fatto il PATTO CON QUELLO DI GIÙ! ${activeChar?.name || 'Il personaggio'} va a 0 stelle ma guadagna +10000 PTI!`,
+            timestamp: Date.now()
+          });
+          ioBD.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
         }
         return {};
       }
@@ -6473,22 +6461,25 @@ Rispondi SOLO in JSON:`;
       const playerData = game.players[playerName] as any;
       const socketId = playerData?.socketId;
       
-      if (ioBD && socketId) {
-        const choiceId = `bob-dylan-${Date.now()}`;
-        (game as any).pendingBobDylanChoice = { choiceId, playerName, cardId: card.id };
-        
-        ioBD.to(socketId).emit('show-choice-panel', {
-          choiceId,
+      const bobDylanOptions = [
+        { value: 'SI', label: 'SÌ - 0 stelle ma +10000 PTI', description: 'Il tuo personaggio perde tutte le stelle ma guadagna 10000 PTI' },
+        { value: 'NO', label: 'NO - Resta tutto invariato', description: 'Nessun effetto' }
+      ];
+      if (ioBD) {
+        const choiceIdBD = `bob-dylan-${Date.now()}`;
+        (game as any).pendingBobDylanChoice = { choiceId: choiceIdBD, playerName, cardId: card.id };
+
+        if (this.emitChoicePanelOrAutoResolve(gameId, playerName, socketId, {
+          choiceId: choiceIdBD,
           title: 'IL PATTO CON QUELLO DI GIÙ',
           question: 'Vuoi fare il patto con quello di giù?',
-          options: [
-            { value: 'SI', label: 'SÌ - 0 stelle ma +10000 PTI', description: 'Il tuo personaggio perde tutte le stelle ma guadagna 10000 PTI' },
-            { value: 'NO', label: 'NO - Resta tutto invariato', description: 'Nessun effetto' }
-          ],
+          options: bobDylanOptions,
           playerName,
           cardName: card.name || 'IL SORRISO AMARO DI BOB DYLAN',
           timestamp: Date.now()
-        });
+        }, bobDylanOptions, 'pendingBobDylanChoice', ioBD)) {
+          return {}; // CPU auto-resolved; processChoicePanelResponseInternal emitted game-state-update
+        }
         
         ioBD.to(gameId).emit('chat-message', {
           id: `${Date.now()}-bob-dylan-panel`,
@@ -6831,7 +6822,24 @@ Rispondi SOLO in JSON:`;
               timestamp: Date.now()
             });
             
-            if (io) {
+            // CPU auto-resolution: if the controlling player is CPU, resolve entirely server-side
+            if (this.isPlayerCPU(gameId, diceControl.controllingPlayer!)) {
+              const cpuControlledNumber = Math.floor(Math.random() * 6) + 1;
+              console.log(`🎲 DICE CONTROL CPU auto-resolution (DADO): ${diceControl.controllingPlayer} chooses ${cpuControlledNumber}`);
+              this.consumeDiceControlEffect(gameId, diceControl.controllingPlayer!);
+              if (io) {
+                io.to(gameId).emit('dice-rolled', {
+                  result: cpuControlledNumber, playerName: cardOwner,
+                  wasControlled: true, controlledBy: diceControl.controllingPlayer, timestamp: Date.now()
+                });
+                io.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-dice-control-cpu`, playerName: 'Sistema',
+                  message: `🎲 ${diceControl.controllingPlayer} (CPU) ha controllato il dado e scelto ${cpuControlledNumber}!`,
+                  timestamp: Date.now()
+                });
+              }
+              this.completePendingControlledDice(gameId, pendingId, cpuControlledNumber, io);
+            } else if (io) {
               io.to(gameId).emit('show-dice-control-panel', {
                 pendingId,
                 rollingPlayer: cardOwner,
@@ -7027,7 +7035,24 @@ Rispondi SOLO in JSON:`;
               timestamp: Date.now()
             });
             
-            if (io) {
+            // CPU auto-resolution: if the controlling player is CPU, resolve entirely server-side
+            if (this.isPlayerCPU(gameId, diceControl.controllingPlayer!)) {
+              const cpuAutoNumber = Math.floor(Math.random() * 6) + 1;
+              console.log(`🎲 DICE CONTROL CPU auto-resolution (DADO_AUTOMATICO): ${diceControl.controllingPlayer} chooses ${cpuAutoNumber}`);
+              this.consumeDiceControlEffect(gameId, diceControl.controllingPlayer!);
+              if (io) {
+                io.to(gameId).emit('dice-rolled', {
+                  result: cpuAutoNumber, playerName: cardOwner,
+                  wasControlled: true, controlledBy: diceControl.controllingPlayer, timestamp: Date.now()
+                });
+                io.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-dice-control-auto-cpu`, playerName: 'Sistema',
+                  message: `🎲 ${diceControl.controllingPlayer} (CPU) ha controllato il dado automatico e scelto ${cpuAutoNumber}!`,
+                  timestamp: Date.now()
+                });
+              }
+              this.completePendingControlledAutoDice(gameId, pendingId, cpuAutoNumber, io);
+            } else if (io) {
               io.to(gameId).emit('show-dice-control-panel', {
                 pendingId,
                 rollingPlayer: cardOwner,
@@ -8316,18 +8341,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         } else {
           const psId = (game.players[playerName] as any)?.socketId;
           const cId = `respinta-${Date.now()}`;
+          const respintaOptions = enemiesR.map((p: string) => {
+            const ec = this.getPlayerActiveCharacter(game, p);
+            return { value: p, label: ec?.name || p, description: `PTI: ${ec?.pti ?? '?'}` };
+          });
           (game as any).pendingRespinta = { choiceId: cId, playerName, charId: myChar.id };
-          if (psId && io) {
-            io.to(psId).emit('show-choice-panel', {
-              choiceId: cId, title: '🔄 RESPINTA',
-              question: 'Scegli il personaggio avversario verso cui riflettere il prossimo danno:',
-              options: enemiesR.map((p: string) => {
-                const ec = this.getPlayerActiveCharacter(game, p);
-                return { value: p, label: ec?.name || p, description: `PTI: ${ec?.pti ?? '?'}` };
-              }),
-              playerName, cardName: 'RESPINTA', timestamp: Date.now()
-            });
-          }
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '🔄 RESPINTA',
+            question: 'Scegli il personaggio avversario verso cui riflettere il prossimo danno:',
+            options: respintaOptions,
+            playerName, cardName: 'RESPINTA', timestamp: Date.now()
+          }, respintaOptions, 'pendingRespinta', io);
           emitChat(`🔄 RESPINTA! ${playerName} sceglie verso chi riflettere il danno...`);
           emitState();
         }
@@ -8347,18 +8371,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         } else {
           const psId = (game.players[playerName] as any)?.socketId;
           const cId = `rincoglionimento-${Date.now()}`;
+          const rincogliOpts = enemiesRi.map((p: string) => {
+            const ec = this.getPlayerActiveCharacter(game, p);
+            return { value: p, label: ec?.name || p, description: `PTI: ${ec?.pti ?? '?'}` };
+          });
           (game as any).pendingRincoglionimento = { choiceId: cId, playerName };
-          if (psId && io) {
-            io.to(psId).emit('show-choice-panel', {
-              choiceId: cId, title: '🤪 RINCOGLIONIMENTO',
-              question: 'Scegli il personaggio avversario da rincoglionire:',
-              options: enemiesRi.map((p: string) => {
-                const ec = this.getPlayerActiveCharacter(game, p);
-                return { value: p, label: ec?.name || p, description: `PTI: ${ec?.pti ?? '?'}` };
-              }),
-              playerName, cardName: 'RINCOGLIONIMENTO', timestamp: Date.now()
-            });
-          }
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '🤪 RINCOGLIONIMENTO',
+            question: 'Scegli il personaggio avversario da rincoglionire:',
+            options: rincogliOpts,
+            playerName, cardName: 'RINCOGLIONIMENTO', timestamp: Date.now()
+          }, rincogliOpts, 'pendingRincoglionimento', io);
           emitChat(`🤪 RINCOGLIONIMENTO! ${playerName} sceglie chi rincoglionire...`);
           emitState();
         }
@@ -8378,18 +8401,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         } else {
           const psId = (game.players[playerName] as any)?.socketId;
           const cId = `trauma-${Date.now()}`;
+          const traumaOpts = enemiesTr.map((p: string) => {
+            const ec = this.getPlayerActiveCharacter(game, p);
+            return { value: p, label: p, description: ec ? `Ha ${ec.name || '?'} in campo` : 'Nessun personaggio' };
+          });
           (game as any).pendingTraumaChoice = { choiceId: cId, playerName };
-          if (psId && io) {
-            io.to(psId).emit('show-choice-panel', {
-              choiceId: cId, title: '😱 TRAUMA',
-              question: 'Scegli l\'avversario da traumatizzare:',
-              options: enemiesTr.map((p: string) => {
-                const ec = this.getPlayerActiveCharacter(game, p);
-                return { value: p, label: p, description: ec ? `Ha ${ec.name || '?'} in campo` : 'Nessun personaggio' };
-              }),
-              playerName, cardName: 'TRAUMA', timestamp: Date.now()
-            });
-          }
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '😱 TRAUMA',
+            question: 'Scegli l\'avversario da traumatizzare:',
+            options: traumaOpts,
+            playerName, cardName: 'TRAUMA', timestamp: Date.now()
+          }, traumaOpts, 'pendingTraumaChoice', io);
           emitChat(`😱 TRAUMA! ${playerName} sceglie chi traumatizzare...`);
           emitState();
         }
@@ -8413,15 +8435,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         } else {
           const psId = (game.players[playerName] as any)?.socketId;
           const cId = `target-acquired-${Date.now()}`;
+          const targetAcqOpts = enemiesTA.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` }));
           (game as any).pendingTargetAcquired = { choiceId: cId, playerName, maxAttacks, isIlPelux };
-          if (psId && io) {
-            io.to(psId).emit('show-choice-panel', {
-              choiceId: cId, title: '🎯 TARGET ACQUIRED',
-              question: isIlPelux ? '⚡ IL PELUX: Scegli il bersaglio da eliminare!' : 'Scegli il personaggio da attaccare 3 volte:',
-              options: enemiesTA.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` })),
-              playerName, cardName: 'TARGET ACQUIRED', timestamp: Date.now()
-            });
-          }
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '🎯 TARGET ACQUIRED',
+            question: isIlPelux ? '⚡ IL PELUX: Scegli il bersaglio da eliminare!' : 'Scegli il personaggio da attaccare 3 volte:',
+            options: targetAcqOpts,
+            playerName, cardName: 'TARGET ACQUIRED', timestamp: Date.now()
+          }, targetAcqOpts, 'pendingTargetAcquired', io);
           emitChat(`🎯 TARGET ACQUIRED! ${playerName} sceglie il bersaglio${isIlPelux ? ' (IL PELUX!)' : ''}...`);
           emitState();
         }
@@ -8446,18 +8467,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         const psIdH = (game.players[playerName] as any)?.socketId;
         const cIdH = `harakiri-${Date.now()}`;
+        const harakiriOpts = [
+          ...myCharsH.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | Stelle: ${c.stars ?? '?'}` })),
+          { value: 'none', label: '❌ Nessuno', description: 'Non sacrificare' }
+        ];
         (game as any).pendingHarakiri = { choiceId: cIdH, playerName };
-        if (psIdH && io) {
-          io.to(psIdH).emit('show-choice-panel', {
-            choiceId: cIdH, title: '⚔️ HARAKIRI',
-            question: 'Scegli un personaggio da sacrificare (rimesso nel mazzo), oppure "Nessuno":',
-            options: [
-              ...myCharsH.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | Stelle: ${c.stars ?? '?'}` })),
-              { value: 'none', label: '❌ Nessuno', description: 'Non sacrificare' }
-            ],
-            playerName, cardName: 'HARAKIRI', timestamp: Date.now()
-          });
-        }
+        this.emitChoicePanelOrAutoResolve(gameId, playerName, psIdH, {
+          choiceId: cIdH, title: '⚔️ HARAKIRI',
+          question: 'Scegli un personaggio da sacrificare (rimesso nel mazzo), oppure "Nessuno":',
+          options: harakiriOpts,
+          playerName, cardName: 'HARAKIRI', timestamp: Date.now()
+        }, harakiriOpts, 'pendingHarakiri', io);
         emitChat(`⚔️ HARAKIRI! ${playerName} sceglie se sacrificare un personaggio...`);
         emitState(); break;
       }
@@ -8483,15 +8503,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         } else {
           const psId = (game.players[playerName] as any)?.socketId;
           const cId = `sdoppiamento-${Date.now()}`;
+          const sdoppiamOpts = enemiesSD.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` }));
           (game as any).pendingSdoppiamento = { choiceId: cId, playerName, myCharId: myChar.id };
-          if (psId && io) {
-            io.to(psId).emit('show-choice-panel', {
-              choiceId: cId, title: '🔀 SDOPPIAMENTO',
-              question: 'Il tuo personaggio va a 1 PTI. Scegli con chi scambiarti:',
-              options: enemiesSD.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` })),
-              playerName, cardName: 'SDOPPIAMENTO', timestamp: Date.now()
-            });
-          }
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '🔀 SDOPPIAMENTO',
+            question: 'Il tuo personaggio va a 1 PTI. Scegli con chi scambiarti:',
+            options: sdoppiamOpts,
+            playerName, cardName: 'SDOPPIAMENTO', timestamp: Date.now()
+          }, sdoppiamOpts, 'pendingSdoppiamento', io);
           emitChat(`🔀 SDOPPIAMENTO! ${myChar.name || playerName} va a 1 PTI — sceglie con chi scambiarsi...`);
           emitState();
         }
@@ -8574,16 +8593,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const psIdI = (game.players[playerName] as any)?.socketId;
         const cIdI = `ibernazione-${Date.now()}`;
         (game as any).pendingIbernazione = { choiceId: cIdI, playerName };
-        if (psIdI && io) {
-          io.to(psIdI).emit('show-choice-panel', {
-            choiceId: cIdI, title: '❄️ IBERNAZIONE',
-            question: 'Per 3 turni nessuno può usare bonus, mosse o mettere un nuovo personaggio. Attivare?',
-            options: [
-              { value: 'yes', label: '✅ Sì, attiva', description: 'Blocco totale per 3 turni' },
-              { value: 'no', label: '❌ No, rinuncia', description: 'Non attivare' }
-            ],
-            playerName, cardName: 'IBERNAZIONE', timestamp: Date.now()
-          });
+        const ibernOptions = [
+          { value: 'yes', label: '✅ Sì, attiva', description: 'Blocco totale per 3 turni' },
+          { value: 'no', label: '❌ No, rinuncia', description: 'Non attivare' }
+        ];
+        if (this.emitChoicePanelOrAutoResolve(gameId, playerName, psIdI, {
+          choiceId: cIdI, title: '❄️ IBERNAZIONE',
+          question: 'Per 3 turni nessuno può usare bonus, mosse o mettere un nuovo personaggio. Attivare?',
+          options: ibernOptions,
+          playerName, cardName: 'IBERNAZIONE', timestamp: Date.now()
+        }, ibernOptions, 'pendingIbernazione', io)) {
+          break; // processChoicePanelResponseInternal already applied the effect and emitted game-state-update
         }
         emitChat(`❄️ IBERNAZIONE! ${playerName} decide se attivare il blocco totale...`);
         emitState(); break;
@@ -8603,15 +8623,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         } else {
           const psId = (game.players[playerName] as any)?.socketId;
           const cId = `carica-${Date.now()}`;
+          const caricaOpts = enemiesCA.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` }));
           (game as any).pendingCarica = { choiceId: cId, playerName };
-          if (psId && io) {
-            io.to(psId).emit('show-choice-panel', {
-              choiceId: cId, title: '⚡ CARICA',
-              question: 'Scegli il personaggio avversario che tutti dovranno attaccare questo turno:',
-              options: enemiesCA.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` })),
-              playerName, cardName: 'CARICA', timestamp: Date.now()
-            });
-          }
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '⚡ CARICA',
+            question: 'Scegli il personaggio avversario che tutti dovranno attaccare questo turno:',
+            options: caricaOpts,
+            playerName, cardName: 'CARICA', timestamp: Date.now()
+          }, caricaOpts, 'pendingCarica', io);
           emitChat(`⚡ CARICA! ${playerName} sceglie il bersaglio obbligatorio...`);
           emitState();
         }
@@ -8688,16 +8707,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const psIdR = (game.players[playerName] as any)?.socketId;
         const cIdR = `ruoss-e-fessa-${Date.now()}`;
         (game as any).pendingRuossEFessa = { choiceId: cIdR, playerName, charId: myChar.id };
-        if (psIdR && io) {
-          io.to(psIdR).emit('show-choice-panel', {
-            choiceId: cIdR, title: '💪 RUOSS E FESSA',
-            question: `${myChar.name || playerName} va a 5000 PTI e 3 stelle, ma perde 1000 PTI per ogni attacco. Attivare?`,
-            options: [
-              { value: 'yes', label: '✅ Sì — 5000 PTI + 3 stelle, -1000/attacco', description: '' },
-              { value: 'no', label: '❌ No, rinuncia', description: '' }
-            ],
-            playerName, cardName: 'RUOSS E FESSA', timestamp: Date.now()
-          });
+        const ruossOptions = [
+          { value: 'yes', label: '✅ Sì — 5000 PTI + 3 stelle, -1000/attacco', description: '' },
+          { value: 'no', label: '❌ No, rinuncia', description: '' }
+        ];
+        if (this.emitChoicePanelOrAutoResolve(gameId, playerName, psIdR, {
+          choiceId: cIdR, title: '💪 RUOSS E FESSA',
+          question: `${myChar.name || playerName} va a 5000 PTI e 3 stelle, ma perde 1000 PTI per ogni attacco. Attivare?`,
+          options: ruossOptions,
+          playerName, cardName: 'RUOSS E FESSA', timestamp: Date.now()
+        }, ruossOptions, 'pendingRuossEFessa', io)) {
+          break; // processChoicePanelResponseInternal already applied the effect and emitted game-state-update
         }
         emitChat(`💪 RUOSS E FESSA! ${playerName} decide...`);
         emitState(); break;
@@ -8730,15 +8750,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         } else {
           const psId = (game.players[playerName] as any)?.socketId;
           const cId = `corruzione-v2-${Date.now()}`;
+          const corruzioneOpts = enemiesCO.map((c: Card) => ({ value: c.id, label: c.name || c.owner || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` }));
           (game as any).pendingCorruzioneV2 = { choiceId: cId, playerName };
-          if (psId && io) {
-            io.to(psId).emit('show-choice-panel', {
-              choiceId: cId, title: '💰 CORRUZIONE',
-              question: 'Scegli l\'avversario a cui cedere 50 PTI (non potrà attaccarti per 3 turni):',
-              options: enemiesCO.map((c: Card) => ({ value: c.id, label: c.name || c.owner || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` })),
-              playerName, cardName: 'CORRUZIONE', timestamp: Date.now()
-            });
-          }
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '💰 CORRUZIONE',
+            question: 'Scegli l\'avversario a cui cedere 50 PTI (non potrà attaccarti per 3 turni):',
+            options: corruzioneOpts,
+            playerName, cardName: 'CORRUZIONE', timestamp: Date.now()
+          }, corruzioneOpts, 'pendingCorruzioneV2', io);
           emitChat(`💰 CORRUZIONE! ${playerName} sceglie chi corrompere...`);
           emitState();
         }
@@ -8901,18 +8920,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         const psIdTB = (game.players[playerName] as any)?.socketId;
         const cIdTB = `una-tempesta-baby-${Date.now()}`;
+        const tempestaBabyOpts = [
+          { value: 'bonus', label: '🎴 Tutti i BONUS', description: 'Ogni giocatore gioca tutti i suoi bonus in mano' },
+          { value: 'mosse', label: '⚔️ Tutte le MOSSE', description: 'Ogni giocatore gioca tutte le sue mosse in mano' }
+        ];
         (game as any).pendingUnaTempestaBaby = { choiceId: cIdTB, playerName };
-        if (psIdTB && io) {
-          io.to(psIdTB).emit('show-choice-panel', {
-            choiceId: cIdTB, title: '🌪️ UNA TEMPESTA BABY',
-            question: 'Scegli cosa devono giocare tutti i concorrenti (Golden Freezer è immune):',
-            options: [
-              { value: 'bonus', label: '🎴 Tutti i BONUS', description: 'Ogni giocatore gioca tutti i suoi bonus in mano' },
-              { value: 'mosse', label: '⚔️ Tutte le MOSSE', description: 'Ogni giocatore gioca tutte le sue mosse in mano' }
-            ],
-            playerName, cardName: 'UNA TEMPESTA BABY', timestamp: Date.now()
-          });
-        }
+        this.emitChoicePanelOrAutoResolve(gameId, playerName, psIdTB, {
+          choiceId: cIdTB, title: '🌪️ UNA TEMPESTA BABY',
+          question: 'Scegli cosa devono giocare tutti i concorrenti (Golden Freezer è immune):',
+          options: tempestaBabyOpts,
+          playerName, cardName: 'UNA TEMPESTA BABY', timestamp: Date.now()
+        }, tempestaBabyOpts, 'pendingUnaTempestaBaby', io);
         emitChat(`🌪️ UNA TEMPESTA BABY! ${playerName} sceglie...`);
         emitState(); break;
       }
@@ -8938,18 +8956,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         } else {
           const psId = (game.players[playerName] as any)?.socketId;
           const cId = `galattico-${Date.now()}`;
+          const galatticoOpts = eligibles.map((p: string) => {
+            const ec = this.getPlayerActiveCharacter(game, p);
+            return { value: p, label: p, description: ec ? `${ec.name} — PTI: ${ec.pti}` : 'Nessun personaggio' };
+          });
           (game as any).pendingGalattico = { choiceId: cId, playerName };
-          if (psId && io) {
-            io.to(psId).emit('show-choice-panel', {
-              choiceId: cId, title: '🌌 UN POSTO GALATTICO',
-              question: 'Scegli con chi isolarti dalla partita:',
-              options: eligibles.map((p: string) => {
-                const ec = this.getPlayerActiveCharacter(game, p);
-                return { value: p, label: p, description: ec ? `${ec.name} — PTI: ${ec.pti}` : 'Nessun personaggio' };
-              }),
-              playerName, cardName: 'UN POSTO GALATTICO', timestamp: Date.now()
-            });
-          }
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '🌌 UN POSTO GALATTICO',
+            question: 'Scegli con chi isolarti dalla partita:',
+            options: galatticoOpts,
+            playerName, cardName: 'UN POSTO GALATTICO', timestamp: Date.now()
+          }, galatticoOpts, 'pendingGalattico', io);
           emitChat(`🌌 UN POSTO GALATTICO! ${playerName} sceglie con chi isolarsi...`);
           emitState();
         }
@@ -9004,16 +9021,23 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           emitState(); break;
         }
         const cIdI = `imitazione-${Date.now()}`;
-        const psIdI = (game.players[playerName] as any)?.socketId;
+        // Sort by highest PTI so centralized handler picks the best character (first option = highest score)
+        const sortedCharsI = [...allCharsI].sort((a: Card, b: Card) =>
+          ((b.pti ?? 0) + (b.stars ?? 0) * 100) - ((a.pti ?? 0) + (a.stars ?? 0) * 100)
+        );
+        const imitazioneOptions = sortedCharsI.map((c: Card) => ({ value: c.id, label: `${c.name || c.id}${c.effect ? ' — ' + c.effect.substring(0, 60) : ''}` }));
+        // Set pendingImitazione BEFORE cpu check so processChoicePanelResponseInternal can find chars data
         (game as any).pendingImitazione = { choiceId: cIdI, playerName, chars: allCharsI.map((c: Card) => ({ id: c.id, name: c.name, effect: c.effect, frontImage: c.frontImage })) };
-        if (psIdI && io) {
-          io.to(psIdI).emit('show-choice-panel', {
-            choiceId: cIdI,
-            title: '🎭 IMITAZIONE',
-            message: 'Scegli il personaggio di cui copiare l\'effetto:',
-            options: allCharsI.map((c: Card) => ({ value: c.id, label: `${c.name || c.id}${c.effect ? ' — ' + c.effect.substring(0, 60) : ''}` })),
-            timestamp: Date.now()
-          });
+        // Safety-net: auto-resolve for CPU edge cases via centralized handler (picks highest-PTI char = first option)
+        const psIdI = (game.players[playerName] as any)?.socketId;
+        if (this.emitChoicePanelOrAutoResolve(gameId, playerName, psIdI, {
+          choiceId: cIdI,
+          title: '🎭 IMITAZIONE',
+          message: 'Scegli il personaggio di cui copiare l\'effetto:',
+          options: imitazioneOptions,
+          timestamp: Date.now()
+        }, imitazioneOptions, 'pendingImitazione', io)) {
+          break; // processChoicePanelResponseInternal already applied the effect and emitted game-state-update
         }
         emitChat(`🎭 IMITAZIONE! ${playerName} sceglie un personaggio da imitare...`);
         emitState(); break;
@@ -9089,14 +9113,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const cIdPM = `pesca-miracolosa-${Date.now()}`;
         const psIdPM = (game.players[playerName] as any)?.socketId;
         (game as any).pendingPescaMiracolosa = { choiceId: cIdPM, playerName, drawn: drawnPM };
-        if (psIdPM && io) {
-          io.to(psIdPM).emit('show-choice-panel', {
-            choiceId: cIdPM,
-            title: '🎣 PESCA MIRACOLOSA',
-            message: 'Hai pescato 1 carta da ogni mazzo. Scegli quale tenere:',
-            options: drawnPM.map(({ card: cPM, deckType: dtPM }) => ({ value: cPM.id, label: `[${dtPM.toUpperCase()}] ${cPM.name || cPM.type}` })),
-            timestamp: Date.now()
-          });
+        // Sort by priority to ensure CPU picks personaggi > mosse > bonus (used by centralized handler)
+        // The centralized handler picks the option whose card.id matches the best-scored option
+        const priorityOrder = ['personaggi', 'mosse', 'bonus'];
+        const sortedDrawnPM = [...drawnPM].sort((a, b) => priorityOrder.indexOf(a.deckType) - priorityOrder.indexOf(b.deckType));
+        const pescaOptions = sortedDrawnPM.map(({ card: cPM, deckType: dtPM }) => ({ value: cPM.id, label: `[${dtPM.toUpperCase()}] ${cPM.name || cPM.type}` }));
+        if (this.emitChoicePanelOrAutoResolve(gameId, playerName, psIdPM, {
+          choiceId: cIdPM,
+          title: '🎣 PESCA MIRACOLOSA',
+          message: 'Hai pescato 1 carta da ogni mazzo. Scegli quale tenere:',
+          options: pescaOptions,
+          timestamp: Date.now()
+        }, pescaOptions, 'pendingPescaMiracolosa', io)) {
+          break; // processChoicePanelResponseInternal already applied the effect and emitted game-state-update
         }
         emitChat(`🎣 PESCA MIRACOLOSA! ${playerName} ha pescato ${drawnPM.length} carte — sceglie quale tenere...`);
         emitState(); break;
@@ -9154,17 +9183,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const cIdM100 = `minkiard100-${Date.now()}`;
         const psIdM100 = (game.players[playerName] as any)?.socketId;
         (game as any).pendingMinkiard100 = { choiceId: cIdM100, playerName };
-        if (psIdM100 && io) {
-          io.to(psIdM100).emit('show-choice-panel', {
-            choiceId: cIdM100,
-            title: '💯 MINKIARD N. 100',
-            message: `Scegli il potenziamento per ${myChar.name || playerName}:`,
-            options: [
-              { value: '3000pti', label: '📈 Porta il personaggio a 3000 PTI' },
-              { value: '4stelle', label: '⭐ Porta il personaggio a 4 stelle' }
-            ],
-            timestamp: Date.now()
-          });
+        const minkiard100Options = [
+          { value: '3000pti', label: '📈 Porta il personaggio a 3000 PTI' },
+          { value: '4stelle', label: '⭐ Porta il personaggio a 4 stelle' }
+        ];
+        if (this.emitChoicePanelOrAutoResolve(gameId, playerName, psIdM100, {
+          choiceId: cIdM100,
+          title: '💯 MINKIARD N. 100',
+          message: `Scegli il potenziamento per ${myChar.name || playerName}:`,
+          options: minkiard100Options,
+          timestamp: Date.now()
+        }, minkiard100Options, 'pendingMinkiard100', io)) {
+          break; // processChoicePanelResponseInternal already applied the effect and emitted game-state-update
         }
         emitChat(`💯 MINKIARD N. 100! ${playerName} sceglie il potenziamento...`);
         emitState(); break;
@@ -9360,19 +9390,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         // Human with multiple opponents: show choice panel
         const cIdDV = `difesa-vigliacca-${Date.now()}`;
         const psIdDV = (game.players[playerName] as any)?.socketId;
+        const difesaVOpts = opponentsDV.map((p: string) => {
+          const oppChar = this.getPlayerActiveCharacter(game, p);
+          return { value: p, label: `${oppChar?.name || p} (${p})` };
+        });
         (game as any).pendingDifesaVigliacca = { choiceId: cIdDV, playerName, charId: myChar.id };
-        if (psIdDV && io) {
-          io.to(psIdDV).emit('show-choice-panel', {
-            choiceId: cIdDV,
-            title: '🛡️ DIFESA VIGLIACCA',
-            message: `Scegli verso chi deviare il prossimo attacco ricevuto:`,
-            options: opponentsDV.map((p: string) => {
-              const oppChar = this.getPlayerActiveCharacter(game, p);
-              return { value: p, label: `${oppChar?.name || p} (${p})` };
-            }),
-            timestamp: Date.now()
-          });
-        }
+        this.emitChoicePanelOrAutoResolve(gameId, playerName, psIdDV, {
+          choiceId: cIdDV,
+          title: '🛡️ DIFESA VIGLIACCA',
+          message: `Scegli verso chi deviare il prossimo attacco ricevuto:`,
+          options: difesaVOpts,
+          timestamp: Date.now()
+        }, difesaVOpts, 'pendingDifesaVigliacca', io);
         emitChat(`🛡️ DIFESA VIGLIACCA! ${playerName} sceglie verso chi deviare il prossimo attacco...`);
         break;
       }
@@ -9432,16 +9461,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         const odFChoiceId = `fotografo-${Date.now()}`;
         const odFSocketId = (game.players[playerName] as any)?.socketId;
+        const fotografoOpts = opponents.map(p => ({ value: p, label: `👁️ Spia ${p}` }));
         (game as any).pendingFotografo = { choiceId: odFChoiceId, playerName };
-        if (odFSocketId && io) {
-          io.to(odFSocketId).emit('show-choice-panel', {
-            choiceId: odFChoiceId,
-            title: '📸 OCCHIO DEL FOTOGRAFO',
-            message: 'Scegli quale avversario spiare. Vedrai la sua mano e potrai rubare una carta!',
-            options: opponents.map(p => ({ value: p, label: `👁️ Spia ${p}` })),
-            timestamp: Date.now()
-          });
-        }
+        this.emitChoicePanelOrAutoResolve(gameId, playerName, odFSocketId, {
+          choiceId: odFChoiceId,
+          title: '📸 OCCHIO DEL FOTOGRAFO',
+          message: 'Scegli quale avversario spiare. Vedrai la sua mano e potrai rubare una carta!',
+          options: fotografoOpts,
+          timestamp: Date.now()
+        }, fotografoOpts, 'pendingFotografo', io);
         emitChat(`📸 OCCHIO DEL FOTOGRAFO! ${playerName} usa la lente d'ingrandimento...`);
         emitState(); break;
       }
@@ -9480,19 +9508,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         // Human: 2-phase choice — first pick the forced attacker (enemy char), then pick the target
         const pbChoiceId = `playback-${Date.now()}`;
         const pbSocketId = (game.players[playerName] as any)?.socketId;
+        const playbackOpts = pbEnemies.map(c => {
+          const cStars = c.stars || this.extractStarsFromNote(c.text || '') || 0;
+          return { value: c.id, label: `🎭 ${c.name || c.owner} (${cStars}★, ${c.pti || 0} PTI) — ${c.owner}` };
+        });
         (game as any).pendingPlayback = { choiceId: pbChoiceId, playerName, hasGigione: pbHasGigione, phase: 'choose_attacker' };
-        if (pbSocketId && io) {
-          io.to(pbSocketId).emit('show-choice-panel', {
-            choiceId: pbChoiceId,
-            title: '🎬 PLAYBACK - Scegli il personaggio che attacca',
-            message: 'Scegli il personaggio avversario che eseguirà il tuo prossimo attacco:',
-            options: pbEnemies.map(c => {
-              const cStars = c.stars || this.extractStarsFromNote(c.text || '') || 0;
-              return { value: c.id, label: `🎭 ${c.name || c.owner} (${cStars}★, ${c.pti || 0} PTI) — ${c.owner}` };
-            }),
-            timestamp: Date.now()
-          });
-        }
+        this.emitChoicePanelOrAutoResolve(gameId, playerName, pbSocketId, {
+          choiceId: pbChoiceId,
+          title: '🎬 PLAYBACK - Scegli il personaggio che attacca',
+          message: 'Scegli il personaggio avversario che eseguirà il tuo prossimo attacco:',
+          options: playbackOpts,
+          timestamp: Date.now()
+        }, playbackOpts, 'pendingPlayback', io);
         emitChat(`🎬 PLAYBACK! ${playerName} forza un avversario ad attaccare!${pbHasGigione ? ' GIGIONE in campo: il danno sarà raddoppiato!' : ''}`);
         emitState(); break;
       }
@@ -9535,19 +9562,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const cIdVO = `vitello-doro-${Date.now()}`;
         const psIdVO = (game.players[playerName] as any)?.socketId;
         const maxConvertiblePTI = Math.floor((myChar.pti || 0) / 50) * 50;
+        const vitelloOpts = Array.from({ length: Math.min(10, Math.floor((myChar.pti || 0) / 50)) }, (_, i) => ({
+          value: String((i + 1) * 50),
+          label: `${(i + 1) * 50} PTI → ${i + 1} stella${i + 1 > 1 ? 'e' : ''}`
+        }));
         (game as any).pendingVitelloDoro = { choiceId: cIdVO, playerName, maxPTI: maxConvertiblePTI };
-        if (psIdVO && io) {
-          io.to(psIdVO).emit('show-choice-panel', {
-            choiceId: cIdVO,
-            title: '🐂 VITELLO D\'ORO',
-            message: `${myChar.name || playerName} ha ${myChar.pti} PTI. Ogni 50 PTI = 1 stella (il personaggio muore dopo 5 turni). Quanti PTI vuoi convertire?`,
-            options: Array.from({ length: Math.min(10, Math.floor((myChar.pti || 0) / 50)) }, (_, i) => ({
-              value: String((i + 1) * 50),
-              label: `${(i + 1) * 50} PTI → ${i + 1} stella${i + 1 > 1 ? 'e' : ''}`
-            })),
-            timestamp: Date.now()
-          });
-        }
+        this.emitChoicePanelOrAutoResolve(gameId, playerName, psIdVO, {
+          choiceId: cIdVO,
+          title: '🐂 VITELLO D\'ORO',
+          message: `${myChar.name || playerName} ha ${myChar.pti} PTI. Ogni 50 PTI = 1 stella (il personaggio muore dopo 5 turni). Quanti PTI vuoi convertire?`,
+          options: vitelloOpts,
+          timestamp: Date.now()
+        }, vitelloOpts, 'pendingVitelloDoro', io);
         emitChat(`🐂 VITELLO D'ORO! ${playerName} sceglie quanti PTI convertire in stelle...`);
         emitState(); break;
       }
@@ -9790,20 +9816,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const psIdOMQ = (game.players[playerName] as any)?.socketId;
           const cIdOMQ = `oh-ma-quello-${Date.now()}`;
           // Step 1: player picks target enemy to replace; step 2 will pick the replacement from deck
+          const ohMaQuelOpts = enemiesOMQ.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}${isGidi ? ' (Gidi: speciali disponibili!)' : ''}` }));
           (game as any).pendingOhMaQuello = {
             choiceId: cIdOMQ, playerName, isGidi,
             availableReplacements: availableReplacementsOMQ.map((c: Card) => c.id),
             step: 'pick_target',
             sourceCard: card // needed for MBACC interception in routes.ts choice handler
           };
-          if (psIdOMQ && io) {
-            io.to(psIdOMQ).emit('show-choice-panel', {
-              choiceId: cIdOMQ, title: '😮 OH MA QUELLO — Passo 1/2',
-              question: `Scegli il personaggio avversario da sostituire:`,
-              options: enemiesOMQ.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}${isGidi ? ' (Gidi: speciali disponibili!)' : ''}` })),
-              playerName, cardName: 'OH MA QUELLO', timestamp: Date.now()
-            });
-          }
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psIdOMQ, {
+            choiceId: cIdOMQ, title: '😮 OH MA QUELLO — Passo 1/2',
+            question: `Scegli il personaggio avversario da sostituire:`,
+            options: ohMaQuelOpts,
+            playerName, cardName: 'OH MA QUELLO', timestamp: Date.now()
+          }, ohMaQuelOpts, 'pendingOhMaQuello', io);
           emitChat(`😮 OH MA QUELLO! ${playerName} sceglie quale personaggio sostituire${isGidi ? ' (GIDI: speciali inclusi!)' : ''}...`);
           emitState();
         }
@@ -9924,17 +9949,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           (game as any).pendingVousTrVous = { choiceId: cIdVTV, playerName, sourceCard: card };
           const eligibleVTV = enemyPlayersVTV.filter((p: string) => !!this.getPlayerActiveCharacter(game, p));
           if (eligibleVTV.length < 2) { emitChat(`⚔️ VOUS TRA VOUS! Non ci sono abbastanza avversari con personaggi in campo.`); emitState(); break; }
-          if (psIdVTV && io) {
-            io.to(psIdVTV).emit('show-choice-panel', {
-              choiceId: cIdVTV, title: '⚔️ VOUS TRA VOUS',
-              question: 'Scegli il primo avversario del duello:',
-              options: eligibleVTV.map((p: string) => {
-                const ec = this.getPlayerActiveCharacter(game, p);
-                return { value: p, label: p, description: ec ? `${ec.name || '?'} — PTI: ${ec.pti}` : 'Nessun personaggio' };
-              }),
-              playerName, cardName: 'VOUS TRA VOUS', timestamp: Date.now()
-            });
-          }
+          const vousTrVousOpts = eligibleVTV.map((p: string) => {
+            const ec = this.getPlayerActiveCharacter(game, p);
+            return { value: p, label: p, description: ec ? `${ec.name || '?'} — PTI: ${ec.pti}` : 'Nessun personaggio' };
+          });
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psIdVTV, {
+            choiceId: cIdVTV, title: '⚔️ VOUS TRA VOUS',
+            question: 'Scegli il primo avversario del duello:',
+            options: vousTrVousOpts,
+            playerName, cardName: 'VOUS TRA VOUS', timestamp: Date.now()
+          }, vousTrVousOpts, 'pendingVousTrVous', io);
           emitChat(`⚔️ VOUS TRA VOUS! ${playerName} sceglie i due avversari per il duello...`);
           emitState();
         }
@@ -11181,10 +11205,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const opponents = Object.keys(game.players).filter(p => p !== playerName);
         if (opponents.length > 0) {
           if (isCPUBaratto) {
-            // CPU: pick random opponent
-            const targetPlayer = opponents[Math.floor(Math.random() * opponents.length)];
+            // CPU: pick opponent with weakest active character to swap with (strategic choice)
+            let targetPlayer = opponents[0];
+            let weakestBarattoScore = Infinity;
+            for (const opp of opponents) {
+              const oppChar = this.getPlayerActiveCharacter(game, opp);
+              const oppScore = oppChar ? (oppChar.pti ?? 0) + (oppChar.stars ?? 0) * 100 : 0;
+              if (oppScore < weakestBarattoScore) { weakestBarattoScore = oppScore; targetPlayer = opp; }
+            }
             const result = this.processSwapEffect(gameId, playerName, targetPlayer, io);
-            console.log(`🔄 BARATTO (CPU): ${playerName} swapped with ${targetPlayer}, result: ${result.success}`);
+            console.log(`🔄 BARATTO (CPU): ${playerName} swapped with ${targetPlayer} (weakest: score=${weakestBarattoScore}), result: ${result.success}`);
           } else {
             // Human: show player selection panel
             const otherPlayers = game.turnOrder.filter((p: string) => p !== playerName);
@@ -14410,13 +14440,25 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         const isCPU = this.isPlayerCPU(gameId, playerName);
         if (isCPU) {
-          const randomIdx = Math.floor(Math.random() * player.hand.length);
-          const cardToReturn = player.hand.splice(randomIdx, 1)[0];
+          // CPU gives away its weakest card (lowest PTI score — personaggi by pti+stars, others by type priority)
+          const weakestIdx = player.hand.reduce((bestIdx: number, c: Card, idx: number) => {
+            const score = (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+              ? ((c.pti ?? 0) + (c.stars ?? 0) * 100)
+              : (c.type === 'mosse' ? 50 : 25); // mosse > bonus
+            const bestScore = (() => {
+              const b = player.hand[bestIdx];
+              return (b.type === 'personaggi' || b.type === 'personaggi_speciali')
+                ? ((b.pti ?? 0) + (b.stars ?? 0) * 100)
+                : (b.type === 'mosse' ? 50 : 25);
+            })();
+            return score < bestScore ? idx : bestIdx;
+          }, 0);
+          const cardToReturn = player.hand.splice(weakestIdx, 1)[0];
           const deckType = cardToReturn.type as keyof typeof game.decks;
           if (game.decks[deckType]) {
             game.decks[deckType].unshift(cardToReturn);
             await this.pickCard(gameId, deckType as keyof GameState['decks'], playerName);
-            console.log(`🔄 SWAP CARD: CPU ${playerName} returned ${cardToReturn.name || cardToReturn.id} to bottom of ${deckType} deck and drew a new card`);
+            console.log(`🔄 SWAP CARD: CPU ${playerName} returned weakest card ${cardToReturn.name || cardToReturn.id} (type: ${deckType}) to deck and drew a new card`);
           }
         } else if (io) {
           const handCards = player.hand.map((c: Card) => ({
@@ -15041,24 +15083,23 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           defenderName: targetOwnerName,
           targetCardId
         };
-        if (defSocketId76 && io76) {
-          io76.to(defSocketId76).emit('show-choice-panel', {
-            choiceId: choiceId76,
-            title: '🎲 ROULETTE RUSSA',
-            question: 'Scegli un numero da 1 a 6. Se il dado esce quel numero, il tuo personaggio si salva!',
-            options: [
-              { value: '1', label: '1', description: '' },
-              { value: '2', label: '2', description: '' },
-              { value: '3', label: '3', description: '' },
-              { value: '4', label: '4', description: '' },
-              { value: '5', label: '5', description: '' },
-              { value: '6', label: '6', description: '' },
-            ],
-            playerName: targetOwnerName,
-            cardName: 'ROULETTE RUSSA',
-            timestamp: Date.now()
-          });
-        }
+        const rouletteOpts = [
+          { value: '1', label: '1', description: '' },
+          { value: '2', label: '2', description: '' },
+          { value: '3', label: '3', description: '' },
+          { value: '4', label: '4', description: '' },
+          { value: '5', label: '5', description: '' },
+          { value: '6', label: '6', description: '' },
+        ];
+        this.emitChoicePanelOrAutoResolve(gameId, targetOwnerName, defSocketId76, {
+          choiceId: choiceId76,
+          title: '🎲 ROULETTE RUSSA',
+          question: 'Scegli un numero da 1 a 6. Se il dado esce quel numero, il tuo personaggio si salva!',
+          options: rouletteOpts,
+          playerName: targetOwnerName,
+          cardName: 'ROULETTE RUSSA',
+          timestamp: Date.now()
+        }, rouletteOpts, 'pendingRouletteRussa', io76);
         if (io76) io76.to(gameId).emit('chat-message', {
           id: `${Date.now()}-roulette-panel`,
           playerName: 'Sistema',
@@ -19837,6 +19878,228 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
   }
 
+  /**
+   * Single-point wrapper for all `show-choice-panel` emissions.
+   * If `playerName` is a CPU player it auto-resolves the pending choice server-side
+   * and returns `true` (the caller must NOT emit to the socket and must break/return).
+   * If the player is human it emits `show-choice-panel` to `socketId` and returns `false`.
+   *
+   * Usage pattern:
+   *   if (this.emitChoicePanelOrAutoResolve(gameId, playerName, socketId, payload, options, pendingKey, io)) break;
+   */
+  emitChoicePanelOrAutoResolve(
+    gameId: string,
+    playerName: string,
+    socketId: string | undefined,
+    payload: Record<string, any>,
+    options: Array<{ value: string; label?: string }>,
+    pendingKey: string,
+    io: any
+  ): boolean {
+    if (this.isPlayerCPU(gameId, playerName)) {
+      // Auto-resolve server-side; never send a panel to the CPU client
+      return this.cpuAutoResolveChoicePanel(gameId, playerName, payload.choiceId as string, options, pendingKey, io);
+    }
+    if (socketId && io) {
+      io.to(socketId).emit('show-choice-panel', payload);
+    }
+    return false; // human: panel emitted, caller continues normally
+  }
+
+  /**
+   * Centralized CPU auto-resolution safety net for show-choice-panel events.
+   * Called before emitting a show-choice-panel to a player — if that player is CPU,
+   * this resolves the pending choice server-side and returns true (panel should NOT be emitted).
+   * Each pending token type selects the best option using stars/PTI heuristics.
+   */
+  cpuAutoResolveChoicePanel(gameId: string, targetPlayer: string, choiceId: string, options: Array<{ value: string; label?: string }>, pendingKey: string, io: any): boolean {
+    if (!this.isPlayerCPU(gameId, targetPlayer)) return false;
+    const game = this.games.get(gameId);
+    if (!game) return false;
+
+    // Pick the first option (index 0) as a safe default for unknown panel types.
+    // Specific pending types with known value semantics pick the best option below.
+    let bestValue = options[0]?.value ?? 'SI';
+
+    // For panels with a "IGNORA" / "NO" option, prefer the beneficial SI/SPY/action option.
+    // For panels picking target opponents, prefer the highest-PTI enemy.
+    // For number panels (roulette), pick a random number 1-6.
+    if (options.some(o => ['1','2','3','4','5','6'].includes(o.value) && options.length === 6)) {
+      bestValue = String(Math.floor(Math.random() * 6) + 1);
+    } else if (options.some(o => o.value === 'SI')) {
+      bestValue = 'SI'; // Bob Dylan-style binary choice: always take the pact
+    } else if (options.some(o => o.value === 'SPY')) {
+      bestValue = 'SPY'; // Stai a Fa Na Cazzata: always spy
+    } else if (options.some(o => o.value === 'bonus') && options.some(o => o.value === 'mosse')) {
+      bestValue = 'bonus'; // Una Tempesta Baby: prefer bonus
+    } else if (options.length > 0) {
+      // Generic: pick option with highest PTI value heuristic from field
+      const fieldById = new Map(game.field.map((c: Card) => [c.id, c]));
+      const allPlayersById = Object.keys(game.players);
+      let bestScore = -Infinity;
+      for (const opt of options) {
+        if (opt.value === 'skip' || opt.value === 'IGNORA' || opt.value === 'NO') continue;
+        let score = 0;
+        const cardOnField = fieldById.get(opt.value);
+        if (cardOnField) {
+          score = (cardOnField.pti ?? 0) + (cardOnField.stars ?? 0) * 100;
+        } else if (allPlayersById.includes(opt.value)) {
+          const ec = this.getPlayerActiveCharacter(game, opt.value);
+          score = ec ? (ec.pti ?? 0) + (ec.stars ?? 0) * 100 : 0;
+        } else {
+          // Numeric or string option: try parsing as number
+          const num = parseFloat(opt.value);
+          if (!isNaN(num)) score = num;
+        }
+        if (score > bestScore) { bestScore = score; bestValue = opt.value; }
+      }
+    }
+
+    console.log(`🤖 cpuAutoResolveChoicePanel: ${targetPlayer} auto-resolved choiceId=${choiceId} pendingKey=${pendingKey} bestValue=${bestValue}`);
+
+    // Delegate to the centralized handler — same code path used by the socket handler for human players
+    const handled = this.processChoicePanelResponseInternal(gameId, targetPlayer, choiceId, bestValue, io);
+    if (!handled) {
+      // Fallback: if no centralized handler matched, delete pending token and emit generic message
+      if (pendingKey) delete (game as any)[pendingKey];
+      if (io) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-cpu-panel-${pendingKey}`,
+          playerName: 'Sistema',
+          message: `🤖 ${targetPlayer} (CPU) ha risolto automaticamente la scelta: ${bestValue}`,
+          timestamp: Date.now()
+        });
+        io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Centralized handler for choice-panel-response events.
+   * Called by both the socket handler (for human players) and cpuAutoResolveChoicePanel (for CPUs).
+   * Returns true if a matching pending token was found and handled.
+   */
+  processChoicePanelResponseInternal(gameId: string, playerName: string, choiceId: string, value: string, io: any): boolean {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+
+    // ── RUOSS E FESSA ──────────────────────────────────────────────────────────
+    const pendingREF = (game as any).pendingRuossEFessa;
+    if (pendingREF && pendingREF.choiceId === choiceId && pendingREF.playerName === playerName) {
+      delete (game as any).pendingRuossEFessa;
+      if (value === 'yes') {
+        const charREF = game.field.find((c: Card) => c.id === pendingREF.charId) || this.getPlayerActiveCharacter(game, playerName);
+        if (charREF) {
+          charREF.pti = 5000; charREF.stars = 3;
+          (charREF as any).ruossEFessa = true;
+          this.updateCardTextWithPTI(charREF);
+          if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-ref`, playerName: 'Sistema', message: `💪 RUOSS E FESSA ATTIVATO! ${charREF.name || playerName}: 5000 PTI + 3 stelle, -1000 PTI per ogni attacco!`, timestamp: Date.now() });
+        }
+      } else {
+        if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-ref-no`, playerName: 'Sistema', message: `💪 RUOSS E FESSA: ${playerName} rinuncia.`, timestamp: Date.now() });
+      }
+      if (io) io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      return true;
+    }
+
+    // ── IBERNAZIONE ───────────────────────────────────────────────────────────
+    const pendingIb = (game as any).pendingIbernazione;
+    if (pendingIb && pendingIb.choiceId === choiceId && pendingIb.playerName === playerName) {
+      delete (game as any).pendingIbernazione;
+      if (value === 'yes') {
+        (game as any).ibernazione = { turnsLeft: 3, activatedBy: playerName };
+        if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-ib`, playerName: 'Sistema', message: `❄️ IBERNAZIONE ATTIVATA! Per 3 turni nessuno può usare bonus, mosse o mettere un nuovo personaggio in campo!`, timestamp: Date.now() });
+      } else {
+        if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-ib-no`, playerName: 'Sistema', message: `❄️ IBERNAZIONE: ${playerName} rinuncia all'ibernazione.`, timestamp: Date.now() });
+      }
+      if (io) io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      return true;
+    }
+
+    // ── MINKIARD N. 100 ──────────────────────────────────────────────────────
+    const pendingM100 = (game as any).pendingMinkiard100;
+    if (pendingM100 && pendingM100.choiceId === choiceId && pendingM100.playerName === playerName) {
+      delete (game as any).pendingMinkiard100;
+      const myCharM100 = this.getPlayerActiveCharacter(game, playerName);
+      if (myCharM100) {
+        if (value === '3000pti') {
+          myCharM100.pti = 3000;
+          this.updateCardTextWithPTI(myCharM100);
+          if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-m100-pti`, playerName: 'Sistema', message: `💯 MINKIARD N. 100! ${myCharM100.name || playerName} → 3000 PTI!`, timestamp: Date.now() });
+        } else {
+          myCharM100.stars = 4;
+          this.updateCardTextWithPTI(myCharM100);
+          if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-m100-stars`, playerName: 'Sistema', message: `💯 MINKIARD N. 100! ${myCharM100.name || playerName} → 4 stelle!`, timestamp: Date.now() });
+        }
+      }
+      if (io) io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      return true;
+    }
+
+    // ── PESCA MIRACOLOSA ─────────────────────────────────────────────────────
+    const pendingPM = (game as any).pendingPescaMiracolosa;
+    if (pendingPM && pendingPM.choiceId === choiceId && pendingPM.playerName === playerName) {
+      delete (game as any).pendingPescaMiracolosa;
+      const drawnPM: { card: Card; deckType: string }[] = pendingPM.drawn;
+      const keptPM = drawnPM.find((d: any) => d.card.id === value);
+      if (keptPM) {
+        game.players[playerName].hand.push(keptPM.card);
+        for (const { card: cPM, deckType: dtPM } of drawnPM) {
+          if (cPM.id !== keptPM.card.id) game.decks[dtPM as keyof GameState['decks']].push(cPM);
+        }
+        const sameTypePM = game.players[playerName].hand.filter((c: Card) => c.type === keptPM.card.type && c.id !== keptPM.card.id);
+        if (sameTypePM.length > 0) {
+          const idx = game.players[playerName].hand.findIndex((c: Card) => c.id === sameTypePM[0].id);
+          if (idx !== -1) {
+            const returnedCard = game.players[playerName].hand.splice(idx, 1)[0];
+            game.decks[keptPM.deckType as keyof GameState['decks']].push(returnedCard);
+          }
+        }
+        if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-pesca-miracolosa`, playerName: 'Sistema', message: `🎣 PESCA MIRACOLOSA! ${playerName} tiene ${keptPM.card.name || keptPM.card.type}!`, timestamp: Date.now() });
+      }
+      if (io) io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      return true;
+    }
+
+    // ── IMITAZIONE ───────────────────────────────────────────────────────────
+    const pendingImit = (game as any).pendingImitazione;
+    if (pendingImit && pendingImit.choiceId === choiceId && pendingImit.playerName === playerName) {
+      delete (game as any).pendingImitazione;
+      const chosenChar = pendingImit.chars.find((c: any) => c.id === value);
+      const myCharIM = this.getPlayerActiveCharacter(game, playerName);
+      if (myCharIM && chosenChar) {
+        (myCharIM as any).imitazioneSource = chosenChar.name || chosenChar.id;
+        (myCharIM as any).copiedEffect = chosenChar.effect || '';
+        myCharIM.effect = (myCharIM.effect || '') + ` [IMITAZIONE: ${chosenChar.name}]`;
+        if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-imitazione`, playerName: 'Sistema', message: `🎭 IMITAZIONE! ${myCharIM.name || playerName} copia l'effetto di ${chosenChar.name || value}!`, timestamp: Date.now() });
+      }
+      if (io) io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      return true;
+    }
+
+    // ── BOB DYLAN ─────────────────────────────────────────────────────────────
+    const pendingBD = (game as any).pendingBobDylanChoice;
+    if (pendingBD && pendingBD.choiceId === choiceId && pendingBD.playerName === playerName) {
+      delete (game as any).pendingBobDylanChoice;
+      if (value === 'SI') {
+        const activeCharBD = game.field.find((c: Card) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+        if (activeCharBD) {
+          activeCharBD.stars = 0;
+          activeCharBD.pti = (activeCharBD.pti || 0) + 10000;
+          this.updateCardTextWithPTI(activeCharBD);
+          if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-bd-si`, playerName: 'Sistema', message: `😈 ${playerName} ha fatto il PATTO CON QUELLO DI GIÙ! ${activeCharBD.name || 'Il personaggio'} va a 0 stelle ma guadagna +10000 PTI!`, timestamp: Date.now() });
+        }
+      } else {
+        if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-bd-no`, playerName: 'Sistema', message: `🎸 ${playerName} rifiuta il patto con quello di giù.`, timestamp: Date.now() });
+      }
+      if (io) io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      return true;
+    }
+
+    return false; // No matching pending token found
+  }
+
   // Check if a player is CPU
   isPlayerCPU(gameId: string, playerName: string): boolean {
     const game = this.games.get(gameId);
@@ -19867,15 +20130,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     switch (effectType) {
       case 'pti_input':
       case 'insurance': {
-        // Random PTI value between 50 and 500
-        const randomPti = Math.floor(Math.random() * 451) + 50;
-        console.log(`🤖 CPU ${playerName} auto-selected PTI: ${randomPti}`);
-        const result = this.processPtiInputEffect(gameId, cardId, randomPti, playerName);
+        // CPU uses the active character's current PTI as max (entire PTI pool)
+        // Falls back to 500 if no character in field
+        const activeCharForPti = game.field.find((c: Card) =>
+          c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        const computedMaxPti = activeCharForPti?.pti ?? 500;
+        const cpuPtiValue = Math.max(1, computedMaxPti); // Always at least 1
+        console.log(`🤖 CPU ${playerName} auto-selected PTI (active char max): ${cpuPtiValue}`);
+        const result = this.processPtiInputEffect(gameId, cardId, cpuPtiValue, playerName);
         if (result.success && io) {
           io.to(gameId).emit('chat-message', {
             id: `${Date.now()}-cpu-pti`,
             playerName: 'Sistema',
-            message: `🤖 CPU ${playerName} ha inserito ${randomPti} PTI per l'effetto!`,
+            message: `🤖 CPU ${playerName} ha inserito ${cpuPtiValue} PTI per l'effetto (massimo del personaggio)!`,
             timestamp: Date.now()
           });
         }
@@ -19883,17 +20151,32 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'deck_selection': {
-        const deckTypes = excludeSpeciali 
-          ? ['PERSONAGGI', 'MOSSE', 'BONUS']
-          : ['PERSONAGGI', 'MOSSE', 'BONUS', 'PERSONAGGI SPECIALI'];
-        const randomDeck = deckTypes[Math.floor(Math.random() * deckTypes.length)];
-        console.log(`🤖 CPU ${playerName} auto-selected deck: ${randomDeck}`);
-        const result = this.processDeckSelectionEffect(gameId, cardId, randomDeck, playerName);
+        const deckTypeKeys = excludeSpeciali
+          ? (['personaggi', 'mosse', 'bonus'] as const)
+          : (['personaggi', 'mosse', 'bonus', 'personaggi_speciali'] as const);
+        // CPU picks the deck whose top card has the highest stars*100+PTI score
+        let bestDeckType = deckTypeKeys[0];
+        let bestScore = -1;
+        for (const dt of deckTypeKeys) {
+          const topCard = (game.decks as any)[dt]?.[(game.decks as any)[dt]?.length - 1];
+          if (topCard) {
+            const score = (topCard.stars ?? this.extractStarsFromNote(topCard.text || '') ?? 0) * 100
+              + (topCard.pti ?? this.extractPTIFromNote(topCard.text || '') ?? 0);
+            if (score > bestScore) { bestScore = score; bestDeckType = dt; }
+          }
+        }
+        // Map internal deck key to UI deck label used by processDeckSelectionEffect
+        const deckLabelMap: Record<string, string> = {
+          personaggi: 'PERSONAGGI', mosse: 'MOSSE', bonus: 'BONUS', personaggi_speciali: 'PERSONAGGI SPECIALI'
+        };
+        const bestDeckLabel = deckLabelMap[bestDeckType] || 'PERSONAGGI';
+        console.log(`🤖 CPU ${playerName} auto-selected best deck: ${bestDeckLabel} (score: ${bestScore})`);
+        const result = this.processDeckSelectionEffect(gameId, cardId, bestDeckLabel, playerName);
         if (result.success && io) {
           io.to(gameId).emit('chat-message', {
             id: `${Date.now()}-cpu-deck`,
             playerName: 'Sistema',
-            message: `🤖 CPU ${playerName} ha selezionato il mazzo ${randomDeck}!`,
+            message: `🤖 CPU ${playerName} ha selezionato il mazzo ${bestDeckLabel} (carta migliore disponibile)!`,
             timestamp: Date.now()
           });
         }
@@ -19901,17 +20184,28 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'swap': {
-        // Random player to swap with
+        // CPU prefers to swap with the opponent who has the weakest active character
+        // (CPU's own position is weak → trade to get rid of disadvantage)
+        // If CPU itself has the weakest char, pick the opponent with richest char instead
         const otherPlayers = game.turnOrder.filter((p: string) => p !== playerName);
         if (otherPlayers.length > 0) {
-          const randomTarget = otherPlayers[Math.floor(Math.random() * otherPlayers.length)];
-          console.log(`🤖 CPU ${playerName} auto-selected swap target: ${randomTarget}`);
-          const result = this.processSwapEffect(gameId, playerName, randomTarget, io);
+          const cpuChar = this.getPlayerActiveCharacter(game, playerName);
+          const cpuScore = cpuChar ? (cpuChar.pti ?? 0) + (cpuChar.stars ?? 0) * 100 : 0;
+          // Pick opponent with weakest character (CPU expects gain from swap)
+          let swapTarget = otherPlayers[0];
+          let weakestScore = Infinity;
+          for (const opp of otherPlayers) {
+            const oppChar = this.getPlayerActiveCharacter(game, opp);
+            const oppScore = oppChar ? (oppChar.pti ?? 0) + (oppChar.stars ?? 0) * 100 : 0;
+            if (oppScore < weakestScore) { weakestScore = oppScore; swapTarget = opp; }
+          }
+          console.log(`🤖 CPU ${playerName} auto-selected swap target (weakest opponent): ${swapTarget}`);
+          const result = this.processSwapEffect(gameId, playerName, swapTarget, io);
           if (result.success && io) {
             io.to(gameId).emit('chat-message', {
               id: `${Date.now()}-cpu-swap`,
               playerName: 'Sistema',
-              message: `🤖 CPU ${playerName} ha scambiato tutte le carte con ${randomTarget}!`,
+              message: `🤖 CPU ${playerName} ha scambiato tutte le carte con ${swapTarget} (avversario più debole)!`,
               timestamp: Date.now()
             });
           }
@@ -19936,23 +20230,26 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'graveyard_selection': {
-        // Random card from graveyard
+        // CPU picks the card with highest PTI+stars score from graveyard
         if (game.graveyard.length > 0) {
-          const randomCard = game.graveyard[Math.floor(Math.random() * game.graveyard.length)];
-          console.log(`🤖 CPU ${playerName} auto-selected graveyard card: ${randomCard.name || randomCard.id}`);
-          // Resurrect the card
-          const cardIndex = game.graveyard.findIndex((c: Card) => c.id === randomCard.id);
+          const bestCard = game.graveyard.reduce((best: Card, c: Card) => {
+            const bScore = (best.pti ?? this.extractPTIFromNote(best.text || '') ?? 0) + (best.stars ?? this.extractStarsFromNote(best.text || '') ?? 0) * 100;
+            const cScore = (c.pti ?? this.extractPTIFromNote(c.text || '') ?? 0) + (c.stars ?? this.extractStarsFromNote(c.text || '') ?? 0) * 100;
+            return cScore > bScore ? c : best;
+          }, game.graveyard[0]);
+          console.log(`🤖 CPU ${playerName} auto-selected graveyard card (best): ${bestCard.name || bestCard.id}`);
+          const cardIndex = game.graveyard.findIndex((c: Card) => c.id === bestCard.id);
           if (cardIndex !== -1) {
             const resurrectedCard = game.graveyard.splice(cardIndex, 1)[0];
             resurrectedCard.owner = playerName;
-            resurrectedCard.pti = 500; // Random starting PTI
+            if (!resurrectedCard.pti || resurrectedCard.pti <= 0) resurrectedCard.pti = 500;
             this.updateCardTextWithPTI(resurrectedCard);
             game.field.push(resurrectedCard);
             if (io) {
               io.to(gameId).emit('chat-message', {
                 id: `${Date.now()}-cpu-resurrect`,
                 playerName: 'Sistema',
-                message: `🤖 CPU ${playerName} ha resuscitato ${resurrectedCard.name || 'una carta'}!`,
+                message: `🤖 CPU ${playerName} ha resuscitato ${resurrectedCard.name || 'una carta'} dal cimitero (${resurrectedCard.pti} PTI, ${resurrectedCard.stars ?? '?'}⭐)!`,
                 timestamp: Date.now()
               });
             }
@@ -21439,6 +21736,26 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         effectsToUse
       });
       
+      // CPU auto-resolution: resolve entirely server-side before any panel emission
+      if (this.isPlayerCPU(gameId, playerName)) {
+        const cpuSelfNumber = Math.floor(Math.random() * 6) + 1;
+        console.log(`🎲 DICE CONTROL CPU auto-resolution (self): ${playerName} chooses ${cpuSelfNumber}`);
+        this.consumeDiceControlEffect(gameId, playerName);
+        if (io) {
+          io.to(gameId).emit('dice-rolled', {
+            result: cpuSelfNumber, playerName,
+            wasControlled: true, controlledBy: playerName, timestamp: Date.now()
+          });
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-dice-control-self-cpu`, playerName: 'Sistema',
+            message: `🎲 ${playerName} (CPU) ha controllato il proprio dado e scelto ${cpuSelfNumber}!`,
+            timestamp: Date.now()
+          });
+        }
+        this.completePendingControlledAutoDice(gameId, pendingId, cpuSelfNumber, io);
+        return { success: true, message: `CPU auto-controllato dado: ${cpuSelfNumber}` };
+      }
+
       if (io) {
         io.to(gameId).emit('show-dice-control-panel', {
           pendingId,
@@ -21457,7 +21774,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           timestamp: Date.now()
         });
       }
-      
+
       // Return success - the actual dice effect will be applied when player chooses
       return { success: true, message: 'Attendi scelta del numero del dado' };
     }
@@ -22103,6 +22420,54 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         });
         return;
       }
+      // CPU auto-resolution: select top 3 opponents' graveyard characters by PTI
+      if (this.isPlayerCPU(gameId, playerName)) {
+        const sorted = [...graveyardOpponents].sort((a, b) => {
+          const aPTI = a.pti ?? this.extractPTIFromNote(a.text || '') ?? 0;
+          const bPTI = b.pti ?? this.extractPTIFromNote(b.text || '') ?? 0;
+          return bPTI - aPTI;
+        });
+        const toAbsorb = sorted.slice(0, 3);
+        (card as any).evilFakeUsed = true;
+        let totalPTI = 0, totalStars = 0;
+        const absorbedNames: string[] = [];
+        const absorbedEffects: string[] = [];
+        const absorbedMosseEffects: string[] = [];
+        for (const dead of toAbsorb) {
+          const gIdx = game.graveyard.findIndex((c: Card) => c.id === dead.id);
+          if (gIdx < 0) continue;
+          const removed = game.graveyard.splice(gIdx, 1)[0];
+          const dPTI = removed.pti ?? this.extractPTIFromNote(removed.text || '') ?? 0;
+          const dStars = removed.stars ?? this.extractStarsFromNote(removed.text || '') ?? 1;
+          totalPTI += dPTI;
+          totalStars += dStars;
+          absorbedNames.push(removed.name || removed.id);
+          if ((removed as any).mosseDamageEffect) { absorbedMosseEffects.push((removed as any).mosseDamageEffect); absorbedEffects.push((removed as any).mosseDamageEffect); }
+          if (removed.effect) absorbedEffects.push(removed.effect);
+        }
+        if (totalPTI > 0 || totalStars > 0 || toAbsorb.length > 0) {
+          const efPTI = card.pti ?? this.extractPTIFromNote(card.text || '') ?? 0;
+          const efStars = card.stars ?? this.extractStarsFromNote(card.text || '') ?? 1;
+          card.pti = efPTI + totalPTI;
+          card.stars = efStars + totalStars;
+          if (absorbedEffects.length > 0) {
+            const existingEffect = card.effect || '';
+            const newEffects = absorbedEffects.join(' | ');
+            card.effect = existingEffect ? `${existingEffect} | ${newEffects}` : newEffects;
+            if (absorbedMosseEffects.length > 0 && !card.mosseDamageEffect) {
+              card.mosseDamageEffect = absorbedMosseEffects[0];
+            }
+          }
+          this.updateCardTextWithPTI(card);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-ef-cpu-absorb`, playerName: 'Sistema',
+            message: `😈 EVIL FAKE (CPU ${playerName}) assorbe ${absorbedNames.join(', ')}! +${totalPTI} PTI +${totalStars}⭐!`,
+            timestamp: Date.now()
+          });
+        }
+        console.log(`😈 EVIL FAKE CPU auto-resolution: ${playerName} absorbed ${toAbsorb.length} cards (+${totalPTI} PTI, +${totalStars} stars)`);
+        return;
+      }
       // Note: evilFakeUsed flag is set server-side in routes.ts after the player confirms their choice
       // Create a server-side pending token so the handler can verify this activation was legitimate
       (game as any).evilFakePending = { cardId: card.id, playerName, nonce: Date.now() };
@@ -22146,6 +22511,28 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           message: `🤖 CYBER GEENA: nessun personaggio avversario in campo!`,
           timestamp: Date.now()
         });
+        return;
+      }
+      // CPU auto-resolution: select enemy with highest PTI and swap (steal their strength)
+      if (this.isPlayerCPU(gameId, playerName)) {
+        const bestEnemy = enemyCharsOnField.reduce((best: Card, c: Card) => {
+          const bestPti = best.pti ?? this.extractPTIFromNote(best.text || '') ?? 0;
+          const cPti = c.pti ?? this.extractPTIFromNote(c.text || '') ?? 0;
+          return cPti > bestPti ? c : best;
+        });
+        (card as any).cyberGeenaUsed = true;
+        const geenaPTI = card.pti ?? this.extractPTIFromNote(card.text || '') ?? 0;
+        const targetPTI = bestEnemy.pti ?? this.extractPTIFromNote(bestEnemy.text || '') ?? 0;
+        card.pti = targetPTI;
+        bestEnemy.pti = geenaPTI;
+        this.updateCardTextWithPTI(card);
+        this.updateCardTextWithPTI(bestEnemy);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-cg-cpu-swap`, playerName: 'Sistema',
+          message: `🤖 CYBER GEENA (CPU ${playerName}) scambia PTI con ${bestEnemy.name || bestEnemy.id}! (${geenaPTI} ↔ ${targetPTI})`,
+          timestamp: Date.now()
+        });
+        console.log(`🤖 CYBER GEENA CPU auto-resolution: ${playerName} swapped PTI with ${bestEnemy.name || bestEnemy.id} (${geenaPTI} ↔ ${targetPTI})`);
         return;
       }
       // Note: cyberGeenaUsed flag is set server-side in routes.ts after the player confirms their choice
@@ -30176,16 +30563,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             hand: defenderHand.map((c: any) => ({ id: c.id, name: c.name, type: c.type })),
             timestamp: Date.now()
           });
-          // Show choice panel
-          ioSFC.to(spySockId).emit('show-choice-panel', {
+          // Show choice panel (wrapper handles CPU auto-resolve)
+          const sfcOpts = [
+            { value: 'SPY', label: '🔍 Spia e Annulla', description: `Annulla l'attacco di ${attackerName} su ${targetOwner}` },
+            { value: 'IGNORA', label: '🚫 Ignora', description: 'Non intervenire — lascia proseguire l\'attacco' }
+          ];
+          this.emitChoicePanelOrAutoResolve(gameId, spyPlayer, spySockId, {
             choiceId: sfcChoiceId, title: '🕵️ STAI A FA NA CAZZATA',
             question: `${attackerName} sta attaccando ${targetOwner}! Vuoi spiare e annullare l'attacco?\nMano di ${targetOwner}: [${handSummary}]`,
-            options: [
-              { value: 'SPY', label: '🔍 Spia e Annulla', description: `Annulla l'attacco di ${attackerName} su ${targetOwner}` },
-              { value: 'IGNORA', label: '🚫 Ignora', description: 'Non intervenire — lascia proseguire l\'attacco' }
-            ],
+            options: sfcOpts,
             playerName: spyPlayer, cardName: 'STAI A FA NA CAZZATA', timestamp: Date.now()
-          });
+          }, sfcOpts, 'pendingStaiAFaNaCazzata', ioSFC);
           ioSFC.to(gameId).emit('chat-message', {
             id: `${Date.now()}-sfc-pending`, playerName: 'Sistema',
             message: `🕵️ STAI A FA NA CAZZATA! ${spyPlayer} decide se spiare l'attacco di ${attackerName} su ${targetOwner}...`,
@@ -30277,16 +30665,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         } else if (helperSockId && ioOCT && mossasInHand.length > 0) {
           // Human: show choice panel to pick which mossa to give (do NOT delete flag yet)
           const octChoiceId = `ooooh-che-tritt-${Date.now()}`;
+          const octOpts = [
+            ...mossasInHand.map((c: any) => ({ value: c.id, label: c.name || c.id, description: `Mosse — ${c.text?.substring(0, 50) || '?'}` })),
+            { value: 'IGNORA', label: '🚫 Non intervenire', description: 'Non passare nulla al difensore' }
+          ];
           (game as any).pendingOoooohCheTRitt = { choiceId: octChoiceId, helperPlayer: pName, targetOwner, defenderStars };
-          ioOCT.to(helperSockId).emit('show-choice-panel', {
+          this.emitChoicePanelOrAutoResolve(gameId, pName, helperSockId, {
             choiceId: octChoiceId, title: '🎴 OOOOOH CHE T RITT!',
             question: `${attackerName} sta attaccando ${targetOwner} (${defenderStars}⭐)! Quale mossa vuoi passare al difensore?`,
-            options: [
-              ...mossasInHand.map((c: any) => ({ value: c.id, label: c.name || c.id, description: `Mosse — ${c.text?.substring(0, 50) || '?'}` })),
-              { value: 'IGNORA', label: '🚫 Non intervenire', description: 'Non passare nulla al difensore' }
-            ],
+            options: octOpts,
             playerName: pName, cardName: 'OOOOOH CHE T RITT', timestamp: Date.now()
-          });
+          }, octOpts, 'pendingOoooohCheTRitt', ioOCT);
           ioOCT.to(gameId).emit('chat-message', {
             id: `${Date.now()}-ooooh-pending`, playerName: 'Sistema',
             message: `🎴 OOOOOH CHE T RITT! ${pName} decide quale mossa passare a ${targetOwner}...`,

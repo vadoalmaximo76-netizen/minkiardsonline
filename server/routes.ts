@@ -4424,6 +4424,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const socketPlayerName = gameManager.getPlayerNameFromSocket(socket.id);
       if (!socketPlayerName) return;
 
+      // ── SAFETY GUARD: CPU players should never reach here via socket ─────────
+      // If a choice-panel-response is received from a player who is CPU (e.g., timing race),
+      // silently drop it — CPU players are fully resolved server-side before any panel is emitted.
+      if (gameManager.isPlayerCPU(gameId, socketPlayerName)) {
+        console.warn(`⚠️ choice-panel-response received from CPU player ${socketPlayerName} — dropping (should be auto-resolved server-side)`);
+        return;
+      }
+
       // ── CHOICE-PANEL-RESPONSE HANDLER PRECEDENCE ──────────────────────────
       // Handlers are ordered by specificity. Each checks its own pending state
       // (keyed by choiceId) so only the correct handler fires per response.
@@ -4616,23 +4624,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
-      // ── RUOSS E FESSA ─────────────────────────────────────────────────────────
-      const pendingREF = (game as any).pendingRuossEFessa;
-      if (pendingREF && pendingREF.choiceId === choiceId && pendingREF.playerName === socketPlayerName) {
-        delete (game as any).pendingRuossEFessa;
-        if (value === 'yes') {
-          const charREF = game.field.find((c: any) => c.id === pendingREF.charId) || (gameManager as any).getPlayerActiveCharacter(game, socketPlayerName);
-          if (charREF) {
-            charREF.pti = 5000; charREF.stars = 3;
-            (charREF as any).ruossEFessa = true;
-            (gameManager as any).updateCardTextWithPTI(charREF);
-            io.to(gameId).emit('chat-message', { id: `${Date.now()}-ref`, playerName: 'Sistema', message: `💪 RUOSS E FESSA ATTIVATO! ${charREF.name || socketPlayerName}: 5000 PTI + 3 stelle, -1000 PTI per ogni attacco!`, timestamp: Date.now() });
-          }
-        } else {
-          io.to(gameId).emit('chat-message', { id: `${Date.now()}-ref-no`, playerName: 'Sistema', message: `💪 RUOSS E FESSA: ${socketPlayerName} rinuncia.`, timestamp: Date.now() });
-        }
-        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
-        return;
+      // ── RUOSS E FESSA (delegated to centralized handler in GameManager) ─────────
+      if ((game as any).pendingRuossEFessa?.choiceId === choiceId && (game as any).pendingRuossEFessa?.playerName === socketPlayerName) {
+        if ((gameManager as any).processChoicePanelResponseInternal(gameId, socketPlayerName, choiceId, value, io)) return;
       }
 
       // ── CORRUZIONE V2 ─────────────────────────────────────────────────────────
@@ -4665,18 +4659,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
-      // ── IBERNAZIONE ───────────────────────────────────────────────────────────
-      const pendingIb = (game as any).pendingIbernazione;
-      if (pendingIb && pendingIb.choiceId === choiceId && pendingIb.playerName === socketPlayerName) {
-        delete (game as any).pendingIbernazione;
-        if (value === 'yes') {
-          (game as any).ibernazione = { turnsLeft: 3, activatedBy: socketPlayerName };
-          io.to(gameId).emit('chat-message', { id: `${Date.now()}-ib`, playerName: 'Sistema', message: `❄️ IBERNAZIONE ATTIVATA! Per 3 turni nessuno può usare bonus, mosse o mettere un nuovo personaggio in campo!`, timestamp: Date.now() });
-        } else {
-          io.to(gameId).emit('chat-message', { id: `${Date.now()}-ib-no`, playerName: 'Sistema', message: `❄️ IBERNAZIONE: ${socketPlayerName} rinuncia all'ibernazione.`, timestamp: Date.now() });
-        }
-        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
-        return;
+      // ── IBERNAZIONE (delegated to centralized handler in GameManager) ──────────
+      if ((game as any).pendingIbernazione?.choiceId === choiceId && (game as any).pendingIbernazione?.playerName === socketPlayerName) {
+        if ((gameManager as any).processChoicePanelResponseInternal(gameId, socketPlayerName, choiceId, value, io)) return;
       }
 
       // ── UN POSTO GALATTICO ────────────────────────────────────────────────────
@@ -4709,69 +4694,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
-      // ── IMITAZIONE ───────────────────────────────────────────────────────────
-      const pendingImit = (game as any).pendingImitazione;
-      if (pendingImit && pendingImit.choiceId === choiceId && pendingImit.playerName === socketPlayerName) {
-        delete (game as any).pendingImitazione;
-        const chosenChar = pendingImit.chars.find((c: any) => c.id === value);
-        const myCharIM = (gameManager as any).getPlayerActiveCharacter(game, socketPlayerName);
-        if (myCharIM && chosenChar) {
-          (myCharIM as any).imitazioneSource = chosenChar.name || chosenChar.id;
-          (myCharIM as any).copiedEffect = chosenChar.effect || '';
-          myCharIM.effect = (myCharIM.effect || '') + ` [IMITAZIONE: ${chosenChar.name}]`;
-          io.to(gameId).emit('chat-message', { id: `${Date.now()}-imitazione`, playerName: 'Sistema', message: `🎭 IMITAZIONE! ${myCharIM.name || socketPlayerName} copia l'effetto di ${chosenChar.name || value}!`, timestamp: Date.now() });
-        }
-        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
-        return;
+      // ── IMITAZIONE (delegated to centralized handler in GameManager) ────────────
+      if ((game as any).pendingImitazione?.choiceId === choiceId && (game as any).pendingImitazione?.playerName === socketPlayerName) {
+        if ((gameManager as any).processChoicePanelResponseInternal(gameId, socketPlayerName, choiceId, value, io)) return;
       }
 
-      // ── PESCA MIRACOLOSA ─────────────────────────────────────────────────────
-      const pendingPM = (game as any).pendingPescaMiracolosa;
-      if (pendingPM && pendingPM.choiceId === choiceId && pendingPM.playerName === socketPlayerName) {
-        delete (game as any).pendingPescaMiracolosa;
-        const drawnPM: { card: any; deckType: string }[] = pendingPM.drawn;
-        const keptPM = drawnPM.find((d: any) => d.card.id === value);
-        if (keptPM) {
-          game.players[socketPlayerName].hand.push(keptPM.card);
-          // Return the other drawn cards to their decks
-          for (const { card: cPM, deckType: dtPM } of drawnPM) {
-            if (cPM.id !== keptPM.card.id) {
-              game.decks[dtPM as keyof typeof game.decks].push(cPM);
-            }
-          }
-          // Remove one card of the same type from the player's hand and return it to its deck
-          const sameTypePM = game.players[socketPlayerName].hand.filter((c: any) => c.type === keptPM.card.type && c.id !== keptPM.card.id);
-          if (sameTypePM.length > 0) {
-            const idx = game.players[socketPlayerName].hand.findIndex((c: any) => c.id === sameTypePM[0].id);
-            if (idx !== -1) {
-              const returnedCard = game.players[socketPlayerName].hand.splice(idx, 1)[0];
-              game.decks[keptPM.deckType as keyof typeof game.decks].push(returnedCard);
-            }
-          }
-          io.to(gameId).emit('chat-message', { id: `${Date.now()}-pesca-miracolosa`, playerName: 'Sistema', message: `🎣 PESCA MIRACOLOSA! ${socketPlayerName} tiene ${keptPM.card.name || keptPM.card.type}!`, timestamp: Date.now() });
-        }
-        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
-        return;
+      // ── PESCA MIRACOLOSA (delegated to centralized handler in GameManager) ──────
+      if ((game as any).pendingPescaMiracolosa?.choiceId === choiceId && (game as any).pendingPescaMiracolosa?.playerName === socketPlayerName) {
+        if ((gameManager as any).processChoicePanelResponseInternal(gameId, socketPlayerName, choiceId, value, io)) return;
       }
 
-      // ── MINKIARD N. 100 ──────────────────────────────────────────────────────
-      const pendingM100 = (game as any).pendingMinkiard100;
-      if (pendingM100 && pendingM100.choiceId === choiceId && pendingM100.playerName === socketPlayerName) {
-        delete (game as any).pendingMinkiard100;
-        const myCharM100 = (gameManager as any).getPlayerActiveCharacter(game, socketPlayerName);
-        if (myCharM100) {
-          if (value === '3000pti') {
-            myCharM100.pti = 3000;
-            (gameManager as any).updateCardTextWithPTI(myCharM100);
-            io.to(gameId).emit('chat-message', { id: `${Date.now()}-m100-pti`, playerName: 'Sistema', message: `💯 MINKIARD N. 100! ${myCharM100.name || socketPlayerName} → 3000 PTI!`, timestamp: Date.now() });
-          } else {
-            myCharM100.stars = 4;
-            (gameManager as any).updateCardTextWithPTI(myCharM100);
-            io.to(gameId).emit('chat-message', { id: `${Date.now()}-m100-stars`, playerName: 'Sistema', message: `💯 MINKIARD N. 100! ${myCharM100.name || socketPlayerName} → 4 stelle!`, timestamp: Date.now() });
-          }
-        }
-        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
-        return;
+      // ── MINKIARD N. 100 (delegated to centralized handler in GameManager) ────────
+      if ((game as any).pendingMinkiard100?.choiceId === choiceId && (game as any).pendingMinkiard100?.playerName === socketPlayerName) {
+        if ((gameManager as any).processChoicePanelResponseInternal(gameId, socketPlayerName, choiceId, value, io)) return;
       }
 
       // ── VITELLO D'ORO ─────────────────────────────────────────────────────────
@@ -5195,40 +5130,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // ── SCHEDINE ──────────────────────────────────────────────────────────────
       // (response sent via 'schedine-response' dedicated event, handled below)
 
-      // ── BOB DYLAN ────────────────────────────────────────────────────────────
-      const pending = (game as any).pendingBobDylanChoice;
-      if (!pending || pending.choiceId !== choiceId || pending.playerName !== socketPlayerName) {
-        console.log(`⚠️ choice-panel-response: no matching pending choice for ${socketPlayerName} (choiceId: ${choiceId})`);
-        return;
+      // ── BOB DYLAN (delegated to centralized handler in GameManager) ─────────────
+      if ((game as any).pendingBobDylanChoice?.choiceId === choiceId && (game as any).pendingBobDylanChoice?.playerName === socketPlayerName) {
+        if ((gameManager as any).processChoicePanelResponseInternal(gameId, socketPlayerName, choiceId, value, io)) return;
       }
-      
-      (game as any).pendingBobDylanChoice = undefined;
-      
-      if (value === 'SI') {
-        const activeChar = (gameManager as any).getPlayerActiveCharacter(game, socketPlayerName);
-        if (activeChar) {
-          activeChar.stars = 0;
-          activeChar.pti = (activeChar.pti || 0) + 10000;
-          (gameManager as any).updateCardTextWithPTI(activeChar);
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-bob-dylan-si`,
-            playerName: 'Sistema',
-            message: `😈 ${socketPlayerName} ha fatto il PATTO CON QUELLO DI GIÙ! ${activeChar.name || 'Il personaggio'} va a 0 stelle ma guadagna +10000 PTI!`,
-            timestamp: Date.now()
-          });
-        }
-      } else {
-        io.to(gameId).emit('chat-message', {
-          id: `${Date.now()}-bob-dylan-no`,
-          playerName: 'Sistema',
-          message: `🎸 ${socketPlayerName} ha rifiutato il patto con quello di giù. Resta tutto invariato.`,
-          timestamp: Date.now()
-        });
-      }
-      
-      const updatedState = gameManager.getSanitizedGameState(gameId);
-      io.to(gameId).emit('game-state-update', updatedState);
-      console.log(`🎸 BOB DYLAN choice-panel-response: ${socketPlayerName} chose ${value}`);
+
+      // No matching pending choice found
+      console.log(`⚠️ choice-panel-response: no matching pending choice for ${socketPlayerName} (choiceId: ${choiceId})`);
     });
 
     // TASK-24: CAMILLO kill PTI gift choice
@@ -6929,14 +6837,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const diceControlResult = gameManager.checkDiceControlEffect(gameId, playerName);
         
         if (diceControlResult.hasDiceControl) {
-          // Show dice control panel to the player who has the effect
-          console.log(`🎲 Dice control active for ${diceControlResult.controllingPlayer}`);
-          io.to(gameId).emit('show-dice-control-panel', {
-            rollingPlayer: playerName,
-            controllingPlayer: diceControlResult.controllingPlayer,
-            controllingCardId: diceControlResult.cardId,
-            controllingCardName: diceControlResult.cardName
-          });
+          const controllingPlayer = diceControlResult.controllingPlayer!;
+          // CPU auto-resolution for roll-dice dice control
+          if (gameManager.isPlayerCPU(gameId, controllingPlayer)) {
+            const cpuRollNumber = Math.floor(Math.random() * 6) + 1;
+            console.log(`🎲 roll-dice: DICE CONTROL CPU auto-resolution: ${controllingPlayer} chooses ${cpuRollNumber}`);
+            gameManager.consumeDiceControlEffect(gameId, controllingPlayer);
+            io.to(gameId).emit('dice-rolled', {
+              result: cpuRollNumber, playerName,
+              wasControlled: true, controlledBy: controllingPlayer, timestamp: Date.now()
+            });
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-dice-control-roll-cpu`, playerName: 'Sistema',
+              message: `🎲 ${controllingPlayer} (CPU) ha controllato il dado e scelto ${cpuRollNumber}!`,
+              timestamp: Date.now()
+            });
+          } else {
+            // Show dice control panel to the human player who has the effect
+            console.log(`🎲 Dice control active for ${controllingPlayer}`);
+            io.to(gameId).emit('show-dice-control-panel', {
+              rollingPlayer: playerName,
+              controllingPlayer: controllingPlayer,
+              controllingCardId: diceControlResult.cardId,
+              controllingCardName: diceControlResult.cardName
+            });
+          }
         } else {
           // Generate random number between 1 and 6 normally
           const result = Math.floor(Math.random() * 6) + 1;
