@@ -1222,11 +1222,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   gameManager.loadActiveGamesFromDB().then(async () => {
     console.log('🎮 Active games loaded from database');
 
-    // Startup cleanup: remove inactive non-GymMode games > 12h old immediately
+    // Startup cleanup: remove inactive non-GymMode games > 2h old immediately
     try {
       const { removedMemory, removedDb } = await gameManager.cleanupInactiveGames();
       if (removedMemory + removedDb > 0) {
-        console.log(`🧹 [startup cleanup] Removed ${removedMemory} in-memory + ${removedDb} DB inactive games (>12h, non-GymMode)`);
+        console.log(`🧹 [startup cleanup] Removed ${removedMemory} in-memory + ${removedDb} DB inactive games (>2h, non-GymMode)`);
       }
     } catch (cleanupErr) {
       console.error('⚠️ [startup cleanup] Error during initial cleanup:', cleanupErr);
@@ -1252,17 +1252,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }, 30_000);
 
-    // Hourly cleanup: keep DB lean by removing inactive non-GymMode games > 12h old
+    // Periodic cleanup: keep DB lean by removing inactive non-GymMode games > 2h old
     setInterval(async () => {
       try {
         const { removedMemory, removedDb } = await gameManager.cleanupInactiveGames();
         if (removedMemory + removedDb > 0) {
-          console.log(`🧹 [hourly cleanup] Removed ${removedMemory} in-memory + ${removedDb} DB inactive non-GymMode games`);
+          console.log(`🧹 [periodic cleanup] Removed ${removedMemory} in-memory + ${removedDb} DB inactive non-GymMode games`);
         }
       } catch (cleanupErr) {
-        console.error('⚠️ [hourly cleanup] Error:', cleanupErr);
+        console.error('⚠️ [periodic cleanup] Error:', cleanupErr);
       }
-    }, 60 * 60 * 1000); // every 60 minutes
+    }, 30 * 60 * 1000); // every 30 minutes
   }).catch(err => {
     console.error('❌ Failed to load active games:', err);
   });

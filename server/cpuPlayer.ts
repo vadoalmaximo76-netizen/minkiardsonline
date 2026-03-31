@@ -1341,7 +1341,7 @@ export class CPUPlayer {
       }
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        model: "gpt-4o", 
         messages: [
           {
             role: "system",
@@ -1585,9 +1585,9 @@ export class CPUPlayer {
   // Analyze a card image using OpenAI Vision API
   async analyzeCardImage(imageUrl: string): Promise<CardAnalysis> {
     try {
-      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+      
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -1862,7 +1862,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
 
       console.log(`[CPU-STORY] ${this.playerName}: Invoking OpenAI for game decision (hand=${cpuPlayer.hand.length} cards, field enemies=${enemyCharacters.length})`);
       const response = await openai.chat.completions.create({
-        model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        model: "gpt-4o", 
         messages: [
           {
             role: "system",
@@ -2186,7 +2186,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         `Sto valutando la situazione di gioco attuale`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        model: "gpt-4o", 
         messages: [
           {
             role: "system",
@@ -4477,9 +4477,9 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         gameContext = `Stato attuale: Ho ${myHand.length} carte in mano (${myCharactersInHand} personaggi, ${myMosseInHand} mosse, ${myBonusInHand} bonus). Ho ${myField.length} carte sul campo.`;
       }
       
-      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+      
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",

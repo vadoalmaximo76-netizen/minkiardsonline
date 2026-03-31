@@ -3097,9 +3097,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               </p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-h-96 overflow-y-auto">
-              {graveyardSelectionModal.cards.map((card: any) => (
+              {graveyardSelectionModal.cards.map((card: any, idx: number) => (
                 <button
-                  key={card.id}
+                  key={`graveyard-select-${card.id}-${idx}`}
                   onClick={() => {
                     socket.emit('resurrect-select', {
                       cardId: card.id,
@@ -3815,7 +3815,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 <div className="mt-4 bg-green-600/30 border border-green-400 rounded-lg p-3">
                   <p className="text-green-300 font-bold mb-2">✅ HANNO INDOVINATO:</p>
                   {diceRollResult.winners.map((w, i) => (
-                    <p key={i} className="text-white">{w.name} → {w.effect}</p>
+                    <p key={`winner-${i}-${w.name}`} className="text-white">{w.name} → {w.effect}</p>
                   ))}
                 </div>
               )}
@@ -3824,7 +3824,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 <div className="mt-4 bg-red-600/30 border border-red-400 rounded-lg p-3">
                   <p className="text-red-300 font-bold mb-2">❌ HANNO SBAGLIATO:</p>
                   {diceRollResult.losers.map((l, i) => (
-                    <p key={i} className="text-white">{l.name} → {l.effect}</p>
+                    <p key={`loser-${i}-${l.name}`} className="text-white">{l.name} → {l.effect}</p>
                   ))}
                 </div>
               )}
@@ -3948,7 +3948,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   <p className="text-indigo-300 font-bold mb-3">⚡ PERSONAGGI COLPITI:</p>
                   <div className="grid grid-cols-2 gap-2">
                     {autoDiceResult.affectedCharacters.map((char, i) => (
-                      <div key={i} className="bg-indigo-800/50 rounded p-2 text-center">
+                      <div key={`affected-${i}-${char.charName}`} className="bg-indigo-800/50 rounded p-2 text-center">
                         <p className="text-white font-medium text-sm">{char.charName}</p>
                         <p className="text-indigo-300 text-xs">{char.effect}</p>
                       </div>
@@ -4232,7 +4232,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           <div className="absolute inset-0">
             {[...Array(20)].map((_, i) => (
               <div
-                key={i}
+                key={`cimice-particle-${i}`}
                 className={`absolute rounded-full bg-green-400 cimice-particle-${(i % 10) + 1}`}
                 style={{
                   width: `${30 + (i * 3) % 30}px`,
@@ -5629,11 +5629,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 <p className="text-red-300 text-xs mt-1">Selezionati: {evilFakeDialog.selected.length}/3</p>
               </div>
               <div className="flex flex-col gap-2 mb-4">
-                {evilFakeDialog.graveyard.map((card) => {
+                {evilFakeDialog.graveyard.map((card, idx) => {
                   const isSelected = evilFakeDialog.selected.includes(card.id);
                   return (
                     <button
-                      key={card.id}
+                      key={`evilfake-${card.id}-${card.owner}-${idx}`}
                       onClick={() => {
                         setEvilFakeDialog(prev => {
                           if (!prev) return prev;

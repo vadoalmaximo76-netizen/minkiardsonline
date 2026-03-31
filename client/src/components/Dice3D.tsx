@@ -390,6 +390,13 @@ export const SuperDice3D: React.FC<{
         camera={{ position: [0, 2, 4], fov: 45 }}
         shadows
         style={{ background: 'transparent' }}
+        onCreated={({ gl }) => {
+          const canvas = gl.domElement;
+          const handleContextLost = (e: Event) => { e.preventDefault(); };
+          const handleContextRestored = () => { gl.setSize(canvas.clientWidth, canvas.clientHeight); };
+          canvas.addEventListener('webglcontextlost', handleContextLost);
+          canvas.addEventListener('webglcontextrestored', handleContextRestored);
+        }}
       >
         <ambientLight intensity={0.6} />
         <spotLight

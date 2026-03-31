@@ -397,7 +397,17 @@ export const CardAnimation: React.FC<CardAnimationProps> = ({
       <div className={`absolute inset-0 bg-gradient-radial ${getBackgroundGradient()} animate-pulse`} />
       
       <div className="absolute inset-0" style={{ pointerEvents: 'none' }}>
-        <Canvas camera={{ position: [0, 0, 5], fov: 60 }} style={{ pointerEvents: 'none' }}>
+        <Canvas
+          camera={{ position: [0, 0, 5], fov: 60 }}
+          style={{ pointerEvents: 'none' }}
+          onCreated={({ gl }) => {
+            const canvas = gl.domElement;
+            const handleContextLost = (e: Event) => { e.preventDefault(); };
+            const handleContextRestored = () => { gl.setSize(canvas.clientWidth, canvas.clientHeight); };
+            canvas.addEventListener('webglcontextlost', handleContextLost);
+            canvas.addEventListener('webglcontextrestored', handleContextRestored);
+          }}
+        >
           <Animation3DScene type={animationType} />
         </Canvas>
       </div>

@@ -3729,19 +3729,19 @@ Rispondi SOLO in JSON:`;
     return true;
   }
 
-  // ── Cleanup inactive non-GymMode games older than 12 hours ──────────────────
+  // ── Cleanup inactive non-GymMode games older than 2 hours ───────────────────
   // GymMode games are always preserved regardless of inactivity.
   async cleanupInactiveGames(): Promise<{ removedMemory: number; removedDb: number }> {
-    const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
+    const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
     const now = Date.now();
     let removedMemory = 0;
 
-    // 1. In-memory cleanup: remove non-GymMode games idle for 12h
+    // 1. In-memory cleanup: remove non-GymMode games idle for 2h
     const idsToRemove: string[] = [];
     for (const [gameId, game] of this.games.entries()) {
       if (game.isGymMode) continue; // always preserve GymMode
       const lastSave = this.lastSaveTime.get(gameId) || (game as any).startTime?.getTime?.() || 0;
-      if (now - lastSave >= TWELVE_HOURS_MS) {
+      if (now - lastSave >= TWO_HOURS_MS) {
         idsToRemove.push(gameId);
       }
     }
@@ -3749,10 +3749,10 @@ Rispondi SOLO in JSON:`;
       this.games.delete(gameId);
       this.lastSaveTime.delete(gameId);
       removedMemory++;
-      console.log(`🗑️ [cleanup] Removed inactive game ${gameId} from memory (>12h idle)`);
+      console.log(`🗑️ [cleanup] Removed inactive game ${gameId} from memory (>2h idle)`);
     }
 
-    // 2. DB cleanup: delete active non-GymMode rows with lastUpdated > 12h ago
+    // 2. DB cleanup: delete active non-GymMode rows with lastUpdated > 2h ago
     let removedDb = 0;
     try {
       const deleted = await db
@@ -3760,14 +3760,14 @@ Rispondi SOLO in JSON:`;
         .where(
           and(
             eq(gameStates.isActive, true),
-            sql`${gameStates.lastUpdated} < NOW() - INTERVAL '12 hours'`,
+            sql`${gameStates.lastUpdated} < NOW() - INTERVAL '2 hours'`,
             sql`COALESCE((${gameStates.state}->>'isGymMode')::text, 'false') <> 'true'`
           )
         )
         .returning({ gameId: gameStates.gameId });
       removedDb = deleted.length;
       if (removedDb > 0) {
-        console.log(`🗑️ [cleanup] Deleted ${removedDb} inactive non-GymMode game(s) from DB (>12h old)`);
+        console.log(`🗑️ [cleanup] Deleted ${removedDb} inactive non-GymMode game(s) from DB (>2h old)`);
       }
     } catch (err) {
       console.error('❌ [cleanup] DB cleanup error:', err);

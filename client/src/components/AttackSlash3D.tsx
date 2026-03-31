@@ -355,6 +355,17 @@ export const AttackSlash3D: React.FC<AttackSlash3DProps> = ({
             camera={{ position: [0, 0, 5], fov: 70 }}
             style={{ pointerEvents: 'none', background: 'transparent' }}
             gl={{ alpha: true }}
+            onCreated={({ gl }) => {
+              const canvas = gl.domElement;
+              const handleContextLost = (e: Event) => {
+                e.preventDefault();
+              };
+              const handleContextRestored = () => {
+                gl.setSize(canvas.clientWidth, canvas.clientHeight);
+              };
+              canvas.addEventListener('webglcontextlost', handleContextLost);
+              canvas.addEventListener('webglcontextrestored', handleContextRestored);
+            }}
           >
             <Scene3D isHeavy={isHeavy} isCritical={isCritical} slashData={slashData} />
           </Canvas>

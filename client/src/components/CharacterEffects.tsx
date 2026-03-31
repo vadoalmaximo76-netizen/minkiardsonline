@@ -543,7 +543,17 @@ export const CharacterEffects: React.FC<CharacterEffectProps> = ({
     <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
       <div className={`absolute inset-0 bg-gradient-radial ${config.bg}`} />
       <div className="absolute inset-0" style={{ pointerEvents: 'none' }}>
-        <Canvas camera={{ position: [0, 0, 5], fov: 60 }} style={{ pointerEvents: 'none' }}>
+        <Canvas
+          camera={{ position: [0, 0, 5], fov: 60 }}
+          style={{ pointerEvents: 'none' }}
+          onCreated={({ gl }) => {
+            const canvas = gl.domElement;
+            const handleContextLost = (e: Event) => { e.preventDefault(); };
+            const handleContextRestored = () => { gl.setSize(canvas.clientWidth, canvas.clientHeight); };
+            canvas.addEventListener('webglcontextlost', handleContextLost);
+            canvas.addEventListener('webglcontextrestored', handleContextRestored);
+          }}
+        >
           {renderEffect(effectType)}
         </Canvas>
       </div>
