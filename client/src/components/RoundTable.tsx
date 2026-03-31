@@ -57,7 +57,7 @@ const RoundTableComponent: React.FC = () => {
   const players = gameState?.players || {};
   const allPlayerNames = Object.keys(players);
   const turnOrder: string[] = [];
-  const scenarioCardsActive = false;
+  const scenarioCardsActive = gameState?.scenarioCardsActive ?? true;
 
   const charLimit = gameState?.characterLimit;
   const isUnlimitedDeaths = charLimit === 'unlimited';

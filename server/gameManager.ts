@@ -1242,7 +1242,7 @@ export class GameManager {
       players: {},
       field: [],
       graveyard: [],
-      scenarioCardsActive: false,
+      scenarioCardsActive: true,
       eventCounter: 0,
       startTime: new Date(),
       turnOrder: [],
@@ -25488,8 +25488,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       personaggi_speciali: this.createInitialDeck('personaggi_speciali')
     };
 
-    // Reset scenario cards to inactive
-    game.scenarioCardsActive = false;
+    // Reset scenario cards to active (default)
+    game.scenarioCardsActive = true;
 
     // Auto-shuffle all decks when resetting the game
     this.shuffleGameDecks(game);
