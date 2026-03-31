@@ -4634,6 +4634,8 @@ Rispondi SOLO in JSON:`;
           [/^blocco$/i, 'blocco'],
           [/^rincoglionimento$/i, 'rincoglionimento'],
           [/^baratto$/i, 'baratto'],
+          [/^kainoken$/i, 'kainoken'],
+          [/^tangram$/i, 'tangram'],
         ];
         for (const [pattern, key] of NAME_INJECT_MAP) {
           if (pattern.test(cardNameLower)) {
@@ -6367,6 +6369,8 @@ Rispondi SOLO in JSON:`;
         [/^blocco$/i, 'blocco'],
         [/^rincoglionimento$/i, 'rincoglionimento'],
         [/^baratto$/i, 'baratto'],
+        [/^kainoken$/i, 'kainoken'],
+        [/^tangram$/i, 'tangram'],
       ];
       for (const [pattern, effectKey] of nameBasedEffects) {
         if (pattern.test(cardDisplayName)) {
