@@ -4632,6 +4632,8 @@ Rispondi SOLO in JSON:`;
         const NAME_INJECT_MAP: Array<[RegExp, string]> = [
           [/sta\s+buon\s+rocc/i, 'sta_buon_rocc'],
           [/^blocco$/i, 'blocco'],
+          [/^rincoglionimento$/i, 'rincoglionimento'],
+          [/^baratto$/i, 'baratto'],
         ];
         for (const [pattern, key] of NAME_INJECT_MAP) {
           if (pattern.test(cardNameLower)) {
@@ -6363,6 +6365,8 @@ Rispondi SOLO in JSON:`;
       const nameBasedEffects: Array<[RegExp, string]> = [
         [/STA\s+BUON\s+ROCC/i, 'sta_buon_rocc'],
         [/^blocco$/i, 'blocco'],
+        [/^rincoglionimento$/i, 'rincoglionimento'],
+        [/^baratto$/i, 'baratto'],
       ];
       for (const [pattern, effectKey] of nameBasedEffects) {
         if (pattern.test(cardDisplayName)) {
@@ -14626,6 +14630,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           delete (sourceChar as any).eggOriginalPti;
           delete (sourceChar as any).eggOriginalStars;
         }
+        break;
+      }
+
+      case 'rincoglionimento':
+      case 'baratto': {
+        console.log(`🎯 [CUSTOM-ACTION-FALLBACK] Delegating action type "${action.type}" to executeNamedBonusEffect`);
+        await this.executeNamedBonusEffect(gameId, action.type, card, playerName);
         break;
       }
 
