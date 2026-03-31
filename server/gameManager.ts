@@ -4723,6 +4723,77 @@ Rispondi SOLO in JSON:`;
           [/^tangram$/i, 'tangram'],
           [/^sfaccim+$/i, 'sfaccimm'],
           [/^totaleeee+$/i, 'totaleeee'],
+          [/^tsunami$/i, 'tsunami'],
+          [/^ciclone$/i, 'ciclone'],
+          [/^uragano$/i, 'uragano'],
+          [/super\s+mega\s+uragano/i, 'super_mega_uragano'],
+          [/^ibernazione$/i, 'ibernazione'],
+          [/^carica$/i, 'carica'],
+          [/^detonatore$/i, 'detonatore'],
+          [/mors\s+tua/i, 'mors_tua'],
+          [/ti\s+porto\s+via/i, 'ti_porto_via'],
+          [/slot\s+machine/i, 'slot_machine'],
+          [/ruoss\s+e\s+fessa/i, 'ruoss_e_fessa'],
+          [/^corruzione$/i, 'corruzione_v2'],
+          [/notte\s+dello\s+spirito/i, 'notte_spirito'],
+          [/^trappola$/i, 'trappola'],
+          [/modalit[aà]?\s*cieca/i, 'modalita_cieca'],
+          [/wd.?40/i, 'wd40'],
+          [/frankenstein/i, 'frankenstein'],
+          [/trinit[aà]?$/i, 'trinita'],
+          [/schedine/i, 'schedine'],
+          [/^imitazione$/i, 'imitazione'],
+          [/non\s+ti\s+fa\s+frega/i, 'non_ti_fa_frega'],
+          [/^replay$/i, 'replay'],
+          [/provino\s+per\s+la\s+juve/i, 'provino_per_la_juve'],
+          [/spin.?ta\s+impulsiva/i, 'spin_ta_impulsiva'],
+          [/pesca\s+miracolosa/i, 'pesca_miracolosa'],
+          [/palio\s+delle\s+minkiard/i, 'palio_delle_minkiards'],
+          [/minkiard\s+n[\s._]*100/i, 'minkiard_n_100'],
+          [/minkiard\s+n[\s._]*400/i, 'minkiard_n_400'],
+          [/minkiard\s+n[\s._]*500/i, 'minkiard_n_500'],
+          [/distruzione\s+totale/i, 'distruzione_totale'],
+          [/vitello\s+d.?oro/i, 'vitello_d_oro'],
+          [/^scee$/i, 'scee'],
+          [/balena/i, 'balena'],
+          [/cocco\s+melone/i, 'cocco_melone'],
+          [/^rusc$/i, 'rusc'],
+          [/tu\s+mi\s+lasci\s+cadere/i, 'tu_mi_lasci_cadere'],
+          [/^u$/i, 'u_inverti'],
+          [/^zzeruo$/i, 'zzeruo'],
+          [/p\s+na\s+ntecchia/i, 'p_na_ntecchia'],
+          [/mbacc/i, 'mbacc_z_vcienz'],
+          [/mini\s+semaforo/i, 'mini_semaforo'],
+          [/oh\s+ma\s+quello/i, 'oh_ma_quello'],
+          [/oooooh.*ritt/i, 'oooooh_che_t_ritt'],
+          [/scart\s+frusc/i, 'scart_frusc'],
+          [/stai\s+a?\s*fa/i, 'stai_fa_cazzata'],
+          [/vous\s+tra\s+vous/i, 'vous_tra_vous'],
+          [/z\s+ammonta/i, 'z_ammonta'],
+          [/^medicina$/i, 'medicina'],
+          [/^fiaschetta$/i, 'fiaschetta'],
+          [/^spinaci$/i, 'spinaci'],
+          [/^stipendio$/i, 'stipendio'],
+          [/peluria\s+di\s+holly/i, 'peluria_di_holly'],
+          [/^munnezza$/i, 'munnezza'],
+          [/musica\s+ganza/i, 'musica_ganza'],
+          [/modalit.?\s*kamikaze/i, 'modalit_kamikaze'],
+          [/modalit.?\s*truzzo/i, 'modalit_truzzo'],
+          [/modalit.?\s*m.?mondo/i, 'modalit_m_mondo'],
+          [/modalit.?\s*fenomeno/i, 'modalit_fenomeno'],
+          [/modalit[aà]?\s*fighetto/i, 'modalita_fighetto'],
+          [/^scudo$/i, 'scudo_stealth'],
+          [/^doping$/i, 'doping'],
+          [/^nirdosh$/i, 'nirdosh'],
+          [/vincere.*vinceremo/i, 'vincere_vinceremo'],
+          [/modalit.?\s*troll/i, 'modalit_troll'],
+          [/^respinta$/i, 'respinta'],
+          [/^trauma$/i, 'trauma'],
+          [/target\s+acquired/i, 'target_acquired'],
+          [/^harakiri$/i, 'harakiri'],
+          [/^sdoppiamento$/i, 'sdoppiamento'],
+          [/^fantafinanza$/i, 'fantafinanza'],
+          [/faccio\s+quello\s+che\s+voglio/i, 'faccio_quello_che_voglio'],
         ];
         for (const [pattern, key] of NAME_INJECT_MAP) {
           if (pattern.test(cardNameLower)) {
@@ -6469,6 +6540,77 @@ Rispondi SOLO in JSON:`;
         [/^tangram$/i, 'tangram'],
         [/^sfaccim+$/i, 'sfaccimm'],
         [/^totaleeee+$/i, 'totaleeee'],
+        [/^tsunami$/i, 'tsunami'],
+        [/^ciclone$/i, 'ciclone'],
+        [/^uragano$/i, 'uragano'],
+        [/super\s+mega\s+uragano/i, 'super_mega_uragano'],
+        [/^ibernazione$/i, 'ibernazione'],
+        [/^carica$/i, 'carica'],
+        [/^detonatore$/i, 'detonatore'],
+        [/mors\s+tua/i, 'mors_tua'],
+        [/ti\s+porto\s+via/i, 'ti_porto_via'],
+        [/slot\s+machine/i, 'slot_machine'],
+        [/ruoss\s+e\s+fessa/i, 'ruoss_e_fessa'],
+        [/^corruzione$/i, 'corruzione_v2'],
+        [/notte\s+dello\s+spirito/i, 'notte_spirito'],
+        [/^trappola$/i, 'trappola'],
+        [/modalit[aà]?\s*cieca/i, 'modalita_cieca'],
+        [/wd.?40/i, 'wd40'],
+        [/frankenstein/i, 'frankenstein'],
+        [/trinit[aà]?$/i, 'trinita'],
+        [/schedine/i, 'schedine'],
+        [/^imitazione$/i, 'imitazione'],
+        [/non\s+ti\s+fa\s+frega/i, 'non_ti_fa_frega'],
+        [/^replay$/i, 'replay'],
+        [/provino\s+per\s+la\s+juve/i, 'provino_per_la_juve'],
+        [/spin.?ta\s+impulsiva/i, 'spin_ta_impulsiva'],
+        [/pesca\s+miracolosa/i, 'pesca_miracolosa'],
+        [/palio\s+delle\s+minkiard/i, 'palio_delle_minkiards'],
+        [/minkiard\s+n[\s._]*100/i, 'minkiard_n_100'],
+        [/minkiard\s+n[\s._]*400/i, 'minkiard_n_400'],
+        [/minkiard\s+n[\s._]*500/i, 'minkiard_n_500'],
+        [/distruzione\s+totale/i, 'distruzione_totale'],
+        [/vitello\s+d.?oro/i, 'vitello_d_oro'],
+        [/^scee$/i, 'scee'],
+        [/balena/i, 'balena'],
+        [/cocco\s+melone/i, 'cocco_melone'],
+        [/^rusc$/i, 'rusc'],
+        [/tu\s+mi\s+lasci\s+cadere/i, 'tu_mi_lasci_cadere'],
+        [/^u$/i, 'u_inverti'],
+        [/^zzeruo$/i, 'zzeruo'],
+        [/p\s+na\s+ntecchia/i, 'p_na_ntecchia'],
+        [/mbacc/i, 'mbacc_z_vcienz'],
+        [/mini\s+semaforo/i, 'mini_semaforo'],
+        [/oh\s+ma\s+quello/i, 'oh_ma_quello'],
+        [/oooooh.*ritt/i, 'oooooh_che_t_ritt'],
+        [/scart\s+frusc/i, 'scart_frusc'],
+        [/stai\s+a?\s*fa/i, 'stai_fa_cazzata'],
+        [/vous\s+tra\s+vous/i, 'vous_tra_vous'],
+        [/z\s+ammonta/i, 'z_ammonta'],
+        [/^medicina$/i, 'medicina'],
+        [/^fiaschetta$/i, 'fiaschetta'],
+        [/^spinaci$/i, 'spinaci'],
+        [/^stipendio$/i, 'stipendio'],
+        [/peluria\s+di\s+holly/i, 'peluria_di_holly'],
+        [/^munnezza$/i, 'munnezza'],
+        [/musica\s+ganza/i, 'musica_ganza'],
+        [/modalit.?\s*kamikaze/i, 'modalit_kamikaze'],
+        [/modalit.?\s*truzzo/i, 'modalit_truzzo'],
+        [/modalit.?\s*m.?mondo/i, 'modalit_m_mondo'],
+        [/modalit.?\s*fenomeno/i, 'modalit_fenomeno'],
+        [/modalit[aà]?\s*fighetto/i, 'modalita_fighetto'],
+        [/^scudo$/i, 'scudo_stealth'],
+        [/^doping$/i, 'doping'],
+        [/^nirdosh$/i, 'nirdosh'],
+        [/vincere.*vinceremo/i, 'vincere_vinceremo'],
+        [/modalit.?\s*troll/i, 'modalit_troll'],
+        [/^respinta$/i, 'respinta'],
+        [/^trauma$/i, 'trauma'],
+        [/target\s+acquired/i, 'target_acquired'],
+        [/^harakiri$/i, 'harakiri'],
+        [/^sdoppiamento$/i, 'sdoppiamento'],
+        [/^fantafinanza$/i, 'fantafinanza'],
+        [/faccio\s+quello\s+che\s+voglio/i, 'faccio_quello_che_voglio'],
       ];
       for (const [pattern, effectKey] of nameBasedEffects) {
         if (pattern.test(cardDisplayName)) {
@@ -10230,6 +10372,77 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
           emitChat(`🤌 SFACCIMM! ${playerName} sta scegliendo 10 carte da eliminare dai mazzi...`);
         }
+        break;
+      }
+
+      case 'fantafinanza': {
+        const ffOrder = game.turnOrder as string[];
+        if (ffOrder.length < 2) {
+          emitChat(`💰 FANTAFINANZA! Servono almeno 2 giocatori per lo scambio.`);
+          break;
+        }
+        // Each player passes one random card to the PREVIOUS player in turn order.
+        // Take a snapshot so order doesn't matter during iteration.
+        const ffSnapshot: Record<string, Card[]> = {};
+        for (const p of ffOrder) ffSnapshot[p] = [...(game.players[p]?.hand || [])];
+
+        const ffSwaps: string[] = [];
+        for (let i = 0; i < ffOrder.length; i++) {
+          const curr = ffOrder[i];
+          const prev = ffOrder[(i - 1 + ffOrder.length) % ffOrder.length];
+          const currSnap = ffSnapshot[curr];
+          if (currSnap.length === 0) continue;
+          const pickIdx = Math.floor(Math.random() * currSnap.length);
+          const swapCard = currSnap[pickIdx];
+          // Remove from current player's actual hand
+          const actualIdx = (game.players[curr]?.hand as Card[] || []).findIndex((c: Card) => c.id === swapCard.id);
+          if (actualIdx !== -1) (game.players[curr].hand as Card[]).splice(actualIdx, 1);
+          // Give to previous player
+          swapCard.owner = prev;
+          (game.players[prev].hand as Card[]).push(swapCard);
+          ffSwaps.push(`${curr}→${prev}`);
+        }
+
+        const isFenomeno = /fenomeno/i.test(myCharName);
+        if (isFenomeno && myChar) {
+          myChar.stars = (myChar.stars || 0) + 3;
+          this.updateCardTextWithPTI(myChar);
+          emitChat(`💰 FANTAFINANZA! Ogni giocatore cede una carta al giocatore precedente! (${ffSwaps.join(', ')}) — IL FENOMENO usa il potere: +3 stelle!`);
+        } else {
+          emitChat(`💰 FANTAFINANZA! Ogni giocatore cede una carta al giocatore precedente! (${ffSwaps.join(', ')})`);
+        }
+        emitState();
+        break;
+      }
+
+      case 'faccio_quello_che_voglio': {
+        const fqvOrder = game.turnOrder as string[];
+        if (fqvOrder.length < 2) {
+          emitChat(`🎲 FACCIO QUELLO CHE VOGLIO! Servono almeno 2 giocatori.`);
+          break;
+        }
+        // Snapshot all hands and redistribute randomly among all players
+        const fqvHands: Card[][] = fqvOrder.map(p => [...(game.players[p]?.hand || [])]);
+        const shuffledHands = [...fqvHands].sort(() => Math.random() - 0.5);
+        for (let i = 0; i < fqvOrder.length; i++) {
+          const newOwner = fqvOrder[i];
+          game.players[newOwner].hand = shuffledHands[i].map((c: Card) => ({ ...c, owner: newOwner }));
+        }
+
+        const isAlBano = /al\s*bano/i.test(myCharName);
+        if (isAlBano) {
+          // Al Bano special: all field characters lose 1 star
+          for (const fc of game.field as Card[]) {
+            if (fc.type === 'personaggi' || fc.type === 'personaggi_speciali') {
+              fc.stars = Math.max(0, (fc.stars || 0) - 1);
+              this.updateCardTextWithPTI(fc);
+            }
+          }
+          emitChat(`🎲 FACCIO QUELLO CHE VOGLIO! ${playerName} ridistribuisce tutte le mani! AL BANO: ogni personaggio in campo perde 1 stella!`);
+        } else {
+          emitChat(`🎲 FACCIO QUELLO CHE VOGLIO! ${playerName} ridistribuisce tutte le mani dei giocatori a caso!`);
+        }
+        emitState();
         break;
       }
 
