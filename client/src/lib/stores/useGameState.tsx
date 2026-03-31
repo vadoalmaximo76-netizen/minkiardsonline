@@ -106,6 +106,13 @@ interface GameState {
   }> | null;
   donatedCardsThisTurn?: string[];
   creatorName?: string;
+  activeScenario?: {
+    name: string;
+    cardImageUrl: string;
+    playedBy: string;
+    turnCount: number;
+    effectText?: string;
+  };
 }
 
 interface GameStateStore {

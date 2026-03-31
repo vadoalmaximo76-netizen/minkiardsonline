@@ -4440,7 +4440,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         console.log(`🎯 ${playerName} confirmed target selection: ${selectedTargetIds.length} targets`);
-        await gameManager.processTargetSelection(gameId, selectionId, selectedTargetIds, playerName, io);
+        // ALLEANZA: if this selectionId matches the pending ALLEANZA bonus target, apply bonus to chosen field char
+        const alleanzaResult = await gameManager.resolveAlleanzaTargetSelection(gameId, selectionId, selectedTargetIds, playerName, io);
+        if (!alleanzaResult) {
+          await gameManager.processTargetSelection(gameId, selectionId, selectedTargetIds, playerName, io);
+        }
       }
     });
 
@@ -7167,14 +7171,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         } else {
           // Generate random number between 1 and 6 normally
-          const result = Math.floor(Math.random() * 6) + 1;
-          
-          // Broadcast dice result to all players in the game
-          io.to(gameId).emit('dice-rolled', {
-            result,
-            playerName,
-            timestamp: Date.now()
-          });
+          // MULTIDADO: if active, roll 3 dice instead of 1
+          const gameForDice = (gameManager as any).games?.get(gameId);
+          if (gameForDice?.activeScenario?.name === 'MULTIDADO') {
+            const multidadoResult = (gameManager as any).rollMultidado?.();
+            if (multidadoResult) {
+              io.to(gameId).emit('multidado-roll', {
+                dice: multidadoResult.dice,
+                total: multidadoResult.total,
+                converted: multidadoResult.converted,
+                playerName,
+                timestamp: Date.now()
+              });
+              io.to(gameId).emit('dice-rolled', {
+                result: multidadoResult.converted,
+                playerName,
+                isMultidado: true,
+                multidadoDice: multidadoResult.dice,
+                multidadoTotal: multidadoResult.total,
+                timestamp: Date.now()
+              });
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-multidado-roll`, playerName: 'Sistema',
+                message: `🎲🎲🎲 MULTIDADO! ${playerName} lancia 3 dadi: [${multidadoResult.dice.join(', ')}] = ${multidadoResult.total} → risultato: ${multidadoResult.converted}`,
+                timestamp: Date.now()
+              });
+            } else {
+              const result = Math.floor(Math.random() * 6) + 1;
+              io.to(gameId).emit('dice-rolled', { result, playerName, timestamp: Date.now() });
+            }
+          } else {
+            const result = Math.floor(Math.random() * 6) + 1;
+            // Broadcast dice result to all players in the game
+            io.to(gameId).emit('dice-rolled', {
+              result,
+              playerName,
+              timestamp: Date.now()
+            });
+          }
         }
       }
     });

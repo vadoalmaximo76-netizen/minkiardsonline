@@ -27,6 +27,7 @@ interface Card {
   draftBaseId?: string; // Base card ID for Draft growth tracking (e.g. "personaggi-5")
   pti?: number | null;
   stars?: number | null;
+  preMortemPTI?: number; // PTI captured before the killing blow (for CANNIBALISMO, REGNO DEGLI INFERI)
   // Fusion system
   fusedWith?: string[]; // Array of card IDs that are fused with this card
   isFused?: boolean; // True if this card is part of a fusion
@@ -323,6 +324,27 @@ interface GameState {
   field: Card[];
   graveyard: Card[];
   scenarioCardsActive: boolean;
+  activeScenario?: {
+    name: string;
+    cardId: string;
+    playedBy: string;
+    cardImageUrl: string;
+    activeSince: number;
+    turnCount: number;
+    // Scenario-specific state
+    mondoSommersoDelayedDamages?: Array<{ attacker: string; defender: string; targetCardId: string; damageValue: number; applyAtTurn: number; mosseCardId: string }>;
+    caldoInfernaleCharTurns?: Record<string, number>;
+    gabbiaTurnCount?: number;
+    vediNapoliTurnsLeft?: number;
+    regnoInferiOriginalDeck?: Card[];
+    regnoInferiFrozenField?: Card[];
+    regnoInferiFrozenHands?: Record<string, Card[]>;
+    regnoSpecialeOriginalDeck?: Card[];
+    regnoSpecialeFrozenField?: Card[];
+    regnoSpecialeFrozenHands?: Record<string, Card[]>;
+    activatorCharId?: string | null; // ID of the character that activated this scenario (for death-deactivation)
+  };
+  alleanzaPending?: { selectionId: string; cardId: string; pti: number; playedBy: string }; // ALLEANZA: pending bonus target selection
   matchId?: number; // Database match ID for event recording
   eventCounter: number; // Sequential event counter
   startTime: Date; // Match start time
@@ -3394,7 +3416,14 @@ Rispondi SOLO in JSON:`;
       teamSize: gameState.teamSize || null,
       teams: gameState.teams || null,
       teamPlayerStats: gameState.teamPlayerStats || null,
-      donatedCardsThisTurn: gameState.donatedCardsThisTurn ? Array.from(gameState.donatedCardsThisTurn) : []
+      donatedCardsThisTurn: gameState.donatedCardsThisTurn ? Array.from(gameState.donatedCardsThisTurn) : [],
+      activeScenario: gameState.activeScenario ? {
+        name: gameState.activeScenario.name,
+        cardImageUrl: gameState.activeScenario.cardImageUrl,
+        playedBy: gameState.activeScenario.playedBy,
+        turnCount: gameState.activeScenario.turnCount,
+        effectText: this.getScenarioEffect(gameState.activeScenario.name),
+      } : undefined,
     };
 
     // Sanitize players by removing cpuInstance references
@@ -4093,6 +4122,19 @@ Rispondi SOLO in JSON:`;
       }
     }
 
+    // ── SCENARIO CHECK: block card plays based on active scenario ────────────────
+    {
+      const cardToScenarioCheck = player.hand.find((c: Card) => c.id === cardId);
+      if (cardToScenarioCheck && !cardToScenarioCheck.id.startsWith('scenario-')) {
+        const scenarioBlock = this.scenarioCheckPlayCard(gameId, playerName, cardToScenarioCheck);
+        if (scenarioBlock.blocked) {
+          console.log(`🎭 SCENARIO BLOCK: ${playerName} cannot play card: ${scenarioBlock.reason}`);
+          return {};
+        }
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────────
+
     // DADDY CONTE / FABRIZIO: player must resolve pending start-of-turn choice before playing cards
     if ((player as any).pendingDaddyConteChoice) {
       console.log(`🤵 DADDY CONTE: ${playerName} must make their choice before playing cards`);
@@ -4671,6 +4713,15 @@ Rispondi SOLO in JSON:`;
             break;
           }
         }
+      }
+      // ─────────────────────────────────────────────────────────────────────────
+
+      // ── SCENARIO DETECTION: If this bonus card is a scenario card, activate it ──
+      if (card.type === 'bonus' && card.id.startsWith('scenario-')) {
+        this.activateScenario(gameId, card.id, card.frontImage, playerName);
+        // Scenario cards go to graveyard immediately after activation - they don't stay on field
+        // (they're already on field from the playCard flow; we'll return early)
+        return { card, isPersonaggio: false, duelAutoAttack: false };
       }
       // ─────────────────────────────────────────────────────────────────────────
 
@@ -18725,6 +18776,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       game.graveyard.push(card);
       console.log(`Card ${cardId} moved to graveyard. Owner: ${cardOwner}, RequestedBy: ${playerName}, Killed by: ${attacker || 'Unknown'}`);
 
+      // REGNO DEGLI INFERI: newly dead personaggi go INTO the dead-deck instead of the normal graveyard
+      if (game.activeScenario?.name === 'REGNO DEGLI INFERI' && (card.type === 'personaggi' || card.type === 'personaggi_speciali')) {
+        // Remove from graveyard (we just pushed it there)
+        const gIdx = game.graveyard.findIndex(c => c.id === card.id);
+        if (gIdx !== -1) game.graveyard.splice(gIdx, 1);
+        // Clone the card without the graveyard state and give it a fresh ID so it can be redrawn
+        const reusableCard = { ...card, id: `${card.id}-inferi-${Date.now()}` } as Card;
+        delete (reusableCard as any).eliminatedBy;
+        // Restore the card's PTI to its value before damage — use preMortemPTI if available, else the last known pti
+        reusableCard.pti = card.preMortemPTI || card.pti || 500;
+        this.updateCardTextWithPTI(reusableCard);
+        game.decks.personaggi.push(reusableCard);
+        console.log(`🔥 REGNO DEGLI INFERI: ${reusableCard.name || cardId} added to dead-deck instead of graveyard (${game.decks.personaggi.length} total)`);
+      }
+
       // Emit card-to-graveyard so client K.O. banner and death animations fire for every death path
       const ioMtg = (global as any).io;
       if (ioMtg) {
@@ -19037,10 +19103,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const gamePreKill = this.games.get(gameId);
     const cardBeforeKill = gamePreKill?.field?.find((c: Card) => c.id === cardId);
     const preMortemPTI = cardBeforeKill ? (cardBeforeKill.pti ?? this.extractPTIFromNote(cardBeforeKill.text || '')) : 0;
+    // Store preMortemPTI on the card so REGNO DEGLI INFERI can restore it when dead char enters the dead-deck
+    if (cardBeforeKill) cardBeforeKill.preMortemPTI = preMortemPTI;
+    const deadCardSnapshot = cardBeforeKill ? { ...cardBeforeKill } : null;
     const result = this.moveToGraveyard(gameId, cardId, owner, attacker);
     if (result.success) {
-      // KILL TRIGGER BLOCK: if a bonus-66 effect is active, block the killer for N turns (only ONCE per activation)
+      // SCENARIO: Check scenario-related death effects
       const game = this.games.get(gameId);
+      if (game) {
+        // Deactivate scenario if activator died
+        this.scenarioCheckDeath(gameId, cardId, owner);
+        // ASSORBI POTERE: killer inherits effects
+        if (game.activeScenario?.name === 'ASSORBI POTERE' && attacker && attacker !== 'SELF_DAMAGE' && attacker !== 'EFFETTO_CASUALE' && deadCardSnapshot) {
+          this.scenarioApplyAbsorbPower(gameId, attacker, deadCardSnapshot as Card);
+        }
+      }
+      // KILL TRIGGER BLOCK: if a bonus-66 effect is active, block the killer for N turns (only ONCE per activation)
       if (game) {
         const ktb = (game as any).killTriggerBlock as { blockTurns: number; playedBy: string; used?: boolean } | undefined;
         if (ktb && !ktb.used && attacker && attacker !== 'SELF_DAMAGE' && attacker !== 'EFFETTO_CASUALE') {
@@ -19762,6 +19840,27 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     const cardName = selectedCard.name || this.getCardNameFromUrl(selectedCard.frontImage || '');
     console.log(`🎴 ${playerName} chose ${cardName} from ${deckDisplayName} deck${isDraft ? ' [DRAFT - personal deck]' : ''}`);
+
+    // REGNO DEGLI INFERI / REGNO SPECIALE: deactivate when the replacement deck is exhausted
+    if (deckType === 'personaggi' && game.activeScenario) {
+      const scenName = game.activeScenario.name;
+      const deckEmpty = (targetDeck.length === 0);
+      if (deckEmpty && (scenName === 'REGNO DEGLI INFERI' || scenName === 'REGNO SPECIALE')) {
+        console.log(`🎭 SCENARIO: "${scenName}" deck exhausted — deactivating and restoring normal deck`);
+        this.deactivateScenario(gameId, 'deckExhausted');
+        const ioRE = (global as any).io;
+        if (ioRE) {
+          ioRE.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-regno-exhausted`, playerName: 'Sistema',
+            message: `🔄 ${scenName}: il mazzo si è esaurito! Ritorno al mazzo normale.`,
+            timestamp: Date.now()
+          });
+          const gs = this.getSanitizedGameState(gameId);
+          if (gs) ioRE.to(gameId).emit('game-state-update', gs);
+        }
+      }
+    }
+
     return { success: true, message: `🎴 ${playerName} ha scelto ${cardName} dal mazzo ${deckDisplayName}!` };
   }
 
@@ -19816,6 +19915,26 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       playerData.hand.push(drawnCard);
       const drawnCardName = drawnCard.name || this.getCardNameFromUrl(drawnCard.frontImage);
       console.log(`🎴 ${playerName} drew ${drawnCardName} from ${deckDisplayName} deck`);
+
+      // REGNO DEGLI INFERI / REGNO SPECIALE: deactivate when replacement deck is exhausted
+      if (deckType === 'personaggi' && game.activeScenario) {
+        const scenName = game.activeScenario.name;
+        if (targetDeck.length === 0 && (scenName === 'REGNO DEGLI INFERI' || scenName === 'REGNO SPECIALE')) {
+          console.log(`🎭 SCENARIO: "${scenName}" deck exhausted (random draw) — deactivating`);
+          this.deactivateScenario(gameId, 'deckExhausted');
+          const ioRED = (global as any).io;
+          if (ioRED) {
+            ioRED.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-regno-exhausted-draw`, playerName: 'Sistema',
+              message: `🔄 ${scenName}: il mazzo si è esaurito! Ritorno al mazzo normale.`,
+              timestamp: Date.now()
+            });
+            const gs = this.getSanitizedGameState(gameId);
+            if (gs) ioRED.to(gameId).emit('game-state-update', gs);
+          }
+        }
+      }
+
       return { success: true, message: `🎴 ${cardName}: ${playerName} ha pescato una carta dal mazzo ${deckDisplayName}!` };
     }
 
@@ -25083,6 +25202,1083 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }));
   }
 
+  // ============================================================
+  // SCENARIO SYSTEM
+  // ============================================================
+
+  // Map from frontImage URL slug to scenario name
+  private getScenarioNameFromUrl(frontImage: string): string {
+    const slug = frontImage.toLowerCase().split('/').pop()?.replace('.png', '').replace('.jpg', '') || '';
+    if (slug.includes('alleanza')) return 'ALLEANZA';
+    if (slug.includes('assorbi-potere') || slug.includes('assorbi_potere')) return 'ASSORBI POTERE';
+    if (slug.includes('caldo-infernale') || slug.includes('caldo_infernale')) return 'CALDO INFERNALE';
+    if (slug.includes('cannibalismo')) return 'CANNIBALISMO';
+    if (slug.includes('casocaos') || slug.includes('caso-caos') || slug.includes('caso_caos')) return 'CASO CAOS';
+    if (slug.includes('fenza')) return 'FENZA 1 METRO E 20 ALTA';
+    if (slug.includes('gabbia')) return 'GABBIA DELLA MORTE';
+    if (slug.includes('guerra')) return 'GUERRA';
+    if (slug.includes('anello-debole') || slug.includes('anello_debole') || slug.includes('l-anello')) return "L'ANELLO DEBOLE";
+    if (slug.includes('mondo-sommerso') || slug.includes('mondo_sommerso')) return 'MONDO SOMMERSO';
+    if (slug.includes('multidado')) return 'MULTIDADO';
+    if (slug.includes('pacifismo')) return 'PACIFISMO';
+    if (slug.includes('palazzo-kiji') || slug.includes('palazzo_kiji')) return 'PALAZZO KIJI';
+    if (slug.includes('prendiamo') || slug.includes('insalata')) return "PRENDIAMO L'INSALATA";
+    if (slug.includes('regno-degli-inferi') || slug.includes('inferi')) return 'REGNO DEGLI INFERI';
+    if (slug.includes('regno-speciale') || slug.includes('regno_speciale')) return 'REGNO SPECIALE';
+    if (slug.includes('roccasci') || slug.includes('roccasc')) return 'ROCCASCIAAANIII';
+    if (slug.includes('tenute-carrisi') || slug.includes('tenute_carrisi')) return 'TENUTE CARRISI';
+    if (slug.includes('vedi-napoli') || slug.includes('vedi_napoli')) return 'VEDI NAPOLI E POI MUORI';
+    if (slug.includes('zio-vincenzo') || slug.includes('zio_vincenzo') || slug.includes('volturno')) return 'ZIO VINCENZO AL VOLTURNO';
+    // Fallback: use slug
+    return slug.toUpperCase().replace(/-/g, ' ');
+  }
+
+  private getScenarioEffect(name: string): string {
+    const effects: Record<string, string> = {
+      'ALLEANZA': 'Le carte bonus possono essere giocate su qualsiasi personaggio in campo.',
+      'ASSORBI POTERE': 'Chi uccide un personaggio eredita tutti i suoi effetti attivi.',
+      'CALDO INFERNALE': 'I personaggi in campo da più di 3 turni perdono PTI ogni turno. I resistenti al caldo raddoppiano il danno degli attacchi.',
+      'CANNIBALISMO': 'Chi uccide un personaggio assorbe tutti i suoi PTI invece dei soliti +100.',
+      'CASO CAOS': 'Ogni turno tutti rilanciano il dado e il giocatore con il risultato più alto agisce per primo.',
+      'FENZA 1 METRO E 20 ALTA': 'Gli attacchi che infliggono meno di 120 PTI vengono bloccati dalla fenza.',
+      'GABBIA DELLA MORTE': 'A fine turno il personaggio con meno PTI in campo viene eliminato.',
+      "L'ANELLO DEBOLE": 'A fine turno il personaggio con meno PTI in campo viene trasformato.',
+      'MONDO SOMMERSO': 'I danni vengono applicati al turno successivo. I personaggi acquatici raddoppiano il danno.',
+      'MULTIDADO': 'Si lanciano 3 dadi invece di 1. La somma determina il risultato finale.',
+      'PACIFISMO': 'Le mosse offensive sono vietate. I pacifisti si trasformano. Golden Freezer elimina i suoi avversari.',
+      'PALAZZO KIJI': "I personaggi entrano in campo già trasformati nel loro taroccato, o con statistiche dimezzate se non hanno evoluzione.",
+      "PRENDIAMO L'INSALATA": 'Tutti i personaggi in campo ripristinano 200 PTI a inizio turno.',
+      'REGNO DEGLI INFERI': 'I personaggi morti diventano il nuovo mazzo. I congelati torneranno alla fine.',
+      'REGNO SPECIALE': 'Il mazzo dei personaggi speciali sostituisce quello normale. I congelati torneranno alla fine.',
+      'ROCCASCIAAANIII': 'All\'ingresso in campo ogni personaggio perde 100 PTI, eccetto SILVER SILVIO.',
+      'TENUTE CARRISI': "A fine turno ogni personaggio lancia il dado: se esce 1 muore. ALBANO muore sempre.",
+      'VEDI NAPOLI E POI MUORI': 'I napoletani si trasformano. I non-napoletani perdono stelle (pari al dado) ogni turno; le stelle vengono date ai napoletani. Dopo 5 turni vengono eliminati.',
+      'ZIO VINCENZO AL VOLTURNO': 'A fine turno si lancia un dado globale: 1-2=tutti scartano, 3-4=tutti pescano bonus, 5-6=tutti pescano mosse.',
+      'GUERRA': 'Non si possono giocare bonus o mosse se si ha già un personaggio in campo. I personaggi neri raddoppiano il danno.',
+    };
+    return effects[name] || name;
+  }
+
+  private activateScenario(gameId: string, cardId: string, cardImageUrl: string, playedBy: string): void {
+    const game = this.games.get(gameId);
+    if (!game) return;
+    const io = (global as any).io;
+    const scenarioName = this.getScenarioNameFromUrl(cardImageUrl);
+    const currentTurn = (game as any).globalTurnCount || 0;
+
+    // Deactivate previous scenario if any
+    if (game.activeScenario) {
+      const prevName = game.activeScenario.name;
+      console.log(`🎭 SCENARIO: Deactivating previous scenario "${prevName}"`);
+      this.deactivateScenario(gameId, 'replaced');
+    }
+
+    // Track activator character (the char on field when the scenario is played)
+    const activatorChar = this.getPlayerActiveCharacter(game, playedBy);
+    const activatorCharId = activatorChar?.id || null;
+
+    // Set new active scenario
+    game.activeScenario = {
+      name: scenarioName,
+      cardId,
+      playedBy,
+      cardImageUrl,
+      activeSince: currentTurn,
+      turnCount: 0,
+      activatorCharId,
+    };
+
+    // Move the scenario card from field to graveyard
+    const fieldIdx = game.field.findIndex(c => c.id === cardId);
+    if (fieldIdx !== -1) {
+      const scenCard = game.field.splice(fieldIdx, 1)[0];
+      game.graveyard.unshift(scenCard);
+    }
+
+    console.log(`🎭 SCENARIO ACTIVATED: "${scenarioName}" by ${playedBy}`);
+
+    // Emit scenario-activated event
+    if (io) {
+      io.to(gameId).emit('scenario-activated', {
+        name: scenarioName,
+        cardImageUrl,
+        playedBy,
+        effectText: this.getScenarioEffect(scenarioName),
+      });
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-scenario-activated`,
+        playerName: 'Sistema',
+        message: `🎭 SCENARIO ATTIVATO: "${scenarioName}" da ${playedBy}! ${this.getScenarioEffect(scenarioName)}`,
+        timestamp: Date.now()
+      });
+    }
+
+    // Apply immediate on-activation effects
+    this.applyScenarioActivationEffects(gameId, scenarioName, playedBy);
+
+    // Update game state
+    if (io) {
+      const gs = this.getSanitizedGameState(gameId);
+      if (gs) io.to(gameId).emit('game-state-update', gs);
+    }
+  }
+
+  private deactivateScenario(gameId: string, reason: 'replaced' | 'playerDied' | 'manual' | 'deckExhausted' = 'manual'): void {
+    const game = this.games.get(gameId);
+    if (!game || !game.activeScenario) return;
+    const io = (global as any).io;
+    const scenarioName = game.activeScenario.name;
+
+    // Restore REGNO scenarios
+    if (scenarioName === 'REGNO DEGLI INFERI' && game.activeScenario.regnoInferiOriginalDeck) {
+      game.decks.personaggi = game.activeScenario.regnoInferiOriginalDeck;
+      if (game.activeScenario.regnoInferiFrozenField) {
+        game.field.push(...game.activeScenario.regnoInferiFrozenField);
+      }
+      if (game.activeScenario.regnoInferiFrozenHands) {
+        for (const [pName, hand] of Object.entries(game.activeScenario.regnoInferiFrozenHands)) {
+          if (game.players[pName]) game.players[pName].hand.push(...hand);
+        }
+      }
+    }
+    if (scenarioName === 'REGNO SPECIALE' && game.activeScenario.regnoSpecialeOriginalDeck) {
+      game.decks.personaggi = game.activeScenario.regnoSpecialeOriginalDeck;
+      if (game.activeScenario.regnoSpecialeFrozenField) {
+        game.field.push(...game.activeScenario.regnoSpecialeFrozenField);
+      }
+      if (game.activeScenario.regnoSpecialeFrozenHands) {
+        for (const [pName, hand] of Object.entries(game.activeScenario.regnoSpecialeFrozenHands)) {
+          if (game.players[pName]) game.players[pName].hand.push(...hand);
+        }
+      }
+    }
+
+    game.activeScenario = undefined;
+    console.log(`🎭 SCENARIO DEACTIVATED: "${scenarioName}" (reason: ${reason})`);
+    if (io) {
+      io.to(gameId).emit('scenario-deactivated', { name: scenarioName, reason });
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-scenario-deactivated`,
+        playerName: 'Sistema',
+        message: `🎭 SCENARIO "${scenarioName}" TERMINATO! (${reason === 'playerDied' ? 'Il giocatore che l\'ha attivato è morto' : reason === 'replaced' ? 'Sostituito da nuovo scenario' : 'Disattivato'})`,
+        timestamp: Date.now()
+      });
+    }
+  }
+
+  private applyScenarioActivationEffects(gameId: string, scenarioName: string, playedBy: string): void {
+    const game = this.games.get(gameId);
+    if (!game) return;
+    const io = (global as any).io;
+
+    if (scenarioName === 'VEDI NAPOLI E POI MUORI') {
+      // Initialize turns counter
+      if (game.activeScenario) game.activeScenario.vediNapoliTurnsLeft = 5;
+      // Transform all napoletani in campo
+      const NAPOLETANI = ['napoletano', 'ciro-pizzaiolo', 'o-pappon', 'tony-tammaro', 'cannavacciuolo', 'gigione', 'djidji-d-alessio', 'gigi-d-alessio', 'saverio', 'zi-vcienz', 'zio-vincenzo', 'sciallcuan', 'pasquale', 'mazzamauriegl'];
+      const fieldNapoletani = game.field.filter(c =>
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+        NAPOLETANI.some(slug => (c.frontImage || '').toLowerCase().includes(slug))
+      );
+      for (const char of fieldNapoletani) {
+        const owner = char.owner || '';
+        if (owner) this.handleEvolutionTransformation(game, gameId, owner, 'taroccata', char.id);
+      }
+      if (fieldNapoletani.length > 0 && io) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-vedi-napoli-transform`,
+          playerName: 'Sistema',
+          message: `🌶️ VEDI NAPOLI E POI MUORI: ${fieldNapoletani.length} napoletani si sono trasformati! I non-napoletani perderanno PTI ogni turno. Dopo 5 turni verranno eliminati!`,
+          timestamp: Date.now()
+        });
+      }
+    }
+
+    if (scenarioName === 'PACIFISMO') {
+      // Transform pacifists if in campo
+      const PACIFISTI = ['cacca', 'gidi', 'horsy', 'hippie'];
+      const fieldPacifisti = game.field.filter(c =>
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+        PACIFISTI.some(slug => (c.frontImage || '').toLowerCase().includes(slug))
+      );
+      for (const char of fieldPacifisti) {
+        const owner = char.owner || '';
+        if (owner) this.handleEvolutionTransformation(game, gameId, owner, 'taroccata', char.id);
+      }
+      // If Golden Freezer is in campo, kill all opponents of its owner
+      const goldenFreezer = game.field.find(c =>
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+        (c.frontImage || '').toLowerCase().includes('golden-freezer')
+      );
+      if (goldenFreezer) {
+        const gfOwner = goldenFreezer.owner || '';
+        const opponents = game.field.filter(c =>
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+          c.owner !== gfOwner && c.id !== goldenFreezer.id
+        );
+        for (const opp of opponents) {
+          setTimeout(() => this.killAndCheck(gameId, opp.id, opp.owner || '', gfOwner), 100);
+        }
+        if (opponents.length > 0 && io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-pacifismo-gf`,
+            playerName: 'Sistema',
+            message: `❄️ GOLDEN FREEZER attivo durante PACIFISMO! Elimina tutti gli avversari!`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    }
+
+    if (scenarioName === 'REGNO DEGLI INFERI') {
+      if (game.activeScenario) {
+        // Freeze current personaggi on field and in hands
+        const frozenField = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+        const frozenHands: Record<string, Card[]> = {};
+        for (const [pName, player] of Object.entries(game.players)) {
+          const handChars = player.hand.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+          if (handChars.length > 0) {
+            frozenHands[pName] = handChars;
+            game.players[pName].hand = player.hand.filter(c => c.type !== 'personaggi' && c.type !== 'personaggi_speciali');
+          }
+        }
+        // Remove frozen chars from field
+        game.field = game.field.filter(c => c.type !== 'personaggi' && c.type !== 'personaggi_speciali');
+        game.activeScenario.regnoInferiFrozenField = frozenField;
+        game.activeScenario.regnoInferiFrozenHands = frozenHands;
+        // Save original deck and replace with dead chars
+        game.activeScenario.regnoInferiOriginalDeck = [...game.decks.personaggi];
+        const deadPersonaggi = game.graveyard.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+        game.decks.personaggi = this.shuffleArray([...deadPersonaggi]);
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-regno-inferi-active`,
+            playerName: 'Sistema',
+            message: `💀 REGNO DEGLI INFERI: Il mazzo dei personaggi è stato sostituito con i morti! I personaggi congelati torneranno alla fine.`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    }
+
+    if (scenarioName === 'REGNO SPECIALE') {
+      if (game.activeScenario) {
+        // Freeze current personaggi
+        const frozenField = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+        const frozenHands: Record<string, Card[]> = {};
+        for (const [pName, player] of Object.entries(game.players)) {
+          const handChars = player.hand.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+          if (handChars.length > 0) {
+            frozenHands[pName] = handChars;
+            game.players[pName].hand = player.hand.filter(c => c.type !== 'personaggi' && c.type !== 'personaggi_speciali');
+          }
+        }
+        game.field = game.field.filter(c => c.type !== 'personaggi' && c.type !== 'personaggi_speciali');
+        game.activeScenario.regnoSpecialeFrozenField = frozenField;
+        game.activeScenario.regnoSpecialeFrozenHands = frozenHands;
+        game.activeScenario.regnoSpecialeOriginalDeck = [...game.decks.personaggi];
+        // Replace with special deck
+        game.decks.personaggi = this.shuffleArray([...game.decks.personaggi_speciali]);
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-regno-speciale-active`,
+            playerName: 'Sistema',
+            message: `✨ REGNO SPECIALE: Il mazzo dei personaggi speciali è ora attivo! I personaggi congelati torneranno alla fine.`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    }
+
+    // PALAZZO KIJI: apply to characters already on field at activation
+    if (scenarioName === 'PALAZZO KIJI') {
+      const existingFieldChars = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      for (const char of existingFieldChars) {
+        const charOwner = char.owner || '';
+        const hasTaroccata = (char as any).cheatsInto || (char as any).transformsInto;
+        if (hasTaroccata) {
+          this.handleEvolutionTransformation(game, gameId, charOwner, 'taroccata', char.id);
+        } else {
+          const oldPti = char.pti || 0;
+          const oldStars = char.stars || 1;
+          char.pti = Math.max(1, Math.floor(oldPti / 2));
+          char.stars = Math.max(1, Math.floor(oldStars / 2));
+          this.updateCardTextWithPTI(char);
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-palazzo-kiji-existing-${char.id}`, playerName: 'Sistema',
+              message: `🏯 PALAZZO KIJI! ${char.name || this.getCardNameFromUrl(char.frontImage || '')} già in campo: PTI e stelle dimezzati (${oldPti}→${char.pti} PTI, ${oldStars}→${char.stars} ⭐)`,
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
+    }
+
+    if (scenarioName === 'CALDO INFERNALE') {
+      if (game.activeScenario) {
+        game.activeScenario.caldoInfernaleCharTurns = {};
+        // Initialize field turns for chars already in campo
+        for (const char of game.field) {
+          if (char.type === 'personaggi' || char.type === 'personaggi_speciali') {
+            game.activeScenario.caldoInfernaleCharTurns[char.id] = 0;
+          }
+        }
+      }
+    }
+  }
+
+  // Shuffle an array in-place using Fisher-Yates
+  private shuffleArray<T>(arr: T[]): T[] {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // Apply scenario end-of-turn effects. Called at the end of endTurn().
+  private applyScenarioEndOfTurnEffects(gameId: string, playerName: string): void {
+    const game = this.games.get(gameId);
+    if (!game?.activeScenario) return;
+    const io = (global as any).io;
+    const scenario = game.activeScenario;
+    scenario.turnCount = (scenario.turnCount || 0) + 1;
+    const currentTurn = (game as any).globalTurnCount || 0;
+
+    // PRENDIAMO L'INSALATA: restore 200 PTI to all chars in campo each turn
+    if (scenario.name === "PRENDIAMO L'INSALATA") {
+      const fieldChars = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      for (const char of fieldChars) {
+        const oldPti = char.pti || 0;
+        char.pti = oldPti + 200;
+        this.updateCardTextWithPTI(char);
+      }
+      if (fieldChars.length > 0 && io) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-insalata`, playerName: 'Sistema',
+          message: `🥗 PRENDIAMO L'INSALATA: Tutti i personaggi recuperano 200 PTI!`,
+          timestamp: Date.now()
+        });
+      }
+    }
+
+    // CASO CAOS: reorder turn order by dice roll each turn (handled at start of turn in routes.ts via endTurn return)
+    if (scenario.name === 'CASO CAOS') {
+      // Roll dice for all active players and sort descending
+      const activePlayers = game.turnOrder.filter(p => !game.eliminatedPlayers.has(p));
+      const rolls: { player: string; roll: number }[] = activePlayers.map(p => ({
+        player: p,
+        roll: Math.floor(Math.random() * 6) + 1
+      }));
+      rolls.sort((a, b) => b.roll - a.roll);
+      game.turnOrder = rolls.map(r => r.player);
+      // Set to last index so the +1 increment in nextTurn wraps to 0 (the dice-roll winner)
+      game.currentTurnIndex = game.turnOrder.length - 1;
+      const rollSummary = rolls.map(r => `${r.player}: ${r.roll}`).join(', ');
+      if (io) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-caso-caos`, playerName: 'Sistema',
+          message: `🎲 CASO CAOS! Nuovi lanci: ${rollSummary}. Nuovo ordine: ${rolls.map(r => r.player).join(' → ')}`,
+          timestamp: Date.now()
+        });
+      }
+    }
+
+    // GABBIA DELLA MORTE: at end of turn, kill lowest PTI char on field
+    if (scenario.name === 'GABBIA DELLA MORTE') {
+      const fieldChars = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      if (fieldChars.length > 1) {
+        // Find lowest PTI char
+        const lowestChar = fieldChars.reduce((min, c) => {
+          const cPti = c.pti ?? this.extractPTIFromNote(c.text || '');
+          const minPti = min.pti ?? this.extractPTIFromNote(min.text || '');
+          return cPti < minPti ? c : min;
+        });
+        const lowestPti = lowestChar.pti ?? this.extractPTIFromNote(lowestChar.text || '');
+        const lowestName = lowestChar.name || this.getCardNameFromUrl(lowestChar.frontImage || '');
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-gabbia`, playerName: 'Sistema',
+            message: `🔒 GABBIA DELLA MORTE! ${lowestName} (${lowestPti} PTI) viene eliminato per avere i PTI più bassi!`,
+            timestamp: Date.now()
+          });
+        }
+        setTimeout(() => this.killAndCheck(gameId, lowestChar.id, lowestChar.owner || '', 'GABBIA_DELLA_MORTE'), 100);
+      } else if (fieldChars.length === 1) {
+        // If last char, transform instead of kill
+        const lastChar = fieldChars[0];
+        const owner = lastChar.owner || '';
+        if (owner) {
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-gabbia-last`, playerName: 'Sistema',
+              message: `🔒 GABBIA DELLA MORTE! È rimasto solo ${lastChar.name || this.getCardNameFromUrl(lastChar.frontImage || '')} — si trasforma!`,
+              timestamp: Date.now()
+            });
+          }
+          this.handleEvolutionTransformation(game, gameId, owner, 'taroccata', lastChar.id);
+        }
+      }
+    }
+
+    // L'ANELLO DEBOLE: at end of turn, transform lowest PTI char
+    if (scenario.name === "L'ANELLO DEBOLE") {
+      const fieldChars = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      if (fieldChars.length > 0) {
+        const lowestChar = fieldChars.reduce((min, c) => {
+          const cPti = c.pti ?? this.extractPTIFromNote(c.text || '');
+          const minPti = min.pti ?? this.extractPTIFromNote(min.text || '');
+          return cPti < minPti ? c : min;
+        });
+        const lowestName = lowestChar.name || this.getCardNameFromUrl(lowestChar.frontImage || '');
+        const owner = lowestChar.owner || '';
+        if (owner) {
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-anello-debole`, playerName: 'Sistema',
+              message: `⚠️ L'ANELLO DEBOLE! ${lowestName} si trasforma per avere i PTI più bassi!`,
+              timestamp: Date.now()
+            });
+          }
+          this.handleEvolutionTransformation(game, gameId, owner, 'taroccata', lowestChar.id);
+        }
+      }
+    }
+
+    // TENUTE CARRISI: each char rolls die; 1 = dies; ALBANO always dies
+    if (scenario.name === 'TENUTE CARRISI') {
+      const fieldChars = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      const toKill: Card[] = [];
+      const results: string[] = [];
+      for (const char of fieldChars) {
+        const charName = (char.name || this.getCardNameFromUrl(char.frontImage || '')).toUpperCase();
+        const isAlbano = charName.includes('AL BANO') || charName.includes('ALBANO') || (char.frontImage || '').toLowerCase().includes('al-bano');
+        const roll = Math.floor(Math.random() * 6) + 1;
+        if (roll === 1 || isAlbano) {
+          toKill.push(char);
+          results.push(`${char.name || charName}: ${isAlbano ? '🎵(ALBANO muore sempre!)' : `🎲${roll} → MUORE`}`);
+        } else {
+          results.push(`${char.name || charName}: 🎲${roll}`);
+        }
+      }
+      if (io && results.length > 0) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-tenute-carrisi`, playerName: 'Sistema',
+          message: `🌿 TENUTE CARRISI! Lanci dei dadi: ${results.join(', ')}`,
+          timestamp: Date.now()
+        });
+      }
+      for (let i = 0; i < toKill.length; i++) {
+        const char = toKill[i];
+        setTimeout(() => this.killAndCheck(gameId, char.id, char.owner || '', 'TENUTE_CARRISI'), 100 + i * 50);
+      }
+    }
+
+    // VEDI NAPOLI E POI MUORI
+    if (scenario.name === 'VEDI NAPOLI E POI MUORI') {
+      if (scenario.vediNapoliTurnsLeft === undefined) scenario.vediNapoliTurnsLeft = 5;
+      scenario.vediNapoliTurnsLeft--;
+      const NAPOLETANI = ['napoletano', 'ciro-pizzaiolo', 'o-pappon', 'tony-tammaro', 'cannavacciuolo', 'gigione', 'djidji-d-alessio', 'gigi-d-alessio', 'saverio', 'zi-vcienz', 'zio-vincenzo', 'sciallcuan', 'pasquale', 'mazzamauriegl'];
+      const fieldChars = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      const napoletaniInCampo = fieldChars.filter(c =>
+        NAPOLETANI.some(slug => (c.frontImage || '').toLowerCase().includes(slug))
+      );
+      const nonNapoletaniInCampo = fieldChars.filter(c =>
+        !NAPOLETANI.some(slug => (c.frontImage || '').toLowerCase().includes(slug))
+      );
+
+      if (nonNapoletaniInCampo.length > 0 && napoletaniInCampo.length > 0) {
+        // Each non-napoletano rolls a die and loses stars equal to the die result
+        let totalStarsLost = 0;
+        const rollMessages: string[] = [];
+        for (const char of nonNapoletaniInCampo) {
+          const roll = Math.floor(Math.random() * 6) + 1;
+          const oldStars = char.stars || 1;
+          char.stars = Math.max(0, oldStars - roll);
+          this.updateCardTextWithPTI(char);
+          totalStarsLost += Math.min(roll, oldStars); // actual stars lost
+          rollMessages.push(`${char.name || this.getCardNameFromUrl(char.frontImage || '')} -${roll}⭐`);
+        }
+        // Distribute lost stars evenly (ceiling) among napoletani
+        if (totalStarsLost > 0) {
+          const perNapol = Math.ceil(totalStarsLost / napoletaniInCampo.length);
+          for (const nap of napoletaniInCampo) {
+            nap.stars = Math.min(5, (nap.stars || 1) + perNapol);
+            this.updateCardTextWithPTI(nap);
+          }
+        }
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-vedi-napoli-dmg`, playerName: 'Sistema',
+            message: `🌶️ VEDI NAPOLI! ${rollMessages.join(', ')}. Totale ${totalStarsLost} ⭐ divisi tra ${napoletaniInCampo.length} napoletani (+${Math.ceil(totalStarsLost / napoletaniInCampo.length)} ⭐ ciascuno). Turni rimasti: ${scenario.vediNapoliTurnsLeft}`,
+            timestamp: Date.now()
+          });
+        }
+      } else if (nonNapoletaniInCampo.length > 0 && napoletaniInCampo.length === 0) {
+        // No napoletani to receive stars — non-napoletani still lose stars
+        for (const char of nonNapoletaniInCampo) {
+          const roll = Math.floor(Math.random() * 6) + 1;
+          char.stars = Math.max(0, (char.stars || 1) - roll);
+          this.updateCardTextWithPTI(char);
+        }
+      }
+
+      // After 5 turns, kill all non-napoletani
+      if (scenario.vediNapoliTurnsLeft <= 0) {
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-vedi-napoli-kill`, playerName: 'Sistema',
+            message: `🌶️💀 VEDI NAPOLI! 5 turni scaduti: tutti i non-napoletani vengono eliminati!`,
+            timestamp: Date.now()
+          });
+        }
+        for (let i = 0; i < nonNapoletaniInCampo.length; i++) {
+          const char = nonNapoletaniInCampo[i];
+          setTimeout(() => this.killAndCheck(gameId, char.id, char.owner || '', 'VEDI_NAPOLI'), 100 + i * 50);
+        }
+      }
+    }
+
+    // ZIO VINCENZO AL VOLTURNO: global die roll at end of turn
+    if (scenario.name === 'ZIO VINCENZO AL VOLTURNO') {
+      const roll = Math.floor(Math.random() * 6) + 1;
+      const activePlayers = game.turnOrder.filter(p => !game.eliminatedPlayers.has(p));
+      const ZI_VCIENZ_SLUGS = ['zi-vcienz', 'zio-vincenzo', 'z-vcienz'];
+      const ziVcienzInCampo = game.field.find(c =>
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+        ZI_VCIENZ_SLUGS.some(slug => (c.frontImage || '').toLowerCase().includes(slug))
+      );
+      let resultMsg = '';
+
+      if (roll <= 2) {
+        // All discard a character from hand
+        const discarded: Card[] = [];
+        for (const pName of activePlayers) {
+          const chars = game.players[pName]?.hand.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali') || [];
+          if (chars.length > 0) {
+            const discardIdx = Math.floor(Math.random() * chars.length);
+            const discarded1 = chars[discardIdx];
+            const handIdx = game.players[pName].hand.findIndex(c => c.id === discarded1.id);
+            if (handIdx !== -1) {
+              game.players[pName].hand.splice(handIdx, 1);
+              discarded.push(discarded1);
+              game.graveyard.unshift(discarded1);
+            }
+          }
+        }
+        resultMsg = `🎲${roll} → Tutti scartano un personaggio dalla mano!`;
+        // ZÌ VCIENZ steals them
+        if (ziVcienzInCampo && discarded.length > 0) {
+          const ziOwner = ziVcienzInCampo.owner || '';
+          if (ziOwner && game.players[ziOwner]) {
+            for (const card of discarded) {
+              card.owner = ziOwner;
+              game.players[ziOwner].hand.push(card);
+              // Remove from graveyard
+              const gIdx = game.graveyard.findIndex(c => c.id === card.id);
+              if (gIdx !== -1) game.graveyard.splice(gIdx, 1);
+            }
+            resultMsg += ` ZÌ VCIENZ li ruba tutti!`;
+          }
+        }
+      } else if (roll <= 4) {
+        // All draw a bonus card
+        for (const pName of activePlayers) {
+          if (game.decks.bonus.length > 0) {
+            const bonusCard = game.decks.bonus.shift()!;
+            bonusCard.owner = pName;
+            game.players[pName].hand.push(bonusCard);
+          }
+        }
+        resultMsg = `🎲${roll} → Tutti pescano una carta bonus!`;
+      } else {
+        // All draw a mosse card
+        for (const pName of activePlayers) {
+          if (game.decks.mosse.length > 0) {
+            const mosseCard = game.decks.mosse.shift()!;
+            mosseCard.owner = pName;
+            game.players[pName].hand.push(mosseCard);
+          }
+        }
+        resultMsg = `🎲${roll} → Tutti pescano una carta mosse!`;
+      }
+
+      if (io) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-zio-vincenzo`, playerName: 'Sistema',
+          message: `🍷 ZIO VINCENZO AL VOLTURNO! ${resultMsg}`,
+          timestamp: Date.now()
+        });
+      }
+    }
+
+    // CALDO INFERNALE: increment turn counters for field chars; halve PTI for those > 3 turns
+    if (scenario.name === 'CALDO INFERNALE') {
+      if (!scenario.caldoInfernaleCharTurns) scenario.caldoInfernaleCharTurns = {};
+      const HEAT_RESISTANT = ['apollo', 'carmine', 'mancazione', 'god-zilla', 'neeno-phrasseeka', 'neeno-phrassika', 'pippo-raudo', 'ernesto', 'cicchetti'];
+      const fieldChars = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      for (const char of fieldChars) {
+        scenario.caldoInfernaleCharTurns[char.id] = (scenario.caldoInfernaleCharTurns[char.id] || 0) + 1;
+        const turns = scenario.caldoInfernaleCharTurns[char.id];
+        const isHeatResistant = HEAT_RESISTANT.some(slug => (char.frontImage || '').toLowerCase().includes(slug));
+        if (turns > 3 && !isHeatResistant) {
+          const oldPti = char.pti || 0;
+          char.pti = Math.floor(oldPti / 2);
+          this.updateCardTextWithPTI(char);
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-caldo-${char.id}`, playerName: 'Sistema',
+              message: `🔥 CALDO INFERNALE! ${char.name || this.getCardNameFromUrl(char.frontImage || '')} è in campo da ${turns} turni — PTI dimezzati: ${oldPti} → ${char.pti}`,
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
+    }
+
+    // MONDO SOMMERSO: apply delayed damages from previous turn
+    if (scenario.name === 'MONDO SOMMERSO') {
+      if (!scenario.mondoSommersoDelayedDamages) scenario.mondoSommersoDelayedDamages = [];
+      const toApply = scenario.mondoSommersoDelayedDamages.filter(d => d.applyAtTurn <= currentTurn);
+      scenario.mondoSommersoDelayedDamages = scenario.mondoSommersoDelayedDamages.filter(d => d.applyAtTurn > currentTurn);
+      for (const delayed of toApply) {
+        const targetCard = game.field.find(c => c.id === delayed.targetCardId);
+        if (targetCard) {
+          const oldPti = targetCard.pti || 0;
+          targetCard.pti = Math.max(0, oldPti - delayed.damageValue);
+          this.updateCardTextWithPTI(targetCard);
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-mondo-sommerso-apply`, playerName: 'Sistema',
+              message: `🌊 MONDO SOMMERSO! Danno ritardato applicato: ${delayed.damageValue} PTI a ${targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '')}`,
+              timestamp: Date.now()
+            });
+          }
+          if (targetCard.pti <= 0) {
+            setTimeout(() => this.killAndCheck(gameId, targetCard.id, targetCard.owner || '', delayed.attacker), 100);
+          }
+        }
+      }
+    }
+  }
+
+  // Apply scenario effects to combat damage (FENZA, MONDO SOMMERSO, GUERRA, CALDO INFERNALE damage modifiers)
+  // Returns modified damage value, or -1 if attack is blocked
+  scenarioModifyDamage(gameId: string, attackerName: string, targetCardId: string, damageValue: number, mosseCardId: string): number {
+    const game = this.games.get(gameId);
+    if (!game?.activeScenario) return damageValue;
+    const scenario = game.activeScenario;
+    const io = (global as any).io;
+    const currentTurn = (game as any).globalTurnCount || 0;
+
+    // FENZA 1 METRO E 20 ALTA: block attacks < 120 PTI
+    if (scenario.name === 'FENZA 1 METRO E 20 ALTA') {
+      if (damageValue < 120) {
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-fenza-block`, playerName: 'Sistema',
+            message: `🚫 FENZA 1 METRO E 20 ALTA! L'attacco di ${damageValue} PTI è troppo debole e viene bloccato dalla fenza! (minimo 120 PTI)`,
+            timestamp: Date.now()
+          });
+        }
+        return -1; // blocked
+      }
+    }
+
+    // MONDO SOMMERSO: delay damage by 1 turn
+    if (scenario.name === 'MONDO SOMMERSO') {
+      if (!scenario.mondoSommersoDelayedDamages) scenario.mondoSommersoDelayedDamages = [];
+      const WATER_CHARS = ['parassita', 'pingu', 'sciallcuan', 'zi-vcienz', 'zio-vincenzo'];
+      const attackerChar = this.getPlayerActiveCharacter(game, attackerName);
+      const isWaterChar = attackerChar && WATER_CHARS.some(slug => (attackerChar.frontImage || '').toLowerCase().includes(slug));
+      const finalDamage = isWaterChar ? damageValue * 2 : damageValue;
+      scenario.mondoSommersoDelayedDamages.push({
+        attacker: attackerName,
+        defender: game.field.find(c => c.id === targetCardId)?.owner || '',
+        targetCardId,
+        damageValue: finalDamage,
+        applyAtTurn: currentTurn + 2, // +2 because globalTurnCount increments before applyScenarioEndOfTurnEffects runs
+        mosseCardId
+      });
+      if (io) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-mondo-sommerso-delay`, playerName: 'Sistema',
+          message: `🌊 MONDO SOMMERSO! Il danno di ${finalDamage} PTI verrà applicato al prossimo turno!${isWaterChar ? ' (danno raddoppiato — personaggio acquatico)' : ''}`,
+          timestamp: Date.now()
+        });
+      }
+      return -1; // blocked for now (will apply next turn)
+    }
+
+    // CALDO INFERNALE: heat-resistant chars double attack damage
+    if (scenario.name === 'CALDO INFERNALE') {
+      const HEAT_RESISTANT = ['apollo', 'carmine', 'mancazione', 'god-zilla', 'neeno-phrasseeka', 'neeno-phrassika', 'pippo-raudo', 'ernesto', 'cicchetti'];
+      const attackerChar = this.getPlayerActiveCharacter(game, attackerName);
+      const isHeatResistant = attackerChar && HEAT_RESISTANT.some(slug => (attackerChar.frontImage || '').toLowerCase().includes(slug));
+      if (isHeatResistant) {
+        const newDamage = damageValue * 2;
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-caldo-double`, playerName: 'Sistema',
+            message: `🔥 CALDO INFERNALE! ${attackerChar?.name || attackerName} è resistente al caldo — danno raddoppiato: ${damageValue} → ${newDamage}!`,
+            timestamp: Date.now()
+          });
+        }
+        return newDamage;
+      }
+    }
+
+    // GUERRA: black chars double move damage
+    if (scenario.name === 'GUERRA') {
+      const BLACK_CHARS = ['kulungu', 'nero-che-beve-la-soda', 'obama', 'real-gee', 'shorty', 'napoletano', 'bello-figo-gu'];
+      const attackerChar = this.getPlayerActiveCharacter(game, attackerName);
+      const isBlackChar = attackerChar && BLACK_CHARS.some(slug => (attackerChar.frontImage || '').toLowerCase().includes(slug));
+      if (isBlackChar) {
+        const newDamage = damageValue * 2;
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-guerra-double`, playerName: 'Sistema',
+            message: `⚔️ GUERRA! ${attackerChar?.name || attackerName} raddoppia il danno: ${damageValue} → ${newDamage}!`,
+            timestamp: Date.now()
+          });
+        }
+        return newDamage;
+      }
+    }
+
+    return damageValue;
+  }
+
+  // Check scenario effects on playCard (GUERRA blocks, PALAZZO KIJI transforms, PACIFISMO blocks mosse)
+  scenarioCheckPlayCard(gameId: string, playerName: string, card: Card): { blocked: boolean; reason?: string } {
+    const game = this.games.get(gameId);
+    if (!game?.activeScenario) return { blocked: false };
+    const scenario = game.activeScenario;
+    const io = (global as any).io;
+
+    // ALLEANZA: bonus cards target ANY field character chosen by the player
+    // Blocks normal processing; routes the bonus PTI to the player-chosen target via target-selection
+    if (scenario.name === 'ALLEANZA' && card.type === 'bonus') {
+      const allFieldChars = game.field.filter(c =>
+        c.type === 'personaggi' || c.type === 'personaggi_speciali'
+      );
+      if (allFieldChars.length > 0 && io) {
+        const selectionId = `alleanza-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const alleanzaPti = card.pti || 0;
+        game.alleanzaPending = { selectionId, cardId: card.id, pti: alleanzaPti, playedBy: playerName };
+        io.to(gameId).emit('show-custom-target-selection', {
+          selectionId,
+          cardId: card.id,
+          cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+          owner: playerName,
+          maxSelections: 1,
+          title: '🤝 ALLEANZA: SCEGLI IL BERSAGLIO DEL BONUS',
+          subtitle: 'Puoi scegliere qualsiasi personaggio in campo (tuo o avversario)',
+          availableTargets: allFieldChars.map(c => ({
+            id: c.id,
+            name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+            owner: c.owner,
+            frontImage: c.frontImage || '',
+            pti: c.pti,
+            stars: c.stars
+          }))
+        });
+        // Block normal processing — only the chosen target receives the bonus PTI
+        return { blocked: true, reason: 'ALLEANZA: scegli il bersaglio del bonus' };
+      }
+    }
+
+    // GUERRA: cannot play bonus or mosse if player already has a char on field
+    if (scenario.name === 'GUERRA') {
+      if (card.type === 'bonus' || card.type === 'mosse') {
+        const hasFieldChar = game.field.some(c =>
+          c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (hasFieldChar) {
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-guerra-block`, playerName: 'Sistema',
+              message: `⚔️ GUERRA! ${playerName} non può giocare ${card.type === 'bonus' ? 'bonus' : 'mosse'} quando ha già un personaggio in campo!`,
+              timestamp: Date.now()
+            });
+          }
+          return { blocked: true, reason: 'GUERRA: impossibile giocare bonus/mosse con un personaggio in campo' };
+        }
+      }
+    }
+
+    // PACIFISMO: block mosse
+    if (scenario.name === 'PACIFISMO') {
+      if (card.type === 'mosse') {
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-pacifismo-block`, playerName: 'Sistema',
+            message: `🕊️ PACIFISMO! Le mosse offensive sono vietate!`,
+            timestamp: Date.now()
+          });
+        }
+        return { blocked: true, reason: 'PACIFISMO: le mosse offensive sono vietate' };
+      }
+    }
+
+    // PALAZZO KIJI: when a personaggio enters field, transform it
+    if (scenario.name === 'PALAZZO KIJI') {
+      if (card.type === 'personaggi' || card.type === 'personaggi_speciali') {
+        // We apply after placement via a timeout
+        setTimeout(() => {
+          const freshGame = this.games.get(gameId);
+          if (!freshGame) return;
+          const freshCard = freshGame.field.find(c => c.id === card.id);
+          if (!freshCard) return;
+          const hasTaroccata = freshCard.cheatsInto || freshCard.transformsInto;
+          if (hasTaroccata) {
+            this.handleEvolutionTransformation(freshGame, gameId, playerName, 'taroccata', freshCard.id);
+          } else {
+            // Halve PTI and stars
+            const oldPti = freshCard.pti || 0;
+            const oldStars = freshCard.stars || 1;
+            freshCard.pti = Math.max(1, Math.floor(oldPti / 2));
+            freshCard.stars = Math.max(1, Math.floor(oldStars / 2));
+            this.updateCardTextWithPTI(freshCard);
+            const ioKP = (global as any).io;
+            if (ioKP) {
+              ioKP.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-palazzo-kiji`, playerName: 'Sistema',
+                message: `🏯 PALAZZO KIJI! ${freshCard.name || this.getCardNameFromUrl(freshCard.frontImage || '')} entra nel palazzo con PTI e stelle dimezzati (${oldPti}→${freshCard.pti} PTI, ${oldStars}→${freshCard.stars} ⭐)`,
+                timestamp: Date.now()
+              });
+            }
+          }
+          const ioK2 = (global as any).io;
+          if (ioK2) {
+            const gs = this.getSanitizedGameState(gameId);
+            if (gs) ioK2.to(gameId).emit('game-state-update', gs);
+          }
+        }, 200);
+      }
+    }
+
+    // ROCCASCIAAANIII: when a personaggio enters field, subtract 100 PTI (except SILVER SILVIO)
+    if (scenario.name === 'ROCCASCIAAANIII') {
+      if (card.type === 'personaggi' || card.type === 'personaggi_speciali') {
+        setTimeout(() => {
+          this.scenarioApplyRoccasciaaaniii(gameId, card.id);
+          const ioR = (global as any).io;
+          if (ioR) {
+            const gs = this.getSanitizedGameState(gameId);
+            if (gs) ioR.to(gameId).emit('game-state-update', gs);
+          }
+        }, 200);
+      }
+    }
+
+    return { blocked: false };
+  }
+
+  // Called when a character dies; check if scenario should deactivate
+  scenarioCheckDeath(gameId: string, deadCharId: string, deadCharOwner: string): void {
+    const game = this.games.get(gameId);
+    if (!game?.activeScenario) return;
+    const scenario = game.activeScenario;
+
+    // Deactivate when the specific character that activated the scenario dies
+    const activatorCharId = scenario.activatorCharId;
+    const isActivatorChar = activatorCharId
+      ? deadCharId === activatorCharId
+      : (deadCharOwner === scenario.playedBy && game.field.filter(c =>
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+          c.owner === deadCharOwner && c.id !== deadCharId
+        ).length === 0);
+
+    if (isActivatorChar) {
+      console.log(`🎭 SCENARIO: "${scenario.name}" deactivated because activator char ${deadCharId} died`);
+      this.deactivateScenario(gameId, 'playerDied');
+      const ioSD = (global as any).io;
+      if (ioSD) {
+        const gs = this.getSanitizedGameState(gameId);
+        if (gs) ioSD.to(gameId).emit('game-state-update', gs);
+      }
+    }
+
+    // CALDO INFERNALE: remove char from tracking
+    if (scenario.name === 'CALDO INFERNALE' && scenario.caldoInfernaleCharTurns) {
+      delete scenario.caldoInfernaleCharTurns[deadCharId];
+    }
+  }
+
+  // Apply ASSORBI POTERE: killer inherits effects from killed char
+  scenarioApplyAbsorbPower(gameId: string, killerName: string, deadCard: Card): void {
+    const game = this.games.get(gameId);
+    if (!game?.activeScenario) return;
+    if (game.activeScenario.name !== 'ASSORBI POTERE') return;
+    const io = (global as any).io;
+    const killerChar = this.getPlayerActiveCharacter(game, killerName);
+    if (!killerChar) return;
+
+    // Copy canonical activeEffects and timedEffects arrays from the dead card
+    const deadActiveEffects = (deadCard as any).activeEffects;
+    const deadTimedEffects = (deadCard as any).timedEffects;
+    if (Array.isArray(deadActiveEffects) && deadActiveEffects.length > 0) {
+      if (!(killerChar as any).activeEffects) (killerChar as any).activeEffects = [];
+      (killerChar as any).activeEffects = [...(killerChar as any).activeEffects, ...deadActiveEffects];
+    }
+    if (Array.isArray(deadTimedEffects) && deadTimedEffects.length > 0) {
+      if (!(killerChar as any).timedEffects) (killerChar as any).timedEffects = [];
+      (killerChar as any).timedEffects = [...(killerChar as any).timedEffects, ...deadTimedEffects];
+    }
+    // Also inherit scalar active effects (protection, counters, etc.)
+    const effectsToInherit = ['isProtected', 'counterDamage', 'reflectPercent', 'shieldAmount', 'poisonDamage', 'poisonTurns', 'burnDamage', 'hasLifesteal', 'regeneration', 'hasTaunt', 'isStealthed', 'hasFear'];
+    for (const prop of effectsToInherit) {
+      if ((deadCard as any)[prop] !== undefined && (deadCard as any)[prop] !== false && (deadCard as any)[prop] !== 0) {
+        (killerChar as any)[prop] = (deadCard as any)[prop];
+      }
+    }
+    if (io) {
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-assorbi-potere`, playerName: 'Sistema',
+        message: `⚡ ASSORBI POTERE! ${killerChar.name || killerName} eredita tutti gli effetti attivi di ${deadCard.name || this.getCardNameFromUrl(deadCard.frontImage || '')}!`,
+        timestamp: Date.now()
+      });
+    }
+  }
+
+  // Apply CANNIBALISMO: killer gains killed char's PTI (not +100)
+  scenarioApplyCannibalism(gameId: string, killerName: string, deadCardPreMortemPTI: number): boolean {
+    const game = this.games.get(gameId);
+    if (!game?.activeScenario) return false;
+    if (game.activeScenario.name !== 'CANNIBALISMO') return false;
+    const io = (global as any).io;
+    const killerChar = this.getPlayerActiveCharacter(game, killerName);
+    if (!killerChar) return false;
+
+    const gained = deadCardPreMortemPTI || 0;
+    killerChar.pti = (killerChar.pti || 0) + gained;
+    this.updateCardTextWithPTI(killerChar);
+    if (io) {
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-cannibalismo`, playerName: 'Sistema',
+        message: `🦷 CANNIBALISMO! ${killerChar.name || killerName} assorbe ${gained} PTI dal personaggio ucciso!`,
+        timestamp: Date.now()
+      });
+    }
+    return true; // Prevents the standard +100 PTI
+  }
+
+  // Resolve ALLEANZA bonus target selection: apply the bonus card's full effect to the chosen field character.
+  // Since normal processing was blocked, the card is still in hand — we remove it here and run the full
+  // bonus effect pipeline (PTI + stars + any custom effect) against the chosen target.
+  async resolveAlleanzaTargetSelection(gameId: string, selectionId: string, selectedTargetIds: string[], playerName: string, io: any): Promise<boolean> {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+    const pending = game.alleanzaPending;
+    if (!pending || pending.selectionId !== selectionId || pending.playedBy !== playerName) return false;
+    delete game.alleanzaPending;
+
+    // Remove card from hand (normal processing was blocked so it's still there)
+    const playerData = game.players[playerName];
+    const cardId: string = pending.cardId;
+    let bonusCard: Card | null = null;
+    if (playerData) {
+      const handIdx = playerData.hand.findIndex((c: Card) => c.id === cardId);
+      if (handIdx !== -1) {
+        const [removedCard] = playerData.hand.splice(handIdx, 1);
+        bonusCard = removedCard;
+        game.graveyard.unshift({ ...removedCard, eliminatedBy: playerName });
+      }
+    }
+
+    const targetId = selectedTargetIds[0];
+    if (!targetId) return true; // consumed, no valid target
+
+    const targetChar = game.field.find(c => c.id === targetId);
+    if (!targetChar) return true;
+
+    const targetName = targetChar.name || this.getCardNameFromUrl(targetChar.frontImage || '');
+
+    // 1. Apply direct PTI bonus to chosen target
+    const bonusPti: number = pending.pti || 0;
+    if (bonusPti > 0) {
+      const oldPti = targetChar.pti || 0;
+      targetChar.pti = oldPti + bonusPti;
+      this.updateCardTextWithPTI(targetChar);
+    }
+
+    // 2. Apply star bonus to chosen target (if card carries stars)
+    const bonusStars: number = bonusCard?.stars || 0;
+    if (bonusStars > 0) {
+      targetChar.stars = Math.min(5, (targetChar.stars || 1) + bonusStars);
+      this.updateCardTextWithPTI(targetChar);
+    }
+
+    // 3. Run the full custom-effect pipeline for the chosen target's owner so non-PTI effects
+    //    (transformations, status effects, [CUSTOM:xxx] handlers, etc.) are also preserved.
+    if (bonusCard?.effect && targetChar.owner) {
+      await this.processCustomCardEffect(gameId, bonusCard, targetChar.owner);
+    }
+
+    if (io) {
+      const starsMsg = bonusStars > 0 ? ` e +${bonusStars} ⭐` : '';
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-alleanza-apply`, playerName: 'Sistema',
+        message: `🤝 ALLEANZA! ${playerName} ha applicato il bonus a ${targetName}: +${bonusPti} PTI${starsMsg}`,
+        timestamp: Date.now()
+      });
+      const gs = this.getSanitizedGameState(gameId);
+      if (gs) io.to(gameId).emit('game-state-update', gs);
+    }
+    return true;
+  }
+
+  // Apply ROCCASCIAAANIII: when a char enters the field, subtract 100 PTI (except SILVER SILVIO)
+  scenarioApplyRoccasciaaaniii(gameId: string, charId: string): void {
+    const game = this.games.get(gameId);
+    if (!game?.activeScenario) return;
+    if (game.activeScenario.name !== 'ROCCASCIAAANIII') return;
+    const io = (global as any).io;
+    const char = game.field.find(c => c.id === charId);
+    if (!char) return;
+    const charName = char.name || this.getCardNameFromUrl(char.frontImage || '');
+    if (charName.toLowerCase().includes('silver silvio') || (char.frontImage || '').toLowerCase().includes('silver-silvio')) {
+      if (io) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-roccasciaaaniii-exempt`, playerName: 'Sistema',
+          message: `🎸 ROCCASCIAAANIII! ${charName} è SILVER SILVIO, esentato dalla penalità!`,
+          timestamp: Date.now()
+        });
+      }
+      return;
+    }
+    const oldPti = char.pti || 0;
+    char.pti = Math.max(1, oldPti - 100);
+    this.updateCardTextWithPTI(char);
+    if (io) {
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-roccasciaaaniii`, playerName: 'Sistema',
+        message: `🎸 ROCCASCIAAANIII! ${charName} entra in campo e perde 100 PTI! (${oldPti} → ${char.pti} PTI)`,
+        timestamp: Date.now()
+      });
+    }
+  }
+
+  // Roll multidado: 3 dice, returns { dice: [d1,d2,d3], total: sum, converted: mapped_value }
+  rollMultidado(): { dice: number[]; total: number; converted: number } {
+    const dice = [
+      Math.floor(Math.random() * 6) + 1,
+      Math.floor(Math.random() * 6) + 1,
+      Math.floor(Math.random() * 6) + 1
+    ];
+    const total = dice[0] + dice[1] + dice[2];
+    let converted: number;
+    if (total <= 5) converted = 1;
+    else if (total <= 8) converted = 2;
+    else if (total <= 11) converted = 3;
+    else if (total <= 14) converted = 4;
+    else if (total <= 17) converted = 5;
+    else converted = 6;
+    return { dice, total, converted };
+  }
+
   async addCustomCards(
     gameId: string, 
     deckType: string, 
@@ -25818,6 +27014,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // Increment global turn counter (used by GHELLER, BAMBOLA DEL DEMONIO, etc.)
     (gameState as any).globalTurnCount = ((gameState as any).globalTurnCount || 0) + 1;
     const currentGlobalTurn: number = (gameState as any).globalTurnCount;
+
+    // ── SCENARIO END-OF-TURN EFFECTS ──────────────────────────────────────────────
+    if (gameState.activeScenario) {
+      this.applyScenarioEndOfTurnEffects(gameId, playerName);
+    }
+    // ─────────────────────────────────────────────────────────────────────────────
 
     // ── IBERNAZIONE decrement ────────────────────────────────────────────────────
     if ((gameState as any).ibernazione) {
@@ -30932,6 +32134,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return;
     }
 
+    // ── SCENARIO DAMAGE MODIFICATION ────────────────────────────────────────────
+    if (!isVoodooReflection && !isPersistentTick && !isHandTarget && game?.activeScenario) {
+      const scenarioResult = this.scenarioModifyDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId);
+      if (scenarioResult === -1) {
+        // Attack blocked or delayed by scenario (FENZA blocks, MONDO SOMMERSO delays)
+        const gs = this.getSanitizedGameState(gameId);
+        if (gs && io) io.to(gameId).emit('game-state-update', gs);
+        return;
+      }
+      damageValue = scenarioResult;
+    }
+    // ─────────────────────────────────────────────────────────────────────────────
+
     let effectiveDamage = damageValue;
 
     // DONALD TRUMP: 2× damage when TRUMP is the active attacking character vs KIM JONG UN or OBAMA
@@ -32137,34 +33352,44 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const attackerNotes = attackerCharacter.text || '';
         const attackerPtiMatch = attackerNotes.match(/PTI:\s*(\d+)/i);
         let attackerCurrentPTI = attackerPtiMatch ? parseInt(attackerPtiMatch[1]) : 100;
-        
-        // PRESERVE: Fixed +100 PTI per elimination
-        const absorbedPTI = 100;
-        const newAttackerPTI = Math.min(9999, attackerCurrentPTI + absorbedPTI);
-        
-        if (absorbedPTI > 0 && newAttackerPTI > attackerCurrentPTI) {
-          let updatedAttackerNotes = attackerNotes;
-          if (attackerPtiMatch) {
-            updatedAttackerNotes = attackerNotes.replace(/PTI:\s*\d+/i, `PTI: ${newAttackerPTI}`);
+
+        // CANNIBALISMO: absorb victim's full pre-mortem PTI instead of +100
+        // Use currentPTI (pre-damage) so we get the true PTI before the killing blow zeroed it
+        const deadCardPTI = currentPTI > 0 ? currentPTI : this.extractPTIFromNote(targetCard.text || '');
+        const cannibalismoActive = game.activeScenario?.name === 'CANNIBALISMO';
+        const absorbedByScenario = cannibalismoActive
+          ? this.scenarioApplyCannibalism(gameId, attackerName, deadCardPTI)
+          : false;
+
+        if (!absorbedByScenario) {
+          // PRESERVE: Fixed +100 PTI per elimination
+          const absorbedPTI = 100;
+          const newAttackerPTI = Math.min(9999, attackerCurrentPTI + absorbedPTI);
+          
+          if (absorbedPTI > 0 && newAttackerPTI > attackerCurrentPTI) {
+            let updatedAttackerNotes = attackerNotes;
+            if (attackerPtiMatch) {
+              updatedAttackerNotes = attackerNotes.replace(/PTI:\s*\d+/i, `PTI: ${newAttackerPTI}`);
+            } else {
+              updatedAttackerNotes = attackerNotes + `\nPTI: ${newAttackerPTI}`;
+            }
+            
+            this.updateCardText(gameId, attackerCharacter.id, updatedAttackerNotes);
+            
+            console.log(`PTI ABSORPTION AUDIT: ${attackerName} [${attackerCharacter.id}] gains +100 PTI for eliminating ${targetCard.owner} [${targetCardId}] (${attackerCurrentPTI} → ${newAttackerPTI})`);
+            
+            // PRESERVE: PTI absorption notification
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-absorption`,
+              playerName: 'Sistema',
+              message: `🔥 ${attackerName} guadagna +100 PTI per aver eliminato il personaggio! (${attackerCurrentPTI} → ${newAttackerPTI} PTI)`,
+              timestamp: Date.now()
+            });
+            
+            console.log(`PTI_ABSORPTION_EVENT: ${attackerName} gained +100 PTI for eliminating ${targetCard.owner}`);
           } else {
-            updatedAttackerNotes = attackerNotes + `\nPTI: ${newAttackerPTI}`;
+            console.log(`PTI ABSORPTION SKIPPED: Invalid data (absorbedPTI=${absorbedPTI}, newPTI=${newAttackerPTI})`);
           }
-          
-          this.updateCardText(gameId, attackerCharacter.id, updatedAttackerNotes);
-          
-          console.log(`PTI ABSORPTION AUDIT: ${attackerName} [${attackerCharacter.id}] gains +100 PTI for eliminating ${targetCard.owner} [${targetCardId}] (${attackerCurrentPTI} → ${newAttackerPTI})`);
-          
-          // PRESERVE: PTI absorption notification
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-absorption`,
-            playerName: 'Sistema',
-            message: `🔥 ${attackerName} guadagna +100 PTI per aver eliminato il personaggio! (${attackerCurrentPTI} → ${newAttackerPTI} PTI)`,
-            timestamp: Date.now()
-          });
-          
-          console.log(`PTI_ABSORPTION_EVENT: ${attackerName} gained +100 PTI for eliminating ${targetCard.owner}`);
-        } else {
-          console.log(`PTI ABSORPTION SKIPPED: Invalid data (absorbedPTI=${absorbedPTI}, newPTI=${newAttackerPTI})`);
         }
       } else if (noKillBonusActive && newPTI <= 0) {
         // Consume the flag on canonical game.field objects (one-time suppression per kill)

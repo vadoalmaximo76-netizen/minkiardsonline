@@ -156,6 +156,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [timedEffectBannerDesc, setTimedEffectBannerDesc] = useState<string>("");
   const [unreadMessages, setUnreadMessages] = useState<number>(0);
   const [scenarioCardsActive, setScenarioCardsActive] = useState<boolean>(false);
+  const [activeScenarioBanner, setActiveScenarioBanner] = useState<{ name: string; cardImageUrl: string; playedBy: string; effectText: string } | null>(null);
+  const [scenarioCinematic, setScenarioCinematic] = useState<{ visible: boolean; name: string; cardImageUrl: string; playedBy: string; effectText: string } | null>(null);
+  const [multidadoRoll, setMultidadoRoll] = useState<{ visible: boolean; dice: number[]; total: number; converted: number; playerName: string } | null>(null);
   const [showRotationWarning, setShowRotationWarning] = useState(true);
   const [ciaoNotificationVisible, setCiaoNotificationVisible] = useState(false);
   const [ciaoCardName, setCiaoCardName] = useState<string>("");
@@ -674,6 +677,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     }
   }, [gameState?.scenarioCardsActive]);
 
+  // Sync activeScenario banner with game state (for reconnects)
+  useEffect(() => {
+    if (gameState?.activeScenario) {
+      setActiveScenarioBanner({
+        name: gameState.activeScenario.name,
+        cardImageUrl: gameState.activeScenario.cardImageUrl,
+        playedBy: gameState.activeScenario.playedBy,
+        effectText: gameState.activeScenario.effectText || '',
+      });
+    } else if (gameState && !gameState.activeScenario) {
+      setActiveScenarioBanner(null);
+    }
+  }, [gameState?.activeScenario?.name]);
+
   // Close sfaccimm overlay when game-state-update arrives while submitting (server accepted selection)
   useEffect(() => {
     if (sfaccimmPrompt?.submitting) {
@@ -759,6 +776,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       // Play dice roll sound when anyone rolls the dice
       playDiceRoll();
     };
+
+    // ── SCENARIO EVENTS ─────────────────────────────────────────────────────────
+    const handleScenarioActivated = (data: { name: string; cardImageUrl: string; playedBy: string; effectText: string }) => {
+      // Show cinematic for 4 seconds
+      setScenarioCinematic({ visible: true, ...data });
+      setActiveScenarioBanner(data);
+      setTimeout(() => {
+        setScenarioCinematic(null);
+      }, 4500);
+    };
+    const handleScenarioDeactivated = (_data: { name: string; reason: string }) => {
+      setActiveScenarioBanner(null);
+    };
+    const handleMultidadoRolled = (data: { dice: number[]; total: number; converted: number; playerName: string }) => {
+      setMultidadoRoll({ visible: true, ...data });
+      setTimeout(() => setMultidadoRoll(null), 3500);
+    };
+    socket.on('scenario-activated', handleScenarioActivated);
+    socket.on('scenario-deactivated', handleScenarioDeactivated);
+    socket.on('multidado-roll', handleMultidadoRolled);
+    // ─────────────────────────────────────────────────────────────────────────────
 
     const handleDiceWindowOpen = ({ playerName: opener }: { playerName: string }) => {
       setDiceResult(undefined);
@@ -2439,6 +2477,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('card-shown', handleCardShown);
       socket.off('card-show-confirmed', handleCardShowConfirmed);
       socket.off('dice-rolled', handleDiceRoll);
+      socket.off('scenario-activated', handleScenarioActivated);
+      socket.off('scenario-deactivated', handleScenarioDeactivated);
+      socket.off('multidado-roll', handleMultidadoRolled);
       socket.off('dice-roll', handleWindDiceRoll);
       socket.off('evolution-dice-roll', handleEvolutionDiceRoll);
       socket.off('lellelelle-start', handleLellellelleStart);
@@ -2644,8 +2685,252 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           transition: 'opacity 0.4s ease',
         }} />
       )}
+      {/* Scenario background overlay (blurred card image) */}
+      {activeScenarioBanner?.cardImageUrl && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
+          backgroundImage: `url(${activeScenarioBanner.cardImageUrl})`,
+          backgroundSize: 'cover', backgroundPosition: 'center',
+          filter: 'blur(12px) brightness(0.35)',
+          transition: 'opacity 0.8s ease',
+        }} />
+      )}
+
       <div className="game-field-aurora" />
       <GameToastContainer />
+
+      {/* ── SCENARIO SYSTEM UI ──────────────────────────────────────────────────── */}
+
+      {/* Scenario animated CSS overlay for 7 special scenarios */}
+      {activeScenarioBanner && (() => {
+        const scenarioName = activeScenarioBanner.name;
+        if (scenarioName === 'CALDO INFERNALE') return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(0deg, rgba(255,50,0,0.50) 0%, rgba(255,120,0,0.30) 50%, rgba(255,80,0,0.12) 100%)',
+              animation: 'scenario-flame-pulse 2s ease-in-out infinite alternate',
+            }} />
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0, height: '120px',
+              background: 'linear-gradient(0deg, rgba(255,80,0,0.55), transparent)',
+              animation: 'scenario-flame-flicker 0.5s ease-in-out infinite alternate',
+            }} />
+          </div>
+        );
+        if (scenarioName === 'GUERRA') return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'repeating-linear-gradient(135deg, rgba(80,80,80,0.25) 0px, transparent 60px, rgba(60,60,60,0.20) 120px)',
+              animation: 'scenario-smoke-drift 4s linear infinite',
+            }} />
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.50) 100%)',
+            }} />
+          </div>
+        );
+        if (scenarioName === 'MONDO SOMMERSO') return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(180deg, rgba(0,60,180,0.50) 0%, rgba(0,120,255,0.35) 60%, rgba(0,80,200,0.15) 100%)',
+              animation: 'scenario-wave-pulse 3s ease-in-out infinite alternate',
+            }} />
+            <div style={{
+              position: 'absolute', top: 0, left: '-200%', right: 0, height: '12px',
+              background: 'repeating-linear-gradient(90deg, transparent 0px, rgba(0,180,255,0.75) 50px, transparent 100px)',
+              animation: 'scenario-wave-move 2.5s linear infinite',
+            }} />
+          </div>
+        );
+        if (scenarioName === 'PACIFISMO') return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(135deg, rgba(255,100,100,0.20) 0%, rgba(255,200,0,0.20) 16%, rgba(0,255,0,0.20) 33%, rgba(0,200,255,0.20) 50%, rgba(100,0,255,0.20) 66%, rgba(255,0,200,0.20) 83%, rgba(255,100,100,0.20) 100%)',
+              animation: 'scenario-rainbow-shift 6s linear infinite',
+            }} />
+          </div>
+        );
+        if (scenarioName === 'REGNO DEGLI INFERI') return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(0deg, rgba(80,0,0,0.55) 0%, rgba(40,0,80,0.40) 60%, rgba(20,0,40,0.15) 100%)',
+              animation: 'scenario-dark-flame-pulse 2.5s ease-in-out infinite alternate',
+            }} />
+            <div style={{
+              position: 'absolute', inset: 0,
+              backgroundImage: 'radial-gradient(circle at 50% 105%, rgba(140,0,0,0.50) 0%, transparent 60%)',
+            }} />
+          </div>
+        );
+        if (scenarioName === 'REGNO SPECIALE') return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(135deg, rgba(255,215,0,0.22), rgba(200,100,255,0.25), rgba(0,200,255,0.22))',
+              animation: 'scenario-shimmer 3s ease-in-out infinite alternate',
+            }} />
+            <div style={{
+              position: 'absolute', inset: 0,
+              backgroundImage: 'radial-gradient(ellipse 80% 50% at 50% 50%, rgba(255,215,0,0.28) 0%, transparent 70%)',
+              animation: 'scenario-shimmer 3s ease-in-out infinite alternate-reverse',
+            }} />
+          </div>
+        );
+        if (scenarioName === 'VEDI NAPOLI E POI MUORI') return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none', overflow: 'hidden' }}>
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(180deg, rgba(0,80,200,0.35) 0%, transparent 50%, rgba(200,0,0,0.30) 100%)',
+            }} />
+            {['🌶️','💙','🌋','🍕','🎭'].map((emoji, i) => (
+              <div key={i} style={{
+                position: 'absolute',
+                left: `${10 + i * 18}%`,
+                top: '-10%',
+                fontSize: '2rem',
+                animation: `scenario-emoji-fall ${2.5 + i * 0.4}s linear ${i * 0.6}s infinite`,
+                userSelect: 'none',
+                opacity: 0.6,
+              }}>{emoji}</div>
+            ))}
+          </div>
+        );
+        return null;
+      })()}
+
+      {/* Scenario cinematic overlay — shown for 4.5 seconds on activation */}
+      {scenarioCinematic && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 8000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.82)',
+          animation: 'scenario-cinematic-in 0.4s ease-out',
+        }}>
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px',
+            background: 'linear-gradient(135deg, rgba(20,10,40,0.98), rgba(40,10,20,0.98))',
+            border: '2px solid rgba(255,180,0,0.7)',
+            borderRadius: '20px',
+            padding: '32px 48px',
+            boxShadow: '0 0 80px rgba(255,150,0,0.5), 0 0 160px rgba(255,80,0,0.2)',
+            maxWidth: '520px',
+            width: '90%',
+            animation: 'scenario-card-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          }}>
+            <div style={{ fontSize: '0.9rem', color: 'rgba(255,180,0,0.8)', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+              🎭 NUOVO SCENARIO ATTIVATO
+            </div>
+            {scenarioCinematic.cardImageUrl && (
+              <img
+                src={scenarioCinematic.cardImageUrl}
+                alt={scenarioCinematic.name}
+                style={{
+                  width: '140px', height: 'auto', borderRadius: '10px',
+                  boxShadow: '0 0 30px rgba(255,180,0,0.6)',
+                  animation: 'scenario-card-spin-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                }}
+              />
+            )}
+            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fff', textAlign: 'center', textShadow: '0 0 20px rgba(255,150,0,0.8)' }}>
+              {scenarioCinematic.name}
+            </div>
+            <div style={{ fontSize: '0.85rem', color: 'rgba(255,220,150,0.9)', textAlign: 'center', maxWidth: '380px', lineHeight: 1.5 }}>
+              {scenarioCinematic.effectText}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'rgba(200,180,255,0.7)', marginTop: '-8px' }}>
+              Giocato da <strong style={{ color: 'rgba(255,200,100,0.9)' }}>{scenarioCinematic.playedBy}</strong>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Scenario persistent banner — below the topbar (top ~56px) */}
+      {activeScenarioBanner && !scenarioCinematic && (
+        <div style={{
+          position: 'fixed', top: '56px', left: 0, right: 0, zIndex: 39,
+          display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '4px 12px',
+          background: 'linear-gradient(90deg, rgba(20,5,40,0.97), rgba(40,10,20,0.97))',
+          borderBottom: '2px solid rgba(255,140,0,0.6)',
+          boxShadow: '0 2px 12px rgba(255,100,0,0.3)',
+          animation: 'scenario-banner-in 0.3s ease-out',
+          overflow: 'hidden',
+        }}>
+          <div style={{ fontSize: '1.1rem' }}>🎭</div>
+          {activeScenarioBanner.cardImageUrl && (
+            <img
+              src={activeScenarioBanner.cardImageUrl}
+              alt={activeScenarioBanner.name}
+              style={{ width: '28px', height: '28px', objectFit: 'cover', borderRadius: '4px', border: '1px solid rgba(255,140,0,0.5)' }}
+            />
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ fontWeight: 800, color: '#ffd700', fontSize: '0.8rem', textTransform: 'uppercase' }}>
+              {activeScenarioBanner.name}
+            </span>
+            <span style={{ marginLeft: '8px', color: 'rgba(255,220,180,0.7)', fontSize: '0.7rem' }}>
+              {activeScenarioBanner.effectText}
+            </span>
+          </div>
+          <div style={{ fontSize: '0.7rem', color: 'rgba(200,180,255,0.6)', whiteSpace: 'nowrap' }}>
+            👤 {activeScenarioBanner.playedBy}
+          </div>
+        </div>
+      )}
+
+      {/* MULTIDADO 3-dice roll animation */}
+      {multidadoRoll && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 7500, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.7)',
+          animation: 'scenario-cinematic-in 0.3s ease-out',
+          pointerEvents: 'none',
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(20,10,50,0.98), rgba(10,30,50,0.98))',
+            border: '2px solid rgba(100,200,255,0.6)',
+            borderRadius: '20px',
+            padding: '28px 40px',
+            boxShadow: '0 0 60px rgba(100,180,255,0.4)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px',
+            animation: 'scenario-card-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          }}>
+            <div style={{ fontSize: '0.85rem', color: 'rgba(100,200,255,0.8)', fontWeight: 700, letterSpacing: '0.2em' }}>
+              🎲🎲🎲 MULTIDADO — {multidadoRoll.playerName}
+            </div>
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+              {multidadoRoll.dice.map((d, i) => (
+                <div key={i} style={{
+                  width: '56px', height: '56px', borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #1a1a4a, #2a2a6a)',
+                  border: '2px solid rgba(100,200,255,0.5)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '1.8rem', fontWeight: 900, color: '#fff',
+                  boxShadow: '0 0 20px rgba(100,180,255,0.3)',
+                  animation: `scenario-dice-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) ${i * 0.12}s both`,
+                }}>{d}</div>
+              ))}
+              <div style={{ fontSize: '1.5rem', color: 'rgba(200,200,200,0.6)' }}>=</div>
+              <div style={{
+                minWidth: '56px', height: '56px', borderRadius: '10px', padding: '0 8px',
+                background: 'linear-gradient(135deg, #4a1a00, #8a3a00)',
+                border: '2px solid rgba(255,180,0,0.6)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '0.8rem', color: 'rgba(255,200,100,0.9)', flexDirection: 'column', gap: '2px',
+              }}>
+                <span style={{ fontSize: '0.65rem', opacity: 0.7 }}>totale {multidadoRoll.total}</span>
+                <span style={{ fontSize: '1.6rem', fontWeight: 900, color: '#ffd700' }}>{multidadoRoll.converted}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── END SCENARIO SYSTEM UI ─────────────────────────────────────────────── */}
       <ContextualTooltipLoader />
       <ContextualTooltipDisplay />
       <ConnectionStatus />
