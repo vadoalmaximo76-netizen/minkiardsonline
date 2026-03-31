@@ -9995,9 +9995,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           isTotaleeeeCentral: true,
           activatedBy: playerName,
           frontImage: null,
-          text: `TOTALEEEE — ${totalPtiT} PTI, ${totalStarsT} stelle — Chi lo uccide lo conquista!`
+          text: `PTI: ${totalPtiT}\nStelle: ${totalStarsT}\nChi lo conquista vince tutto!`
         };
         game.field.push(centralChar);
+        this.updateCardTextWithPTI(centralChar);
         emitChat(`⚡ TOTALEEEE! Personaggio centrale creato con ${totalPtiT} PTI e ${totalStarsT} stelle! Chi lo uccide lo conquista con tutti i suoi valori!`);
         emitState(); break;
       }
