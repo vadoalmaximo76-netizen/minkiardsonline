@@ -3899,8 +3899,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const pending = (game as any).pendingBloccoEffect;
-      if (!pending || pending.playerName !== actingPlayer) {
-        console.warn(`⚠️ blocco-player-confirm: no matching pending effect for ${actingPlayer}`);
+      if (!pending || pending.playerName !== actingPlayer || pending.cardId !== cardId) {
+        console.warn(`⚠️ blocco-player-confirm: no matching pending effect for ${actingPlayer} (cardId=${cardId})`);
         return;
       }
 
@@ -3926,6 +3926,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const gs = gameManager.getSanitizedGameState(gameId);
       emitImmediateGameState(io, gameId, gs);
+    });
+
+    // Cancel the BLOCCO pending state when the human closes the panel without selecting
+    socket.on('blocco-player-cancel', ({ cardId }: { cardId: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+      const actingPlayer = gameManager.getPlayerNameFromSocket(socket.id);
+      const pending = (game as any).pendingBloccoEffect;
+      if (pending && pending.playerName === actingPlayer && pending.cardId === cardId) {
+        delete (game as any).pendingBloccoEffect;
+        console.log(`🚫 BLOCCO cancel: ${actingPlayer} dismissed the selection panel`);
+      }
     });
 
     // ============ AUCTION SYSTEM SOCKET HANDLERS ============

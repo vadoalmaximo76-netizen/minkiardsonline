@@ -3458,7 +3458,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                     socket.emit('blocco-player-confirm', {
                       cardId: bloccoPlayerPanel.cardId,
                       targetPlayer: opponent,
-                      playerName,
                     });
                     setBloccoPlayerPanel({ visible: false, cardId: '', cardName: '', opponents: [] });
                   }}
@@ -3470,7 +3469,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             </div>
             <div className="text-center">
               <Button
-                onClick={() => setBloccoPlayerPanel({ visible: false, cardId: '', cardName: '', opponents: [] })}
+                onClick={() => {
+                  socket.emit('blocco-player-cancel', { cardId: bloccoPlayerPanel.cardId });
+                  setBloccoPlayerPanel({ visible: false, cardId: '', cardName: '', opponents: [] });
+                }}
                 className="bg-gray-600 hover:bg-gray-500 text-white px-6 py-2"
               >
                 Annulla
