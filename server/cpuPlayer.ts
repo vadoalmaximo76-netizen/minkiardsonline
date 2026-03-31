@@ -1141,6 +1141,56 @@ export class CPUPlayer {
     return { cardId: target.id, owner: target.owner, name: targetName };
   }
 
+  private whyNoTarget(gameState: any): string {
+    const blockedOwners = new Set<string>();
+    const peaceRestrictions = (gameState as any).peaceRestrictions as Array<{protectedPlayer: string; restrictedPlayer: string; turnsRemaining: number}> | undefined;
+    if (peaceRestrictions) {
+      for (const p of peaceRestrictions) {
+        if (p.restrictedPlayer === this.playerName && p.turnsRemaining > 0) {
+          blockedOwners.add(p.protectedPlayer);
+        }
+      }
+    }
+
+    const allEnemyChars = gameState.field.filter((c: any) =>
+      (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+      c.owner !== this.playerName &&
+      !c.eliminatedBy &&
+      !c.faceDown
+    );
+
+    if (allEnemyChars.length === 0) {
+      return `Ho giocato la mossa ma non ci sono personaggi nemici in campo da attaccare.`;
+    }
+
+    if (this.attackMode === 'hunt_human') {
+      const hasHumanChar = allEnemyChars.some((c: any) => {
+        const player = gameState.players?.[c.owner];
+        return player && !player.isCPU;
+      });
+      if (!hasHumanChar) {
+        return `Ho giocato la mossa ma non ci sono personaggi umani in campo da attaccare (modalità caccia umani attiva).`;
+      }
+    }
+
+    const stealth = allEnemyChars.filter((c: any) => c.stealth);
+    const immune  = allEnemyChars.filter((c: any) => c.immuneToAttacks);
+    const prot    = allEnemyChars.filter((c: any) => c.isProtected);
+    const corr    = allEnemyChars.filter((c: any) => blockedOwners.has(c.owner));
+
+    const reasons: string[] = [];
+    if (stealth.length > 0) reasons.push(`${stealth.length} in stealth (SCUDO)`);
+    if (immune.length  > 0) reasons.push(`${immune.length} immun${immune.length === 1 ? 'e' : 'i'} agli attacchi`);
+    if (prot.length    > 0) reasons.push(`${prot.length} protett${prot.length === 1 ? 'o' : 'i'} da effetto bonus`);
+    if (corr.length    > 0) reasons.push(`${corr.length} bloccati dall'effetto CORRUZIONE`);
+
+    if (reasons.length > 0) {
+      return `Ho giocato la mossa ma non posso attaccare nessuno: ${reasons.join(', ')}.`;
+    }
+
+    return `Ho giocato la mossa ma non ho trovato bersagli validi.`;
+  }
+
   private getMyAttackDamage(gameState: any): number {
     const mosseOnField = gameState.field.find((c: any) => c.owner === this.playerName && c.type === 'mosse');
     if (mosseOnField && mosseOnField.mosseDamageValue) return mosseOnField.mosseDamageValue;
@@ -2846,6 +2896,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           }
         } else {
           console.log(`🎯 CPU ${this.playerName}: ABORTING MOSSE play - No character on field`);
+          this.sendChatMessage(`Non posso usare la mossa "${cardName}" perché non ho personaggi in campo!`);
           this.turnState.phase = 'turn_end';
           return { type: 'end-turn', data: { playerName: this.playerName } };
         }
@@ -2903,8 +2954,17 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         if (isAtcaccoDisonesto) {
           console.log(`🎯 CPU ${this.playerName}: ATTACCO DISONESTO detected - using hand target`);
           target = this.pickEnemyHandTarget();
+          if (!target) {
+            console.log(`🎯 CPU ${this.playerName}: ATTACCO DISONESTO - no hand targets found`);
+            this.sendChatMessage(`Ho giocato la mossa "${cardName}" ma non ci sono personaggi nemici in mano da colpire.`);
+          }
         } else {
           target = this.pickEnemyTarget(cardToPlay);
+          if (!target) {
+            const reason = this.whyNoTarget(gameState);
+            console.log(`🎯 CPU ${this.playerName}: No target found - ${reason}`);
+            this.sendChatMessage(reason);
+          }
         }
         
         if (target) {
@@ -3562,6 +3622,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     
     // FALLBACK: No pre-calculated damage - show dialog to game creator for manual input
     console.log(`🎯 CPU ${this.playerName}: No pre-calculated damage - requesting from game creator`);
+    this.sendChatMessage(`Ho usato la mossa "${mosseCardName}" contro ${target.name} (di ${target.owner}) ma non riesco a calcolare il danno automaticamente. In attesa della conferma manuale del game creator...`);
     this.socketEmitter.to(this.gameId).emit('cpu-damage-request', {
       cpuName: this.playerName,
       cpuCharacterName: this.playerName,
