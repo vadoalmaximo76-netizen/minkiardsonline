@@ -35,6 +35,7 @@ import { DuelBattleOverlay } from "./DuelBattleOverlay";
 import { RecursiveDamagePanel } from "./RecursiveDamagePanel";
 import AuctionOverlay from "./AuctionOverlay";
 import TangramAssignOverlay from "./TangramAssignOverlay";
+import KainokenOverlay from "./KainokenOverlay";
 import SfaccimmSelectOverlay from "./SfaccimmSelectOverlay";
 import { HandModal } from "./HandModal";
 import { Dice3D } from "./Dice3D";
@@ -520,6 +521,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     chars: Array<{ id: string; name: string; image: string; currentOwner: string }>;
     players: string[];
     cardId: string;
+  } | null>(null);
+  const [kainokenPrompt, setKainokenPrompt] = useState<{
+    visible: boolean;
+    opponents: string[];
+    deckContents: { bonus: any[]; mosse: any[]; personaggi: any[] };
+    opponentHasType: { [opp: string]: { [deckKey: string]: boolean } };
   } | null>(null);
   const [sfaccimmPrompt, setSfaccimmPrompt] = useState<{
     visible: boolean;
@@ -1558,6 +1565,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('tangram-assign-prompt', handleTangramAssignPrompt);
 
+    // KAINOKEN INTERACTIVE SELECTION
+    const handleKainokenPrompt = (data: { opponents: string[]; deckContents: any; opponentHasType: any }) => {
+      setKainokenPrompt({ visible: true, opponents: data.opponents, deckContents: data.deckContents, opponentHasType: data.opponentHasType });
+    };
+    socket.on('kainoken-prompt', handleKainokenPrompt);
+
     // SFACCIMM CARD SELECTION
     const handleSfaccimmSelectPrompt = (data: { cards: any[]; maxSelect: number; cardId: string }) => {
       setSfaccimmPrompt({ visible: true, submitting: false, cards: data.cards, maxSelect: data.maxSelect, cardId: data.cardId, selected: [] });
@@ -2505,6 +2518,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('auction-countdown', handleAuctionCountdown);
       socket.off('auction-ended', handleAuctionEnded);
       socket.off('tangram-assign-prompt', handleTangramAssignPrompt);
+      socket.off('kainoken-prompt', handleKainokenPrompt);
       socket.off('sfaccimm-select-prompt', handleSfaccimmSelectPrompt);
       socket.off('sfaccimm-error', handleSfaccimmError);
       socket.off('show-swap-selection', handleShowSwapSelection);
@@ -4981,6 +4995,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             onCancel={() => {
               socket.emit('tangram-cancel');
               setTangramPrompt(null);
+            }}
+          />
+        )}
+
+        {/* KAINOKEN INTERACTIVE SELECTION OVERLAY */}
+        {kainokenPrompt && kainokenPrompt.visible && (
+          <KainokenOverlay
+            opponents={kainokenPrompt.opponents}
+            deckContents={kainokenPrompt.deckContents}
+            opponentHasType={kainokenPrompt.opponentHasType}
+            onConfirm={(assignments) => {
+              socket.emit('kainoken-apply', { assignments });
+              setKainokenPrompt(null);
+            }}
+            onCancel={() => {
+              socket.emit('kainoken-cancel');
+              setKainokenPrompt(null);
             }}
           />
         )}

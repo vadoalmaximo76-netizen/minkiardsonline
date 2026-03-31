@@ -4133,6 +4133,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // ============ KAINOKEN INTERACTIVE HANDLERS ============
+
+    socket.on('kainoken-apply', ({ assignments }: { assignments: { [deckKey: string]: { [opponentName: string]: string } } }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+      const actingPlayer = gameManager.getPlayerNameFromSocket(socket.id);
+      const pending = (game as any).pendingKainokenAssign;
+      if (!pending || pending.playerName !== actingPlayer) return;
+      delete (game as any).pendingKainokenAssign;
+
+      const io = (global as any).io;
+      const deckKeys = ['bonus', 'mosse', 'personaggi'] as const;
+      let swapped = 0;
+
+      for (const deckKey of deckKeys) {
+        const deck = (game.decks as any)[deckKey] as any[];
+        if (!deck) continue;
+        const deckAssignments = (assignments[deckKey] || {}) as { [opponentName: string]: string };
+        for (const [opponentName, cardId] of Object.entries(deckAssignments)) {
+          if (!cardId) continue;
+          const opp = game.players[opponentName];
+          if (!opp) continue;
+          const deckCardIdx = deck.findIndex((c: any) => c.id === cardId);
+          if (deckCardIdx === -1) continue;
+          const currentHand: any[] = opp.hand || [];
+          const handCardIdx = currentHand.findIndex((c: any) =>
+            c.type === deckKey || (deckKey === 'personaggi' && c.type === 'personaggi_speciali')
+          );
+          if (handCardIdx === -1) continue;
+          const deckCard = deck.splice(deckCardIdx, 1)[0];
+          if (!deckCard) continue;
+          const handCard = currentHand[handCardIdx];
+          deckCard.owner = opponentName;
+          const newHand = currentHand.filter((_: any, i: number) => i !== handCardIdx);
+          newHand.push(deckCard);
+          opp.hand = newHand;
+          deck.push({ ...handCard, owner: undefined });
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-kainoken-${opponentName}-${deckKey}`,
+              message: `🎴 KAINOKEN! ${actingPlayer} dà "${deckCard.name || deckKey}" a ${opponentName}, che restituisce "${handCard.name || deckKey}" al mazzo!`,
+            });
+          }
+          swapped++;
+        }
+      }
+
+      if (swapped === 0 && io) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-kainoken-none`,
+          message: `🎴 KAINOKEN! Nessuna carta scambiata.`,
+        });
+      }
+      if (io && swapped > 0) {
+        io.to(gameId).emit('cinematic-event', {
+          type: 'special_bonus',
+          attackerName: actingPlayer,
+          label: 'KAINOKEN!',
+          timestamp: Date.now()
+        });
+      }
+      console.log(`🎴 KAINOKEN: ${actingPlayer} applied ${swapped} swaps`);
+      gameManager.emitGameState(gameId);
+    });
+
+    socket.on('kainoken-cancel', () => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+      const actingPlayer = gameManager.getPlayerNameFromSocket(socket.id);
+      const pending = (game as any).pendingKainokenAssign;
+      if (pending && actingPlayer === pending.playerName) {
+        delete (game as any).pendingKainokenAssign;
+        console.log(`🎴 KAINOKEN: ${actingPlayer} cancelled`);
+      }
+    });
+
     // ============ AUCTION SYSTEM SOCKET HANDLERS ============
 
     socket.on('auction-select-card', async ({ cardId, playerName }: { cardId: string, playerName: string }) => {
