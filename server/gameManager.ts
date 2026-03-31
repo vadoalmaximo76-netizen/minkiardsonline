@@ -9494,31 +9494,27 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (!myChar) { emitChat(`⚠️ UOVO: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         const eggOriginalPti = myChar.pti || 0;
         const eggOriginalStars = myChar.stars || 0;
-        const eggOwnerId = myChar.id;
         const eggOwnerName = myChar.name || playerName;
-        if (!game.timedEffects) game.timedEffects = [];
-        // Phase 1: after 3 turns — hatch egg with half stats
-        game.timedEffects.push({
-          id: `uovo_hatch_${Date.now()}_${playerName}`,
-          sourcePlayer: playerName,
-          sourceCardId: card.id,
-          sourceCardName: 'Uovo',
-          turnsRemaining: 3,
-          createdAt: Date.now(),
-          actions: [{ type: 'uovo_hatch', target: playerName, value: eggOriginalPti, description: `Schiusa uovo: ${eggOwnerName}` }],
-          uovoPhase: 'hatch',
-          uovoOwnerId: eggOwnerId,
-          uovoOwnerName: eggOwnerName,
-          uovoOriginalPti: eggOriginalPti,
-          uovoOriginalStars: eggOriginalStars,
-          uovoPlayerName: playerName
-        } as any);
-        // Mark the char as having laid an egg
-        (myChar as any).hasEgg = true;
-        (myChar as any).eggOriginalPti = eggOriginalPti;
-        (myChar as any).eggOriginalStars = eggOriginalStars;
-        emitChat(`🥚 UOVO! ${eggOwnerName} ha deposto un uovo! Tra 3 turni si schiuderà un personaggio con metà PTI e stelle!`);
-        if (io) io.to(gameId).emit('uovo-phase', { phase: 'laid', playerName, charName: eggOwnerName, originalPti: eggOriginalPti, originalStars: eggOriginalStars });
+        const clonePti = Math.max(1, Math.floor(eggOriginalPti / 2));
+        const cloneStars = Math.max(1, Math.floor(eggOriginalStars / 2));
+        // Create clone immediately on the field with halved stats
+        const uovoClone: any = {
+          id: `uovo_clone_${Date.now()}_${playerName}`,
+          name: `${eggOwnerName} (clone)`,
+          type: myChar.type,
+          owner: playerName,
+          pti: clonePti,
+          stars: cloneStars,
+          frontImage: myChar.frontImage || null,
+          isClone: true,
+          isUovoClone: true,
+          clonedFrom: myChar.id,
+          text: `PTI: ${clonePti}\nStelle: ${cloneStars}\nClone di ${eggOwnerName}`
+        };
+        this.updateCardTextWithPTI(uovoClone);
+        game.field.push(uovoClone);
+        emitChat(`🥚 UOVO! È apparso un clone di ${eggOwnerName} con ${clonePti} PTI e ${cloneStars} stelle!`);
+        if (io) io.to(gameId).emit('uovo-phase', { phase: 'cloned', playerName, charName: eggOwnerName, clonePti, cloneStars });
         emitState(); break;
       }
 
@@ -14734,77 +14730,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
       }
 
-      case 'uovo_hatch': {
-        // Timed effect: Hatch egg — create a clone with halved stats in player's hand
-        const io = (global as any).io;
-        const te = (action as any)._timedEffect;
-        const uovoOwnerId = te?.uovoOwnerId || null;
-        const uovoOwnerName = te?.uovoOwnerName || playerName;
-        const uovoOriginalPti = te?.uovoOriginalPti || action.value || 0;
-        const uovoOriginalStars = te?.uovoOriginalStars || 0;
-        const sourceChar = uovoOwnerId ? game.field.find((c: Card) => c.id === uovoOwnerId) : this.getPlayerActiveCharacter(game, playerName);
-        if (sourceChar) {
-          // Halve PTI of the original char
-          const halvedPti = Math.floor(uovoOriginalPti / 2);
-          const halvedStars = Math.max(1, Math.floor(uovoOriginalStars / 2));
-          sourceChar.pti = halvedPti;
-          sourceChar.stars = halvedStars;
-          this.updateCardTextWithPTI(sourceChar);
-          if (io) {
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-uovo-hatch`,
-              playerName: 'Sistema',
-              message: `🐣 L'uovo di ${uovoOwnerName} si è schiuso! ${uovoOwnerName} perde metà PTI (${uovoOriginalPti}→${halvedPti}) e stelle (${uovoOriginalStars}→${halvedStars}) per 3 turni!`,
-              timestamp: Date.now()
-            });
-            io.to(gameId).emit('uovo-phase', { phase: 'hatched', playerName, charName: uovoOwnerName, halvedPti, halvedStars });
-          }
-          // Schedule phase-2: restore stats after 3 more turns
-          if (!game.timedEffects) game.timedEffects = [];
-          game.timedEffects.push({
-            id: `uovo_restore_${Date.now()}_${playerName}`,
-            sourcePlayer: playerName,
-            sourceCardId: card?.id || '',
-            sourceCardName: 'Uovo',
-            turnsRemaining: 3,
-            createdAt: Date.now(),
-            actions: [{ type: 'uovo_restore', target: playerName, value: uovoOriginalPti, description: `Ripristino uovo: ${uovoOwnerName}` }],
-            uovoPhase: 'restore',
-            uovoOwnerId: sourceChar.id,
-            uovoOwnerName,
-            uovoOriginalPti,
-            uovoOriginalStars
-          } as any);
-        }
-        break;
-      }
-
+      case 'uovo_hatch':
       case 'uovo_restore': {
-        // Phase 2 of Uovo: restore original stats
-        const io = (global as any).io;
-        const te = (action as any)._timedEffect;
-        const uovoOwnerId = te?.uovoOwnerId || null;
-        const uovoOwnerName = te?.uovoOwnerName || playerName;
-        const uovoOriginalPti = te?.uovoOriginalPti || action.value || 0;
-        const uovoOriginalStars = te?.uovoOriginalStars || 0;
-        const sourceChar = uovoOwnerId ? game.field.find((c: Card) => c.id === uovoOwnerId) : this.getPlayerActiveCharacter(game, playerName);
-        if (sourceChar) {
-          sourceChar.pti = uovoOriginalPti;
-          sourceChar.stars = uovoOriginalStars;
-          this.updateCardTextWithPTI(sourceChar);
-          if (io) {
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-uovo-restore`,
-              playerName: 'Sistema',
-              message: `🥚✨ ${uovoOwnerName} ha completato il ciclo dell'uovo! PTI ripristinato a ${uovoOriginalPti}, stelle a ${uovoOriginalStars}!`,
-              timestamp: Date.now()
-            });
-            io.to(gameId).emit('uovo-phase', { phase: 'restored', playerName, charName: uovoOwnerName, originalPti: uovoOriginalPti, originalStars: uovoOriginalStars });
-          }
-          delete (sourceChar as any).hasEgg;
-          delete (sourceChar as any).eggOriginalPti;
-          delete (sourceChar as any).eggOriginalStars;
-        }
+        // Legacy timed effects from old Uovo implementation — now obsolete.
+        // Uovo creates a clone immediately; no timed phases needed.
+        console.log(`[UOVO] Legacy timed effect "${action.type}" ignored (obsolete).`);
         break;
       }
 
