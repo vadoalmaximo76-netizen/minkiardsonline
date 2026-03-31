@@ -725,10 +725,12 @@ export class CPUPlayer {
         const stolenStars = furtoValue * Math.max(1, attackerStars);
         const gs = gameState ?? (this.gameManager ? this.gameManager.getGameState(this.gameId) : null);
         if (gs) {
+          // Match pickEnemyTarget's targetability filters: exclude stealthed, immune, protected,
+          // eliminated targets so we don't claim "lethal" against untargetable enemies.
           const enemies = (gs.field ?? []).filter((c: any) =>
             c.owner !== this.playerName &&
             (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
-            !c.stealth && !c.eliminatedBy
+            !c.stealth && !c.eliminatedBy && !c.immuneToAttacks && !c.isProtected && !c.faceDown
           );
           const canKill = enemies.some((e: any) => this.extractStarsFromCard(e) <= stolenStars);
           if (canKill) return 400000;
