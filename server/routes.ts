@@ -4148,57 +4148,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const io = (global as any).io;
       let swapped = 0;
 
+      // Only process assignments for opponents listed in pending state (security validation)
+      const allowedOpponents = new Set<string>(pending.opponents || []);
+
       for (const [opponentName, cardId] of Object.entries(assignments)) {
         if (!cardId) continue;
+        // Reject assignments targeting non-pending opponents
+        if (!allowedOpponents.has(opponentName)) {
+          console.log(`⚠️ KAINOKEN: rejecting assignment for non-pending opponent "${opponentName}"`);
+          continue;
+        }
         const opp = game.players[opponentName];
         if (!opp) continue;
 
-        // Find the card in any deck
-        let deckCard: any = null;
+        // Find the card in any deck (without removing yet — we'll remove only if swap is valid)
         let foundDeckKey: string | null = null;
+        let foundDeckIdx = -1;
         for (const dk of ['bonus', 'mosse', 'personaggi', 'personaggi_speciali'] as const) {
           const deck = (game.decks as any)[dk] as any[];
           if (!deck) continue;
           const idx = deck.findIndex((c: any) => c.id === cardId);
           if (idx !== -1) {
-            deckCard = deck.splice(idx, 1)[0];
             foundDeckKey = dk;
+            foundDeckIdx = idx;
             break;
           }
         }
-        if (!deckCard || !foundDeckKey) continue;
+        if (!foundDeckKey || foundDeckIdx === -1) continue;
 
-        // Find matching hand card to swap back
+        // Verify opponent has a matching hand card BEFORE removing from deck
         const currentHand: any[] = opp.hand || [];
         const handCardIdx = currentHand.findIndex((c: any) =>
           c.type === foundDeckKey || (foundDeckKey === 'personaggi' && c.type === 'personaggi_speciali')
         );
-
-        deckCard.owner = opponentName;
-        const newHand = [...currentHand];
-        let handCard: any = null;
-        if (handCardIdx !== -1) {
-          handCard = newHand.splice(handCardIdx, 1)[0];
+        if (handCardIdx === -1) {
+          // No matching hand card — skip this assignment entirely (strict replacement rule)
+          console.log(`⚠️ KAINOKEN: ${opponentName} has no ${foundDeckKey} card in hand, skipping assignment`);
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-kainoken-skip-${opponentName}`,
+              message: `🎴 KAINOKEN! ${opponentName} non ha carte ${foundDeckKey} in mano, scambio saltato.`,
+            });
+          }
+          continue;
         }
+
+        // Both sides ready: now actually perform the swap
+        const deck = (game.decks as any)[foundDeckKey] as any[];
+        const deckCard = deck.splice(foundDeckIdx, 1)[0];
+        if (!deckCard) continue;
+
+        const handCard = currentHand[handCardIdx];
+        deckCard.owner = opponentName;
+        const newHand = currentHand.filter((_: any, i: number) => i !== handCardIdx);
         newHand.push(deckCard);
         opp.hand = newHand;
+        deck.push({ ...handCard, owner: undefined });
 
-        const returnDeck = (game.decks as any)[foundDeckKey] as any[];
-        if (handCard && returnDeck) {
-          returnDeck.push({ ...handCard, owner: undefined });
-          if (io) {
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-kainoken-${opponentName}`,
-              message: `🎴 KAINOKEN! ${actingPlayer} dà "${deckCard.name || foundDeckKey}" a ${opponentName}, che restituisce "${handCard.name || foundDeckKey}" al mazzo!`,
-            });
-          }
-        } else {
-          if (io) {
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-kainoken-${opponentName}`,
-              message: `🎴 KAINOKEN! ${actingPlayer} dà "${deckCard.name || foundDeckKey}" a ${opponentName}!`,
-            });
-          }
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-kainoken-${opponentName}`,
+            message: `🎴 KAINOKEN! ${actingPlayer} dà "${deckCard.name || foundDeckKey}" a ${opponentName}, che restituisce "${handCard.name || foundDeckKey}" al mazzo!`,
+          });
         }
         swapped++;
       }
