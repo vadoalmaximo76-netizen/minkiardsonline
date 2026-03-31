@@ -733,7 +733,9 @@ export class CPUPlayer {
           const canKill = enemies.some((e: any) => this.extractStarsFromCard(e) <= stolenStars);
           if (canKill) return 400000;
         }
-        return stolenStars * 200;
+        // Non-lethal: still valuable (weakens opponent's damage output) but shouldn't
+        // dominate regular attack moves. Score is modest: stolenStars × 50 per star.
+        return stolenStars * 50;
       }
 
       // MOSSE PROGRESSIVE: scale value proportionally to the PREDICTED TARGET's PTI.
