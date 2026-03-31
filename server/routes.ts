@@ -4199,6 +4199,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // ============ FANTAFINANZA INTERACTIVE HANDLERS ============
+
+    socket.on('fantafinanza-apply', ({ chosenCardId }: { chosenCardId: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+      const actingPlayer = gameManager.getPlayerNameFromSocket(socket.id);
+      const pending = (game as any).pendingFantafinanza;
+      if (!pending || actingPlayer !== pending.playerName) return;
+      delete (game as any).pendingFantafinanza;
+
+      const ffOrder = game.turnOrder as string[];
+      const ffSnapshot: Record<string, any[]> = {};
+      for (const p of ffOrder) ffSnapshot[p] = [...(game.players[p]?.hand || [])];
+
+      const ffSwaps: string[] = [];
+      for (let i = 0; i < ffOrder.length; i++) {
+        const curr = ffOrder[i];
+        const prev = ffOrder[(i - 1 + ffOrder.length) % ffOrder.length];
+        let swapCard: any;
+
+        if (curr === actingPlayer) {
+          swapCard = ffSnapshot[curr].find((c: any) => c.id === chosenCardId && !c.receivedThisTurn);
+          if (!swapCard) {
+            // Fallback: lowest PTI eligible
+            const eligible = ffSnapshot[curr].filter((c: any) => !c.receivedThisTurn);
+            if (eligible.length === 0) continue;
+            eligible.sort((a: any, b: any) => ((a.pti || 0) - (b.pti || 0)));
+            swapCard = eligible[0];
+          }
+        } else {
+          // Other players: auto lowest PTI
+          const eligible = ffSnapshot[curr].filter((c: any) => !c.receivedThisTurn);
+          if (eligible.length === 0) continue;
+          eligible.sort((a: any, b: any) => ((a.pti || 0) - (b.pti || 0)));
+          swapCard = eligible[0];
+        }
+
+        const actualIdx = (game.players[curr]?.hand as any[] || []).findIndex((c: any) => c.id === swapCard.id);
+        if (actualIdx !== -1) (game.players[curr].hand as any[]).splice(actualIdx, 1);
+        const delivered: any = { ...swapCard, owner: prev, receivedThisTurn: true };
+        if (pending.isFenomeno && prev === actingPlayer) delivered.protectedFromSteal = true;
+        (game.players[prev].hand as any[]).push(delivered);
+        ffSwaps.push(`${curr}→${prev}`);
+      }
+
+      const msg = pending.isFenomeno
+        ? `💰 FANTAFINANZA (IL FENOMENO)! Ogni giocatore cede una carta al precedente — ${actingPlayer} ha scelto dopo aver visto le mani avversarie e la carta ricevuta è protetta! (${ffSwaps.join(', ')})`
+        : `💰 FANTAFINANZA! Ogni giocatore cede una carta al giocatore precedente! (${ffSwaps.join(', ')})`;
+
+      io.to(gameId).emit('chat-message', { id: `${Date.now()}-ff-done`, playerName: 'Sistema', message: msg, timestamp: Date.now() });
+      const updatedState = gameManager.getSanitizedGameState(gameId);
+      if (updatedState) io.to(gameId).emit('game-state-update', updatedState);
+    });
+
+    socket.on('fantafinanza-cancel', () => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+      const actingPlayer = gameManager.getPlayerNameFromSocket(socket.id);
+      const pending = (game as any).pendingFantafinanza;
+      if (pending && actingPlayer === pending.playerName) {
+        delete (game as any).pendingFantafinanza;
+        console.log(`💰 FANTAFINANZA: ${actingPlayer} cancelled`);
+      }
+    });
+
     // ============ KAINOKEN INTERACTIVE HANDLERS ============
 
     socket.on('kainoken-apply', ({ assignments }: { assignments: { [opponentName: string]: string } }) => {

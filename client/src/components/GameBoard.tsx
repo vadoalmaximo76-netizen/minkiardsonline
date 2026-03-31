@@ -545,6 +545,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     selectedPairs: [string, string][];
     currentPick: string | null;
   } | null>(null);
+  const [fantafinanzaPrompt, setFantafinanzaPrompt] = useState<{
+    cards: Array<{ id: string; name: string; frontImage: string; pti: number }>;
+    isFenomeno: boolean;
+    revealedHands?: Record<string, Array<{ id: string; name: string; frontImage: string; pti: number; stars: number }>>;
+    selectedCardId: string | null;
+  } | null>(null);
   const [lastPlayedCards, setLastPlayedCards] = useState<Array<{
     id: string;
     frontImage: string;
@@ -1634,6 +1640,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('faccio-quello-prompt', handleFaccioQuelloPrompt);
 
+    const handleFantafinanzaReveal = (data: { allHands: Record<string, any[]> }) => {
+      console.log('💰 FANTAFINANZA reveal received');
+      setFantafinanzaPrompt(prev => prev ? { ...prev, revealedHands: data.allHands } : { cards: [], isFenomeno: true, revealedHands: data.allHands, selectedCardId: null });
+    };
+    socket.on('fantafinanza-reveal', handleFantafinanzaReveal);
+
+    const handleFantafinanzaPrompt = (data: { cards: any[]; isFenomeno: boolean }) => {
+      console.log('💰 FANTAFINANZA prompt received:', data.cards.length, 'cards');
+      setFantafinanzaPrompt(prev => ({
+        cards: data.cards,
+        isFenomeno: data.isFenomeno,
+        revealedHands: prev?.revealedHands,
+        selectedCardId: null,
+      }));
+    };
+    socket.on('fantafinanza-prompt', handleFantafinanzaPrompt);
+
     // SWAP SELECTION: Handle baratto/swap panel for selecting player to swap with
     const handleShowSwapSelection = (data: { cardId: string; cardName: string; playerName: string; otherPlayers: string[]; effectDescription: string }) => {
       console.log('🔄 Show swap selection:', data);
@@ -2575,6 +2598,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('sfaccimm-select-prompt', handleSfaccimmSelectPrompt);
       socket.off('sfaccimm-error', handleSfaccimmError);
       socket.off('faccio-quello-prompt', handleFaccioQuelloPrompt);
+      socket.off('fantafinanza-reveal', handleFantafinanzaReveal);
+      socket.off('fantafinanza-prompt', handleFantafinanzaPrompt);
       socket.off('show-swap-selection', handleShowSwapSelection);
       socket.off('show-blocco-player-selection', handleShowBloccoPlayerSelection);
       socket.off('show-dice-control-panel', handleShowDiceControlPanel);
@@ -5343,6 +5368,75 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               setSfaccimmPrompt(null);
             }}
           />
+        )}
+
+        {/* FANTAFINANZA - CARD SELECTION PANEL */}
+        {fantafinanzaPrompt && fantafinanzaPrompt.cards.length > 0 && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+            <div style={{ background: '#1a1a2e', border: '2px solid #ffd700', borderRadius: 12, padding: 24, maxWidth: 560, width: '92%', color: '#fff' }}>
+              <h2 style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' }}>💰 FANTAFINANZA!</h2>
+              <p style={{ fontSize: 13, color: '#ccc', marginBottom: 16, textAlign: 'center' }}>
+                {fantafinanzaPrompt.isFenomeno
+                  ? 'IL FENOMENO: hai visto le mani avversarie. Scegli quale carta cedere al giocatore precedente. La carta che ricevi sarà protetta da furti.'
+                  : 'Scegli quale carta cedere al giocatore precedente nel giro dei turni.'}
+              </p>
+
+              {/* Revealed hands for IL FENOMENO */}
+              {fantafinanzaPrompt.isFenomeno && fantafinanzaPrompt.revealedHands && (
+                <div style={{ marginBottom: 16, background: '#0d1525', borderRadius: 8, padding: 12 }}>
+                  <p style={{ fontSize: 12, color: '#ffd700', marginBottom: 8, fontWeight: 'bold' }}>👁️ Mani avversarie (visibili solo a te):</p>
+                  {Object.entries(fantafinanzaPrompt.revealedHands).map(([p, cards]) => (
+                    <div key={p} style={{ marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, color: '#aaa' }}>{p}: </span>
+                      {(cards as any[]).map(c => (
+                        <span key={c.id} style={{ fontSize: 11, color: '#88ccff', marginRight: 6 }}>{c.name || '?'} ({c.pti} PTI)</span>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p style={{ fontSize: 12, color: '#aaa', marginBottom: 8 }}>Le tue carte (seleziona quella da cedere):</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 16 }}>
+                {fantafinanzaPrompt.cards.map(c => {
+                  const isSelected = fantafinanzaPrompt.selectedCardId === c.id;
+                  return (
+                    <button key={c.id} onClick={() => setFantafinanzaPrompt(prev => prev ? { ...prev, selectedCardId: c.id } : prev)}
+                      style={{
+                        padding: '8px 12px', borderRadius: 8,
+                        border: isSelected ? '2px solid #ffd700' : '2px solid #444',
+                        background: isSelected ? '#3a3000' : '#2a2a3a',
+                        color: '#fff', cursor: 'pointer', fontSize: 13, textAlign: 'left',
+                        minWidth: 120,
+                      }}>
+                      <div style={{ fontWeight: 'bold' }}>{c.name || '???'}</div>
+                      <div style={{ fontSize: 11, color: '#aaa' }}>{c.pti} PTI</div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                <button
+                  disabled={!fantafinanzaPrompt.selectedCardId}
+                  onClick={() => {
+                    if (!fantafinanzaPrompt.selectedCardId) return;
+                    socket.emit('fantafinanza-apply', { chosenCardId: fantafinanzaPrompt.selectedCardId });
+                    setFantafinanzaPrompt(null);
+                  }}
+                  style={{ background: fantafinanzaPrompt.selectedCardId ? '#22843a' : '#555', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', cursor: fantafinanzaPrompt.selectedCardId ? 'pointer' : 'not-allowed', fontWeight: 'bold', fontSize: 15 }}
+                >
+                  Cedi questa carta
+                </button>
+                <button
+                  onClick={() => { socket.emit('fantafinanza-cancel'); setFantafinanzaPrompt(null); }}
+                  style={{ background: '#600', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', cursor: 'pointer', fontWeight: 'bold', fontSize: 15 }}
+                >
+                  Annulla
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* FACCIO QUELLO CHE VOGLIO - HAND SWAP PANEL */}

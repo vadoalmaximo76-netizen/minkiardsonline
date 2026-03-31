@@ -10380,8 +10380,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'fantafinanza': {
-        // FANTAFINANZA: each player passes their lowest-PTI non-received card to the previous player.
-        // IL FENOMENO special: see all hands before the swap; received card is protected from steal.
+        // FANTAFINANZA: each player passes one card to the previous player in turn order.
+        // CPU: auto-picks lowest-PTI eligible card. Human: interactive selection panel.
+        // IL FENOMENO special: sees all hands before choosing; received card is protected from steal.
         const ffOrder = game.turnOrder as string[];
         if (ffOrder.length < 2) {
           emitChat(`💰 FANTAFINANZA! Servono almeno 2 giocatori.`);
@@ -10389,11 +10390,31 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
 
         const isFenomeno = /fenomeno/i.test(myCharName);
+        const ffSockId = (game.players[playerName] as any)?.socketId;
 
-        // IL FENOMENO reveals all opponents' hands before the swap
-        if (isFenomeno) {
-          const ffSockId = (game.players[playerName] as any)?.socketId;
-          if (io && ffSockId) {
+        if (isCPU) {
+          // CPU: auto-pick lowest-PTI non-received card for ALL players and execute swaps immediately
+          const ffSnapshot: Record<string, Card[]> = {};
+          for (const p of ffOrder) ffSnapshot[p] = [...(game.players[p]?.hand || [])];
+          const ffSwaps: string[] = [];
+          for (let i = 0; i < ffOrder.length; i++) {
+            const curr = ffOrder[i];
+            const prev = ffOrder[(i - 1 + ffOrder.length) % ffOrder.length];
+            const eligible = ffSnapshot[curr].filter((c: Card) => !(c as any).receivedThisTurn);
+            if (eligible.length === 0) continue;
+            eligible.sort((a: Card, b: Card) => ((a.pti || 0) - (b.pti || 0)));
+            const swapCard = eligible[0];
+            const actualIdx = (game.players[curr]?.hand as Card[] || []).findIndex((c: Card) => c.id === swapCard.id);
+            if (actualIdx !== -1) (game.players[curr].hand as Card[]).splice(actualIdx, 1);
+            const delivered = { ...swapCard, owner: prev, receivedThisTurn: true } as Card;
+            (game.players[prev].hand as Card[]).push(delivered);
+            ffSwaps.push(`${curr}→${prev}`);
+          }
+          emitChat(`💰 FANTAFINANZA! Ogni giocatore cede la carta più debole al giocatore precedente! (${ffSwaps.join(', ')})`);
+          emitState();
+        } else {
+          // Human: first reveal all hands if IL FENOMENO, then prompt player to choose which card to give
+          if (isFenomeno && io && ffSockId) {
             const allHandsData: Record<string, { id: string; name: string; frontImage: string; pti: number; stars: number }[]> = {};
             for (const [pName, pState] of Object.entries(game.players)) {
               if (pName !== playerName) {
@@ -10405,34 +10426,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             }
             io.to(ffSockId).emit('fantafinanza-reveal', { allHands: allHandsData });
           }
-        }
 
-        // Snapshot hands; each player gives their lowest-PTI card (excluding cards received this turn)
-        const ffSnapshot: Record<string, Card[]> = {};
-        for (const p of ffOrder) ffSnapshot[p] = [...(game.players[p]?.hand || [])];
+          // Store pending state — resolved by fantafinanza-apply route in routes.ts
+          const ffEligible = (game.players[playerName]?.hand as Card[] || []).filter((c: Card) => !(c as any).receivedThisTurn);
+          (game as any).pendingFantafinanza = { playerName, cardId: card.id, isFenomeno };
 
-        const ffSwaps: string[] = [];
-        for (let i = 0; i < ffOrder.length; i++) {
-          const curr = ffOrder[i];
-          const prev = ffOrder[(i - 1 + ffOrder.length) % ffOrder.length];
-          const eligible = ffSnapshot[curr].filter((c: Card) => !(c as any).receivedThisTurn);
-          if (eligible.length === 0) continue;
-          eligible.sort((a: Card, b: Card) => ((a.pti || 0) - (b.pti || 0)));
-          const swapCard = eligible[0];
-          const actualIdx = (game.players[curr]?.hand as Card[] || []).findIndex((c: Card) => c.id === swapCard.id);
-          if (actualIdx !== -1) (game.players[curr].hand as Card[]).splice(actualIdx, 1);
-          const deliveredCard = { ...swapCard, owner: prev, receivedThisTurn: true } as Card;
-          if (isFenomeno && prev === playerName) (deliveredCard as any).protectedFromSteal = true;
-          (game.players[prev].hand as Card[]).push(deliveredCard);
-          ffSwaps.push(`${curr}→${prev}`);
+          if (io && ffSockId) {
+            io.to(ffSockId).emit('fantafinanza-prompt', {
+              cards: ffEligible.map((c: Card) => ({
+                id: c.id, name: c.name || '', frontImage: c.frontImage || '', pti: c.pti || 0,
+              })),
+              isFenomeno,
+            });
+          }
+          emitChat(`💰 FANTAFINANZA! Ogni giocatore cederà una carta al precedente. ${playerName}${isFenomeno ? ' (IL FENOMENO) ha guardato le mani avversarie e' : ''} sta scegliendo quale carta cedere...`);
         }
-
-        if (isFenomeno) {
-          emitChat(`💰 FANTAFINANZA (IL FENOMENO)! Ogni giocatore cede la carta più debole al giocatore precedente. ${playerName} ha visto le mani degli altri e la carta ricevuta è protetta! (${ffSwaps.join(', ')})`);
-        } else {
-          emitChat(`💰 FANTAFINANZA! Ogni giocatore cede la carta più debole al giocatore precedente! (${ffSwaps.join(', ')})`);
-        }
-        emitState();
         break;
       }
 
