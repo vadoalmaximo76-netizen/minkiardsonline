@@ -3884,6 +3884,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // ============ BLOCCO: player selection confirmation ============
+    socket.on('blocco-player-confirm', ({ cardId, targetPlayer, playerName: confirmerName }: { cardId: string; targetPlayer: string; playerName: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+
+      const pending = (game as any).pendingBloccoEffect;
+      if (!pending || pending.playerName !== confirmerName) {
+        console.warn(`⚠️ blocco-player-confirm: no matching pending effect for ${confirmerName}`);
+        return;
+      }
+      delete (game as any).pendingBloccoEffect;
+
+      if (!game.skipTurnPlayers) game.skipTurnPlayers = [];
+      game.skipTurnPlayers.push(targetPlayer);
+      console.log(`🚫 BLOCCO: ${confirmerName} blocked ${targetPlayer} — added to skipTurnPlayers`);
+
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-blocco-confirm`,
+        playerName: 'Sistema',
+        message: `🚫 BLOCCO! ${confirmerName} ha bloccato ${targetPlayer}: salterà il prossimo turno!`,
+        timestamp: Date.now(),
+      });
+
+      const gs = gameManager.getSanitizedGameState(gameId);
+      emitImmediateGameState(io, gameId, gs);
+    });
+
     // ============ AUCTION SYSTEM SOCKET HANDLERS ============
 
     socket.on('auction-select-card', async ({ cardId, playerName }: { cardId: string, playerName: string }) => {

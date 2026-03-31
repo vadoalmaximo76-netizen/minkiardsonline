@@ -6234,6 +6234,7 @@ Rispondi SOLO in JSON:`;
       const cardDisplayName = (card.name || this.getCardNameFromUrl(card.frontImage || '')).toUpperCase();
       const nameBasedEffects: Array<[RegExp, string]> = [
         [/STA\s+BUON\s+ROCC/i, 'sta_buon_rocc'],
+        [/^blocco$/i, 'blocco'],
       ];
       for (const [pattern, effectKey] of nameBasedEffects) {
         if (pattern.test(cardDisplayName)) {
@@ -7942,6 +7943,34 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     console.log(`🎯 [NAMED-BONUS] Executing: ${effectName} for ${playerName} (char: ${myChar?.name || 'none'})`);
 
     switch (effectName) {
+
+      // ─── BLOCCO: salta turno avversario scelto ───────────────────────────────
+      case 'blocco': {
+        const opponents = game.turnOrder.filter((p: string) => p !== playerName);
+        if (opponents.length === 0) {
+          emitChat(`🚫 BLOCCO: nessun avversario da bloccare!`);
+          break;
+        }
+        if (isCPU) {
+          const targetPlayer = opponents[Math.floor(Math.random() * opponents.length)];
+          if (!game.skipTurnPlayers) game.skipTurnPlayers = [];
+          game.skipTurnPlayers.push(targetPlayer);
+          emitChat(`🚫 BLOCCO! ${playerName} ha bloccato ${targetPlayer}: salterà il prossimo turno!`);
+          emitState();
+        } else {
+          (game as any).pendingBloccoEffect = { cardId: card.id, playerName };
+          if (io) {
+            io.to(gameId).emit('show-blocco-player-selection', {
+              cardId: card.id,
+              cardName: card.name || 'BLOCCO',
+              playerName,
+              opponents,
+            });
+            emitChat(`🚫 BLOCCO! ${playerName} deve scegliere un avversario da bloccare!`);
+          }
+        }
+        break;
+      }
 
       // ─── STAT BOOSTS ────────────────────────────────────────────────────────
       case 'medicina': {

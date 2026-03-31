@@ -371,6 +371,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     otherPlayers: string[];
     effectDescription: string;
   }>({ visible: false, cardId: '', cardName: '', otherPlayers: [], effectDescription: '' });
+  const [bloccoPlayerPanel, setBloccoPlayerPanel] = useState<{
+    visible: boolean;
+    cardId: string;
+    cardName: string;
+    opponents: string[];
+  }>({ visible: false, cardId: '', cardName: '', opponents: [] });
   const [diceControlPanel, setDiceControlPanel] = useState<{
     visible: boolean;
     rollingPlayer: string;
@@ -1522,6 +1528,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('show-swap-selection', handleShowSwapSelection);
 
+    // BLOCCO: Handle player selection panel for BLOCCO card
+    const handleShowBloccoPlayerSelection = (data: { cardId: string; cardName: string; playerName: string; opponents: string[] }) => {
+      console.log('🚫 Show blocco player selection:', data);
+      if (data.playerName === playerName) {
+        setBloccoPlayerPanel({
+          visible: true,
+          cardId: data.cardId,
+          cardName: data.cardName,
+          opponents: data.opponents,
+        });
+      }
+    };
+    socket.on('show-blocco-player-selection', handleShowBloccoPlayerSelection);
+
     // DICE CONTROL: Handle dice control panel for choosing dice result
     const handleShowDiceControlPanel = (data: { rollingPlayer: string; controllingPlayer: string; controllingCardId: string; controllingCardName: string; pendingId?: string; targetCharName?: string }) => {
       console.log('🎲 Show dice control panel:', data);
@@ -2425,6 +2445,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('auction-countdown', handleAuctionCountdown);
       socket.off('auction-ended', handleAuctionEnded);
       socket.off('show-swap-selection', handleShowSwapSelection);
+      socket.off('show-blocco-player-selection', handleShowBloccoPlayerSelection);
       socket.off('show-dice-control-panel', handleShowDiceControlPanel);
       socket.off('show-target-selection', handleShowTargetSelection);
       socket.off('show-custom-target-selection', handleShowCustomTargetSelection);
@@ -3407,6 +3428,49 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <div className="text-center">
               <Button
                 onClick={() => setSwapSelectionPanel({ visible: false, cardId: '', cardName: '', otherPlayers: [], effectDescription: '' })}
+                className="bg-gray-600 hover:bg-gray-500 text-white px-6 py-2"
+              >
+                Annulla
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BLOCCO PANEL - Choose opponent to block */}
+      {bloccoPlayerPanel.visible && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-red-900 to-red-700 rounded-lg p-6 w-full max-w-md mx-4 border-4 border-red-400 shadow-[0_0_30px_rgba(239,68,68,0.5)]">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                🚫 {bloccoPlayerPanel.cardName.toUpperCase()}
+              </h2>
+              <p className="text-red-100 text-sm mb-4" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                L'avversario scelto salterà il suo prossimo turno!
+              </p>
+              <p className="text-red-200 font-bold">Scegli chi bloccare:</p>
+            </div>
+            <div className="space-y-3 mb-4">
+              {bloccoPlayerPanel.opponents.map((opponent: string) => (
+                <Button
+                  key={opponent}
+                  onClick={() => {
+                    socket.emit('blocco-player-confirm', {
+                      cardId: bloccoPlayerPanel.cardId,
+                      targetPlayer: opponent,
+                      playerName,
+                    });
+                    setBloccoPlayerPanel({ visible: false, cardId: '', cardName: '', opponents: [] });
+                  }}
+                  className="w-full bg-red-600 hover:bg-red-500 text-white py-4 text-lg font-bold"
+                >
+                  🎮 {opponent}
+                </Button>
+              ))}
+            </div>
+            <div className="text-center">
+              <Button
+                onClick={() => setBloccoPlayerPanel({ visible: false, cardId: '', cardName: '', opponents: [] })}
                 className="bg-gray-600 hover:bg-gray-500 text-white px-6 py-2"
               >
                 Annulla
