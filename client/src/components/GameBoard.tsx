@@ -34,6 +34,8 @@ import { CPUDamageDialog } from "./CPUDamageDialog";
 import { DuelBattleOverlay } from "./DuelBattleOverlay";
 import { RecursiveDamagePanel } from "./RecursiveDamagePanel";
 import AuctionOverlay from "./AuctionOverlay";
+import TangramAssignOverlay from "./TangramAssignOverlay";
+import SfaccimmSelectOverlay from "./SfaccimmSelectOverlay";
 import { HandModal } from "./HandModal";
 import { Dice3D } from "./Dice3D";
 import { CardShatter3D } from "./CardShatter3D";
@@ -513,6 +515,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     cards: Array<{ id: string; name: string; frontImage: string; type: string; pti?: number; stars?: number }>;
     initiator: string;
   }>({ visible: false, cards: [], initiator: '' });
+  const [tangramPrompt, setTangramPrompt] = useState<{
+    visible: boolean;
+    chars: Array<{ id: string; name: string; image: string; currentOwner: string }>;
+    players: string[];
+    cardId: string;
+  } | null>(null);
+  const [sfaccimmPrompt, setSfaccimmPrompt] = useState<{
+    visible: boolean;
+    submitting: boolean;
+    cards: Array<{ id: string; name: string; type: string; frontImage: string; pti?: number; stars?: number; deckKey: string }>;
+    maxSelect: number;
+    cardId: string;
+    selected: string[];
+  } | null>(null);
   const [lastPlayedCards, setLastPlayedCards] = useState<Array<{
     id: string;
     frontImage: string;
@@ -651,6 +667,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setScenarioCardsActive(gameState.scenarioCardsActive);
     }
   }, [gameState?.scenarioCardsActive]);
+
+  // Close sfaccimm overlay when game-state-update arrives while submitting (server accepted selection)
+  useEffect(() => {
+    if (sfaccimmPrompt?.submitting) {
+      setSfaccimmPrompt(null);
+    }
+  // Only run when gameState changes (new state = server applied the selection)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState]);
 
   useEffect(() => {
     if (gameState?.characterLimit && !(gameState as any)?.isPlaying) {
@@ -1489,7 +1514,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           if (deckData.deckType === 'personaggi') {
             setAuctionDeckPicker({
               visible: true,
-              cards: deckData.cards.filter(c => c.type === 'personaggi'),
+              cards: deckData.cards.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali'),
               initiator: data.playerName
             });
             socket.off('deck-contents', onDeckContents);
@@ -1526,6 +1551,25 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       }
     };
     socket.on('auction-ended', handleAuctionEnded);
+
+    // TANGRAM INTERACTIVE ASSIGNMENT
+    const handleTangramAssignPrompt = (data: { chars: any[]; players: string[]; cardId: string }) => {
+      setTangramPrompt({ visible: true, chars: data.chars, players: data.players, cardId: data.cardId });
+    };
+    socket.on('tangram-assign-prompt', handleTangramAssignPrompt);
+
+    // SFACCIMM CARD SELECTION
+    const handleSfaccimmSelectPrompt = (data: { cards: any[]; maxSelect: number; cardId: string }) => {
+      setSfaccimmPrompt({ visible: true, submitting: false, cards: data.cards, maxSelect: data.maxSelect, cardId: data.cardId, selected: [] });
+    };
+    socket.on('sfaccimm-select-prompt', handleSfaccimmSelectPrompt);
+
+    // SFACCIMM ERROR: server rejected selection (wrong count / stale IDs) — reset submitting so player can retry
+    const handleSfaccimmError = (data: { message: string }) => {
+      console.warn('🤌 SFACCIMM error:', data.message);
+      setSfaccimmPrompt(prev => prev ? { ...prev, submitting: false } : prev);
+    };
+    socket.on('sfaccimm-error', handleSfaccimmError);
 
     // SWAP SELECTION: Handle baratto/swap panel for selecting player to swap with
     const handleShowSwapSelection = (data: { cardId: string; cardName: string; playerName: string; otherPlayers: string[]; effectDescription: string }) => {
@@ -2460,6 +2504,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('auction-bid-update', handleAuctionBidUpdate);
       socket.off('auction-countdown', handleAuctionCountdown);
       socket.off('auction-ended', handleAuctionEnded);
+      socket.off('tangram-assign-prompt', handleTangramAssignPrompt);
+      socket.off('sfaccimm-select-prompt', handleSfaccimmSelectPrompt);
+      socket.off('sfaccimm-error', handleSfaccimmError);
       socket.off('show-swap-selection', handleShowSwapSelection);
       socket.off('show-blocco-player-selection', handleShowBloccoPlayerSelection);
       socket.off('show-dice-control-panel', handleShowDiceControlPanel);
@@ -4919,6 +4966,54 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             bidUpdates={auctionBidUpdate}
             countdownUpdate={auctionCountdownUpdate}
             auctionResult={auctionResult}
+          />
+        )}
+
+        {/* TANGRAM ASSIGNMENT OVERLAY */}
+        {tangramPrompt && tangramPrompt.visible && (
+          <TangramAssignOverlay
+            chars={tangramPrompt.chars}
+            players={tangramPrompt.players}
+            onConfirm={(assignments) => {
+              socket.emit('tangram-apply-assignments', { assignments });
+              setTangramPrompt(null);
+            }}
+            onCancel={() => {
+              socket.emit('tangram-cancel');
+              setTangramPrompt(null);
+            }}
+          />
+        )}
+
+        {/* SFACCIMM CARD SELECTION OVERLAY */}
+        {sfaccimmPrompt && sfaccimmPrompt.visible && (
+          <SfaccimmSelectOverlay
+            cards={sfaccimmPrompt.cards}
+            maxSelect={sfaccimmPrompt.maxSelect}
+            selected={sfaccimmPrompt.selected}
+            onToggle={(id) => {
+              setSfaccimmPrompt(prev => {
+                if (!prev) return prev;
+                const already = prev.selected.includes(id);
+                const newSelected = already
+                  ? prev.selected.filter(x => x !== id)
+                  : prev.selected.length < prev.maxSelect
+                    ? [...prev.selected, id]
+                    : prev.selected;
+                return { ...prev, selected: newSelected };
+              });
+            }}
+            submitting={sfaccimmPrompt.submitting}
+            onConfirm={() => {
+              if (!sfaccimmPrompt || sfaccimmPrompt.submitting) return;
+              setSfaccimmPrompt(prev => prev ? { ...prev, submitting: true } : prev);
+              socket.emit('sfaccimm-apply-selection', { selectedCardIds: sfaccimmPrompt.selected });
+              // Overlay stays open until server confirms via game-state-update; sfaccimm-error resets submitting
+            }}
+            onCancel={() => {
+              socket.emit('sfaccimm-cancel');
+              setSfaccimmPrompt(null);
+            }}
           />
         )}
 

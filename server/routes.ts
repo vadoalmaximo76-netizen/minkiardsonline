@@ -3942,6 +3942,197 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // ============ TANGRAM INTERACTIVE ASSIGNMENT ============
+
+    socket.on('tangram-apply-assignments', ({ assignments }: { assignments: { [charId: string]: string } }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+
+      const pending = (game as any).pendingTangramAssign;
+      if (!pending) return;
+
+      // Authorization: only the player who triggered Tangram can apply assignments
+      const actingPlayer = gameManager.getPlayerNameFromSocket(socket.id);
+      if (!actingPlayer || actingPlayer !== pending.playerName) {
+        console.log(`⚠️ TANGRAM: unauthorized assignment attempt by ${actingPlayer} (expected ${pending.playerName})`);
+        return;
+      }
+      delete (game as any).pendingTangramAssign;
+
+      // Build pre-assignment owner snapshot from saved prev-owners (set when prompt was emitted)
+      const prevOwners: Record<string, string> = (game as any)._tangramPrevOwners || {};
+      delete (game as any)._tangramPrevOwners;
+
+      // Validate all target players exist
+      const validPlayers = new Set(Object.keys(game.players));
+      // Apply assignments: update owner of each field character
+      let changed = 0;
+      for (const char of game.field as any[]) {
+        if (!char.id) continue;
+        const newOwner = assignments[char.id];
+        if (newOwner && validPlayers.has(newOwner)) {
+          char.owner = newOwner;
+          changed++;
+        }
+      }
+
+      // Check if Maestro Tondino is in field — if so, also rotate hands following assignments
+      const hasTondino = game.field.some((c: any) =>
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+        /maestro.*tondino|tondino/i.test(c.name || '')
+      );
+      if (hasTondino && Object.keys(prevOwners).length > 0) {
+        // Snapshot all hands BEFORE any changes
+        const handSnapshot: Record<string, any[]> = {};
+        for (const pName of Object.keys(game.players)) {
+          handSnapshot[pName] = [...(game.players[pName]?.hand || [])];
+        }
+        // For each character assignment, transfer the OLD owner's hand to the NEW owner.
+        // We process per-char in order; when multiple chars move to the same player, we
+        // merge the hands (union of all previous owners' hands that end up there).
+        // First, collect which source hands should flow to which target players.
+        const handTransfers: Array<{ from: string; to: string }> = [];
+        for (const [charId, newOwner] of Object.entries(assignments)) {
+          const oldOwner = prevOwners[charId];
+          if (oldOwner && newOwner && validPlayers.has(newOwner) && oldOwner !== newOwner) {
+            handTransfers.push({ from: oldOwner, to: newOwner });
+          }
+        }
+        // Build new hands: receivers get the old-owner's hand (with owner updated).
+        // Also clear the old owners' hands to prevent card duplication.
+        const newHands: Record<string, Array<Record<string, unknown>>> = {};
+        const handCleared = new Set<string>();
+        for (const { from, to } of handTransfers) {
+          if (!newHands[to]) newHands[to] = [];
+          newHands[to].push(...(handSnapshot[from] || []).map((c: Record<string, unknown>) => ({ ...c, owner: to })));
+          handCleared.add(from);
+        }
+        // Clear hands of players who gave away their cards (prevents duplication)
+        for (const pName of handCleared) {
+          if (game.players[pName] && !newHands[pName]) game.players[pName].hand = [];
+        }
+        // Apply the new hands for all recipients
+        for (const [pName, newHand] of Object.entries(newHands)) {
+          const p = game.players[pName];
+          if (p) (p as { hand: typeof newHand }).hand = newHand;
+        }
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-tangram-tondino`,
+          playerName: 'Sistema',
+          message: `🧩 TANGRAM + MAESTRO TONDINO! Personaggi e mani scambiate secondo le scelte di ${pending.playerName}!`,
+          timestamp: Date.now()
+        });
+      } else {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-tangram-done`,
+          playerName: 'Sistema',
+          message: `🧩 TANGRAM! ${pending.playerName} ha riassegnato ${changed} personaggi in campo!`,
+          timestamp: Date.now()
+        });
+      }
+
+      const updatedState = gameManager.getSanitizedGameState(gameId);
+      if (updatedState) io.to(gameId).emit('game-state-update', updatedState);
+    });
+
+    // ============ SFACCIMM CARD REMOVAL ============
+
+    socket.on('sfaccimm-apply-selection', ({ selectedCardIds }: { selectedCardIds: string[] }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+
+      const pending = (game as any).pendingSfaccimm;
+      if (!pending) return;
+
+      // Authorization: only the player who triggered Sfaccimm can apply the selection
+      const actingPlayer = gameManager.getPlayerNameFromSocket(socket.id);
+      if (!actingPlayer || actingPlayer !== pending.playerName) {
+        console.log(`⚠️ SFACCIMM: unauthorized selection by ${actingPlayer} (expected ${pending.playerName})`);
+        return;
+      }
+      delete (game as any).pendingSfaccimm;
+
+      // Enforce exactly 10 unique valid selections (server-side rule integrity)
+      if (!selectedCardIds || selectedCardIds.length === 0) {
+        // Restore pending state so player can retry
+        (game as any).pendingSfaccimm = pending;
+        return;
+      }
+      const uniqueIds = Array.from(new Set(selectedCardIds));
+      if (uniqueIds.length !== 10) {
+        // Wrong count — reject and restore pending so player can retry
+        (game as any).pendingSfaccimm = pending;
+        console.log(`⚠️ SFACCIMM: invalid selection count ${uniqueIds.length} (expected 10) from ${actingPlayer}`);
+        socket.emit('sfaccimm-error', { message: `Devi selezionare esattamente 10 carte (hai selezionato ${uniqueIds.length})` });
+        return;
+      }
+      // Verify all selected IDs exist in the decks
+      const allDeckIds = new Set<string>();
+      for (const dk of ['bonus', 'mosse', 'personaggi', 'personaggi_speciali'] as const) {
+        const d = game.decks[dk] as any[];
+        if (d) d.forEach((c: any) => allDeckIds.add(c.id));
+      }
+      const invalidIds = uniqueIds.filter(id => !allDeckIds.has(id));
+      if (invalidIds.length > 0) {
+        (game as any).pendingSfaccimm = pending;
+        console.log(`⚠️ SFACCIMM: ${invalidIds.length} invalid card IDs from ${actingPlayer}`);
+        socket.emit('sfaccimm-error', { message: `Alcune carte selezionate non esistono più nei mazzi. Riprova.` });
+        return;
+      }
+      const toRemoveIds = new Set(uniqueIds);
+      let removed = 0;
+      for (const deckKey of ['bonus', 'mosse', 'personaggi', 'personaggi_speciali'] as const) {
+        const d = game.decks[deckKey] as any[];
+        if (!d) continue;
+        const before = d.length;
+        game.decks[deckKey] = d.filter((c: any) => !toRemoveIds.has(c.id)) as any;
+        removed += before - (game.decks[deckKey] as any[]).length;
+      }
+
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-sfaccimm-done`,
+        playerName: 'Sistema',
+        message: `🤌 SFACCIMM! ${pending.playerName} ha eliminato definitivamente ${removed} carte dai mazzi!`,
+        timestamp: Date.now()
+      });
+
+      const updatedState = gameManager.getSanitizedGameState(gameId);
+      if (updatedState) io.to(gameId).emit('game-state-update', updatedState);
+    });
+
+    // ============ TANGRAM / SFACCIMM CANCEL HANDLERS ============
+
+    socket.on('tangram-cancel', () => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+      const actingPlayer = gameManager.getPlayerNameFromSocket(socket.id);
+      const pending = (game as any).pendingTangramAssign;
+      if (pending && actingPlayer === pending.playerName) {
+        delete (game as any).pendingTangramAssign;
+        delete (game as any)._tangramPrevOwners;
+        console.log(`🧩 TANGRAM: ${actingPlayer} cancelled assignment`);
+      }
+    });
+
+    socket.on('sfaccimm-cancel', () => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+      const actingPlayer = gameManager.getPlayerNameFromSocket(socket.id);
+      const pending = (game as any).pendingSfaccimm;
+      if (pending && actingPlayer === pending.playerName) {
+        delete (game as any).pendingSfaccimm;
+        console.log(`🤌 SFACCIMM: ${actingPlayer} cancelled selection`);
+      }
+    });
+
     // ============ AUCTION SYSTEM SOCKET HANDLERS ============
 
     socket.on('auction-select-card', async ({ cardId, playerName }: { cardId: string, playerName: string }) => {

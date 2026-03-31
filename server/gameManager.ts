@@ -8808,26 +8808,40 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         let swapped = 0;
         for (const opponentName of opponents) {
           const opp = game.players[opponentName];
-          const deckTypeMap: { deckKey: keyof typeof game.decks; cardType: string }[] = [
+          if (!opp) continue;
+          const deckTypeMap: { deckKey: string; cardType: string }[] = [
             { deckKey: 'bonus',      cardType: 'bonus' },
             { deckKey: 'mosse',      cardType: 'mosse' },
             { deckKey: 'personaggi', cardType: 'personaggi' },
           ];
           let swappedForThisOpponent = 0;
           for (const { deckKey, cardType } of deckTypeMap) {
-            const sharedDeck = game.decks[deckKey] as Card[];
-            if (!sharedDeck || sharedDeck.length === 0) continue;
-            const oppHand = opp.hand || [];
-            const oppHandCard = oppHand.find((c: Card) => c.type === cardType);
-            if (!oppHandCard) continue;
-            const deckCard = sharedDeck.splice(Math.floor(Math.random() * sharedDeck.length), 1)[0];
+            // Support both shared decks and per-player draft decks
+            const isDraft = game.isDraftMode || game.isGymMode;
+            let deck: Card[];
+            if (isDraft && (game as any).playerDraftDecks?.[opponentName]?.[deckKey]) {
+              deck = (game as any).playerDraftDecks[opponentName][deckKey] as Card[];
+            } else {
+              deck = (game.decks as any)[deckKey] as Card[];
+            }
+            if (!deck || deck.length === 0) continue;
+            const currentHand: Card[] = opp.hand || [];
+            const handCardIdx = currentHand.findIndex((c: Card) =>
+              c.type === cardType || (cardType === 'personaggi' && c.type === 'personaggi_speciali')
+            );
+            if (handCardIdx === -1) continue;
+            const deckCardIdx = Math.floor(Math.random() * deck.length);
+            const deckCard = deck.splice(deckCardIdx, 1)[0];
             if (!deckCard) continue;
+            const handCard = currentHand[handCardIdx];
             deckCard.owner = opponentName;
-            const idx = oppHand.indexOf(oppHandCard);
-            oppHand.splice(idx, 1);
-            sharedDeck.push(oppHandCard);
-            opp.hand = [...oppHand, deckCard];
-            emitChat(`🎴 KAINOKEN! ${playerName} dà "${deckCard.name || deckKey}" (dal mazzo ${deckKey}) a ${opponentName}, che restituisce "${oppHandCard.name || cardType}" al mazzo!`);
+            // Swap: hand card → deck, deck card → hand
+            const newHand = currentHand.filter((_: Card, i: number) => i !== handCardIdx);
+            newHand.push(deckCard);
+            opp.hand = newHand;
+            // Put hand card back into deck
+            deck.push({ ...handCard, owner: undefined } as any);
+            emitChat(`🎴 KAINOKEN! ${playerName} dà "${deckCard.name || deckKey}" (dal mazzo ${deckKey}) a ${opponentName}, che restituisce "${handCard.name || cardType}" al mazzo!`);
             swapped++;
             swappedForThisOpponent++;
           }
@@ -9325,54 +9339,63 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── TANGRAM ──────────────────────────────────────────────────────────────
       case 'tangram': {
-        // Rotate all active field characters one step to the right in turn order
         const turnOrderT = game.turnOrder || [];
         const fieldCharsT: Card[] = [];
-        const ownerMap: { [charId: string]: string } = {};
+        const ownerMapT: { [charId: string]: string } = {};
         for (const pName of turnOrderT) {
           const activeChar = this.getPlayerActiveCharacter(game, pName);
           if (activeChar) {
             fieldCharsT.push(activeChar);
-            ownerMap[activeChar.id] = pName;
+            ownerMapT[activeChar.id] = pName;
           }
         }
         if (fieldCharsT.length < 2) {
           emitChat(`🧩 TANGRAM: non ci sono abbastanza personaggi in campo da scambiare!`);
           break;
         }
-        // Rotate owners: each char goes to the next player in the turn order who had a char
-        const newOwners = [...Array(fieldCharsT.length).keys()].map(i => {
-          const nextIdx = (i + 1) % fieldCharsT.length;
-          return turnOrderT.find(p => p === Object.keys(ownerMap).map(id => ownerMap[id]).find((_, ii) => ii === nextIdx));
-        });
-        // Actually: rotate characters between players
-        // char[0] → player who owned char[1], char[1] → player who owned char[2], etc.
-        const playersWithChars = fieldCharsT.map(c => ownerMap[c.id]);
-        for (let i = 0; i < fieldCharsT.length; i++) {
-          const charToMove = fieldCharsT[i];
-          const newOwnerName = playersWithChars[(i + 1) % fieldCharsT.length];
-          charToMove.owner = newOwnerName;
-          console.log(`🧩 TANGRAM: ${charToMove.name || charToMove.id} → ${newOwnerName}`);
-        }
-        // Check if Maestro Tondino is in the field — if so, also swap hands
-        const hasTondinoOnField = game.field.some((c: Card) =>
-          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
-          /maestro.*tondino|tondino/i.test(c.name || '')
-        );
-        if (hasTondinoOnField) {
-          // Rotate hands one step as well
-          const handsSnapshot = playersWithChars.map(p => [...(game.players[p]?.hand || [])]);
-          for (let i = 0; i < playersWithChars.length; i++) {
-            const nextHandOwner = playersWithChars[(i + 1) % playersWithChars.length];
-            if (game.players[nextHandOwner]) {
-              game.players[nextHandOwner].hand = handsSnapshot[i].map((c: Card) => ({ ...c, owner: nextHandOwner }));
-            }
+
+        const allPlayers = Object.keys(game.players);
+
+        if (isCPU) {
+          // CPU: random assignment — each char gets assigned to a random player (simple shuffle)
+          const shuffledPlayers = [...allPlayers].sort(() => Math.random() - 0.5);
+          const assignments: { [charId: string]: string } = {};
+          for (let i = 0; i < fieldCharsT.length; i++) {
+            assignments[fieldCharsT[i].id] = shuffledPlayers[i % shuffledPlayers.length];
           }
-          emitChat(`🧩 TANGRAM + MAESTRO TONDINO! Personaggi e mani scambiate tra tutti i giocatori!`);
+          // Apply assignments
+          for (const char of fieldCharsT) {
+            const newOwner = assignments[char.id];
+            char.owner = newOwner;
+            console.log(`🧩 TANGRAM (CPU): ${char.name || char.id} → ${newOwner}`);
+          }
+          emitChat(`🧩 TANGRAM! I personaggi in campo sono stati riassegnati!`);
+          emitState();
         } else {
-          emitChat(`🧩 TANGRAM! Personaggi in campo scambiati tra tutti i giocatori in rotazione!`);
+          // Human: emit prompt to let the player manually assign each character
+          const socketId = (game.players[playerName] as any)?.socketId;
+          (game as any).pendingTangramAssign = { playerName, cardId: card.id };
+          // Snapshot current owners so routes.ts can compute hand remaps for Maestro Tondino
+          const prevOwnerSnapshot: { [charId: string]: string } = {};
+          for (const c of fieldCharsT) { prevOwnerSnapshot[c.id] = ownerMapT[c.id]; }
+          (game as any)._tangramPrevOwners = prevOwnerSnapshot;
+
+          const charList = fieldCharsT.map(c => ({
+            id: c.id,
+            name: c.name || c.id,
+            image: c.frontImage,
+            currentOwner: ownerMapT[c.id]
+          }));
+          if (io && socketId) {
+            io.to(socketId).emit('tangram-assign-prompt', {
+              chars: charList,
+              players: allPlayers,
+              cardId: card.id
+            });
+          }
+          emitChat(`🧩 TANGRAM! ${playerName} sta assegnando i personaggi in campo...`);
         }
-        emitState(); break;
+        break;
       }
 
       // ─── DIFESA VIGLIACCA ─────────────────────────────────────────────────────
@@ -10015,6 +10038,53 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         emitChat(`♻️ Z AMMONTA! Tutti i mazzi sono stati rimescolati e ogni giocatore ha ripescato ${zaCardsPerPlayer} carte (1 per tipo)!`);
         if (io) io.to(gameId).emit('z-ammonta-redraw', { playerName, count: zaCardsPerPlayer, timestamp: Date.now() });
         emitState(); break;
+      }
+
+      // ─── SFACCIMM ─────────────────────────────────────────────────────────────
+      case 'sfaccimm': {
+        // Collect all cards from all decks
+        const sfaccimmAllCards: Card[] = [];
+        for (const deckKey of ['bonus', 'mosse', 'personaggi', 'personaggi_speciali'] as const) {
+          const d = game.decks[deckKey];
+          if (d && d.length > 0) {
+            sfaccimmAllCards.push(...d.map((c: Card) => ({ ...c, _deckKey: deckKey })));
+          }
+        }
+
+        if (isCPU) {
+          // CPU: remove 10 random cards from all decks
+          const toRemove = sfaccimmAllCards.sort(() => Math.random() - 0.5).slice(0, 10);
+          let removed = 0;
+          for (const c of toRemove) {
+            const dk = (c as any)._deckKey as keyof typeof game.decks;
+            const d = game.decks[dk] as Card[];
+            const idx = d.findIndex((x: Card) => x.id === c.id);
+            if (idx !== -1) { d.splice(idx, 1); removed++; }
+          }
+          emitChat(`🤌 SFACCIMM! ${playerName} ha eliminato ${removed} carte dai mazzi di gioco!`);
+          emitState();
+        } else {
+          // Human: send list of all deck cards to the player, wait for selection
+          const socketId = (game.players[playerName] as any)?.socketId;
+          (game as any).pendingSfaccimm = { playerName, cardId: card.id };
+          if (io && socketId) {
+            io.to(socketId).emit('sfaccimm-select-prompt', {
+              cards: sfaccimmAllCards.map((c: any) => ({
+                id: c.id,
+                name: c.name || '',
+                type: c.type,
+                frontImage: c.frontImage,
+                pti: c.pti,
+                stars: c.stars,
+                deckKey: c._deckKey
+              })),
+              maxSelect: 10,
+              cardId: card.id
+            });
+          }
+          emitChat(`🤌 SFACCIMM! ${playerName} sta scegliendo 10 carte da eliminare dai mazzi...`);
+        }
+        break;
       }
 
       default:
