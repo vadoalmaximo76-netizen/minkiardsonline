@@ -9495,26 +9495,44 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const eggOriginalPti = myChar.pti || 0;
         const eggOriginalStars = myChar.stars || 0;
         const eggOwnerName = myChar.name || playerName;
-        const clonePti = Math.max(1, Math.floor(eggOriginalPti / 2));
-        const cloneStars = Math.max(1, Math.floor(eggOriginalStars / 2));
-        // Create clone immediately on the field with halved stats
-        const uovoClone: any = {
-          id: `uovo_clone_${Date.now()}_${playerName}`,
-          name: `${eggOwnerName} (clone)`,
-          type: myChar.type,
+        const uovoCloneId = `uovo_clone_${Date.now()}_${playerName}`;
+        // Phase 1: egg on field — no PTI/stars, egg image
+        const uovoEgg: any = {
+          id: uovoCloneId,
+          name: `Uovo di ${eggOwnerName}`,
+          type: 'personaggi',
           owner: playerName,
-          pti: clonePti,
-          stars: cloneStars,
-          frontImage: myChar.frontImage || null,
+          pti: 0,
+          stars: 0,
+          frontImage: 'https://i.postimg.cc/nVNcTHPx/UOVO.png',
           isClone: true,
           isUovoClone: true,
+          uovoPhase: 1,
           clonedFrom: myChar.id,
-          text: `PTI: ${clonePti}\nStelle: ${cloneStars}\nClone di ${eggOwnerName}`
+          clonedFromImage: myChar.frontImage || null,
+          uovoOriginalPti: eggOriginalPti,
+          uovoOriginalStars: eggOriginalStars,
+          text: `Uovo di ${eggOwnerName}\nSi schiuderà tra 3 turni!`
         };
-        this.updateCardTextWithPTI(uovoClone);
-        game.field.push(uovoClone);
-        emitChat(`🥚 UOVO! È apparso un clone di ${eggOwnerName} con ${clonePti} PTI e ${cloneStars} stelle!`);
-        if (io) io.to(gameId).emit('uovo-phase', { phase: 'cloned', playerName, charName: eggOwnerName, clonePti, cloneStars });
+        game.field.push(uovoEgg);
+        // Schedule phase 2 after 3 turns
+        if (!game.timedEffects) game.timedEffects = [];
+        game.timedEffects.push({
+          id: `uovo_p2_${Date.now()}_${playerName}`,
+          sourcePlayer: playerName,
+          sourceCardId: card.id,
+          sourceCardName: 'Uovo',
+          turnsRemaining: 3,
+          createdAt: Date.now(),
+          actions: [{ type: 'uovo_phase2', target: playerName, description: `Uovo fase 2: ${eggOwnerName}` }],
+          uovoCloneId,
+          uovoOwnerName: eggOwnerName,
+          uovoOriginalPti: eggOriginalPti,
+          uovoOriginalStars: eggOriginalStars,
+          uovoClonedFromImage: myChar.frontImage || null,
+        } as any);
+        emitChat(`🥚 UOVO! ${eggOwnerName} ha deposto un uovo in campo! Tra 3 turni si schiuderà...`);
+        if (io) io.to(gameId).emit('uovo-phase', { phase: 'egg', playerName, charName: eggOwnerName });
         emitState(); break;
       }
 
@@ -14733,8 +14751,112 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       case 'uovo_hatch':
       case 'uovo_restore': {
         // Legacy timed effects from old Uovo implementation — now obsolete.
-        // Uovo creates a clone immediately; no timed phases needed.
         console.log(`[UOVO] Legacy timed effect "${action.type}" ignored (obsolete).`);
+        break;
+      }
+
+      // ─── UOVO PHASE 2: egg hatches → weak clone (half PTI/stars, original image) ──
+      case 'uovo_phase2': {
+        const ioU2 = (global as any).io;
+        const teU2 = (action as any)._timedEffect;
+        const cloneIdU2 = teU2?.uovoCloneId;
+        const ownerNameU2 = teU2?.uovoOwnerName || playerName;
+        const origPtiU2 = teU2?.uovoOriginalPti || 0;
+        const origStarsU2 = teU2?.uovoOriginalStars || 0;
+        const origImageU2 = teU2?.uovoClonedFromImage || null;
+        const cloneU2 = game.field.find((c: Card) => c.id === cloneIdU2);
+        if (cloneU2) {
+          const halvedPti = Math.max(1, Math.floor(origPtiU2 / 2));
+          const halvedStars = Math.max(1, Math.floor(origStarsU2 / 2));
+          cloneU2.pti = halvedPti;
+          cloneU2.stars = halvedStars;
+          cloneU2.frontImage = origImageU2;
+          cloneU2.name = `${ownerNameU2} (clone debole)`;
+          (cloneU2 as any).uovoPhase = 2;
+          this.updateCardTextWithPTI(cloneU2);
+          // Schedule phase 3 after 3 more turns
+          if (!game.timedEffects) game.timedEffects = [];
+          game.timedEffects.push({
+            id: `uovo_p3_${Date.now()}_${playerName}`,
+            sourcePlayer: playerName, sourceCardId: '', sourceCardName: 'Uovo',
+            turnsRemaining: 3, createdAt: Date.now(),
+            actions: [{ type: 'uovo_phase3', target: playerName, description: `Uovo fase 3: ${ownerNameU2}` }],
+            uovoCloneId: cloneIdU2, uovoOwnerName: ownerNameU2,
+            uovoOriginalPti: origPtiU2, uovoOriginalStars: origStarsU2, uovoClonedFromImage: origImageU2,
+          } as any);
+          if (ioU2) {
+            ioU2.to(gameId).emit('chat-message', { id: `${Date.now()}-uovo-p2`, playerName: 'Sistema', timestamp: Date.now(),
+              message: `🐣 L'uovo di ${ownerNameU2} si è schiuso! Clone debole apparso con ${halvedPti} PTI e ${halvedStars} stelle. Tra 3 turni diventerà un clone perfetto!` });
+            ioU2.to(gameId).emit('uovo-phase', { phase: 'hatched', playerName, charName: ownerNameU2, halvedPti, halvedStars });
+            ioU2.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+          }
+        }
+        break;
+      }
+
+      // ─── UOVO PHASE 3: perfect clone (original PTI/stars) ────────────────────
+      case 'uovo_phase3': {
+        const ioU3 = (global as any).io;
+        const teU3 = (action as any)._timedEffect;
+        const cloneIdU3 = teU3?.uovoCloneId;
+        const ownerNameU3 = teU3?.uovoOwnerName || playerName;
+        const origPtiU3 = teU3?.uovoOriginalPti || 0;
+        const origStarsU3 = teU3?.uovoOriginalStars || 0;
+        const origImageU3 = teU3?.uovoClonedFromImage || null;
+        const cloneU3 = game.field.find((c: Card) => c.id === cloneIdU3);
+        if (cloneU3) {
+          cloneU3.pti = origPtiU3;
+          cloneU3.stars = origStarsU3;
+          cloneU3.frontImage = origImageU3;
+          cloneU3.name = `${ownerNameU3} (clone)`;
+          (cloneU3 as any).uovoPhase = 3;
+          this.updateCardTextWithPTI(cloneU3);
+          // Schedule phase 4 after 3 more turns
+          if (!game.timedEffects) game.timedEffects = [];
+          game.timedEffects.push({
+            id: `uovo_p4_${Date.now()}_${playerName}`,
+            sourcePlayer: playerName, sourceCardId: '', sourceCardName: 'Uovo',
+            turnsRemaining: 3, createdAt: Date.now(),
+            actions: [{ type: 'uovo_phase4', target: playerName, description: `Uovo fase 4: ${ownerNameU3}` }],
+            uovoCloneId: cloneIdU3, uovoOwnerName: ownerNameU3,
+            uovoOriginalPti: origPtiU3, uovoOriginalStars: origStarsU3, uovoClonedFromImage: origImageU3,
+          } as any);
+          if (ioU3) {
+            ioU3.to(gameId).emit('chat-message', { id: `${Date.now()}-uovo-p3`, playerName: 'Sistema', timestamp: Date.now(),
+              message: `✨ Il clone di ${ownerNameU3} è diventato perfetto! ${origPtiU3} PTI, ${origStarsU3} stelle. Tra 3 turni si trasformerà!` });
+            ioU3.to(gameId).emit('uovo-phase', { phase: 'perfect', playerName, charName: ownerNameU3 });
+            ioU3.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+          }
+        }
+        break;
+      }
+
+      // ─── UOVO PHASE 4: super clone (doubled PTI/stars) ───────────────────────
+      case 'uovo_phase4': {
+        const ioU4 = (global as any).io;
+        const teU4 = (action as any)._timedEffect;
+        const cloneIdU4 = teU4?.uovoCloneId;
+        const ownerNameU4 = teU4?.uovoOwnerName || playerName;
+        const origPtiU4 = teU4?.uovoOriginalPti || 0;
+        const origStarsU4 = teU4?.uovoOriginalStars || 0;
+        const origImageU4 = teU4?.uovoClonedFromImage || null;
+        const cloneU4 = game.field.find((c: Card) => c.id === cloneIdU4);
+        if (cloneU4) {
+          const doubledPti = origPtiU4 * 2;
+          const doubledStars = origStarsU4 * 2;
+          cloneU4.pti = doubledPti;
+          cloneU4.stars = doubledStars;
+          cloneU4.frontImage = origImageU4;
+          cloneU4.name = `${ownerNameU4} (super clone)`;
+          (cloneU4 as any).uovoPhase = 4;
+          this.updateCardTextWithPTI(cloneU4);
+          if (ioU4) {
+            ioU4.to(gameId).emit('chat-message', { id: `${Date.now()}-uovo-p4`, playerName: 'Sistema', timestamp: Date.now(),
+              message: `🔥 Il clone di ${ownerNameU4} si è TRASFORMATO! PTI raddoppiati: ${doubledPti}, stelle: ${doubledStars}!` });
+            ioU4.to(gameId).emit('uovo-phase', { phase: 'super', playerName, charName: ownerNameU4, doubledPti, doubledStars });
+            ioU4.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+          }
+        }
         break;
       }
 
