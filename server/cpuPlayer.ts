@@ -784,6 +784,26 @@ export class CPUPlayer {
     return 0;
   }
 
+  /**
+   * Returns true for bonus cards that are purely reactive/defensive
+   * and should NOT be played proactively on the CPU's own offensive turn.
+   * These cards only have effect when reacting to an incoming attack.
+   */
+  private isDefensiveOnlyBonus(card: any): boolean {
+    const effKey = this.getCardEffectKey(card);
+    const DEFENSIVE_KEYS = new Set([
+      'respinta', 'difesa_vigliacca', 'alta_salva', 'boomerang',
+      'conversione', 'folata', 'folata_di_vento', 'contro_skrazzkoom',
+      'e_nn_t_mitt_sscuorn', 'contro_bonus'
+    ]);
+    if (effKey && DEFENSIVE_KEYS.has(effKey)) return true;
+    const cardName = (card.name || this.getCardNameFromUrl?.(card.frontImage || '') || '').toLowerCase();
+    if (/\brespinta\b|alta[\s_-]?salva|boomerang|contro[\s_-]?skrazzkoom|conversione|folata|e[\s_-]nn[\s_-]t[\s_-]mitt|sscuorn/i.test(cardName)) return true;
+    const effText = (card.effect || '').toLowerCase();
+    if (/prossimo.{0,30}danno.{0,30}subito.{0,30}(riman[dv]|riflette|rispedisce|deflette)/i.test(effText)) return true;
+    return false;
+  }
+
   private evaluateBonusWithHealth(card: any, myCurrentPTI: number): number {
     if (!card || card.type !== 'bonus') return 0;
 
@@ -1559,8 +1579,9 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       const bonusCards = handCards.filter((c: any) => c.type === 'bonus');
       const bestMosseCard = mosseCards.length > 0 ? mosseCards.reduce((best: any, c: any) =>
         this.evaluateCard(c, myCharStars) > this.evaluateCard(best, myCharStars) ? c : best, mosseCards[0]) : null;
-      const bestBonusCard = bonusCards.length > 0 ? bonusCards.reduce((best: any, c: any) =>
-        this.evaluateBonusWithHealth(c, myCharPTI) > this.evaluateBonusWithHealth(best, myCharPTI) ? c : best, bonusCards[0]) : null;
+      const offensiveBonusCards = bonusCards.filter((c: any) => !this.isDefensiveOnlyBonus(c));
+      const bestBonusCard = offensiveBonusCards.length > 0 ? offensiveBonusCards.reduce((best: any, c: any) =>
+        this.evaluateBonusWithHealth(c, myCharPTI) > this.evaluateBonusWithHealth(best, myCharPTI) ? c : best, offensiveBonusCards[0]) : null;
       const bestBonusPTI = bestBonusCard ? this.extractBonusPtiValue(bestBonusCard) : 0;
       const bestMosseName = bestMosseCard ? this.getCardNameFromUrl(bestMosseCard.frontImage) : 'nessuna';
       const bestBonusName = bestBonusCard ? this.getCardNameFromUrl(bestBonusCard.frontImage) : 'nessuno';
@@ -2054,9 +2075,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }, movesInHand[0]) : null;
 
       // Best bonus card: health-aware score (shield preferred when healthy)
-      const bonusCard = bonusesInHand.length > 0 ? bonusesInHand.reduce((best: any, c: any) => {
+      // Filter out purely defensive/reactive cards that only work in reaction to an incoming attack
+      const offensiveBonusesInHand = bonusesInHand.filter((c: any) => !this.isDefensiveOnlyBonus(c));
+      const bonusCard = offensiveBonusesInHand.length > 0 ? offensiveBonusesInHand.reduce((best: any, c: any) => {
         return this.evaluateBonusWithHealth(c, currentPTI) > this.evaluateBonusWithHealth(best, currentPTI) ? c : best;
-      }, bonusesInHand[0]) : null;
+      }, offensiveBonusesInHand[0]) : null;
 
       // Best character in hand: highest PTI + stars score
       const handCharacterCard = handCharacters.length > 0 ? handCharacters.reduce((best: any, c: any) => {
@@ -3500,9 +3523,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }, mosseInHand[0]) : null;
 
       // Use health-aware bonus scoring so shields are preferred when healthy
-      const bestBonus = bonusInHand.length > 0 ? bonusInHand.reduce((best: any, c: any) => {
+      // Exclude purely defensive/reactive cards that only work in reaction to an incoming attack
+      const offensiveBonusInHand = bonusInHand.filter((c: any) => !this.isDefensiveOnlyBonus(c));
+      const bestBonus = offensiveBonusInHand.length > 0 ? offensiveBonusInHand.reduce((best: any, c: any) => {
         return this.evaluateBonusWithHealth(c, currentPTI) > this.evaluateBonusWithHealth(best, currentPTI) ? c : best;
-      }, bonusInHand[0]) : null;
+      }, offensiveBonusInHand[0]) : null;
 
       const bestMosseScore = bestMosse ? this.evaluateCard(bestMosse, currentStars) : 0;
       const bestBonusScore = bestBonus ? this.evaluateBonusWithHealth(bestBonus, currentPTI) : 0;

@@ -11,6 +11,7 @@ import { ChatNotification } from "./ChatNotification";
 import { Calculator } from "./Calculator";
 import { CardModal } from "./CardModal";
 import { DiceModal } from "./DiceModal";
+import { LellellelleModal, type LellellelleState } from "./LellellelleModal";
 import { FullScreenNotification } from "./FullScreenNotification";
 import { PersonaggioNotification } from "./PersonaggioNotification";
 import { EvolutionAnimation } from "./EvolutionAnimation";
@@ -459,6 +460,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   }>({ visible: false, cardName: '', diceResult: 0, effect: '', affectedCharacters: [], isAnimating: false, animationPhase: 'rolling' });
   // FOLATA DI VENTO: Wind dice roll animation visible to all players
   const [windDiceRoll, setWindDiceRoll] = useState<{ visible: boolean; value: number; playerName: string }>({ visible: false, value: 0, playerName: '' });
+  // LELLELLELELLE: Sequential card-reveal animation
+  const LELLELLELELLE_INIT: LellellelleState = { visible: false, targetOwner: '', attackerName: '', totalCards: 0, saved: null, revealedCards: [], finished: false };
+  const [lellelellleState, setLellelellleState] = useState<LellellelleState>(LELLELLELELLE_INIT);
   // EVOLUTION DICE ROLL: Dice-based evolution variant animation
   const [evolutionDiceRoll, setEvolutionDiceRoll] = useState<{ visible: boolean; characterName: string; playerName: string; diceResult: number; evolutionTarget: string | null; animationPhase: 'rolling' | 'result' }>({ visible: false, characterName: '', playerName: '', diceResult: 0, evolutionTarget: null, animationPhase: 'rolling' });
   // CUSTOM TARGET SELECTION: Modal for choosing targets for custom effects with [BERSAGLIO: scelta]
@@ -1134,7 +1138,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       }, 5500);
     };
     socket.on('evolution-dice-roll', handleEvolutionDiceRoll);
-    
+
+    // LELLELLELELLE: sequential card reveal animation
+    const handleLellellelleStart = (data: { targetOwner: string; attackerName: string; totalCards: number; saved: boolean }) => {
+      setLellelellleState({ visible: true, targetOwner: data.targetOwner, attackerName: data.attackerName, totalCards: data.totalCards, saved: null, revealedCards: [], finished: false });
+    };
+    const handleLellellelleReveal = (data: { cardIndex: number; totalCards: number; cardName: string; cardImage: string | null; damage: number; isSaveCard: boolean; targetOwner: string; isLast: boolean; saved: boolean }) => {
+      setLellelellleState(prev => {
+        const newCard = { cardIndex: data.cardIndex, totalCards: data.totalCards, cardName: data.cardName, cardImage: data.cardImage, damage: data.damage, isSaveCard: data.isSaveCard, targetOwner: data.targetOwner, isLast: data.isLast, saved: data.saved };
+        return {
+          ...prev,
+          totalCards: data.totalCards,
+          revealedCards: [...prev.revealedCards, newCard],
+          finished: data.isLast,
+          saved: data.isLast ? data.saved : prev.saved
+        };
+      });
+    };
+    socket.on('lellelelle-start', handleLellellelleStart);
+    socket.on('lellelelle-reveal', handleLellellelleReveal);
+
     const handleTimedEffectActivated = ({ cardName, sourcePlayer, description }: { cardName: string; sourcePlayer: string; description: string }) => {
       setTimedEffectBannerCard(cardName);
       setTimedEffectBannerPlayer(sourcePlayer);
@@ -2328,6 +2351,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('dice-rolled', handleDiceRoll);
       socket.off('dice-roll', handleWindDiceRoll);
       socket.off('evolution-dice-roll', handleEvolutionDiceRoll);
+      socket.off('lellelelle-start', handleLellellelleStart);
+      socket.off('lellelelle-reveal', handleLellellelleReveal);
       socket.off('dice-window-opened', handleDiceWindowOpen);
       socket.off('graveyard-milestone', handleGraveyardMilestone);
       socket.off('timed-effect-activated', handleTimedEffectActivated);
@@ -5202,6 +5227,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           onClose={() => { playModalClose(); setDiceOpen(false); }}
           currentRoll={diceResult}
           playerWhoRolled={playerWhoRolled}
+        />
+
+        {/* LELLELLELELLE reveal animation modal */}
+        <LellellelleModal
+          state={lellelellleState}
+          onClose={() => setLellelellleState(LELLELLELELLE_INIT)}
         />
 
         {/* Chat Notifications */}

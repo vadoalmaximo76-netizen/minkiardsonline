@@ -6209,6 +6209,24 @@ Rispondi SOLO in JSON:`;
       }
     }
 
+    // ============ NAME-BASED EFFECT ROUTING FALLBACK ============
+    // For known named effects whose cards may lack a [CUSTOM:] tag in their effect text.
+    // Match against card name to route to the correct named effect handler.
+    {
+      const cardDisplayName = (card.name || this.getCardNameFromUrl(card.frontImage || '')).toUpperCase();
+      const nameBasedEffects: Array<[RegExp, string]> = [
+        [/STA\s+BUON\s+ROCC/i, 'sta_buon_rocc'],
+      ];
+      for (const [pattern, effectKey] of nameBasedEffects) {
+        if (pattern.test(cardDisplayName)) {
+          console.log(`🎯 [NAME-MATCH] Card "${cardDisplayName}" matched name-based routing → named effect: "${effectKey}"`);
+          await this.executeNamedBonusEffect(gameId, effectKey, card, playerName);
+          (card as any).effectAlreadyApplied = true;
+          return {};
+        }
+      }
+    }
+
     // ============ PTI DISTRIBUTION PATTERN (Giovanni Muciaccia) ============
     // When a personaggi_speciali card with PTI/stelle distribution effect is played directly
     if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && 
@@ -30646,38 +30664,77 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
 
         case 'lellelelle_chaos': {
-          // LELLELLELELLE (mosse-45): target draws 5 MOSSE from their own deck and puts them in campo.
-          // If none has damage >= 100 (by mosseDamageValue or effect text), target drops to 5 PTI + 1 star.
+          // LELLELLELELLE (mosse-45): target draws up to 5 MOSSE from their own deck.
+          // Drawing stops as soon as a card with damage >= 100 is found (the target is SAVED).
+          // If none has damage >= 100, target drops to 5 PTI + 1 star.
           if (!game) break;
           const llTargetOwner = targetCard.owner;
           const llOwnerPlayer = game.players[llTargetOwner];
           const llMosseDeck = game.playerDraftDecks?.[llTargetOwner]?.mosse || llOwnerPlayer?.playerDraftDecks?.mosse || game.decks?.['mosse'] || [];
-          const llDrawn: Array<{ name: string; dmg: number }> = [];
+          const llDrawnCards: Array<{ name: string; dmg: number; image: string | null; isSave: boolean }> = [];
+          let llSaved = false;
           for (let i = 0; i < 5 && llMosseDeck.length > 0; i++) {
             const llDrawnCard = llMosseDeck.shift()!;
             const llDrawnName = llDrawnCard.name || this.getCardNameFromUrl(llDrawnCard.frontImage || '') || llDrawnCard.id;
-            // Parse damage: prefer mosseDamageValue, fall back to parsing effect text
             let llDrawnDmg = llDrawnCard.mosseDamageValue ?? 0;
             if (llDrawnDmg === 0 && llDrawnCard.effect) {
               const dmgMatch = llDrawnCard.effect.match(/\b(\d{2,4})\s*(?:PTI|pti|punti)\b/i);
               if (dmgMatch) llDrawnDmg = parseInt(dmgMatch[1]);
             }
-            llDrawn.push({ name: llDrawnName, dmg: llDrawnDmg });
-            // Place drawn mosse on field (in campo, unused) — tagged so UI can show them
+            const isSaveCard = llDrawnDmg >= 100;
+            llDrawnCards.push({ name: llDrawnName, dmg: llDrawnDmg, image: llDrawnCard.frontImage || null, isSave: isSaveCard });
             llDrawnCard.placedByLellelelle = true;
             llDrawnCard.owner = llTargetOwner;
             game.field.push(llDrawnCard);
+            if (isSaveCard) { llSaved = true; break; }
           }
-          const llHasHighDmg = llDrawn.some(d => d.dmg >= 100);
-          const llDrawnNames = llDrawn.map(d => `${d.name}(${d.dmg}PTI)`).join(', ') || '(nessuna)';
-          if (llHasHighDmg) {
+
+          // Emit animated reveal events with 1.2s gap per card (non-blocking for attack resolution)
+          io.to(gameId).emit('lellelelle-start', {
+            targetOwner: llTargetOwner,
+            attackerName,
+            totalCards: llDrawnCards.length,
+            saved: llSaved
+          });
+          const LL_DELAY_MS = 1200;
+          llDrawnCards.forEach((d, idx) => {
+            setTimeout(() => {
+              io.to(gameId).emit('lellelelle-reveal', {
+                cardIndex: idx + 1,
+                totalCards: llDrawnCards.length,
+                cardName: d.name,
+                cardImage: d.image,
+                damage: d.dmg,
+                isSaveCard: d.isSave,
+                targetOwner: llTargetOwner,
+                isLast: idx === llDrawnCards.length - 1,
+                saved: llSaved
+              });
+              if (idx === llDrawnCards.length - 1) {
+                const finalMsg = llSaved
+                  ? `🎴 LELLELLELELLE! ${llTargetOwner} è SALVO — la MOSSA "${d.name}" ha ${d.dmg} PTI di danno (≥100)!`
+                  : `🎴 LELLELLELELLE! ${llTargetOwner} non è stato salvo — nessuna MOSSA con ≥100 PTI! Scende a 5 PTI e 1 stella!`;
+                setTimeout(() => {
+                  io.to(gameId).emit('chat-message', {
+                    id: `${Date.now()}-lellelelle-end`,
+                    playerName: 'Sistema',
+                    message: finalMsg,
+                    timestamp: Date.now()
+                  });
+                }, 900);
+              }
+            }, idx * LL_DELAY_MS + 600);
+          });
+
+          const llDrawnNames = llDrawnCards.map(d => `${d.name}(${d.dmg}PTI)`).join(', ') || '(nessuna)';
+          if (llSaved) {
             effectiveDamage = 0;
-            effectMessage = `🎴 LELLELLELELLE! ${llTargetOwner} pesca ${llDrawn.length} MOSSE in campo: ${llDrawnNames}. Una carta ha ≥100 PTI → SALVO!`;
+            effectMessage = `🎴 LELLELLELELLE! Rivelazione in corso (${llTargetOwner} è salvo).`;
           } else {
             const llTargetPTI = this.extractPTIFromNote(targetCard.text || '');
             effectiveDamage = Math.max(0, llTargetPTI - 5);
             additionalStarsToRemove = Math.max(0, (targetCard.stars ?? this.extractStarsFromNote(targetCard.text || '')) - 1);
-            effectMessage = `🎴 LELLELLELELLE! ${llTargetOwner} pesca ${llDrawn.length} MOSSE in campo: ${llDrawnNames}. Nessuna ≥100 PTI → ${llTargetOwner} scende a 5 PTI e 1 stella!`;
+            effectMessage = `🎴 LELLELLELELLE! Rivelazione in corso (${llTargetOwner} punito).`;
           }
           break;
         }
