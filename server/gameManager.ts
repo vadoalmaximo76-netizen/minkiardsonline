@@ -4327,7 +4327,8 @@ Rispondi SOLO in JSON:`;
       // Protection cards (barriera, rifugio) are excluded — they have their own lifecycle
       if (!isPersonaggio && this.isPlayerCPU(gameId, playerName) &&
           (card.type === 'bonus' || card.type === 'mosse') &&
-          !this.isBarrieraCard(card) && !this.isRifugioCard(card)) {
+          !this.isBarrieraCard(card) && !this.isRifugioCard(card) &&
+          !((card.name || '').toUpperCase().includes('TOTALEEEE'))) {
         const autoReturnCardId = card.id;
         const autoReturnOwner = playerName;
         setTimeout(() => {
@@ -9987,6 +9988,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           owner: '__central__',
           pti: totalPtiT,
           stars: totalStarsT,
+          originalPti: totalPtiT,
+          originalStars: totalStarsT,
           isTotaleeeeCentral: true,
           activatedBy: playerName,
           frontImage: null,
@@ -31933,17 +31936,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
         // TOTALEEE CENTRALE: if the dying card is the central character, conquer it instead of graveyard
         if ((targetCard as any).isTotaleeeeCentral && targetCard.owner === '__central__') {
-          console.log(`🏛️ TOTALEEE CENTRALE: central character ${targetCard.name || targetCardId} conquered by ${attackerName}!`);
+          const restoredPti = (targetCard as any).originalPti ?? 100;
+          const restoredStars = (targetCard as any).originalStars ?? 1;
+          console.log(`🏛️ TOTALEEE CENTRALE: central character ${targetCard.name || targetCardId} conquered by ${attackerName}! Restoring ${restoredPti} PTI, ${restoredStars} stelle`);
           game!.field = game!.field.filter((c: any) => c.id !== targetCardId);
           targetCard.owner = attackerName;
-          targetCard.pti = currentPTI; // Restore full PTI on conquest
-          targetCard.stars = targetCard.stars ?? this.extractStarsFromNote(targetCard.text || '');
+          targetCard.pti = restoredPti;
+          targetCard.stars = restoredStars;
+          (targetCard as any).totaleeeConqueredOnce = true;
+          targetCard.text = `TOTALEEEE — ${restoredPti} PTI, ${restoredStars} stelle — Conquistato da ${attackerName}!`;
           this.updateCardTextWithPTI(targetCard);
           game!.field.push(targetCard);
           const ioTC = (global as any).io || io;
           ioTC.to(gameId).emit('chat-message', {
             id: `${Date.now()}-totaleee-centrale`, playerName: 'Sistema',
-            message: `🏛️ TOTALEEE CENTRALE! ${attackerName} ha conquistato ${targetCard.name || 'il personaggio centrale'} con tutti i suoi PTI e stelle!`,
+            message: `🏛️ TOTALEEE CENTRALE! ${attackerName} ha conquistato TOTALEEEE e lo riporta ai suoi valori originali: ${restoredPti} PTI, ${restoredStars} stelle! Chi lo sconfigge ora vince i suoi poteri!`,
             timestamp: Date.now()
           });
           const tcState = this.getSanitizedGameState(gameId);
