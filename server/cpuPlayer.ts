@@ -736,9 +736,10 @@ export class CPUPlayer {
         return stolenStars * 200;
       }
 
-      // MOSSE PROGRESSIVE: scale value proportionally to the weakest enemy's PTI.
-      // A progressive move (5→10→20→40...) is much more valuable against a high-PTI target
-      // because the total damage over several turns exceeds a one-shot move's damage.
+      // MOSSE PROGRESSIVE: scale value proportionally to the PREDICTED TARGET's PTI.
+      // A progressive move (5→10→20→40...) is much more valuable against a high-PTI target.
+      // We approximate the likely target as the weakest enemy (most common pick), which gives
+      // a more accurate evaluation than using the global board max PTI.
       let finalDamage = damage;
       if (specialEffect === 'progressiva') {
         const gs = gameState ?? (this.gameManager ? this.gameManager.getGameState(this.gameId) : null);
@@ -750,7 +751,10 @@ export class CPUPlayer {
             !c.stealth && !c.eliminatedBy
           );
           if (enemies.length > 0) {
-            targetPTI = Math.max(...enemies.map((e: any) => this.extractPtiFromCard(e)));
+            // Use predicted target PTI: weakest enemy is the most likely target
+            const likelyTarget = enemies.reduce((w: any, e: any) =>
+              this.extractPtiFromCard(e) < this.extractPtiFromCard(w) ? e : w, enemies[0]);
+            targetPTI = this.extractPtiFromCard(likelyTarget);
           }
         }
         // Scale: each doubling tier of target PTI adds a multiplier step.
@@ -3709,10 +3713,12 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       // SCAMBIO PERSONAGGIO PRE-ATTACCO: If a hand character has MORE stars than the active
       // character and swapping gives a worthwhile damage gain, swap first. The gain threshold is
       // dynamic: +1 star requires > 50 gain, +2 stars requires > 30 gain, +3+ stars requires > 15 gain.
-      // Only swaps in aggressive/balanced moods at medium/hard when enemies are present.
+      // Applies in aggressive/balanced moods at medium/hard; also in defensive mood at hard level
+      // (because even a defensive player should swap when the gain is large enough).
+      const swapMoodOk = (this.mood === 'aggressive' || this.mood === 'balanced') ||
+        (this.mood === 'defensive' && this.level === 'hard');
       if (!isDead && personaggiInHand.length > 0 && mosseInHand.length > 0 && effectiveEnemies.length > 0 &&
-          (this.mood === 'aggressive' || this.mood === 'balanced') &&
-          (this.level === 'medium' || this.level === 'hard')) {
+          swapMoodOk && (this.level === 'medium' || this.level === 'hard')) {
         const bestHandChar = personaggiInHand.reduce((best: any, c: any) =>
           this.extractStarsFromCard(c) > this.extractStarsFromCard(best) ? c : best, personaggiInHand[0]
         );
