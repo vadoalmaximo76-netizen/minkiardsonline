@@ -31946,6 +31946,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           targetCard.owner = attackerName;
           targetCard.pti = restoredPti;
           targetCard.stars = restoredStars;
+          targetCard.frontImage = 'https://i.ibb.co/pvNqWJHR/totalemostro.png';
           (targetCard as any).totaleeeConqueredOnce = true;
           targetCard.text = `TOTALEEEE — ${restoredPti} PTI, ${restoredStars} stelle — Conquistato da ${attackerName}!`;
           this.updateCardTextWithPTI(targetCard);
