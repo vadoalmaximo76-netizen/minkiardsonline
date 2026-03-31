@@ -742,8 +742,101 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
           </div>
         </header>
 
-        {/* ── Rank section (above panels) ── */}
-        {(homeConfig.rankSectionVisible || editMode) && homeConfig.rankSectionPosition === 'above' && (
+        {/* ── Top two-column section: score/rank + daily challenge ── */}
+        <section style={{ padding: '16px 16px 0' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.4fr)',
+            gap: 12,
+          }}
+          className="top-two-col"
+          >
+            {/* Left: rank/score badge */}
+            <div style={{
+              background: 'linear-gradient(135deg, #1e1b4b, #0f172a)',
+              border: '1px solid rgba(139,92,246,0.25)',
+              borderRadius: 16,
+              padding: '16px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              position: 'relative',
+              overflow: 'hidden',
+            }}>
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 160, height: 160, background: 'rgba(139,92,246,0.15)', filter: 'blur(40px)', borderRadius: '50%', pointerEvents: 'none' }} />
+              {/* Badge */}
+              <div style={{ position: 'relative', zIndex: 1, animation: 'rankFloat 4s ease-in-out infinite' }}>
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, #a855f7, #4f46e5)', borderRadius: '2rem', filter: 'blur(8px)', opacity: 0.45 }} />
+                <div style={{
+                  position: 'relative', width: 80, height: 90,
+                  background: 'linear-gradient(to bottom, #1e293b, #0f172a)',
+                  borderRadius: '2.2rem 2.2rem 3rem 3rem',
+                  border: '2px solid #7c3aed',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  overflow: 'hidden',
+                  animation: 'pulseBorder 2s ease-in-out infinite',
+                  boxShadow: '0 0 0 0 rgba(168,85,247,0.5)',
+                }}>
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '50%', background: 'linear-gradient(to bottom, rgba(255,255,255,0.08), transparent)' }} />
+                  <Flame style={{ width: 28, height: 28, color: '#c084fc', marginBottom: 3, filter: 'drop-shadow(0 0 6px rgba(192,132,252,0.9))' }} />
+                  <span style={{ fontSize: 18, fontWeight: 900, color: '#ffffff', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                    {userStats ? userStats.puntiRankiard.toLocaleString('it-IT') : '…'}
+                  </span>
+                  <span style={{ fontSize: 8, fontWeight: 700, color: '#c084fc', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 3 }}>
+                    {tierInfo ? tierInfo.tier.name : '…'}
+                  </span>
+                </div>
+                <div style={{
+                  position: 'absolute', bottom: -8, right: -8, width: 22, height: 22,
+                  background: '#0f172a', borderRadius: '50%', border: '1px solid #334155',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                }}>
+                  <span style={{ fontSize: 8, fontWeight: 800, color: '#94a3b8' }}>{tierInfo?.tier.numeral ?? '?'}</span>
+                </div>
+              </div>
+              {/* Progress bar */}
+              {userStats && tierInfo && (
+                <div style={{ width: '100%', zIndex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, fontWeight: 600, marginBottom: 4 }}>
+                    <span style={{ color: '#cbd5e1' }}>{tierInfo.tier.name}</span>
+                    {tierInfo.nextTier && (
+                      <span style={{ color: '#a78bfa', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tierInfo.nextTier.name}</span>
+                    )}
+                  </div>
+                  <div style={{ height: 7, width: '100%', background: '#0f172a', borderRadius: 999, border: '1px solid #1e293b', overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${barWidth}%`,
+                      background: 'linear-gradient(to right, #7c3aed, #6366f1, #60a5fa)',
+                      borderRadius: 999,
+                      transition: 'width 1.5s cubic-bezier(0.16,1,0.3,1)',
+                    }} />
+                  </div>
+                  {tierInfo.nextTier && (
+                    <p style={{ textAlign: 'center', fontSize: 9, color: '#475569', marginTop: 4, fontWeight: 500 }}>
+                      <span style={{ color: '#94a3b8' }}>{(tierInfo.nextTier.min - userStats.puntiRankiard).toLocaleString('it-IT')} pt</span> al prossimo
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Right: daily challenge panel */}
+            <div style={{ animation: 'rankFloat 4s ease-in-out 2s infinite' }}>
+              <DailyChallengePanel
+                userId={userId}
+                onPlay={() => onNavigate('daily-challenge')}
+                onLeaderboard={() => onNavigate('daily-challenge')}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* ── Rank section (above panels) ── only show in editMode since new top layout replaces it */}
+        {editMode && (homeConfig.rankSectionVisible || editMode) && homeConfig.rankSectionPosition === 'above' && (
         <section style={{ padding: '28px 20px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', opacity: editMode && !homeConfig.rankSectionVisible ? 0.4 : 1 }}>
           {/* Purple glow backdrop */}
           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 280, height: 280, background: 'rgba(139,92,246,0.18)', filter: 'blur(64px)', borderRadius: '50%', pointerEvents: 'none' }} />
@@ -1144,46 +1237,6 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
             </div>
           </button>
 
-          {/* Quick links */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
-            {[
-              { id: 'training',       icon: BookOpen, label: 'Allena'     },
-              { id: 'gym',            icon: Shield,   label: 'Palestre'   },
-              { id: 'daily-challenge', icon: Swords,  label: 'Sfida'      },
-              { id: 'leaderboard',    icon: Trophy,   label: 'Classifica' },
-            ].map(item => {
-              const IconComp = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => !editMode && onNavigate(item.id as any)}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                    padding: '8px 4px', borderRadius: 12, border: 'none',
-                    background: 'rgba(255,255,255,0.04)', cursor: editMode ? 'default' : 'pointer',
-                    transition: 'background 0.15s',
-                    opacity: editMode ? 0.4 : 1,
-                  }}
-                  onMouseEnter={e => { if (!editMode) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)'; }}
-                >
-                  <IconComp style={{ width: 18, height: 18, color: '#94a3b8' }} />
-                  <span style={{ fontSize: 9, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* ── Daily Challenge Panel ── */}
-          {!editMode && (
-            <div style={{ marginTop: 4 }}>
-              <DailyChallengePanel
-                userId={userId}
-                onPlay={() => onNavigate('daily-challenge')}
-                onLeaderboard={() => onNavigate('daily-challenge')}
-              />
-            </div>
-          )}
         </div>
       </div>
 
