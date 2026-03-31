@@ -1381,7 +1381,6 @@ export class GameManager {
       this.games.set(gameId, this.initializeGame(gameId, deletedCardIds));
       await this.createMatchRecord(gameId);
       await this.loadPermanentCardsIntoDeck(gameId);
-      await this.loadSeasonalCardsIntoDeck(gameId);
       await this.applyCardModificationsToDecks(gameId);
     }
 
@@ -1399,6 +1398,11 @@ export class GameManager {
     if (isDraftMode && isNewGame) {
       game.isDraftMode = true;
       game.playerDraftDecks = {};
+      // Inject seasonal cards now that isDraftMode is set on the game state
+      await this.loadSeasonalCardsIntoDeck(gameId);
+    } else if (isNewGame) {
+      // Non-draft new game: inject seasonal cards (all-mode only)
+      await this.loadSeasonalCardsIntoDeck(gameId);
     }
 
     // Load draft deck for this player if in draft mode and authenticated.
@@ -1531,6 +1535,42 @@ export class GameManager {
             mosse: buildCards(mosseIds, 'mosse'),
             bonus: buildCards(bonusIds, 'bonus'),
           };
+
+          // Inject active seasonal cards with gameMode='draft' into this player's personal deck
+          try {
+            const nowDraft = new Date();
+            const activeDraftEvents = await db.select().from(seasonalEvents)
+              .where(and(eq(seasonalEvents.isActive, true), lte(seasonalEvents.startDate, nowDraft), gt(seasonalEvents.endDate, nowDraft)));
+            for (const ev of activeDraftEvents) {
+              const draftSeasonalCards = await db.select().from(seasonalCards)
+                .where(and(eq(seasonalCards.eventId, ev.id), eq(seasonalCards.gameMode, 'draft')));
+              const deckTypeMapDraft: Record<string, 'personaggi' | 'mosse' | 'bonus'> = {
+                'PERSONAGGI': 'personaggi', 'MOSSE': 'mosse', 'BONUS': 'bonus',
+              };
+              for (const sc of draftSeasonalCards) {
+                const dk = deckTypeMapDraft[sc.deckType?.toUpperCase()];
+                if (!dk) continue;
+                const playerDeck = game.playerDraftDecks![playerName][dk];
+                const cardId = `seasonal-${sc.id}`;
+                if (playerDeck.some(c => c.id === cardId)) continue;
+                const isChar = dk === 'personaggi';
+                let cardTxt = '';
+                if (isChar && (sc.pti != null || sc.stars != null)) {
+                  cardTxt = [sc.pti != null ? `PTI: ${sc.pti}` : '', sc.stars != null ? `Stelle: ${sc.stars}` : ''].filter(Boolean).join(' | ');
+                }
+                playerDeck.push({
+                  id: cardId, type: dk,
+                  frontImage: sc.imageUrl || this.getBackImageForDeck(dk),
+                  backImage: this.getBackImageForDeck(dk),
+                  owner: '', name: sc.name,
+                  text: cardTxt || undefined,
+                  pti: isChar ? (sc.pti ?? null) : null,
+                  stars: isChar ? (sc.stars ?? null) : null,
+                  effect: sc.effect || undefined,
+                } as Card);
+              }
+            }
+          } catch (_) {}
 
           // Initialize growth tracker for this player
           if (!game.draftGrowthTracker) game.draftGrowthTracker = {};
