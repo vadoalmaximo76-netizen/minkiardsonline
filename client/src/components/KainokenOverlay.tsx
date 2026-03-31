@@ -4,79 +4,73 @@ interface CardInfo {
   id: string;
   name: string;
   frontImage: string;
+  deckKey: string;
 }
 
 interface KainokenOverlayProps {
   opponents: string[];
-  deckContents: {
-    bonus: CardInfo[];
-    mosse: CardInfo[];
-    personaggi: CardInfo[];
-  };
-  opponentHasType: { [opponentName: string]: { [deckKey: string]: boolean } };
-  onConfirm: (assignments: { [deckKey: string]: { [opponentName: string]: string } }) => void;
+  allCards: CardInfo[];
+  onConfirm: (assignments: { [opponentName: string]: string }) => void;
   onCancel: () => void;
 }
 
-const DECK_LABELS: { key: 'bonus' | 'mosse' | 'personaggi'; label: string; color: string }[] = [
-  { key: 'personaggi', label: 'PERSONAGGI', color: '#e74c3c' },
-  { key: 'mosse',      label: 'MOSSE',      color: '#3498db' },
-  { key: 'bonus',      label: 'BONUS',      color: '#f39c12' },
-];
+const DECK_COLORS: Record<string, string> = {
+  bonus: '#f39c12',
+  mosse: '#3498db',
+  personaggi: '#e74c3c',
+  personaggi_speciali: '#9b59b6',
+};
+
+const DECK_LABELS: Record<string, string> = {
+  bonus: 'BONUS',
+  mosse: 'MOSSE',
+  personaggi: 'PERSONAGGI',
+  personaggi_speciali: 'SPEC',
+};
 
 export default function KainokenOverlay({
   opponents,
-  deckContents,
-  opponentHasType,
+  allCards,
   onConfirm,
   onCancel,
 }: KainokenOverlayProps) {
-  const [assignments, setAssignments] = useState<{ [deckKey: string]: { [opponentName: string]: string } }>({
-    personaggi: {},
-    mosse: {},
-    bonus: {},
-  });
-
-  const getUsedCards = (deckKey: string, excludeOpponent?: string): Set<string> => {
-    const used = new Set<string>();
-    const deckAssign = assignments[deckKey] || {};
-    for (const [opp, cardId] of Object.entries(deckAssign)) {
-      if (opp !== excludeOpponent && cardId) used.add(cardId);
-    }
-    return used;
-  };
-
-  const setAssignment = (deckKey: string, opponentName: string, cardId: string) => {
-    setAssignments(prev => ({
-      ...prev,
-      [deckKey]: { ...prev[deckKey], [opponentName]: cardId },
-    }));
-  };
+  const [activeOpponent, setActiveOpponent] = useState<string>(opponents[0] || '');
+  const [assignments, setAssignments] = useState<{ [opponentName: string]: string }>({});
 
   const isComplete = useMemo(() => {
-    for (const { key } of DECK_LABELS) {
-      const cards = deckContents[key];
-      if (!cards || cards.length === 0) continue;
-      for (const opp of opponents) {
-        if (!opponentHasType[opp]?.[key]) continue;
-        if (!assignments[key]?.[opp]) return false;
-      }
+    return opponents.length > 0 && opponents.every(opp => !!assignments[opp]);
+  }, [assignments, opponents]);
+
+  const groupedCards = useMemo(() => {
+    const groups: Record<string, CardInfo[]> = {};
+    for (const card of allCards) {
+      if (!groups[card.deckKey]) groups[card.deckKey] = [];
+      groups[card.deckKey].push(card);
     }
-    return true;
-  }, [assignments, opponents, deckContents, opponentHasType]);
+    return groups;
+  }, [allCards]);
+
+  const usedCardIds = useMemo(() => {
+    const used = new Set<string>();
+    for (const [opp, cardId] of Object.entries(assignments)) {
+      if (opp !== activeOpponent && cardId) used.add(cardId);
+    }
+    return used;
+  }, [assignments, activeOpponent]);
+
+  const selectedForActive = assignments[activeOpponent] || '';
 
   return (
     <div
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.88)',
+        background: 'rgba(0,0,0,0.92)',
         zIndex: 9999,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '12px',
-        overflowY: 'auto',
       }}
     >
       <div
@@ -85,14 +79,16 @@ export default function KainokenOverlay({
           border: '2px solid #e91e8c',
           borderRadius: '16px',
           padding: '20px',
-          maxWidth: '620px',
           width: '100%',
+          maxWidth: '700px',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
           boxShadow: '0 0 50px rgba(233,30,140,0.4)',
           color: '#fff',
-          maxHeight: '90vh',
-          overflowY: 'auto',
         }}
       >
+        {/* Title */}
         <h2
           style={{
             textAlign: 'center',
@@ -102,124 +98,258 @@ export default function KainokenOverlay({
             marginBottom: '4px',
             letterSpacing: '3px',
             textShadow: '0 0 20px rgba(233,30,140,0.6)',
+            flexShrink: 0,
           }}
         >
           🎴 KAINOKEN
         </h2>
-        <p style={{ textAlign: 'center', color: '#c89ad0', fontSize: '12px', marginBottom: '18px' }}>
-          Scegli quale carta del mazzo dare a ogni avversario (sostituisce una carta dello stesso tipo dalla sua mano)
+        <p style={{ textAlign: 'center', color: '#c89ad0', fontSize: '12px', marginBottom: '14px', flexShrink: 0 }}>
+          Scegli 1 carta da dare a ogni avversario (sostituisce una carta dello stesso tipo nella sua mano)
         </p>
 
-        {DECK_LABELS.map(({ key, label, color }) => {
-          const cards = deckContents[key] || [];
-          const relevantOpponents = opponents.filter(opp => opponentHasType[opp]?.[key]);
-          if (cards.length === 0 || relevantOpponents.length === 0) return null;
+        {/* Opponent tabs */}
+        {opponents.length > 1 && (
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', flexShrink: 0 }}>
+            {opponents.map(opp => {
+              const hasSelection = !!assignments[opp];
+              const isActive = opp === activeOpponent;
+              return (
+                <button
+                  key={opp}
+                  onClick={() => setActiveOpponent(opp)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: isActive ? '2px solid #e91e8c' : '1px solid rgba(255,255,255,0.15)',
+                    background: isActive ? 'rgba(233,30,140,0.2)' : 'rgba(255,255,255,0.05)',
+                    color: isActive ? '#ff6ec7' : '#a080c0',
+                    fontSize: '13px',
+                    fontWeight: isActive ? 'bold' : 'normal',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  {hasSelection ? '✅' : '○'} {opp}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-          return (
-            <div key={key} style={{ marginBottom: '18px' }}>
-              <div
+        {/* Current opponent label (single opponent) */}
+        {opponents.length === 1 && (
+          <div style={{ textAlign: 'center', color: '#f0d0ff', fontWeight: 'bold', fontSize: '14px', marginBottom: '12px', flexShrink: 0 }}>
+            Avversario: <span style={{ color: '#ff6ec7' }}>{activeOpponent}</span>
+          </div>
+        )}
+
+        {/* Selected card preview */}
+        {selectedForActive && (() => {
+          const sel = allCards.find(c => c.id === selectedForActive);
+          return sel ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                background: 'rgba(233,30,140,0.15)',
+                border: '1px solid #e91e8c88',
+                borderRadius: '10px',
+                padding: '8px 12px',
+                marginBottom: '12px',
+                flexShrink: 0,
+              }}
+            >
+              {sel.frontImage && (
+                <img
+                  src={sel.frontImage}
+                  alt={sel.name}
+                  style={{ width: '36px', height: '50px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #e91e8c' }}
+                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                />
+              )}
+              <div>
+                <div style={{ fontSize: '11px', color: '#c89ad0' }}>Carta selezionata per {activeOpponent}:</div>
+                <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>{sel.name || sel.id}</div>
+                <div style={{ fontSize: '11px', color: DECK_COLORS[sel.deckKey] || '#aaa' }}>
+                  {DECK_LABELS[sel.deckKey] || sel.deckKey}
+                </div>
+              </div>
+              <button
+                onClick={() => setAssignments(prev => { const n = { ...prev }; delete n[activeOpponent]; return n; })}
                 style={{
-                  fontWeight: 'bold',
-                  fontSize: '13px',
-                  color,
-                  borderBottom: `1px solid ${color}55`,
-                  paddingBottom: '6px',
-                  marginBottom: '10px',
-                  letterSpacing: '1px',
+                  marginLeft: 'auto',
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid #555',
+                  borderRadius: '6px',
+                  color: '#ccc',
+                  fontSize: '11px',
+                  padding: '4px 10px',
+                  cursor: 'pointer',
                 }}
               >
-                ▪ {label}
+                Cambia
+              </button>
+            </div>
+          ) : null;
+        })()}
+
+        {/* Card grid by deck type */}
+        <div style={{ overflowY: 'auto', flex: 1, paddingRight: '4px' }}>
+          {Object.entries(groupedCards).map(([deckKey, cards]) => (
+            <div key={deckKey} style={{ marginBottom: '16px' }}>
+              <div
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  color: DECK_COLORS[deckKey] || '#aaa',
+                  letterSpacing: '1px',
+                  borderBottom: `1px solid ${DECK_COLORS[deckKey] || '#aaa'}44`,
+                  paddingBottom: '4px',
+                  marginBottom: '8px',
+                }}
+              >
+                ▪ {DECK_LABELS[deckKey] || deckKey}
               </div>
-
-              {relevantOpponents.map(opp => {
-                const usedCards = getUsedCards(key, opp);
-                const selectedCard = assignments[key]?.[opp] || '';
-                const selectedInfo = cards.find(c => c.id === selectedCard);
-
-                return (
-                  <div
-                    key={opp}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      background: 'rgba(255,255,255,0.05)',
-                      borderRadius: '10px',
-                      padding: '8px 12px',
-                      marginBottom: '8px',
-                      border: `1px solid ${selectedCard ? color + '88' : 'rgba(255,255,255,0.1)'}`,
-                    }}
-                  >
-                    {selectedInfo?.frontImage ? (
-                      <img
-                        src={selectedInfo.frontImage}
-                        alt={selectedInfo.name}
-                        style={{
-                          width: '36px',
-                          height: '50px',
-                          objectFit: 'cover',
-                          borderRadius: '5px',
-                          border: `1px solid ${color}`,
-                          flexShrink: 0,
-                        }}
-                        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    ) : (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))',
+                  gap: '6px',
+                }}
+              >
+                {cards.map(card => {
+                  const isSelected = selectedForActive === card.id;
+                  const isUsed = usedCardIds.has(card.id);
+                  return (
+                    <div
+                      key={card.id}
+                      onClick={() => {
+                        if (!isUsed) {
+                          setAssignments(prev => ({ ...prev, [activeOpponent]: card.id }));
+                        }
+                      }}
+                      title={card.name || card.id}
+                      style={{
+                        cursor: isUsed ? 'not-allowed' : 'pointer',
+                        opacity: isUsed ? 0.35 : 1,
+                        borderRadius: '6px',
+                        border: isSelected
+                          ? '2px solid #e91e8c'
+                          : `1px solid ${DECK_COLORS[deckKey] || '#555'}44`,
+                        boxShadow: isSelected ? '0 0 10px rgba(233,30,140,0.6)' : 'none',
+                        background: isSelected ? 'rgba(233,30,140,0.15)' : 'rgba(255,255,255,0.04)',
+                        overflow: 'hidden',
+                        position: 'relative',
+                        transition: 'box-shadow 0.15s, border-color 0.15s',
+                      }}
+                    >
+                      {card.frontImage ? (
+                        <img
+                          src={card.frontImage}
+                          alt={card.name}
+                          draggable={false}
+                          style={{
+                            width: '100%',
+                            aspectRatio: '2/3',
+                            objectFit: 'cover',
+                            display: 'block',
+                          }}
+                          onError={e => {
+                            const img = e.currentTarget as HTMLImageElement;
+                            img.style.display = 'none';
+                            const fallback = img.nextElementSibling as HTMLElement | null;
+                            if (fallback) fallback.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
                       <div
                         style={{
-                          width: '36px',
-                          height: '50px',
-                          background: 'rgba(255,255,255,0.08)',
-                          borderRadius: '5px',
-                          flexShrink: 0,
-                          display: 'flex',
+                          display: card.frontImage ? 'none' : 'flex',
+                          width: '100%',
+                          aspectRatio: '2/3',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '18px',
+                          fontSize: '22px',
+                          background: 'rgba(255,255,255,0.05)',
                         }}
                       >
                         🎴
                       </div>
-                    )}
-
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '11px', color: '#a080c0', marginBottom: '4px' }}>
-                        → <span style={{ color: '#f0d0ff', fontWeight: 'bold' }}>{opp}</span>
-                      </div>
-                      <select
-                        value={selectedCard}
-                        onChange={e => setAssignment(key, opp, e.target.value)}
+                      {isSelected && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '3px',
+                            right: '3px',
+                            background: '#e91e8c',
+                            borderRadius: '50%',
+                            width: '16px',
+                            height: '16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '10px',
+                          }}
+                        >
+                          ✓
+                        </div>
+                      )}
+                      <div
                         style={{
-                          width: '100%',
-                          padding: '5px 8px',
-                          borderRadius: '6px',
-                          border: `1px solid ${color}66`,
-                          background: '#0d0820',
-                          color: '#f0e0ff',
-                          fontSize: '12px',
-                          cursor: 'pointer',
-                          outline: 'none',
+                          fontSize: '9px',
+                          color: '#ccc',
+                          textAlign: 'center',
+                          padding: '2px 3px',
+                          background: 'rgba(0,0,0,0.7)',
+                          overflow: 'hidden',
+                          whiteSpace: 'nowrap',
+                          textOverflow: 'ellipsis',
                         }}
                       >
-                        <option value="">-- Scegli carta --</option>
-                        {cards.map(c => {
-                          const isUsed = usedCards.has(c.id);
-                          return (
-                            <option key={c.id} value={c.id} disabled={isUsed} style={{ color: isUsed ? '#666' : '#f0e0ff' }}>
-                              {c.name || c.id}{isUsed ? ' (già assegnata)' : ''}
-                            </option>
-                          );
-                        })}
-                      </select>
+                        {card.name || card.id}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          );
-        })}
+          ))}
+          {allCards.length === 0 && (
+            <div style={{ textAlign: 'center', color: '#777', fontSize: '13px', padding: '20px' }}>
+              Nessuna carta disponibile nei mazzi.
+            </div>
+          )}
+        </div>
 
-        <div style={{ display: 'flex', gap: '12px', marginTop: '8px', justifyContent: 'center' }}>
+        {/* Progress summary */}
+        <div style={{ flexShrink: 0, marginTop: '10px', marginBottom: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {opponents.map(opp => {
+            const sel = allCards.find(c => c.id === assignments[opp]);
+            return (
+              <div
+                key={opp}
+                style={{
+                  fontSize: '11px',
+                  padding: '3px 8px',
+                  borderRadius: '12px',
+                  background: assignments[opp] ? 'rgba(46,204,113,0.2)' : 'rgba(255,255,255,0.07)',
+                  border: `1px solid ${assignments[opp] ? '#2ecc71' : '#444'}`,
+                  color: assignments[opp] ? '#2ecc71' : '#888',
+                }}
+              >
+                {opp}: {sel ? (sel.name || sel.id) : '—'}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Buttons */}
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexShrink: 0 }}>
           <button
             onClick={onCancel}
             style={{

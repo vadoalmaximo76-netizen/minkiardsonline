@@ -4135,7 +4135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // ============ KAINOKEN INTERACTIVE HANDLERS ============
 
-    socket.on('kainoken-apply', ({ assignments }: { assignments: { [deckKey: string]: { [opponentName: string]: string } } }) => {
+    socket.on('kainoken-apply', ({ assignments }: { assignments: { [opponentName: string]: string } }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (!gameId) return;
       const game = gameManager.getGameState(gameId);
@@ -4146,40 +4146,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       delete (game as any).pendingKainokenAssign;
 
       const io = (global as any).io;
-      const deckKeys = ['bonus', 'mosse', 'personaggi'] as const;
       let swapped = 0;
 
-      for (const deckKey of deckKeys) {
-        const deck = (game.decks as any)[deckKey] as any[];
-        if (!deck) continue;
-        const deckAssignments = (assignments[deckKey] || {}) as { [opponentName: string]: string };
-        for (const [opponentName, cardId] of Object.entries(deckAssignments)) {
-          if (!cardId) continue;
-          const opp = game.players[opponentName];
-          if (!opp) continue;
-          const deckCardIdx = deck.findIndex((c: any) => c.id === cardId);
-          if (deckCardIdx === -1) continue;
-          const currentHand: any[] = opp.hand || [];
-          const handCardIdx = currentHand.findIndex((c: any) =>
-            c.type === deckKey || (deckKey === 'personaggi' && c.type === 'personaggi_speciali')
-          );
-          if (handCardIdx === -1) continue;
-          const deckCard = deck.splice(deckCardIdx, 1)[0];
-          if (!deckCard) continue;
-          const handCard = currentHand[handCardIdx];
-          deckCard.owner = opponentName;
-          const newHand = currentHand.filter((_: any, i: number) => i !== handCardIdx);
-          newHand.push(deckCard);
-          opp.hand = newHand;
-          deck.push({ ...handCard, owner: undefined });
+      for (const [opponentName, cardId] of Object.entries(assignments)) {
+        if (!cardId) continue;
+        const opp = game.players[opponentName];
+        if (!opp) continue;
+
+        // Find the card in any deck
+        let deckCard: any = null;
+        let foundDeckKey: string | null = null;
+        for (const dk of ['bonus', 'mosse', 'personaggi', 'personaggi_speciali'] as const) {
+          const deck = (game.decks as any)[dk] as any[];
+          if (!deck) continue;
+          const idx = deck.findIndex((c: any) => c.id === cardId);
+          if (idx !== -1) {
+            deckCard = deck.splice(idx, 1)[0];
+            foundDeckKey = dk;
+            break;
+          }
+        }
+        if (!deckCard || !foundDeckKey) continue;
+
+        // Find matching hand card to swap back
+        const currentHand: any[] = opp.hand || [];
+        const handCardIdx = currentHand.findIndex((c: any) =>
+          c.type === foundDeckKey || (foundDeckKey === 'personaggi' && c.type === 'personaggi_speciali')
+        );
+
+        deckCard.owner = opponentName;
+        const newHand = [...currentHand];
+        let handCard: any = null;
+        if (handCardIdx !== -1) {
+          handCard = newHand.splice(handCardIdx, 1)[0];
+        }
+        newHand.push(deckCard);
+        opp.hand = newHand;
+
+        const returnDeck = (game.decks as any)[foundDeckKey] as any[];
+        if (handCard && returnDeck) {
+          returnDeck.push({ ...handCard, owner: undefined });
           if (io) {
             io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-kainoken-${opponentName}-${deckKey}`,
-              message: `🎴 KAINOKEN! ${actingPlayer} dà "${deckCard.name || deckKey}" a ${opponentName}, che restituisce "${handCard.name || deckKey}" al mazzo!`,
+              id: `${Date.now()}-kainoken-${opponentName}`,
+              message: `🎴 KAINOKEN! ${actingPlayer} dà "${deckCard.name || foundDeckKey}" a ${opponentName}, che restituisce "${handCard.name || foundDeckKey}" al mazzo!`,
             });
           }
-          swapped++;
+        } else {
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-kainoken-${opponentName}`,
+              message: `🎴 KAINOKEN! ${actingPlayer} dà "${deckCard.name || foundDeckKey}" a ${opponentName}!`,
+            });
+          }
         }
+        swapped++;
       }
 
       if (swapped === 0 && io) {

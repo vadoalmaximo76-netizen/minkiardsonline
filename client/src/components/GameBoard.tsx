@@ -525,8 +525,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [kainokenPrompt, setKainokenPrompt] = useState<{
     visible: boolean;
     opponents: string[];
-    deckContents: { bonus: any[]; mosse: any[]; personaggi: any[] };
-    opponentHasType: { [opp: string]: { [deckKey: string]: boolean } };
+    allCards: Array<{ id: string; name: string; frontImage: string; deckKey: string }>;
   } | null>(null);
   const [sfaccimmPrompt, setSfaccimmPrompt] = useState<{
     visible: boolean;
@@ -1566,8 +1565,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('tangram-assign-prompt', handleTangramAssignPrompt);
 
     // KAINOKEN INTERACTIVE SELECTION
-    const handleKainokenPrompt = (data: { opponents: string[]; deckContents: any; opponentHasType: any }) => {
-      setKainokenPrompt({ visible: true, opponents: data.opponents, deckContents: data.deckContents, opponentHasType: data.opponentHasType });
+    const handleKainokenPrompt = (data: { opponents: string[]; allCards: any[] }) => {
+      setKainokenPrompt({ visible: true, opponents: data.opponents, allCards: data.allCards || [] });
     };
     socket.on('kainoken-prompt', handleKainokenPrompt);
 
@@ -5003,8 +5002,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         {kainokenPrompt && kainokenPrompt.visible && (
           <KainokenOverlay
             opponents={kainokenPrompt.opponents}
-            deckContents={kainokenPrompt.deckContents}
-            opponentHasType={kainokenPrompt.opponentHasType}
+            allCards={kainokenPrompt.allCards}
             onConfirm={(assignments) => {
               socket.emit('kainoken-apply', { assignments });
               setKainokenPrompt(null);

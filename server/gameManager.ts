@@ -4636,6 +4636,7 @@ Rispondi SOLO in JSON:`;
           [/^baratto$/i, 'baratto'],
           [/^kainoken$/i, 'kainoken'],
           [/^tangram$/i, 'tangram'],
+          [/^sfaccim+$/i, 'sfaccimm'],
         ];
         for (const [pattern, key] of NAME_INJECT_MAP) {
           if (pattern.test(cardNameLower)) {
@@ -6371,6 +6372,7 @@ Rispondi SOLO in JSON:`;
         [/^baratto$/i, 'baratto'],
         [/^kainoken$/i, 'kainoken'],
         [/^tangram$/i, 'tangram'],
+        [/^sfaccim+$/i, 'sfaccimm'],
       ];
       for (const [pattern, effectKey] of nameBasedEffects) {
         if (pattern.test(cardDisplayName)) {
@@ -8815,13 +8817,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           for (const opponentName of targetOpponents) {
             const opp = game.players[opponentName];
             if (!opp) continue;
-            const deckTypeMap: { deckKey: string; cardType: string }[] = [
-              { deckKey: 'bonus',      cardType: 'bonus' },
-              { deckKey: 'mosse',      cardType: 'mosse' },
-              { deckKey: 'personaggi', cardType: 'personaggi' },
-            ];
-            let swappedForThisOpponent = 0;
-            for (const { deckKey, cardType } of deckTypeMap) {
+            // Collect candidates: (deckCard, deckKey, deck) where opponent has matching hand card
+            const candidates: Array<{ deckCard: Card; deckKey: string; deck: Card[] }> = [];
+            for (const deckKey of ['bonus', 'mosse', 'personaggi'] as const) {
               const isDraft = game.isDraftMode || game.isGymMode;
               let deck: Card[];
               if (isDraft && (game as any).playerDraftDecks?.[opponentName]?.[deckKey]) {
@@ -8831,24 +8829,36 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               }
               if (!deck || deck.length === 0) continue;
               const currentHand: Card[] = opp.hand || [];
-              const handCardIdx = currentHand.findIndex((c: Card) =>
-                c.type === cardType || (cardType === 'personaggi' && c.type === 'personaggi_speciali')
+              const hasMatch = currentHand.some((c: Card) =>
+                c.type === deckKey || (deckKey === 'personaggi' && c.type === 'personaggi_speciali')
               );
-              if (handCardIdx === -1) continue;
+              if (!hasMatch) continue;
               const deckCardIdx = Math.floor(Math.random() * deck.length);
-              const deckCard = deck.splice(deckCardIdx, 1)[0];
-              if (!deckCard) continue;
-              const handCard = currentHand[handCardIdx];
-              deckCard.owner = opponentName;
-              const newHand = currentHand.filter((_: Card, i: number) => i !== handCardIdx);
-              newHand.push(deckCard);
-              opp.hand = newHand;
-              deck.push({ ...handCard, owner: undefined } as any);
-              emitChat(`🎴 KAINOKEN! ${playerName} dà "${deckCard.name || deckKey}" (dal mazzo ${deckKey}) a ${opponentName}, che restituisce "${handCard.name || cardType}" al mazzo!`);
-              swapped++;
-              swappedForThisOpponent++;
+              candidates.push({ deckCard: deck[deckCardIdx], deckKey, deck });
             }
-            if (swappedForThisOpponent === 0) emitChat(`🎴 KAINOKEN! Nessuna carta compatibile da scambiare con ${opponentName}.`);
+            if (candidates.length === 0) {
+              emitChat(`🎴 KAINOKEN! Nessuna carta compatibile da scambiare con ${opponentName}.`);
+              continue;
+            }
+            // Pick 1 random candidate (1 card total per opponent)
+            const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+            const { deckCard, deckKey, deck } = chosen;
+            const deckIdx = deck.findIndex((c: Card) => c.id === deckCard.id);
+            if (deckIdx === -1) continue;
+            deck.splice(deckIdx, 1);
+            const currentHand: Card[] = opp.hand || [];
+            const handCardIdx = currentHand.findIndex((c: Card) =>
+              c.type === deckKey || (deckKey === 'personaggi' && c.type === 'personaggi_speciali')
+            );
+            if (handCardIdx === -1) { deck.splice(deckIdx, 0, deckCard); continue; }
+            const handCard = currentHand[handCardIdx];
+            deckCard.owner = opponentName;
+            const newHand = currentHand.filter((_: Card, i: number) => i !== handCardIdx);
+            newHand.push(deckCard);
+            opp.hand = newHand;
+            deck.push({ ...handCard, owner: undefined } as any);
+            emitChat(`🎴 KAINOKEN! ${playerName} dà "${deckCard.name || deckKey}" a ${opponentName}, che restituisce "${handCard.name || deckKey}" al mazzo!`);
+            swapped++;
           }
           if (swapped === 0) emitChat(`🎴 KAINOKEN! Nessuna carta scambiata (mazzi vuoti o mani avversarie senza carte compatibili).`);
           if (io && swapped > 0) {
@@ -8866,31 +8876,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (isCPU) {
           kainokenAutoSwap(opponents);
         } else {
-          // Human: show interactive panel to choose which deck card to give each opponent
-          const deckKeys = ['bonus', 'mosse', 'personaggi'] as const;
-          const deckContents: { [key: string]: Array<{ id: string; name: string; frontImage: string }> } = {};
-          for (const deckKey of deckKeys) {
+          // Human: show interactive panel — all deck cards combined, player picks 1 per opponent
+          const allCards: Array<{ id: string; name: string; frontImage: string; deckKey: string }> = [];
+          for (const deckKey of ['bonus', 'mosse', 'personaggi'] as const) {
             const deck = (game.decks as any)[deckKey] as Card[] | undefined;
-            deckContents[deckKey] = (deck || []).slice(0, 30).map((c: Card) => ({
-              id: c.id,
-              name: c.name || '',
-              frontImage: c.frontImage || '',
-            }));
-          }
-          const opponentHasType: { [opponentName: string]: { [deckKey: string]: boolean } } = {};
-          for (const opponentName of opponents) {
-            const opp = game.players[opponentName];
-            if (!opp) continue;
-            opponentHasType[opponentName] = {
-              bonus:      (opp.hand || []).some((c: Card) => c.type === 'bonus'),
-              mosse:      (opp.hand || []).some((c: Card) => c.type === 'mosse'),
-              personaggi: (opp.hand || []).some((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali'),
-            };
+            (deck || []).slice(0, 50).forEach((c: Card) => {
+              allCards.push({ id: c.id, name: c.name || '', frontImage: c.frontImage || '', deckKey });
+            });
           }
           (game as any).pendingKainokenAssign = { playerName, cardId: card.id, opponents };
           const socketId = (game.players[playerName] as any)?.socketId;
           if (io && socketId) {
-            io.to(socketId).emit('kainoken-prompt', { opponents, deckContents, opponentHasType });
+            io.to(socketId).emit('kainoken-prompt', { opponents, allCards });
           }
           emitChat(`🎴 KAINOKEN! ${playerName} sta scegliendo le carte per i suoi avversari...`);
         }
