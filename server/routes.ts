@@ -3885,27 +3885,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // ============ BLOCCO: player selection confirmation ============
-    socket.on('blocco-player-confirm', ({ cardId, targetPlayer, playerName: confirmerName }: { cardId: string; targetPlayer: string; playerName: string }) => {
+    socket.on('blocco-player-confirm', ({ cardId, targetPlayer }: { cardId: string; targetPlayer: string }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (!gameId) return;
       const game = gameManager.getGameState(gameId);
       if (!game) return;
 
-      const pending = (game as any).pendingBloccoEffect;
-      if (!pending || pending.playerName !== confirmerName) {
-        console.warn(`⚠️ blocco-player-confirm: no matching pending effect for ${confirmerName}`);
+      // Derive acting player from server-side socket identity — never trust client payload
+      const actingPlayer = gameManager.getPlayerNameFromSocket(socket.id);
+      if (!actingPlayer) {
+        console.warn(`⚠️ blocco-player-confirm: cannot resolve player for socket ${socket.id}`);
         return;
       }
+
+      const pending = (game as any).pendingBloccoEffect;
+      if (!pending || pending.playerName !== actingPlayer) {
+        console.warn(`⚠️ blocco-player-confirm: no matching pending effect for ${actingPlayer}`);
+        return;
+      }
+
+      // Validate targetPlayer is a real opponent in this game
+      const validTarget = game.turnOrder.includes(targetPlayer) && targetPlayer !== actingPlayer;
+      if (!validTarget) {
+        console.warn(`⚠️ blocco-player-confirm: invalid target "${targetPlayer}" for game ${gameId}`);
+        return;
+      }
+
       delete (game as any).pendingBloccoEffect;
 
       if (!game.skipTurnPlayers) game.skipTurnPlayers = [];
       game.skipTurnPlayers.push(targetPlayer);
-      console.log(`🚫 BLOCCO: ${confirmerName} blocked ${targetPlayer} — added to skipTurnPlayers`);
+      console.log(`🚫 BLOCCO: ${actingPlayer} blocked ${targetPlayer} — added to skipTurnPlayers`);
 
       io.to(gameId).emit('chat-message', {
         id: `${Date.now()}-blocco-confirm`,
         playerName: 'Sistema',
-        message: `🚫 BLOCCO! ${confirmerName} ha bloccato ${targetPlayer}: salterà il prossimo turno!`,
+        message: `🚫 BLOCCO! ${actingPlayer} ha bloccato ${targetPlayer}: salterà il prossimo turno!`,
         timestamp: Date.now(),
       });
 

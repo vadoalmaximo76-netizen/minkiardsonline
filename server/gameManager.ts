@@ -4504,6 +4504,7 @@ Rispondi SOLO in JSON:`;
       if (card.type === 'bonus' && !effectText) {
         const NAME_INJECT_MAP: Array<[RegExp, string]> = [
           [/sta\s+buon\s+rocc/i, 'sta_buon_rocc'],
+          [/^blocco$/i, 'blocco'],
         ];
         for (const [pattern, key] of NAME_INJECT_MAP) {
           if (pattern.test(cardNameLower)) {
