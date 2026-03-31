@@ -4794,6 +4794,8 @@ Rispondi SOLO in JSON:`;
           [/^sdoppiamento$/i, 'sdoppiamento'],
           [/^fantafinanza$/i, 'fantafinanza'],
           [/faccio\s+quello\s+che\s+voglio/i, 'faccio_quello_che_voglio'],
+          [/una\s+tempesta\s+baby/i, 'una_tempesta_baby'],
+          [/un\s+posto\s+galattico/i, 'un_posto_galattico'],
         ];
         for (const [pattern, key] of NAME_INJECT_MAP) {
           if (pattern.test(cardNameLower)) {
@@ -6611,6 +6613,8 @@ Rispondi SOLO in JSON:`;
         [/^sdoppiamento$/i, 'sdoppiamento'],
         [/^fantafinanza$/i, 'fantafinanza'],
         [/faccio\s+quello\s+che\s+voglio/i, 'faccio_quello_che_voglio'],
+        [/una\s+tempesta\s+baby/i, 'una_tempesta_baby'],
+        [/un\s+posto\s+galattico/i, 'un_posto_galattico'],
       ];
       for (const [pattern, effectKey] of nameBasedEffects) {
         if (pattern.test(cardDisplayName)) {

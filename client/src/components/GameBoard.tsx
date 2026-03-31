@@ -538,6 +538,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     cardId: string;
     selected: string[];
   } | null>(null);
+  const [faccioQuelloPrompt, setFaccioQuelloPrompt] = useState<{
+    players: string[];
+    isAlBano: boolean;
+    cardId: string;
+    selectedPairs: [string, string][];
+    currentPick: string | null;
+  } | null>(null);
   const [lastPlayedCards, setLastPlayedCards] = useState<Array<{
     id: string;
     frontImage: string;
@@ -1621,6 +1628,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('sfaccimm-error', handleSfaccimmError);
 
+    const handleFaccioQuelloPrompt = (data: { players: string[]; isAlBano: boolean; cardId: string }) => {
+      console.log('🎲 FACCIO QUELLO CHE VOGLIO prompt received:', data);
+      setFaccioQuelloPrompt({ players: data.players, isAlBano: data.isAlBano, cardId: data.cardId, selectedPairs: [], currentPick: null });
+    };
+    socket.on('faccio-quello-prompt', handleFaccioQuelloPrompt);
+
     // SWAP SELECTION: Handle baratto/swap panel for selecting player to swap with
     const handleShowSwapSelection = (data: { cardId: string; cardName: string; playerName: string; otherPlayers: string[]; effectDescription: string }) => {
       console.log('🔄 Show swap selection:', data);
@@ -2561,6 +2574,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('kainoken-prompt', handleKainokenPrompt);
       socket.off('sfaccimm-select-prompt', handleSfaccimmSelectPrompt);
       socket.off('sfaccimm-error', handleSfaccimmError);
+      socket.off('faccio-quello-prompt', handleFaccioQuelloPrompt);
       socket.off('show-swap-selection', handleShowSwapSelection);
       socket.off('show-blocco-player-selection', handleShowBloccoPlayerSelection);
       socket.off('show-dice-control-panel', handleShowDiceControlPanel);
@@ -5329,6 +5343,97 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               setSfaccimmPrompt(null);
             }}
           />
+        )}
+
+        {/* FACCIO QUELLO CHE VOGLIO - HAND SWAP PANEL */}
+        {faccioQuelloPrompt && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.80)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: '#1a1a2e', border: '2px solid #e94560', borderRadius: 12, padding: 24, maxWidth: 480, width: '90%', color: '#fff' }}>
+              <h2 style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' }}>🎲 FACCIO QUELLO CHE VOGLIO!</h2>
+              <p style={{ fontSize: 13, color: '#aaa', marginBottom: 16, textAlign: 'center' }}>
+                {faccioQuelloPrompt.isAlBano
+                  ? 'AL BANO: seleziona le coppie di giocatori tra cui scambiare una singola carta (cieca). Clicca un giocatore, poi un altro per formare una coppia.'
+                  : 'Seleziona le coppie di giocatori di cui vuoi scambiare le mani intere. Clicca un giocatore, poi un altro per formare una coppia.'}
+              </p>
+
+              {/* Current selection in progress */}
+              {faccioQuelloPrompt.currentPick && (
+                <p style={{ color: '#ffd700', fontSize: 13, textAlign: 'center', marginBottom: 8 }}>
+                  Hai selezionato <strong>{faccioQuelloPrompt.currentPick}</strong> — scegli il secondo giocatore
+                </p>
+              )}
+
+              {/* Player buttons */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 16 }}>
+                {faccioQuelloPrompt.players.map(p => {
+                  const isInPair = faccioQuelloPrompt.selectedPairs.some(([a, b]) => a === p || b === p);
+                  const isCurrentPick = faccioQuelloPrompt.currentPick === p;
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => {
+                        setFaccioQuelloPrompt(prev => {
+                          if (!prev) return prev;
+                          if (prev.currentPick === null) {
+                            return { ...prev, currentPick: p };
+                          } else if (prev.currentPick === p) {
+                            return { ...prev, currentPick: null };
+                          } else {
+                            const newPair: [string, string] = [prev.currentPick, p];
+                            return { ...prev, selectedPairs: [...prev.selectedPairs, newPair], currentPick: null };
+                          }
+                        });
+                      }}
+                      style={{
+                        padding: '8px 14px', borderRadius: 8, border: isCurrentPick ? '2px solid #ffd700' : '2px solid #444',
+                        background: isCurrentPick ? '#5a4a00' : isInPair ? '#1a3a1a' : '#2a2a3a',
+                        color: isInPair ? '#88ff88' : '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 'bold',
+                      }}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Selected pairs list */}
+              {faccioQuelloPrompt.selectedPairs.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <p style={{ fontSize: 12, color: '#aaa', marginBottom: 6 }}>Scambi selezionati:</p>
+                  {faccioQuelloPrompt.selectedPairs.map(([a, b], idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 13, color: '#88ff88' }}>{a} ↔ {b}</span>
+                      <button onClick={() => setFaccioQuelloPrompt(prev => prev ? { ...prev, selectedPairs: prev.selectedPairs.filter((_, i) => i !== idx) } : prev)}
+                        style={{ background: '#600', border: 'none', borderRadius: 4, color: '#fff', cursor: 'pointer', fontSize: 11, padding: '2px 6px' }}>
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                <button
+                  onClick={() => {
+                    socket.emit('faccio-quello-apply', { swapPairs: faccioQuelloPrompt.selectedPairs });
+                    setFaccioQuelloPrompt(null);
+                  }}
+                  style={{ background: '#22843a', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', cursor: 'pointer', fontWeight: 'bold', fontSize: 15 }}
+                >
+                  Conferma scambio
+                </button>
+                <button
+                  onClick={() => {
+                    socket.emit('faccio-quello-cancel');
+                    setFaccioQuelloPrompt(null);
+                  }}
+                  style={{ background: '#600', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', cursor: 'pointer', fontWeight: 'bold', fontSize: 15 }}
+                >
+                  Annulla
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Custom Animation Overlay */}
