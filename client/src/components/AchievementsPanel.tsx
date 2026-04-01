@@ -4,6 +4,7 @@ import { Button } from "./ui/button";
 import { Progress } from "./ui/progress";
 import { CoinAnimation } from "./CoinAnimation";
 import { useAudio } from "../lib/stores/useAudio";
+import { GuestWall } from "./GuestWall";
 
 interface Achievement {
   id: number;
@@ -24,6 +25,7 @@ interface AchievementsPanelProps {
   onClose: () => void;
   authToken: string | null;
   onPointsUpdated?: (newTotal: number) => void;
+  onLogin?: () => void;
 }
 
 const CATEGORY_ORDER = ['bronze', 'silver', 'gold', 'legendary'];
@@ -66,7 +68,8 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
   isOpen,
   onClose,
   authToken,
-  onPointsUpdated
+  onPointsUpdated,
+  onLogin,
 }) => {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,6 +161,27 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
   const totalCount = achievements.length;
 
   if (!isOpen) return null;
+
+  if (!authToken) {
+    return (
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl border border-purple-500/30 shadow-2xl w-full max-w-2xl">
+          <div className="flex items-center justify-between p-4 border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-500/20 rounded-lg">
+                <Trophy className="w-6 h-6 text-purple-400" />
+              </div>
+              <h2 className="text-xl font-bold text-white">Achievements</h2>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+              <X className="w-5 h-5 text-white/60" />
+            </button>
+          </div>
+          <GuestWall onLogin={onLogin || (() => {})} featureName="gli Achievement" inline />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

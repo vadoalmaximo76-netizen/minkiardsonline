@@ -5,12 +5,14 @@ import { SeasonPass } from './SeasonPass';
 import { Marketplace } from './Marketplace';
 import { socket } from '../lib/socket';
 import { useToast } from '../hooks/use-toast';
+import { GuestWall } from './GuestWall';
 
 interface DraftSectionProps {
   onBack: () => void;
   onGoToTournaments?: () => void;
   playerName: string;
   userId?: number;
+  onLogin?: () => void;
 }
 
 interface DraftCard {
@@ -120,7 +122,7 @@ function getAuthHeaders(): Record<string, string> {
     : { 'Content-Type': 'application/json' };
 }
 
-export function DraftSection({ onBack, playerName, userId, onGoToTournaments }: DraftSectionProps) {
+export function DraftSection({ onBack, playerName, userId, onGoToTournaments, onLogin }: DraftSectionProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'deck' | 'shop' | 'credits' | 'packs' | 'pass' | 'marketplace' | 'torneo' | 'classifica'>('deck');
   const [status, setStatus] = useState<DraftStatus | null>(null);
@@ -1021,6 +1023,31 @@ export function DraftSection({ onBack, playerName, userId, onGoToTournaments }: 
     { value: 'name-asc', label: 'Nome A-Z' },
     { value: 'name-desc', label: 'Nome Z-A' },
   ];
+
+  const authToken = localStorage.getItem('authToken');
+
+  if (!authToken) {
+    return (
+      <div className="min-h-screen bg-arena-deep flex flex-col relative overflow-hidden">
+        <div className="fixed inset-0 pointer-events-none" style={{
+          background: 'radial-gradient(ellipse at 20% 10%, rgba(88, 28, 135, 0.35) 0%, transparent 55%), radial-gradient(ellipse at 80% 90%, rgba(30, 58, 138, 0.3) 0%, transparent 55%), linear-gradient(180deg, #03050d 0%, #070b1a 30%, #0a1028 60%, #060918 100%)'
+        }} />
+        <div className="relative z-10 flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/20 backdrop-blur-sm flex-shrink-0">
+          <button onClick={onBack} className="flex items-center gap-2 text-white/70 hover:text-white transition-colors group">
+            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+            <span className="font-medium text-sm">Home</span>
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center">
+              <Shuffle className="w-4 h-4 text-white" />
+            </div>
+            <h1 className="text-white font-black text-lg tracking-wide">Modalità Draft</h1>
+          </div>
+        </div>
+        <GuestWall onLogin={onLogin || (() => {})} featureName="la Modalità Draft" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-arena-deep flex flex-col relative overflow-hidden">
@@ -2536,6 +2563,7 @@ export function DraftSection({ onBack, playerName, userId, onGoToTournaments }: 
           <SeasonPass
             userId={userId || 0}
             onClose={() => setActiveTab('deck')}
+            onLogin={onLogin}
           />
         </div>
       )}

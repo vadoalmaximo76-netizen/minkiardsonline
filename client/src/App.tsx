@@ -905,6 +905,7 @@ function App() {
             socket={socket}
             onBack={handleGoHome}
             onUpdateProfile={handleUpdateProfile}
+            onLogin={() => setShowAuthDialog(true)}
           />
         </div>
         <SpotifyPlayer disabled={false} />
@@ -926,6 +927,7 @@ function App() {
             userId={authenticatedUser?.id}
             onBack={handleGoHome}
             onGoToTournaments={() => { setOpenHomeTournaments(true); navigateTo('home', 'back'); }}
+            onLogin={() => setShowAuthDialog(true)}
           />
         </div>
         <SpotifyPlayer disabled={false} />
@@ -949,6 +951,7 @@ function App() {
             userEmail={authenticatedUser?.email ?? ''}
             onClose={handleGoHome}
             onPlayMatch={handleJoinTournamentMatch}
+            onLogin={() => setShowAuthDialog(true)}
           />
         </div>
         <SpotifyPlayer disabled={false} />
@@ -1025,6 +1028,7 @@ function App() {
           pendingGymGame={pendingGymGame ?? undefined}
           onResumeGymGame={(gameId) => handleResumeGame(gameId, authenticatedUser?.username || playerName)}
           onClearPendingGymGame={() => setPendingGymGame(null)}
+          onLogin={() => setShowAuthDialog(true)}
         />
         <SpotifyPlayer disabled={false} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
@@ -1042,6 +1046,7 @@ function App() {
           userId={authenticatedUser?.id}
           avatarId={authenticatedUser?.avatar}
           onBack={handleGoHome}
+          onLogin={() => setShowAuthDialog(true)}
         />
         <SpotifyPlayer disabled={false} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
@@ -1207,6 +1212,7 @@ function App() {
                 setFantaReturnId(fantaId);
                 setCurrentSection('fanta');
               }}
+              onLogin={() => setShowAuthDialog(true)}
             />
           </GameErrorBoundary>
         </div>

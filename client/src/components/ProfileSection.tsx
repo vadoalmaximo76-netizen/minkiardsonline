@@ -21,6 +21,7 @@ interface ProfileSectionProps {
   socket?: any;
   onBack: () => void;
   onUpdateProfile: (updates: { username?: string; avatar?: string }) => void;
+  onLogin?: () => void;
 }
 
 interface UserStats {
@@ -56,7 +57,7 @@ interface TradeHistoryEntry {
   cardStars: number | null;
 }
 
-export function ProfileSection({ playerName, userId, userEmail, userAvatar, socket, onBack, onUpdateProfile }: ProfileSectionProps) {
+export function ProfileSection({ playerName, userId, userEmail, userAvatar, socket, onBack, onUpdateProfile, onLogin }: ProfileSectionProps) {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -1152,6 +1153,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
             currentUserId={userId}
             socket={socket}
             initialConversationId={initialConversationId}
+            onLogin={onLogin}
             onClose={() => {
               setShowMessagesPanel(false);
               setInitialConversationId(null);

@@ -113,9 +113,10 @@ interface GameBoardProps {
   onLeaveGame?: () => void;
   onContinueTournament?: () => void;
   onContinueFantaTournament?: (fantaId: string) => void;
+  onLogin?: () => void;
 }
 
-export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout, authToken, onBack, onLeaveGame, onContinueTournament, onContinueFantaTournament, isGymMode }) => {
+export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout, authToken, onBack, onLeaveGame, onContinueTournament, onContinueFantaTournament, isGymMode, onLogin }) => {
   const [, _forceCloudUpdate] = useState(0);
   const _cloudNameReadyAtMount = useRef(!!getCloudinaryCloudName());
   useEffect(() => {
@@ -2972,6 +2973,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         isOpen={missionsOpen}
         onClose={() => setMissionsOpen(false)}
         authToken={authToken || null}
+        onLogin={onLogin}
         onPointsUpdated={(newTotal) => {
           setUserRankiardPoints(newTotal);
         }}
@@ -2982,6 +2984,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         isOpen={achievementsOpen}
         onClose={() => setAchievementsOpen(false)}
         authToken={authToken || null}
+        onLogin={onLogin}
         onPointsUpdated={(newTotal) => {
           setUserRankiardPoints(newTotal);
         }}

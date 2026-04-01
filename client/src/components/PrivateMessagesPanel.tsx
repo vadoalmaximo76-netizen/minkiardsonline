@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Search, Send, MessageCircle, X, Check, CheckCheck, Mic, Square, Trash2, Loader } from 'lucide-react';
+import { GuestWall } from './GuestWall';
 
 interface ConversationWithDetails {
   id: number;
@@ -29,6 +30,7 @@ interface PrivateMessagesPanelProps {
   socket: any;
   onClose: () => void;
   initialConversationId?: number | null;
+  onLogin?: () => void;
 }
 
 const AVATARS = ['😎','🔥','⚡','🎮','👑','💎','🐉','🦁','🦊','🐺','🎯','🚀'];
@@ -69,7 +71,7 @@ function dayLabel(dateStr: string): string {
   return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-export default function PrivateMessagesPanel({ authToken, currentUserId, socket, onClose, initialConversationId }: PrivateMessagesPanelProps) {
+export default function PrivateMessagesPanel({ authToken, currentUserId, socket, onClose, initialConversationId, onLogin }: PrivateMessagesPanelProps) {
   const [conversations, setConversations] = useState<ConversationWithDetails[]>([]);
   const [selectedConv, setSelectedConv] = useState<ConversationWithDetails | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -493,6 +495,34 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
             </>
           )}
         </div>
+      </div>
+    ), document.body);
+  }
+
+  if (!authToken) {
+    return createPortal((
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 9000,
+        background: 'linear-gradient(160deg,#060914,#08101e,#060912)',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '12px 16px',
+          borderBottom: '1px solid rgba(139,92,246,0.2)',
+          background: 'rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(12px)',
+          flexShrink: 0,
+        }}>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(192,132,252,0.8)', padding: 4, display: 'flex', outline: 'none' }}
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div style={{ color: 'white', fontWeight: 700, fontSize: 18 }}>Messaggi Privati</div>
+        </div>
+        <GuestWall onLogin={onLogin || (() => {})} featureName="i Messaggi Privati" />
       </div>
     ), document.body);
   }

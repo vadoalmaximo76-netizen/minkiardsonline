@@ -6,10 +6,12 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Loader2, Lock, CheckCircle2, Trophy, Star, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { GuestWall } from "./GuestWall";
 
 interface SeasonPassProps {
   userId: number;
   onClose: () => void;
+  onLogin?: () => void;
 }
 
 interface Pass {
@@ -65,7 +67,7 @@ const getRewardLabel = (type: string, value: string | number) => {
   }
 };
 
-export function SeasonPass({ userId, onClose }: SeasonPassProps) {
+export function SeasonPass({ userId, onClose, onLogin }: SeasonPassProps) {
   const [data, setData] = useState<SeasonPassData | null>(null);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState<number | null>(null);
@@ -130,6 +132,21 @@ export function SeasonPass({ userId, onClose }: SeasonPassProps) {
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     return `${days}g ${hours}o`;
   }, [data?.pass?.endDate]);
+
+  const authToken = localStorage.getItem('authToken');
+
+  if (!authToken) {
+    return (
+      <Dialog open onOpenChange={() => onClose()}>
+        <DialogContent className="max-w-4xl bg-slate-900/95 text-white border-slate-800">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-center">Pass Stagionale</DialogTitle>
+          </DialogHeader>
+          <GuestWall onLogin={onLogin || (() => {})} featureName="il Pass Stagionale" inline />
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   if (loading) {
     return (

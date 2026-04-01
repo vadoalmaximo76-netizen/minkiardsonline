@@ -4,6 +4,7 @@ import { Button } from "./ui/button";
 import { Progress } from "./ui/progress";
 import { CoinAnimation } from "./CoinAnimation";
 import { useAudio } from "../lib/stores/useAudio";
+import { GuestWall } from "./GuestWall";
 
 interface Mission {
   id: number;
@@ -24,13 +25,15 @@ interface MissionsPanelProps {
   onClose: () => void;
   authToken: string | null;
   onPointsUpdated?: (newTotal: number) => void;
+  onLogin?: () => void;
 }
 
 export const MissionsPanel: React.FC<MissionsPanelProps> = ({
   isOpen,
   onClose,
   authToken,
-  onPointsUpdated
+  onPointsUpdated,
+  onLogin,
 }) => {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,6 +127,27 @@ export const MissionsPanel: React.FC<MissionsPanelProps> = ({
   };
 
   if (!isOpen) return null;
+
+  if (!authToken) {
+    return (
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl border border-cyan-500/30 shadow-2xl w-full max-w-lg">
+          <div className="flex items-center justify-between p-4 border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-cyan-500/20 rounded-lg">
+                <Target className="w-6 h-6 text-cyan-400" />
+              </div>
+              <h2 className="text-xl font-bold text-white">Missioni Giornaliere</h2>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+              <X className="w-5 h-5 text-white/60" />
+            </button>
+          </div>
+          <GuestWall onLogin={onLogin || (() => {})} featureName="le Missioni" inline />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

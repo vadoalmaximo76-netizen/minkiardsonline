@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, Shield, Star, Lock, CheckCircle, Swords, Trophy, ChevronRight, Sparkles, Heart, Target, Users, BookOpen, X } from 'lucide-react';
+import { GuestWall } from './GuestWall';
 import { GameBoard } from './GameBoard';
 import { socket } from '../lib/socket';
 import { useGameState } from '../lib/stores/useGameState';
@@ -50,6 +51,7 @@ interface GymModeProps {
   pendingGymGame?: { gameId: string; gymLeaderCpuName?: string; gymLeaderId?: number };
   onResumeGymGame?: (gameId: string) => void;
   onClearPendingGymGame?: () => void;
+  onLogin?: () => void;
 }
 
 type Phase = 'map' | 'deck-select' | 'intro' | 'battle' | 'victory' | 'defeat' | 'card-pick';
@@ -211,7 +213,7 @@ function GymPathSVG({ count }: { count: number }) {
   );
 }
 
-export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, onResumeGymGame, onClearPendingGymGame }: GymModeProps) {
+export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, onResumeGymGame, onClearPendingGymGame, onLogin }: GymModeProps) {
   const [leaders, setLeaders] = useState<GymLeader[]>([]);
   const [completedIds, setCompletedIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
@@ -618,6 +620,37 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
 
   const currentLeader = leaders.find(l => getLeaderStatus(l) === 'available');
   const activeLeaders = leaders.filter(l => l.isActive).sort((a, b) => a.orderIndex - b.orderIndex);
+
+  // ── GUEST WALL ────────────────────────────────────────────────────────────
+  if (!authToken) {
+    return (
+      <div style={{ position: 'fixed', inset: 0 }}>
+        <GuestWall onLogin={onLogin || (() => {})} featureName="la Story Mode" />
+        <button
+          onClick={onBack}
+          style={{
+            position: 'absolute',
+            top: 16,
+            left: 16,
+            zIndex: 110,
+            background: 'rgba(255,255,255,0.07)',
+            border: 'none',
+            color: 'rgba(255,255,255,0.6)',
+            cursor: 'pointer',
+            padding: '8px 12px',
+            borderRadius: 10,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 13,
+          }}
+        >
+          <ArrowLeft width={16} height={16} />
+          Indietro
+        </button>
+      </div>
+    );
+  }
 
   // ── DECK SELECTION ────────────────────────────────────────────────────────
   if (phase === 'deck-select') {

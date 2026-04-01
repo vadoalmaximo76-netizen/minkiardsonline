@@ -6,6 +6,7 @@ import {
   BarChart2, Calendar, Layers
 } from 'lucide-react';
 import { playUISound } from '../lib/uiSound';
+import { GuestWall } from './GuestWall';
 
 type CompetitionType = 'torneo_classico' | 'torneo_draft' | 'campionato_classico' | 'campionato_draft';
 
@@ -177,6 +178,7 @@ interface Props {
   userEmail: string;
   onClose: () => void;
   onPlayMatch?: (gameId: string, matchId: number, tournamentName: string) => void;
+  onLogin?: () => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1570,7 +1572,7 @@ function TournamentCard({ tournament, onClick }: { tournament: Tournament; onCli
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function ClassicTournamentHub({ userId, username, puntiRankiard, userEmail, onClose, onPlayMatch }: Props) {
+export function ClassicTournamentHub({ userId, username, puntiRankiard, userEmail, onClose, onPlayMatch, onLogin }: Props) {
   const [tab, setTab] = useState<'esplora' | 'miei' | 'crea'>('esplora');
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1704,6 +1706,21 @@ export function ClassicTournamentHub({ userId, username, puntiRankiard, userEmai
     { key: 'miei', label: 'I Miei', icon: User },
     { key: 'crea', label: 'Crea', icon: Plus },
   ] as const;
+
+  if (!authToken) {
+    return (
+      <div style={{ width: '100%', height: '100%', background: 'linear-gradient(160deg, #0a0f1e 0%, #0f0a2e 50%, #0a0f1e 100%)', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid #1e293b', background: 'rgba(10,15,30,0.8)', flexShrink: 0 }}>
+          <button onClick={onClose} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, color: '#94a3b8', padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <ChevronLeft size={18} />
+          </button>
+          <Trophy size={24} color="#f59e0b" />
+          <span style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 18 }}>Tornei Classici</span>
+        </div>
+        <GuestWall onLogin={onLogin || (() => {})} featureName="i Tornei" />
+      </div>
+    );
+  }
 
   return (
     <div style={{
