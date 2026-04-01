@@ -49,9 +49,9 @@ function markSeen(key: string): void {
 }
 
 const SIZE_CLASS: Record<string, string> = {
-  small: 'max-w-xs',
-  medium: 'max-w-sm',
-  large: 'max-w-md',
+  small: 'max-w-lg',
+  medium: 'max-w-2xl',
+  large: 'max-w-4xl',
 };
 
 function TooltipCard({
@@ -75,23 +75,27 @@ function TooltipCard({
     setVisible(false);
     const key = getSeenKey(userId, tooltip.id);
     markSeen(key);
-    setTimeout(onDismiss, 300);
+    setTimeout(onDismiss, 350);
   }, [onDismiss, userId, tooltip.id]);
 
   const isSlide = tooltip.isSlide && Array.isArray(tooltip.slides) && tooltip.slides.length > 0;
-  const slides: SlideData[] = isSlide ? tooltip.slides : [{ title: tooltip.title, body: tooltip.body, imageUrl: tooltip.imageUrl || undefined }];
+  const slides: SlideData[] = isSlide
+    ? tooltip.slides
+    : [{ title: tooltip.title, body: tooltip.body, imageUrl: tooltip.imageUrl || undefined }];
   const current = slides[slideIdx] || slides[0];
   const imgPos = tooltip.imagePosition || 'top';
   const sizeClass = SIZE_CLASS[tooltip.size] || SIZE_CLASS.medium;
 
   const imgEl = (src: string) => (
-    <img src={src} alt="" className="w-full rounded-xl object-cover max-h-36" />
+    <img src={src} alt="" className="w-full rounded-2xl object-cover max-h-64" />
   );
 
   const contentEl = (
     <div className={imgPos === 'left' || imgPos === 'right' ? 'flex-1 min-w-0' : ''}>
-      <h4 className="font-bold text-base leading-tight mb-1">{current.title || tooltip.title}</h4>
-      <p className="text-sm leading-relaxed opacity-90">{current.body || tooltip.body}</p>
+      {(current.title || tooltip.title) && (
+        <h4 className="font-extrabold text-2xl leading-tight mb-3">{current.title || tooltip.title}</h4>
+      )}
+      <p className="text-base leading-relaxed opacity-90">{current.body || tooltip.body}</p>
     </div>
   );
 
@@ -99,75 +103,93 @@ function TooltipCard({
 
   const renderBody = () => {
     if (!hasImage) return contentEl;
-    if (imgPos === 'top') return <><div className="mb-3">{imgEl(current.imageUrl!)}</div>{contentEl}</>;
-    if (imgPos === 'bottom') return <>{contentEl}<div className="mt-3">{imgEl(current.imageUrl!)}</div></>;
-    if (imgPos === 'left') return <div className="flex gap-3 items-start"><div className="w-20 flex-shrink-0">{imgEl(current.imageUrl!)}</div>{contentEl}</div>;
-    if (imgPos === 'right') return <div className="flex gap-3 items-start">{contentEl}<div className="w-20 flex-shrink-0">{imgEl(current.imageUrl!)}</div></div>;
+    if (imgPos === 'top') return <><div className="mb-4">{imgEl(current.imageUrl!)}</div>{contentEl}</>;
+    if (imgPos === 'bottom') return <>{contentEl}<div className="mt-4">{imgEl(current.imageUrl!)}</div></>;
+    if (imgPos === 'left') return <div className="flex gap-4 items-start"><div className="w-32 flex-shrink-0">{imgEl(current.imageUrl!)}</div>{contentEl}</div>;
+    if (imgPos === 'right') return <div className="flex gap-4 items-start">{contentEl}<div className="w-32 flex-shrink-0">{imgEl(current.imageUrl!)}</div></div>;
     return contentEl;
   };
 
   return (
-    <div
-      className={`fixed bottom-28 left-1/2 -translate-x-1/2 z-[95] w-[92vw] ${sizeClass} transition-all duration-300 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-    >
+    <>
       <div
-        className="rounded-2xl shadow-2xl p-4 relative"
-        style={{ backgroundColor: tooltip.bgColor, color: tooltip.textColor }}
+        className={`fixed inset-0 z-[200] transition-all duration-350 ${visible ? 'bg-black/60 backdrop-blur-sm' : 'bg-black/0 backdrop-blur-none pointer-events-none'}`}
+        onClick={dismiss}
+      />
+
+      <div
+        className={`fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none`}
       >
-        <button
-          onClick={dismiss}
-          className="absolute top-3 right-3 opacity-60 hover:opacity-100 transition-opacity"
-          style={{ color: tooltip.textColor }}
+        <div
+          className={`w-full ${sizeClass} pointer-events-auto transition-all duration-350 ${visible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-6'}`}
+          onClick={e => e.stopPropagation()}
         >
-          <X size={16} />
-        </button>
-
-        <div className="pr-6">
-          {renderBody()}
-        </div>
-
-        {isSlide && slides.length > 1 && (
-          <div className="flex items-center justify-between mt-3 pt-2" style={{ borderTop: `1px solid ${tooltip.textColor}25` }}>
-            <button
-              onClick={() => setSlideIdx(i => Math.max(0, i - 1))}
-              disabled={slideIdx === 0}
-              className="p-1 rounded-lg transition-opacity disabled:opacity-30"
-              style={{ color: tooltip.textColor }}
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <span className="text-xs opacity-60" style={{ color: tooltip.textColor }}>
-              {slideIdx + 1} / {slides.length}
-            </span>
-            <button
-              onClick={() => {
-                if (slideIdx < slides.length - 1) {
-                  setSlideIdx(i => i + 1);
-                } else {
-                  dismiss();
-                }
-              }}
-              className="p-1 rounded-lg transition-opacity"
-              style={{ color: tooltip.textColor }}
-            >
-              {slideIdx < slides.length - 1 ? <ChevronRight size={18} /> : <span className="text-xs font-semibold">OK</span>}
-            </button>
-          </div>
-        )}
-
-        {!isSlide && (
-          <div className="flex justify-end mt-3 pt-2" style={{ borderTop: `1px solid ${tooltip.textColor}25` }}>
+          <div
+            className="rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.6)] p-8 relative"
+            style={{ backgroundColor: tooltip.bgColor, color: tooltip.textColor }}
+          >
             <button
               onClick={dismiss}
-              className="text-xs font-semibold opacity-80 hover:opacity-100 transition-opacity"
-              style={{ color: tooltip.textColor }}
+              className="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-full transition-all hover:scale-110"
+              style={{ backgroundColor: `${tooltip.textColor}20`, color: tooltip.textColor }}
             >
-              Ho capito →
+              <X size={18} />
             </button>
+
+            <div className="pr-8">
+              {renderBody()}
+            </div>
+
+            {isSlide && slides.length > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-4" style={{ borderTop: `1px solid ${tooltip.textColor}25` }}>
+                <button
+                  onClick={() => setSlideIdx(i => Math.max(0, i - 1))}
+                  disabled={slideIdx === 0}
+                  className="flex items-center gap-1 px-4 py-2 rounded-xl font-semibold text-sm transition-all disabled:opacity-30 hover:opacity-80"
+                  style={{ backgroundColor: `${tooltip.textColor}15`, color: tooltip.textColor }}
+                >
+                  <ChevronLeft size={18} /> Indietro
+                </button>
+                <div className="flex items-center gap-1.5">
+                  {slides.map((_, i) => (
+                    <div
+                      key={i}
+                      className="w-2 h-2 rounded-full transition-all"
+                      style={{ backgroundColor: i === slideIdx ? tooltip.textColor : `${tooltip.textColor}40` }}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    if (slideIdx < slides.length - 1) {
+                      setSlideIdx(i => i + 1);
+                    } else {
+                      dismiss();
+                    }
+                  }}
+                  className="flex items-center gap-1 px-4 py-2 rounded-xl font-semibold text-sm transition-all hover:opacity-80"
+                  style={{ backgroundColor: `${tooltip.textColor}15`, color: tooltip.textColor }}
+                >
+                  {slideIdx < slides.length - 1 ? <>Avanti <ChevronRight size={18} /></> : 'Ho capito ✓'}
+                </button>
+              </div>
+            )}
+
+            {!isSlide && (
+              <div className="flex justify-center mt-6 pt-4" style={{ borderTop: `1px solid ${tooltip.textColor}25` }}>
+                <button
+                  onClick={dismiss}
+                  className="px-8 py-3 rounded-xl font-bold text-sm transition-all hover:opacity-80 hover:scale-105"
+                  style={{ backgroundColor: `${tooltip.textColor}20`, color: tooltip.textColor }}
+                >
+                  Ho capito ✓
+                </button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
