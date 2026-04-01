@@ -884,6 +884,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   });
   const [pendingChanges, setPendingChanges] = useState<Map<string, {card: ExistingCard, formData: typeof existingEditForm}>>(new Map());
   const [isBulkSaving, setIsBulkSaving] = useState(false);
+  const [isSavingCard, setIsSavingCard] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Available characters for MOSSE character-specific settings
@@ -1611,12 +1612,65 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   };
 
   const handleSaveExistingEdit = async (card: ExistingCard) => {
-    setPendingChanges(prev => {
-      const newMap = new Map(prev);
-      newMap.set(card.id, { card, formData: { ...existingEditForm } });
-      return newMap;
-    });
-    setEditingExistingCard(null);
+    const formData = { ...existingEditForm };
+    setIsSavingCard(true);
+    try {
+      const modification = {
+        originalCardId: card.id,
+        deckType: card.deckType,
+        name: formData.name || null,
+        imageUrl: formData.imageUrl || null,
+        pti: formData.pti || null,
+        stars: formData.stars || null,
+        effect: formData.effect || null,
+        audioUrl: formData.audioUrl || null,
+        attackLowAudioUrl: formData.attackLowAudioUrl || null,
+        attackHighAudioUrl: formData.attackHighAudioUrl || null,
+        youtubeUrl: formData.youtubeUrl || null,
+        mosseDamageValue: formData.mosseDamageValue ? parseInt(formData.mosseDamageValue) : null,
+        mosseDamageEffect: formData.mosseDamageEffect || null,
+        mosseCharacterOverrides: formData.mosseCharacterOverrides.length > 0 ? formData.mosseCharacterOverrides : null,
+        mosseRestrictedFrom: formData.mosseRestrictedFrom.length > 0 ? formData.mosseRestrictedFrom : null,
+        mosseRestrictedAgainst: formData.mosseRestrictedAgainst.length > 0 ? formData.mosseRestrictedAgainst : null,
+        mosseTargetingMode: formData.mosseTargetingMode || null,
+        mosseTargetCount: formData.mosseTargetCount ? parseInt(formData.mosseTargetCount) : null,
+        mosseCanCounter: formData.mosseCanCounter || false,
+        mosseCanBeCountered: formData.mosseCanBeCountered || false,
+        evolvesInto: formData.evolvesInto || null,
+        evolutionVariants: formData.evolutionVariants || null,
+        transformsInto: formData.transformsInto || null,
+        transformsFrom: formData.transformsFrom || null,
+        cheatsInto: formData.cheatsInto || null,
+        specialCategory: formData.specialCategory || null,
+        evolvedMoves: (formData.evolvedMoves?.range1?.name || formData.evolvedMoves?.range1?.damage || formData.evolvedMoves?.range2?.name || formData.evolvedMoves?.range2?.damage) ? formData.evolvedMoves : null,
+        superAttacco: (formData.superAttacco?.name || formData.superAttacco?.damage) ? formData.superAttacco : null,
+        draftCost: formData.draftCost ? parseInt(formData.draftCost) : 0
+      };
+
+      const response = await fetch('/api/admin/card-modifications-bulk', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ modifications: [modification] })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setPendingChanges(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(card.id);
+          return newMap;
+        });
+        setEditingExistingCard(null);
+        await fetchExistingCards();
+      } else {
+        alert('Errore durante il salvataggio: ' + (data.error || 'errore sconosciuto'));
+      }
+    } catch (error) {
+      console.error('Error saving card modification:', error);
+      alert('Errore durante il salvataggio');
+    } finally {
+      setIsSavingCard(false);
+    }
   };
 
   const handleBulkSave = async () => {
@@ -3592,10 +3646,11 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                             <div className="flex gap-2 pt-3 border-t border-gray-700">
                               <Button
                                 onClick={() => handleSaveExistingEdit(card)}
+                                disabled={isSavingCard}
                                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 flex items-center gap-1.5"
                               >
                                 <Save size={14} />
-                                Salva Modifiche
+                                {isSavingCard ? 'Salvataggio...' : 'Salva Modifiche'}
                               </Button>
                               <Button
                                 onClick={() => setEditingExistingCard(null)}
