@@ -337,6 +337,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [cpuThinkingPlayer, setCpuThinkingPlayer] = useState<string | null>(null);
   const [helpBanner, setHelpBanner] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
   const [comicBanner, setComicBanner] = useState<{ visible: boolean; text: string; owner: string }>({ visible: false, text: '', owner: '' });
+  const [cardEffectBanner, setCardEffectBanner] = useState<{ playerName: string; cardName: string; cardImage: string; effectName: string; effectText: string } | null>(null);
+  const cardEffectBannerTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [graveyardSelectionModal, setGraveyardSelectionModal] = useState<{
     visible: boolean;
     reason: string;
@@ -1319,6 +1321,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setTimeout(() => setComicBanner({ visible: false, text: '', owner: '' }), 4000);
     };
     socket.on('comic-banner', handleComicBanner);
+
+    const handleCardEffectBanner = (data: { playerName: string; cardName: string; cardImage: string; effectName: string; effectText: string }) => {
+      if (cardEffectBannerTimerRef.current) clearTimeout(cardEffectBannerTimerRef.current);
+      setCardEffectBanner(data);
+      cardEffectBannerTimerRef.current = setTimeout(() => setCardEffectBanner(null), 3500);
+    };
+    socket.on('card-effect-banner', handleCardEffectBanner);
 
     const handleBlockCardTypeSelect = (data: { cardId: string; cardName: string; options: string[]; turns: number; playerName: string }) => {
       if (data.playerName === playerName) {
@@ -2570,6 +2579,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('next-turn', handleCpuDoneThinking);
       socket.off('control-turn-set', handleControlTurnSet);
       socket.off('comic-banner', handleComicBanner);
+      socket.off('card-effect-banner', handleCardEffectBanner);
       socket.off('block-card-type-select', handleBlockCardTypeSelect);
       socket.off('show-choice-panel', handleShowChoicePanel);
       socket.off('fotografo-reveal-hand', handleFotografoRevealHand);
@@ -5714,6 +5724,53 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 style={{ background: 'linear-gradient(135deg, rgba(30,20,5,0.95), rgba(60,40,5,0.92))', boxShadow: '0 0 24px rgba(251,191,36,0.35)' }}>
                 <span className="text-2xl">🃏</span>
                 <span className="text-amber-200 font-bold text-sm tracking-wide">{cardsAddedToast}</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Card Effect Banner — shown whenever a card effect activates */}
+        <AnimatePresence>
+          {cardEffectBanner && (
+            <motion.div
+              key={`card-effect-banner-${cardEffectBanner.effectName}-${cardEffectBanner.playerName}`}
+              initial={{ opacity: 0, y: -50, scale: 0.88 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -30, scale: 0.92 }}
+              transition={{ type: 'spring', stiffness: 480, damping: 32 }}
+              className="fixed top-32 left-1/2 z-[99990] pointer-events-none"
+              style={{ transform: 'translateX(-50%)' }}
+            >
+              <div
+                className="flex items-center gap-3 px-4 py-3 rounded-2xl border backdrop-blur-md shadow-2xl max-w-xs"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(15,5,35,0.96), rgba(45,10,80,0.93))',
+                  borderColor: 'rgba(167,139,250,0.55)',
+                  boxShadow: '0 0 28px rgba(139,92,246,0.45), 0 4px 24px rgba(0,0,0,0.6)',
+                }}
+              >
+                {cardEffectBanner.cardImage ? (
+                  <img
+                    src={cardEffectBanner.cardImage}
+                    alt={cardEffectBanner.cardName}
+                    className="w-10 h-14 object-cover rounded-lg border border-purple-400/40 flex-shrink-0 shadow-lg"
+                  />
+                ) : (
+                  <span className="text-2xl flex-shrink-0">✨</span>
+                )}
+                <div className="flex flex-col min-w-0">
+                  <span className="text-purple-200 font-black text-sm uppercase tracking-widest truncate leading-tight">
+                    {cardEffectBanner.cardName}
+                  </span>
+                  <span className="text-purple-400 text-xs font-semibold">
+                    ✨ {cardEffectBanner.playerName}
+                  </span>
+                  {cardEffectBanner.effectText && (
+                    <span className="text-purple-300/80 text-xs mt-0.5 leading-snug line-clamp-2">
+                      {cardEffectBanner.effectText}
+                    </span>
+                  )}
+                </div>
               </div>
             </motion.div>
           )}

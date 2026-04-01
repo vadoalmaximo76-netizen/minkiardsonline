@@ -8606,6 +8606,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     console.log(`🎯 [NAMED-BONUS] Executing: ${effectName} for ${playerName} (char: ${myChar?.name || 'none'})`);
 
+    // Notify all players in the room that a card effect is activating
+    if (io) {
+      const cleanEffect = (card.effect || '')
+        .replace(/\[CUSTOM:[^\]]+\]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 100);
+      io.to(gameId).emit('card-effect-banner', {
+        playerName,
+        cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+        cardImage: card.frontImage || '',
+        effectName,
+        effectText: cleanEffect,
+      });
+    }
+
     switch (effectName) {
 
       // ─── BLOCCO: salta turno avversario scelto ───────────────────────────────
