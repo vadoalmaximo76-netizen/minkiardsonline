@@ -235,6 +235,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [hoveredLeaderId, setHoveredLeaderId] = useState<number | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const [cardEffects, setCardEffects] = useState<Record<string, string>>({});
+  const [defeatMsgVisible, setDefeatMsgVisible] = useState(false);
 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -402,6 +403,12 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     const t3 = setTimeout(() => setVictoryStep(4), 3500);
     const t4 = setTimeout(() => setVictoryStep(5), 4800);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== 'defeat') { setDefeatMsgVisible(false); return; }
+    const t = setTimeout(() => setDefeatMsgVisible(true), 600);
+    return () => clearTimeout(t);
   }, [phase]);
 
   useEffect(() => {
@@ -943,6 +950,11 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
 
   // ── DEFEAT ────────────────────────────────────────────────────────────────
   if (phase === 'defeat' && selectedLeader) {
+    const gameLoseMsgs = selectedLeader.leaderMessages?.gameLose;
+    const defeatMsg = Array.isArray(gameLoseMsgs) && gameLoseMsgs.length > 0
+      ? gameLoseMsgs[Math.floor(Math.random() * gameLoseMsgs.length)]
+      : null;
+
     return (
       <div
         className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6"
@@ -978,6 +990,73 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         >
           Torna alla Mappa
         </button>
+
+        {/* Boss gameLose message bubble — slides up after 600 ms */}
+        {defeatMsg && (
+          <div
+            className="fixed bottom-8 left-3 z-50 flex items-end gap-0 max-w-[88vw] transition-all duration-500 pointer-events-none"
+            style={{
+              transform: defeatMsgVisible ? 'translateY(0)' : 'translateY(32px)',
+              opacity: defeatMsgVisible ? 1 : 0,
+              filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.7))',
+            }}
+          >
+            {/* Boss photo */}
+            <div className="flex-shrink-0 relative z-10" style={{ marginBottom: -4, marginRight: -6 }}>
+              <div
+                className="rounded-full border-2 border-amber-400/70 overflow-hidden"
+                style={{
+                  width: 72, height: 72,
+                  boxShadow: '0 0 18px rgba(245,158,11,0.55), 0 0 36px rgba(245,158,11,0.20)',
+                  background: 'linear-gradient(135deg,#1a0a00,#2a1200)',
+                }}
+              >
+                {selectedLeader.leaderImageUrl ? (
+                  <img
+                    src={selectedLeader.leaderImageUrl}
+                    alt={selectedLeader.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Shield size={28} className="text-amber-400/60" />
+                  </div>
+                )}
+              </div>
+              <div
+                className="absolute inset-0 rounded-full pointer-events-none"
+                style={{ border: '1.5px solid rgba(245,158,11,0.4)', animation: 'gymNodePulse 2s ease-out infinite' }}
+              />
+            </div>
+            {/* Speech bubble */}
+            <div
+              className="relative rounded-2xl rounded-bl-sm"
+              style={{
+                background: 'linear-gradient(135deg,rgba(0,0,0,0.92),rgba(15,8,0,0.95))',
+                border: '1.5px solid rgba(245,158,11,0.45)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(245,158,11,0.1)',
+                backdropFilter: 'blur(16px)',
+                padding: '10px 14px',
+                maxWidth: 220,
+              }}
+            >
+              {/* Tail */}
+              <div style={{
+                position: 'absolute', bottom: 8, left: -7,
+                width: 0, height: 0,
+                borderTop: '7px solid transparent',
+                borderBottom: '7px solid transparent',
+                borderRight: '8px solid rgba(245,158,11,0.45)',
+              }} />
+              <div className="font-black text-xs mb-1" style={{ color: '#fbbf24', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                ⚔️ {selectedLeader.name}
+              </div>
+              <div className="text-sm font-semibold leading-snug" style={{ color: 'rgba(255,235,180,0.92)' }}>
+                {defeatMsg}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1324,10 +1403,19 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                   onMouseLeave={() => { setHoveredLeaderId(null); setTooltipPos(null); }}
                   onTouchStart={(e) => {
                     if (!isLocked) {
-                      const t = e.touches[0];
-                      setHoveredLeaderId(leader.id);
-                      setTooltipPos({ x: t.clientX, y: t.clientY });
-                      setTimeout(() => { setHoveredLeaderId(null); setTooltipPos(null); }, 2500);
+                      const tooltipAlreadySeen = !!localStorage.getItem('gymMapTooltipSeen');
+                      if (tooltipAlreadySeen) {
+                        // Tooltip already seen once — skip it, go directly to challenge
+                        e.preventDefault();
+                        handleChallengeLeader(leader);
+                      } else {
+                        // First time ever: show tooltip and mark as seen
+                        const t = e.touches[0];
+                        setHoveredLeaderId(leader.id);
+                        setTooltipPos({ x: t.clientX, y: t.clientY });
+                        localStorage.setItem('gymMapTooltipSeen', '1');
+                        setTimeout(() => { setHoveredLeaderId(null); setTooltipPos(null); }, 2500);
+                      }
                     }
                   }}
                 >
