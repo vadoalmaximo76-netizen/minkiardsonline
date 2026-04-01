@@ -34487,9 +34487,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           if (!game) break;
           const targetDeckType = targetCard.type as 'personaggi' | 'personaggi_speciali';
           game.field = game.field.filter((c: Card) => c.id !== targetCardId);
-          if (game.decks[targetDeckType]) {
+          // In gym/draft/daily-challenge mode, reinserisce nel deck personale del proprietario
+          // (non nel mazzo condiviso game.decks che potrebbe non contenere le sue carte)
+          const ownerPersonalDecks = (game.isGymMode || game.isDraftMode || (game as any).isDailyChallenge)
+            ? game.playerDraftDecks?.[targetCard.owner]
+            : undefined;
+          if (ownerPersonalDecks && targetDeckType !== 'personaggi_speciali') {
+            const personalDeck = ownerPersonalDecks[targetDeckType as 'personaggi'];
+            if (personalDeck) {
+              const shuffleIdx = Math.floor(Math.random() * (personalDeck.length + 1));
+              personalDeck.splice(shuffleIdx, 0, targetCard);
+              console.log(`🌪️ FRUSHTALLA (personal deck): ${targetCard.owner} → ${targetDeckType} deck (${personalDeck.length} cards)`);
+            }
+          } else if (game.decks[targetDeckType]) {
             const shuffleIdx = Math.floor(Math.random() * (game.decks[targetDeckType].length + 1));
             game.decks[targetDeckType].splice(shuffleIdx, 0, targetCard);
+            console.log(`🌪️ FRUSHTALLA (shared deck): ${targetCard.owner} → ${targetDeckType} deck`);
           }
           effectiveDamage = 0;
           forceInstantDeath = false;
