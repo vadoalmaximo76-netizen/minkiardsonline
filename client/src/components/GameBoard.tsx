@@ -323,6 +323,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [stakuOpportunity, setStakuOpportunity] = useState<{ stakuOwner: string; casterName: string; cardName: string; timeoutMs: number } | null>(null);
   const [stakuCountdown, setStakuCountdown] = useState(0);
   const stakuTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [stakuMustAttack, setStakuMustAttack] = useState(false);
   const [trinitaPanel, setTrinitaPanel] = useState<{ visible: boolean; choiceId: string; playerName: string; fieldChars: Array<{id: string; name: string; owner: string; pti?: number; stars?: number; image?: string}>; selected: string[] } | null>(null);
   const [schedinePanel, setSchedinePanel] = useState<{ visible: boolean; choiceId: string; playerName: string; allPlayers: string[]; isGoldenFreezer: boolean; selected: string[] } | null>(null);
   const [daddyConteDialog, setDaddyConteDialog] = useState<{ visible: boolean; characters: Array<{id: string; name: string; frontImage: string; owner: string}> } | null>(null);
@@ -872,6 +873,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       const target = targetCardName || defender;
       const dmg = damageValue || 0;
       console.log(`${attacker} attacked ${defender}'s ${target} for ${dmg} damage`);
+      // Clear STAKU mandatory attack flag when the local player attacks
+      if (attacker === playerName) setStakuMustAttack(false);
 
       // All visual/audio effects that should fire at the moment of IMPACT (after card lands)
       const triggerImpactEffects = () => {
@@ -1156,6 +1159,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         timerPlayerRef.current = '';
         setTurnTimerState({ active: false, seconds: 30, playerName: '', isWarning: false });
       }
+      // Clear STAKU mandatory attack when turn changes
+      setStakuMustAttack(false);
       setNextTurnPlayer(nextPlayer);
       setNextTurnVisible(true);
       if (nextPlayer === playerName) {
@@ -2411,6 +2416,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('staku:opportunity', handleStakuOpportunity);
     socket.on('staku:expired', handleStakuExpired);
 
+    // STAKU mandatory attack notification (from STAKU bonus card effect)
+    const handleStakuAutoAttack = (data: { playerName: string }) => {
+      if (data.playerName === playerName) {
+        setStakuMustAttack(true);
+      }
+    };
+    const handleStakuMustAttack = (data: { playerName: string; message: string }) => {
+      if (data.playerName === playerName) {
+        setStakuMustAttack(true);
+      }
+    };
+    socket.on('staku-auto-attack', handleStakuAutoAttack);
+    socket.on('staku-must-attack', handleStakuMustAttack);
+
     // ── Turn Timer ──────────────────────────────────────────────────────────
     const startTurnCountdown = (totalSeconds: number, timerPlayerName: string) => {
       if (turnTimerIntervalRef.current) clearInterval(turnTimerIntervalRef.current);
@@ -2583,6 +2602,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('staku:opportunity', handleStakuOpportunity);
       socket.off('staku:expired', handleStakuExpired);
       if (stakuTimerRef.current) clearInterval(stakuTimerRef.current);
+      socket.off('staku-auto-attack', handleStakuAutoAttack);
+      socket.off('staku-must-attack', handleStakuMustAttack);
       socket.off('player-choosing-notification', handlePlayerChoosingNotification);
       socket.off('show-graveyard-selection', handleShowGraveyardSelection);
       socket.off('show-pti-input-panel', handleShowPtiInputPanel);
@@ -6028,6 +6049,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   Lascia passare
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── STAKU Mandatory Attack Warning Banner ───────────────────────── */}
+        {stakuMustAttack && (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9990] pointer-events-none">
+            <div className="bg-yellow-900/95 border-2 border-yellow-400 rounded-xl px-6 py-3 shadow-2xl flex items-center gap-3">
+              <span className="text-2xl">⚡</span>
+              <div>
+                <div className="text-yellow-300 font-bold text-sm uppercase tracking-wider">STAKU attivo!</div>
+                <div className="text-yellow-100 text-xs">Devi attaccare prima di chiudere il turno</div>
+              </div>
+              <span className="text-2xl">⚡</span>
             </div>
           </div>
         )}

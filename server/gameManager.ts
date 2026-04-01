@@ -4518,6 +4518,23 @@ Rispondi SOLO in JSON:`;
         }
       }
 
+      // MAZZAMAURIEGL: when placed on field, cures PUOZZA persistent damage affecting any character
+      if (isPersonaggio && (card.frontImage || '').toLowerCase().includes('mazzamauriegl')) {
+        const puozzaEffects = (game.persistentDamages || []).filter(d => d.type === 'PUOZZA');
+        if (puozzaEffects.length > 0) {
+          game.persistentDamages = game.persistentDamages.filter(d => d.type !== 'PUOZZA');
+          const ioMaz = (global as any).io;
+          if (ioMaz) {
+            ioMaz.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-mazzamauriegl-cure`, playerName: 'Sistema',
+              message: `🧹 MAZZAMAURIEGL è in campo! Cura ${puozzaEffects.length} effetto/i PUOZZA!`,
+              timestamp: Date.now()
+            });
+          }
+          console.log(`🧹 MAZZAMAURIEGL: cleared ${puozzaEffects.length} PUOZZA effects for ${playerName}`);
+        }
+      }
+
       // BAMBOLA DEL DEMONIO: 3-turn immunity on entry
       if (isPersonaggio && (card.frontImage || '').toLowerCase().includes('bambola-del-demonio')) {
         card.immuneToAttacks = true;
@@ -10985,13 +11002,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // ─── BARRIERA: 3 sagome da 50 PTI ciascuna ───────────────────────────────
       case 'barriera': {
         if (!myChar) { emitChat(`⚠️ BARRIERA: ${playerName} non ha un personaggio in campo.`); break; }
-        if (!(game as any).barrierShields) (game as any).barrierShields = {};
-        (game as any).barrierShields[playerName] = [
-          { pti: 50, id: `barrier_${Date.now()}_1` },
-          { pti: 50, id: `barrier_${Date.now()}_2` },
-          { pti: 50, id: `barrier_${Date.now()}_3` },
-        ];
-        emitChat(`🧱 BARRIERA! ${myChar.name || playerName} è protetto da 3 sagome (50 PTI ciascuna)! Si elimina una sagoma per attacco.`);
+        const barrieraResult = this.activateBarriera(gameId, card.id, myChar.id, playerName, io);
+        if (!barrieraResult.success) {
+          emitChat(`⚠️ BARRIERA: ${barrieraResult.message || 'errore di attivazione.'}`);
+        }
         emitState(); break;
       }
 
@@ -11796,10 +11810,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           !e.cardId?.startsWith('bonus-') && !e.cardId?.startsWith('scenario-')
         );
         const tabulaEffectsRemoved = tabulaEffectsBefore - (game.timedEffects || []).length;
+        const tabulaPersistentCount = (game.persistentDamages || []).length;
+        if (tabulaPersistentCount > 0) game.persistentDamages = [];
+        const tabulaParasiticCount = (game.parasiticAttachments || []).length;
+        if (tabulaParasiticCount > 0) game.parasiticAttachments = [];
         const parts: string[] = [];
         if (tabulaHadScenario) parts.push(`scenario "${tabulaScenarioName}" annullato`);
         if (tabulaEffectsRemoved > 0) parts.push(`${tabulaEffectsRemoved} effetti bonus rimossi`);
-        emitChat(`🪶 TABULA RASA! ${parts.length > 0 ? parts.join(', ') : 'Nessun effetto bonus attivo da rimuovere'}.`);
+        if (tabulaPersistentCount > 0) parts.push(`${tabulaPersistentCount} danni persistenti (VIRUS/INFLUENZA/PUOZZA) eliminati`);
+        if (tabulaParasiticCount > 0) parts.push(`${tabulaParasiticCount} parassiti (PARASSITA/SAIBAIM) rimossi`);
+        emitChat(`🪶 TABULA RASA! ${parts.length > 0 ? parts.join(', ') : 'Nessun effetto attivo da rimuovere'}.`);
         emitState(); break;
       }
 
@@ -11828,9 +11848,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (!myChar) { emitChat(`⚠️ STAKU: ${playerName} non ha un personaggio in campo.`); break; }
         myChar.pti = (myChar.pti || 0) + 100;
         this.updateCardTextWithPTI(myChar);
-        (game as any).autoAttack = (game as any).autoAttack || {};
-        (game as any).autoAttack[playerName] = true;
-        emitChat(`⚡ STAKU! ${myChar.name || playerName} +100 PTI (PTI: ${myChar.pti}) — attaccherà automaticamente il prossimo turno!`);
+        // Set PENDING flag — enforcement activates on NEXT turn start
+        (game as any).pendingAutoAttack = (game as any).pendingAutoAttack || {};
+        (game as any).pendingAutoAttack[playerName] = true;
+        emitChat(`⚡ STAKU! ${myChar.name || playerName} +100 PTI (PTI: ${myChar.pti}) — al prossimo turno dovrà attaccare obbligatoriamente!`);
         emitState(); break;
       }
 
@@ -17073,6 +17094,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             timestamp: Date.now()
           });
         }
+        // STAKU: Clear mandatory attack obligation (ACCHIAPPT attack committed)
+        if ((game as any).autoAttack?.[attackerName]) { delete (game as any).autoAttack[attackerName]; }
         return { success: true, result: { acchiapptPending: true, attackId, diceResult } };
       }
     }
@@ -17130,6 +17153,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const finalRR76 = this.getSanitizedGameState(gameId);
         if (io76) io76.to(gameId).emit('game-state-update', finalRR76);
         console.log(`🎲 ROULETTE_RUSSA (CPU): defender=${targetOwnerName} guess=${cpuGuess76} roll=${diceRoll76} saved=${saved76}`);
+        // STAKU: Clear mandatory attack obligation (ROULETTE RUSSA attack committed)
+        if ((game as any).autoAttack?.[attackerName]) { delete (game as any).autoAttack[attackerName]; }
         return { success: true, result: { rouletteCPUResolved: true } };
       } else {
         // Human defender: show number-picker panel, wait for choice-panel-response
@@ -17166,6 +17191,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           timestamp: Date.now()
         });
         console.log(`🎲 ROULETTE_RUSSA (human): waiting for ${targetOwnerName} to pick number (choiceId: ${choiceId76})`);
+        // STAKU: Clear mandatory attack obligation (ROULETTE RUSSA human attack committed)
+        if ((game as any).autoAttack?.[attackerName]) { delete (game as any).autoAttack[attackerName]; }
         return { success: true, result: { roulettePending: true } };
       }
     }
@@ -17219,6 +17246,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             const gameStateInterc = this.getSanitizedGameState(gameId);
             const ioInterc = (global as any).io;
             if (ioInterc) ioInterc.to(gameId).emit('game-state-update', gameStateInterc);
+            // STAKU: Clear mandatory attack obligation (attack committed, interceptor handled)
+            if ((game as any).autoAttack?.[attackerName]) { delete (game as any).autoAttack[attackerName]; }
             return { success: true };
           }
           // Otherwise confirm: continue with normal attack (fall through)
@@ -17278,6 +17307,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             }
           }, 15000);
           (game as any)._interceptorTimeout = timeoutId;
+          // STAKU: Clear mandatory attack obligation (attack committed, interceptor pending)
+          if ((game as any).autoAttack?.[attackerName]) { delete (game as any).autoAttack[attackerName]; }
           return { success: true };
         }
       }
@@ -17573,6 +17604,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (this.isOstaggioCard(mosseCard) && !isHandTarget) {
       console.log(`⛓️ OSTAGGIO detected: ${attackerName} using OSTAGGIO on ${targetCardId}`);
       
+      // STAKU: Clear mandatory attack obligation (attack committed via OSTAGGIO)
+      if ((game as any).autoAttack?.[attackerName]) {
+        delete (game as any).autoAttack[attackerName];
+        console.log(`⚡ STAKU: mandatory attack obligation fulfilled for ${attackerName} (OSTAGGIO)`);
+      }
       // Track card usage
       if (!attacker.usedCardsThisTurn) {
         attacker.usedCardsThisTurn = [];
@@ -17611,6 +17647,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (targetCard.isHostage) {
       console.log(`⛓️ Target ${targetCardId} is hostage - no defense allowed, damage applied directly`);
       
+      // STAKU: Clear mandatory attack obligation (attack committed on hostage)
+      if ((game as any).autoAttack?.[attackerName]) {
+        delete (game as any).autoAttack[attackerName];
+        console.log(`⚡ STAKU: mandatory attack obligation fulfilled for ${attackerName} (hostage target)`);
+      }
       // Track card usage
       if (!attacker.usedCardsThisTurn) {
         attacker.usedCardsThisTurn = [];
@@ -17640,6 +17681,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       attacker.usedCardsThisTurn = [];
     }
     attacker.usedCardsThisTurn.push(mosseCard.frontImage);
+
+    // STAKU: Attack initiated successfully — clear mandatory attack obligation
+    if ((game as any).autoAttack?.[attackerName]) {
+      delete (game as any).autoAttack[attackerName];
+      console.log(`⚡ STAKU: mandatory attack obligation fulfilled for ${attackerName}`);
+    }
 
     // Record attack initiation event (maintain backward compatibility)
     await this.recordEvent(gameId, 'mosse-attack', {
@@ -26251,12 +26298,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         continue;
       }
       
-      const cardPTI = this.extractPTIFromNote(card.text || '');
-      const cardStars = this.extractStarsFromNote(card.text || '');
+      const cardPTI = card.pti ?? this.extractPTIFromNote(card.text || '');
       const newPTI = Math.max(0, cardPTI - 500);
-      // Preserve the "Potere di" notation if present
-      const powerMatch = card.text?.match(/\|\s*Potere di\s+\w+/i);
-      card.text = `PTI: ${newPTI} | Stelle: ${cardStars}${powerMatch ? ` ${powerMatch[0]}` : ''}`;
+      card.pti = newPTI;
+      this.updateCardTextWithPTI(card);
       
       affectedCards.push({
         id: card.id,
@@ -34424,10 +34469,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const ggChar = this.getPlayerActiveCharacter(game, attackerName);
       if (ggChar && (ggChar.frontImage || '').toLowerCase().includes('gianni-giganti')) {
         isGianniInstakill = true;
-        (ggChar as any).blockedForTurns = 4; // 4 so that after same-turn-end decrement → 3 blocked turns
+        (ggChar as any).blockedForTurns = 5; // 5 so that after same-turn-end decrement → 4 blocked turns
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-gianni-giganti-kill`, playerName: 'Sistema',
-          message: `💥 GIANNI GIGANTI: kill istantaneo! Ma ora è esausto per 3 turni`,
+          message: `💥 GIANNI GIGANTI: kill istantaneo! Ma ora è esausto per 4 turni`,
           timestamp: Date.now()
         });
         console.log(`💥 GIANNI GIGANTI: isGianniInstakill=true — forceInstantDeath will be set before newPTI`);
@@ -35229,22 +35274,33 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
 
     // DRAIN ON ATTACK (Fregatura / Assorbimento): add damage dealt to attacker's PTI
+    // NON TI FA FREGA: block drain if target has noAbsorbImmune
     if (mosseEffect === 'drain_on_attack' && !isVoodooReflection) {
-      const actualDamageDealt = currentPTI - newPTI;
-      if (actualDamageDealt > 0) {
-        const attackerChar = this.getPlayerActiveCharacter(game, attackerName);
-        if (attackerChar) {
-          const attackerCurrentPTI = attackerChar.pti ?? this.extractPTIFromNote(attackerChar.text || '');
-          attackerChar.pti = attackerCurrentPTI + actualDamageDealt;
-          this.updateCardTextWithPTI(attackerChar);
-          const attackerCharName = attackerChar.name || this.getCardNameFromUrl(attackerChar.frontImage || '');
-          console.log(`🌀 DRAIN ON ATTACK: ${attackerCharName} gained ${actualDamageDealt} PTI`);
-          io?.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-drain-attack`,
-            playerName: 'Sistema',
-            message: `🌀 ${attackerCharName} assorbe ${actualDamageDealt} PTI! (${attackerCurrentPTI} → ${attackerChar.pti})`,
-            timestamp: Date.now()
-          });
+      if ((targetCard as any).noAbsorbImmune) {
+        const ioNTFF2 = (global as any).io || io;
+        if (ioNTFF2) ioNTFF2.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-ntff-drain-block`, playerName: 'Sistema',
+          message: `🛡️ NON TI FA FREGA! ${targetCard.name || targetCard.owner} è immune a Fregatura/Assorbimento! Drenaggio bloccato!`,
+          timestamp: Date.now()
+        });
+        console.log(`🛡️ NON TI FA FREGA: drain_on_attack blocked (noAbsorbImmune = true)`);
+      } else {
+        const actualDamageDealt = currentPTI - newPTI;
+        if (actualDamageDealt > 0) {
+          const attackerChar = this.getPlayerActiveCharacter(game, attackerName);
+          if (attackerChar) {
+            const attackerCurrentPTI = attackerChar.pti ?? this.extractPTIFromNote(attackerChar.text || '');
+            attackerChar.pti = attackerCurrentPTI + actualDamageDealt;
+            this.updateCardTextWithPTI(attackerChar);
+            const attackerCharName = attackerChar.name || this.getCardNameFromUrl(attackerChar.frontImage || '');
+            console.log(`🌀 DRAIN ON ATTACK: ${attackerCharName} gained ${actualDamageDealt} PTI`);
+            io?.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-drain-attack`,
+              playerName: 'Sistema',
+              message: `🌀 ${attackerCharName} assorbe ${actualDamageDealt} PTI! (${attackerCurrentPTI} → ${attackerChar.pti})`,
+              timestamp: Date.now()
+            });
+          }
         }
       }
     }

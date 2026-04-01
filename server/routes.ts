@@ -9112,6 +9112,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     socket.on('end-turn', async ({ gameId, playerName }) => {
+      // STAKU enforcement: block end-turn if player has not attacked yet
+      {
+        const rawGameAutoAtk = gameManager.games.get(gameId) as any;
+        if (rawGameAutoAtk?.autoAttack?.[playerName]) {
+          socket.emit('staku-must-attack', {
+            playerName,
+            message: '⚡ STAKU attivo! Devi attaccare prima di chiudere il turno!'
+          });
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-staku-block`,
+            playerName: 'Sistema',
+            message: `🚫 STAKU: ${playerName} non può chiudere il turno senza aver attaccato!`,
+            timestamp: Date.now()
+          });
+          return; // Block end-turn
+        }
+      }
       const nextPlayer = gameManager.endTurn(gameId, playerName);
       if (nextPlayer) {
         io.to(gameId).emit('next-turn', { nextPlayer });
@@ -9160,6 +9177,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // NOTE: DON DOMENICO, DADDY CONTE, FABRIZIO turn-start effects are now handled
         // inside gameManager.endTurn() so they fire on ALL turn transitions.
+
+        // STAKU: Promote pendingAutoAttack → autoAttack when next player's turn starts
+        // This ensures STAKU only forces attack on the NEXT turn (not the turn it was played)
+        {
+          const rawGameStaku = gameManager.games.get(gameId) as any;
+          if (rawGameStaku?.pendingAutoAttack?.[nextPlayer]) {
+            delete rawGameStaku.pendingAutoAttack[nextPlayer];
+            rawGameStaku.autoAttack = rawGameStaku.autoAttack || {};
+            rawGameStaku.autoAttack[nextPlayer] = true;
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-staku-auto`,
+              playerName: 'Sistema',
+              message: `⚡ STAKU attivo! ${nextPlayer} deve attaccare obbligatoriamente questo turno!`,
+              timestamp: Date.now()
+            });
+            io.to(gameId).emit('staku-auto-attack', { playerName: nextPlayer });
+          }
+        }
 
         // Send game state update after hostage processing
         emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
