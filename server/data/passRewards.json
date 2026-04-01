@@ -1,0 +1,250 @@
+[
+  {
+    "id": 1,
+    "passId": 1,
+    "level": 1,
+    "rewardType": "credits",
+    "rewardValue": "50",
+    "isPremium": false
+  },
+  {
+    "id": 2,
+    "passId": 1,
+    "level": 2,
+    "rewardType": "credits",
+    "rewardValue": "100",
+    "isPremium": true
+  },
+  {
+    "id": 3,
+    "passId": 1,
+    "level": 3,
+    "rewardType": "credits",
+    "rewardValue": "150",
+    "isPremium": false
+  },
+  {
+    "id": 4,
+    "passId": 1,
+    "level": 4,
+    "rewardType": "credits",
+    "rewardValue": "200",
+    "isPremium": true
+  },
+  {
+    "id": 5,
+    "passId": 1,
+    "level": 5,
+    "rewardType": "pack",
+    "rewardValue": "bronzo",
+    "isPremium": false
+  },
+  {
+    "id": 6,
+    "passId": 1,
+    "level": 6,
+    "rewardType": "credits",
+    "rewardValue": "300",
+    "isPremium": true
+  },
+  {
+    "id": 7,
+    "passId": 1,
+    "level": 7,
+    "rewardType": "credits",
+    "rewardValue": "350",
+    "isPremium": false
+  },
+  {
+    "id": 8,
+    "passId": 1,
+    "level": 8,
+    "rewardType": "credits",
+    "rewardValue": "400",
+    "isPremium": true
+  },
+  {
+    "id": 9,
+    "passId": 1,
+    "level": 9,
+    "rewardType": "credits",
+    "rewardValue": "450",
+    "isPremium": false
+  },
+  {
+    "id": 10,
+    "passId": 1,
+    "level": 10,
+    "rewardType": "pack",
+    "rewardValue": "bronzo",
+    "isPremium": true
+  },
+  {
+    "id": 11,
+    "passId": 1,
+    "level": 11,
+    "rewardType": "credits",
+    "rewardValue": "550",
+    "isPremium": false
+  },
+  {
+    "id": 12,
+    "passId": 1,
+    "level": 12,
+    "rewardType": "credits",
+    "rewardValue": "600",
+    "isPremium": true
+  },
+  {
+    "id": 13,
+    "passId": 1,
+    "level": 13,
+    "rewardType": "credits",
+    "rewardValue": "650",
+    "isPremium": false
+  },
+  {
+    "id": 14,
+    "passId": 1,
+    "level": 14,
+    "rewardType": "credits",
+    "rewardValue": "700",
+    "isPremium": true
+  },
+  {
+    "id": 15,
+    "passId": 1,
+    "level": 15,
+    "rewardType": "pack",
+    "rewardValue": "bronzo",
+    "isPremium": false
+  },
+  {
+    "id": 16,
+    "passId": 1,
+    "level": 16,
+    "rewardType": "credits",
+    "rewardValue": "800",
+    "isPremium": true
+  },
+  {
+    "id": 17,
+    "passId": 1,
+    "level": 17,
+    "rewardType": "credits",
+    "rewardValue": "850",
+    "isPremium": false
+  },
+  {
+    "id": 18,
+    "passId": 1,
+    "level": 18,
+    "rewardType": "credits",
+    "rewardValue": "900",
+    "isPremium": true
+  },
+  {
+    "id": 19,
+    "passId": 1,
+    "level": 19,
+    "rewardType": "credits",
+    "rewardValue": "950",
+    "isPremium": false
+  },
+  {
+    "id": 20,
+    "passId": 1,
+    "level": 20,
+    "rewardType": "pack",
+    "rewardValue": "bronzo",
+    "isPremium": true
+  },
+  {
+    "id": 21,
+    "passId": 1,
+    "level": 21,
+    "rewardType": "credits",
+    "rewardValue": "1050",
+    "isPremium": false
+  },
+  {
+    "id": 22,
+    "passId": 1,
+    "level": 22,
+    "rewardType": "credits",
+    "rewardValue": "1100",
+    "isPremium": true
+  },
+  {
+    "id": 23,
+    "passId": 1,
+    "level": 23,
+    "rewardType": "credits",
+    "rewardValue": "1150",
+    "isPremium": false
+  },
+  {
+    "id": 24,
+    "passId": 1,
+    "level": 24,
+    "rewardType": "credits",
+    "rewardValue": "1200",
+    "isPremium": true
+  },
+  {
+    "id": 25,
+    "passId": 1,
+    "level": 25,
+    "rewardType": "pack",
+    "rewardValue": "bronzo",
+    "isPremium": false
+  },
+  {
+    "id": 26,
+    "passId": 1,
+    "level": 26,
+    "rewardType": "credits",
+    "rewardValue": "1300",
+    "isPremium": true
+  },
+  {
+    "id": 27,
+    "passId": 1,
+    "level": 27,
+    "rewardType": "credits",
+    "rewardValue": "1350",
+    "isPremium": false
+  },
+  {
+    "id": 28,
+    "passId": 1,
+    "level": 28,
+    "rewardType": "credits",
+    "rewardValue": "1400",
+    "isPremium": true
+  },
+  {
+    "id": 29,
+    "passId": 1,
+    "level": 29,
+    "rewardType": "credits",
+    "rewardValue": "1450",
+    "isPremium": false
+  },
+  {
+    "id": 30,
+    "passId": 1,
+    "level": 30,
+    "rewardType": "pack",
+    "rewardValue": "bronzo",
+    "isPremium": true
+  },
+  {
+    "id": 32,
+    "passId": 2,
+    "level": 1,
+    "rewardType": "title",
+    "rewardValue": "Spaccaculi",
+    "isPremium": false
+  }
+]

@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "name": "I Salutatori",
+    "tag": "DVX",
+    "description": "Salutiamo un sacco",
+    "emblem": "🦅",
+    "leaderId": 3,
+    "totalPoints": 1224,
+    "totalWins": 0,
+    "memberCount": 1,
+    "maxMembers": 20,
+    "isPublic": true,
+    "createdAt": "2026-03-06T17:23:56.566Z"
+  }
+]

@@ -1,0 +1,6214 @@
+[
+  {
+    "id": 1,
+    "userId": 3,
+    "packId": "bronzo",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "name": "replay",
+        "cardId": "bonus-118",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/FHMRRh0G/replay.png"
+      },
+      {
+        "name": "true mattarella",
+        "cardId": "personaggi-169",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 0,
+        "frontImage": "https://i.postimg.cc/bJsLyHPK/true-mattarella.png"
+      },
+      {
+        "name": "OCCHIO DEL FOTOGRAFO",
+        "cardId": "bonus-108",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/W1CDkGcG/OCCHIO-DEL-FOTOGRAFO.png"
+      },
+      {
+        "name": "c mastrota",
+        "cardId": "personaggi-26",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/GpPyn46v/c-mastrota.png"
+      },
+      {
+        "name": "pugno",
+        "cardId": "mosse-73",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/pBtPYvzg/pugno.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T11:42:50.998Z"
+  },
+  {
+    "id": 2,
+    "userId": 3,
+    "packId": "bronzo",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "name": "silver silvio",
+        "cardId": "personaggi-157",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/KYQtgKQx/silver-silvio.png"
+      },
+      {
+        "name": "gigibaby777",
+        "cardId": "personaggi-67",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 0,
+        "frontImage": "https://i.postimg.cc/BQDDB7Nh/gigibaby777.png"
+      },
+      {
+        "name": "zio michele",
+        "cardId": "personaggi-176",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 0,
+        "frontImage": "https://i.postimg.cc/rwMJ0LcG/zio-michele.png"
+      },
+      {
+        "name": "trauma",
+        "cardId": "bonus-150",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/fLb6Q9kP/trauma.png"
+      },
+      {
+        "name": "golden freezer",
+        "cardId": "personaggi-74",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 36,
+        "frontImage": "https://i.postimg.cc/mZ1FT6xb/golden-freezer.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T11:43:35.914Z"
+  },
+  {
+    "id": 3,
+    "userId": 3,
+    "packId": "argento",
+    "creditsSpent": 400,
+    "cardsObtained": [
+      {
+        "name": "UOVO",
+        "cardId": "bonus-155",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/nVNcTHPx/UOVO.png"
+      },
+      {
+        "name": "milhouse",
+        "cardId": "personaggi-106",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 0,
+        "frontImage": "https://i.postimg.cc/v87b7Wfr/milhouse.png"
+      },
+      {
+        "name": "tizio jamaicano",
+        "cardId": "personaggi-166",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 0,
+        "frontImage": "https://i.postimg.cc/wjpWXm5m/tizio-jamaicano.png"
+      },
+      {
+        "name": "f r cina",
+        "cardId": "mosse-30",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/9kSycj31/f-r-cina.png"
+      },
+      {
+        "name": "pacca",
+        "cardId": "mosse-63",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/QF7JRsk5/pacca.png"
+      },
+      {
+        "name": "attacco",
+        "cardId": "mosse-8",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/ZzdFWqBZ/attacco.png"
+      },
+      {
+        "name": "divino johnny",
+        "cardId": "personaggi-47",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 49,
+        "frontImage": "https://i.postimg.cc/ZK9vK71b/divino-johnny.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T11:43:52.796Z"
+  },
+  {
+    "id": 4,
+    "userId": 3,
+    "packId": "oro",
+    "creditsSpent": 900,
+    "cardsObtained": [
+      {
+        "name": "IMITAZIONE",
+        "cardId": "bonus-70",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/3wftpbJL/IMITAZIONE.png"
+      },
+      {
+        "name": "boldi building",
+        "cardId": "personaggi-18",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 18,
+        "frontImage": "https://i.postimg.cc/28jTcDbH/boldi-building.png"
+      },
+      {
+        "name": "cimice",
+        "cardId": "personaggi-38",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 0,
+        "frontImage": "https://i.postimg.cc/MK4R72yf/cimice.png"
+      },
+      {
+        "name": "mo c abbusc",
+        "cardId": "mosse-55",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/4Z5WL1fq/mo-c-abbusc.png"
+      },
+      {
+        "name": "ostaggio",
+        "cardId": "mosse-62",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/8nV8Lgyh/ostaggio.png"
+      },
+      {
+        "name": "frog splash",
+        "cardId": "mosse-32",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/Mk1mtzdy/frog-splash.png"
+      },
+      {
+        "name": "pacca",
+        "cardId": "mosse-63",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/QF7JRsk5/pacca.png"
+      },
+      {
+        "name": "lega olimpo",
+        "cardId": "bonus-79",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/VNvRYBBX/lega-olimpo.png"
+      },
+      {
+        "name": "zeus",
+        "cardId": "personaggi-173",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 47,
+        "frontImage": "https://i.postimg.cc/3JM9hvcc/zeus.png"
+      },
+      {
+        "name": "ma che t hanno fatto ma t hanno fatto qualcosa",
+        "cardId": "mosse-49",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 80,
+        "frontImage": "https://i.ibb.co/TBGtKzsB/ma-che-t-hanno-fatto-ma-t-hanno-fatto-qualcosa.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T11:44:28.568Z"
+  },
+  {
+    "id": 5,
+    "userId": 3,
+    "packId": "bronzo",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "name": "fiaschetta",
+        "cardId": "bonus-58",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 5,
+        "frontImage": "https://i.postimg.cc/y8X5JPZ5/fiaschetta.png"
+      },
+      {
+        "name": "cannavacciuolo",
+        "cardId": "personaggi-30",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 0,
+        "frontImage": "https://i.postimg.cc/9Q6dh50H/cannavacciuolo.png"
+      },
+      {
+        "name": "stalin",
+        "cardId": "personaggi-158",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 0,
+        "frontImage": "https://i.postimg.cc/hjjT8S3x/stalin.png"
+      },
+      {
+        "name": "magone alezio",
+        "cardId": "personaggi-99",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 0,
+        "frontImage": "https://i.postimg.cc/fb6DCC8K/magone-alezio.png"
+      },
+      {
+        "name": "sprangata",
+        "cardId": "mosse-80",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/rRVR5YQS/sprangata.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T11:53:23.771Z"
+  },
+  {
+    "id": 6,
+    "userId": 3,
+    "packId": "bronzo",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "name": "gasata",
+        "cardId": "bonus-63",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/5yCKfqJs/gasata.png"
+      },
+      {
+        "name": "doping",
+        "cardId": "bonus-42",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 5,
+        "frontImage": "https://i.postimg.cc/mktV83hb/doping.png"
+      },
+      {
+        "name": "brian",
+        "cardId": "personaggi-21",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/cLrhWBcw/brian.png"
+      },
+      {
+        "name": "emis killa",
+        "cardId": "personaggi-52",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 0,
+        "frontImage": "https://i.postimg.cc/j5dLVZHr/emis-killa.png"
+      },
+      {
+        "name": "pioggia di meteoriti",
+        "cardId": "mosse-67",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/RGVnrqBZ/pioggia-di-meteoriti.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T11:57:42.067Z"
+  },
+  {
+    "id": 45,
+    "userId": 3,
+    "packId": "argento",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "name": "RESPINTA",
+        "cardId": "bonus-119",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/TPnP5B9x/RESPINTA.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 800,
+        "name": "kulungu",
+        "stars": 2,
+        "cardId": "personaggi-90",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 16,
+        "frontImage": "https://i.postimg.cc/g0r2NnmY/kulungu.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 1250,
+        "name": "al bano",
+        "stars": 2,
+        "cardId": "personaggi-0",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 22,
+        "frontImage": "https://i.postimg.cc/fRTF9dfR/al-bano.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "calcio rotante",
+        "cardId": "mosse-13",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/kgrxyXKm/calcio-rotante.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "attacco",
+        "cardId": "mosse-8",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/ZzdFWqBZ/attacco.png",
+        "isDuplicate": true,
+        "duplicateCredits": 20,
+        "halfRefundCredits": 20
+      },
+      {
+        "name": "evoluzione arcobaleno",
+        "cardId": "bonus-49",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/Pqy4HVwX/evoluzione-arcobaleno.png",
+        "isDuplicate": true,
+        "duplicateCredits": 25,
+        "halfRefundCredits": 25
+      },
+      {
+        "name": "CRISALIDE",
+        "cardId": "bonus-33",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/HnhvgZFc/CRISALIDE.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T11:09:19.035Z"
+  },
+  {
+    "id": 7,
+    "userId": 3,
+    "packId": "bronzo",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "name": "carmine",
+        "cardId": "personaggi-178",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 0,
+        "frontImage": "https://i.ibb.co/mrDk3f3m/carmine.png"
+      },
+      {
+        "name": "Oooooh che t ritt",
+        "cardId": "bonus-110",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/1tZfWyt4/Oooooh-che-t-ritt.png"
+      },
+      {
+        "name": "lega camera caf",
+        "cardId": "bonus-76",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/bN0LLvwS/lega-camera-caf.png"
+      },
+      {
+        "name": "saverio",
+        "cardId": "personaggi-151",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 0,
+        "frontImage": "https://i.postimg.cc/6qFr5DcZ/saverio.png"
+      },
+      {
+        "name": "capo rabbino",
+        "cardId": "personaggi-33",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 21,
+        "frontImage": "https://i.postimg.cc/TPnr275L/capo-rabbino.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T12:04:00.467Z"
+  },
+  {
+    "id": 8,
+    "userId": 3,
+    "packId": "daily",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "name": "TRINIT",
+        "cardId": "bonus-168",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.ibb.co/KcQZQCbJ/TRINIT.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T12:32:08.974Z"
+  },
+  {
+    "id": 9,
+    "userId": 3,
+    "packId": "diamante",
+    "creditsSpent": 2000,
+    "cardsObtained": [
+      {
+        "name": "capello smith",
+        "cardId": "personaggi-32",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/fLZYVcYH/capello-smith.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "giovanni grana",
+        "cardId": "personaggi-69",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 0,
+        "frontImage": "https://i.postimg.cc/CKMqYh0t/giovanni-grana.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "gerry scotti",
+        "cardId": "personaggi-62",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 22,
+        "frontImage": "https://i.postimg.cc/G22hg9RL/gerry-scotti.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "calcio in culo",
+        "cardId": "mosse-12",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/bjg4DpdH/calcio-in-culo.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "neeno phrasseeka",
+        "cardId": "personaggi-118",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 21,
+        "frontImage": "https://i.postimg.cc/bwW7fJ1Y/neeno-phrasseeka.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "assorbimento",
+        "cardId": "mosse-4",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/KjyM2Ns6/assorbimento.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "vegeta",
+        "cardId": "personaggi-170",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 42,
+        "frontImage": "https://i.postimg.cc/909pTmrb/vegeta.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "evoluzione verde",
+        "cardId": "bonus-53",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/J0f3x99q/evoluzione-verde.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "zeus",
+        "cardId": "personaggi-173",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 47,
+        "frontImage": "https://i.postimg.cc/3JM9hvcc/zeus.png",
+        "isDuplicate": true,
+        "duplicateCredits": 50
+      },
+      {
+        "name": "il dado del giudizio",
+        "cardId": "bonus-68",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/XY8HNvM6/il-dado-del-giudizio.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "ma che t hanno fatto ma t hanno fatto qualcosa",
+        "cardId": "mosse-49",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 80,
+        "frontImage": "https://i.ibb.co/TBGtKzsB/ma-che-t-hanno-fatto-ma-t-hanno-fatto-qualcosa.png",
+        "isDuplicate": true,
+        "duplicateCredits": 100
+      },
+      {
+        "name": "spallino",
+        "cardId": "mosse-79",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 85,
+        "frontImage": "https://i.ibb.co/qF2yVm8C/spallino.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      }
+    ],
+    "duplicatesCredits": 150,
+    "openedAt": "2026-03-06T12:36:59.045Z"
+  },
+  {
+    "id": 10,
+    "userId": 3,
+    "packId": "mission_claimed",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "missionCode": "get_epic_card"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T12:39:08.900Z"
+  },
+  {
+    "id": 11,
+    "userId": 3,
+    "packId": "mission_claimed",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "missionCode": "complete_draft_deck"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T12:39:13.837Z"
+  },
+  {
+    "id": 12,
+    "userId": 3,
+    "packId": "mission_claimed",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "missionCode": "open_pack_5"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T12:39:20.492Z"
+  },
+  {
+    "id": 13,
+    "userId": 3,
+    "packId": "mission_claimed",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "missionCode": "open_pack_1"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T12:39:24.967Z"
+  },
+  {
+    "id": 14,
+    "userId": 3,
+    "packId": "bronzo",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "name": "molise",
+        "cardId": "personaggi-109",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 3,
+        "frontImage": "https://i.postimg.cc/cLzS1TGS/molise.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "ndonj manz",
+        "cardId": "personaggi-190",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 15,
+        "frontImage": "https://i.ibb.co/q6TNM0S/ndonj-manz.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "modalit kamikaze",
+        "cardId": "bonus-98",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/vZNnvRf6/modalit-kamikaze.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "pasquale s",
+        "cardId": "personaggi-132",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 13,
+        "frontImage": "https://i.postimg.cc/0jXtGWf5/pasquale-s.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "neeno phrasseeka",
+        "cardId": "personaggi-118",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 21,
+        "frontImage": "https://i.postimg.cc/bwW7fJ1Y/neeno-phrasseeka.png",
+        "isDuplicate": true,
+        "duplicateCredits": 25
+      }
+    ],
+    "duplicatesCredits": 25,
+    "openedAt": "2026-03-06T14:13:09.070Z"
+  },
+  {
+    "id": 15,
+    "userId": 3,
+    "packId": "diamante",
+    "creditsSpent": 2000,
+    "cardsObtained": [
+      {
+        "name": "minkiard n 300",
+        "cardId": "bonus-90",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/d1dG1W7Z/minkiard-n-300.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "modalit troll",
+        "cardId": "bonus-100",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/50cFZwP4/modalit-troll.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "putin",
+        "cardId": "personaggi-145",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 21,
+        "frontImage": "https://i.postimg.cc/YqJRpmDP/putin.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "catapulta infernale",
+        "cardId": "mosse-17",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/C3w0wJ98/catapulta-infernale.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "pugno",
+        "cardId": "mosse-73",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/pBtPYvzg/pugno.png",
+        "isDuplicate": true,
+        "duplicateCredits": 25
+      },
+      {
+        "name": "cazzotto in testa",
+        "cardId": "mosse-18",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/W4Wr4wHC/cazzotto-in-testa.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "E rispondi Pure",
+        "cardId": "bonus-45",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 60,
+        "frontImage": "https://i.postimg.cc/gkLNhKfs/E-rispondi-Pure.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "francesco pandolfi",
+        "cardId": "personaggi-60",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 45,
+        "frontImage": "https://i.postimg.cc/s232Sw0Z/francesco-pandolfi.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "evoluzione blu",
+        "cardId": "bonus-50",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/PxqM5bWm/evoluzione-blu.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "mutilazione",
+        "cardId": "mosse-59",
+        "rarity": "epica",
+        "deckType": "mosse",
+        "draftCost": 50,
+        "frontImage": "https://i.ibb.co/Q3yR8BTJ/mutilazione.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "distruzione totale",
+        "cardId": "bonus-39",
+        "rarity": "leggendaria",
+        "deckType": "bonus",
+        "draftCost": 90,
+        "frontImage": "https://i.postimg.cc/ZqxfRK1h/distruzione-totale.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "spallino",
+        "cardId": "mosse-79",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 85,
+        "frontImage": "https://i.ibb.co/qF2yVm8C/spallino.png",
+        "isDuplicate": true,
+        "duplicateCredits": 100
+      }
+    ],
+    "duplicatesCredits": 125,
+    "openedAt": "2026-03-06T17:27:32.818Z"
+  },
+  {
+    "id": 16,
+    "userId": 3,
+    "packId": "bronzo",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "name": "homer",
+        "cardId": "personaggi-79",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 5,
+        "frontImage": "https://i.postimg.cc/vZb1LY4B/homer.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "kebab",
+        "cardId": "mosse-42",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 15,
+        "frontImage": "https://i.ibb.co/yFKJgPzw/kebab.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "daddy conte",
+        "cardId": "personaggi-45",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 18,
+        "frontImage": "https://i.postimg.cc/J7YB8VYY/daddy-conte.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "majin pupo",
+        "cardId": "personaggi-100",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 18,
+        "frontImage": "https://i.postimg.cc/XY1VG4Ft/majin-pupo.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "caifa",
+        "cardId": "personaggi-29",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 28,
+        "frontImage": "https://i.postimg.cc/VLH9Kbc6/caifa.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T17:30:43.923Z"
+  },
+  {
+    "id": 17,
+    "userId": 4,
+    "packId": "daily",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "name": "carmine",
+        "cardId": "personaggi-178",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 26,
+        "frontImage": "https://i.ibb.co/mrDk3f3m/carmine.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T20:49:17.838Z"
+  },
+  {
+    "id": 18,
+    "userId": 8,
+    "packId": "daily",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "name": "pacca",
+        "cardId": "mosse-63",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/QF7JRsk5/pacca.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T21:19:26.613Z"
+  },
+  {
+    "id": 19,
+    "userId": 8,
+    "packId": "mission_claimed",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "missionCode": "get_epic_card"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T21:19:45.232Z"
+  },
+  {
+    "id": 20,
+    "userId": 8,
+    "packId": "mission_claimed",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "missionCode": "open_pack_1"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T21:20:03.821Z"
+  },
+  {
+    "id": 21,
+    "userId": 8,
+    "packId": "mission_claimed",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "missionCode": "complete_draft_deck"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T21:20:08.999Z"
+  },
+  {
+    "id": 46,
+    "userId": 3,
+    "packId": "bonus",
+    "creditsSpent": 50,
+    "cardsObtained": [
+      {
+        "name": "rusc",
+        "cardId": "bonus-122",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/sxgf8xRf/rusc.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "doping",
+        "cardId": "bonus-42",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 5,
+        "frontImage": "https://i.postimg.cc/mktV83hb/doping.png",
+        "isDuplicate": true,
+        "duplicateCredits": 2,
+        "halfRefundCredits": 2
+      },
+      {
+        "name": "5 GGGGG",
+        "cardId": "bonus-1",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/Gh4g1ct2/5-GGGGG.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T12:26:12.222Z"
+  },
+  {
+    "id": 22,
+    "userId": 8,
+    "packId": "argento",
+    "creditsSpent": 400,
+    "cardsObtained": [
+      {
+        "name": "sta buon rocc",
+        "cardId": "bonus-137",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/BnH3mH1c/sta-buon-rocc.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "razzi",
+        "cardId": "personaggi-146",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 12,
+        "frontImage": "https://i.postimg.cc/6QKhZxXL/razzi.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "torretta",
+        "cardId": "mosse-87",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 10,
+        "frontImage": "https://i.ibb.co/fYgKSN3w/torretta.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "gangnam",
+        "cardId": "bonus-62",
+        "rarity": "rara",
+        "deckType": "bonus",
+        "draftCost": 40,
+        "frontImage": "https://i.postimg.cc/G2NS0gWB/gangnam.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "al bano",
+        "cardId": "personaggi-0",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 22,
+        "frontImage": "https://i.postimg.cc/fRTF9dfR/al-bano.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "attacco disonesto",
+        "cardId": "mosse-6",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/PZR61NhJ/attacco-disonesto.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "evoluzione rossa",
+        "cardId": "bonus-52",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/x8JyK0F8/evoluzione-rossa.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T21:20:29.119Z"
+  },
+  {
+    "id": 23,
+    "userId": 8,
+    "packId": "bronzo",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "name": "djidji d alessio",
+        "cardId": "personaggi-48",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 3,
+        "frontImage": "https://i.postimg.cc/sg7B5Bjb/djidji-d-alessio.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "brian",
+        "cardId": "personaggi-21",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/cLrhWBcw/brian.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "de marinis",
+        "cardId": "personaggi-46",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 16,
+        "frontImage": "https://i.postimg.cc/fyytdByv/de-marinis.png",
+        "isDuplicate": true,
+        "duplicateCredits": 10
+      },
+      {
+        "name": "l ho solo sfiorata un po",
+        "cardId": "mosse-46",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 8,
+        "frontImage": "https://i.ibb.co/VcSg8b7S/l-ho-solo-sfiorata-un-po.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "progiettile litale",
+        "cardId": "mosse-71",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/fzbfYgnq/progiettile-litale.png",
+        "isDuplicate": true,
+        "duplicateCredits": 25
+      }
+    ],
+    "duplicatesCredits": 35,
+    "openedAt": "2026-03-06T21:22:49.327Z"
+  },
+  {
+    "id": 24,
+    "userId": 8,
+    "packId": "bronzo",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "name": "lega ganza",
+        "cardId": "bonus-77",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/Jz1xFWs6/lega-ganza.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "monatto",
+        "cardId": "personaggi-110",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 13,
+        "frontImage": "https://i.postimg.cc/YSmwvgtm/monatto.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "stipendio",
+        "cardId": "bonus-140",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/Y9qw2PDb/stipendio.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "scee",
+        "cardId": "bonus-126",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/jd9qgR3K/scee.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "horsy",
+        "cardId": "personaggi-80",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 40,
+        "frontImage": "https://i.postimg.cc/6QQygMLx/horsy.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T21:23:02.418Z"
+  },
+  {
+    "id": 25,
+    "userId": 3,
+    "packId": "oro",
+    "creditsSpent": 900,
+    "cardsObtained": [
+      {
+        "name": "BAMBOLA VOODOO",
+        "cardId": "bonus-161",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.ibb.co/TCqY21v/BAMBOLA-VOODOO.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "Totaleeee",
+        "cardId": "bonus-147",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/Mp7k7wh9/Totaleeee.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "silvano",
+        "cardId": "personaggi-156",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 5,
+        "frontImage": "https://i.postimg.cc/FKhjRbyT/silvano.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "capata",
+        "cardId": "mosse-16",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/QFpS7tnT/capata.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "pugno della radiosa primavera",
+        "cardId": "mosse-72",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/Gf2Lzch3/pugno-della-radiosa-primavera.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "sandro",
+        "cardId": "personaggi-197",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 28,
+        "frontImage": "https://i.ibb.co/Xrp613M2/sandro.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "fucile a pompa",
+        "cardId": "mosse-34",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/21FPwH1z/fucile-a-pompa.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "lega olimpo",
+        "cardId": "bonus-79",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/VNvRYBBX/lega-olimpo.png",
+        "isDuplicate": true,
+        "duplicateCredits": 50
+      },
+      {
+        "name": "onda energetica",
+        "cardId": "mosse-61",
+        "rarity": "epica",
+        "deckType": "mosse",
+        "draftCost": 60,
+        "frontImage": "https://i.ibb.co/RT3w3zYS/onda-energetica.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      },
+      {
+        "name": "ago di pino",
+        "cardId": "mosse-3",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 90,
+        "frontImage": "https://i.ibb.co/Ld485J59/ago-di-pino.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0
+      }
+    ],
+    "duplicatesCredits": 50,
+    "openedAt": "2026-03-06T22:26:31.045Z"
+  },
+  {
+    "id": 26,
+    "userId": 3,
+    "packId": "bronzo",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "name": "panino malefico",
+        "cardId": "personaggi-128",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/651SC3jV/panino-malefico.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "azz tuost sant rocc",
+        "cardId": "bonus-11",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 5,
+        "frontImage": "https://i.postimg.cc/hPQs5pZQ/azz-tuost-sant-rocc.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "parassita",
+        "cardId": "personaggi-131",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 7,
+        "frontImage": "https://i.postimg.cc/j5X32dn7/parassita.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "pasqualino paonazzo",
+        "cardId": "personaggi-192",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 14,
+        "frontImage": "https://i.ibb.co/6fYR3Jf/pasqualino-paonazzo.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "duello",
+        "cardId": "mosse-26",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/nMmLjBbP/duello.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T23:21:03.730Z"
+  },
+  {
+    "id": 33,
+    "userId": 3,
+    "packId": "personaggi_speciali",
+    "creditsSpent": 50,
+    "cardsObtained": [
+      {
+        "pti": 1800,
+        "name": "niko bellic",
+        "stars": 3,
+        "cardId": "personaggi-122",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 32,
+        "frontImage": "https://i.postimg.cc/Y0dPnqpH/niko-bellic.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 2900,
+        "name": "christian de sica",
+        "stars": 3,
+        "cardId": "personaggi-179",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 46,
+        "frontImage": "https://i.ibb.co/JwvDTmsb/christian-de-sica.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 2700,
+        "name": "heihachi mishima",
+        "stars": 4,
+        "cardId": "personaggi-75",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 46,
+        "frontImage": "https://i.postimg.cc/V6prjXtQ/heihachi-mishima.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T01:17:41.463Z"
+  },
+  {
+    "id": 27,
+    "userId": 3,
+    "packId": "argento",
+    "creditsSpent": 400,
+    "cardsObtained": [
+      {
+        "name": "bug s vanni",
+        "cardId": "personaggi-24",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 3,
+        "frontImage": "https://i.postimg.cc/ZnbPM8R9/bug-s-vanni.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "ZZERUO",
+        "cardId": "bonus-160",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/9fxc9V7v/ZZERUO.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "tizio jamaicano",
+        "cardId": "personaggi-166",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/wjpWXm5m/tizio-jamaicano.png",
+        "isDuplicate": true,
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "name": "scream",
+        "cardId": "personaggi-154",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 21,
+        "frontImage": "https://i.postimg.cc/Mp20kJv2/scream.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "sandro",
+        "cardId": "personaggi-197",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 28,
+        "frontImage": "https://i.ibb.co/Xrp613M2/sandro.png",
+        "isDuplicate": true,
+        "duplicateCredits": 14,
+        "halfRefundCredits": 14
+      },
+      {
+        "name": "capata",
+        "cardId": "mosse-16",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/QFpS7tnT/capata.png",
+        "isDuplicate": true,
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "name": "goku",
+        "cardId": "personaggi-73",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 43,
+        "frontImage": "https://i.postimg.cc/fLJSt8Jf/goku.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-06T23:21:20.317Z"
+  },
+  {
+    "id": 28,
+    "userId": 8,
+    "packId": "bronzo",
+    "creditsSpent": 75,
+    "cardsObtained": [
+      {
+        "name": "fusione",
+        "cardId": "bonus-60",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/SKgvdxVf/fusione.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 80,
+        "name": "cimice",
+        "stars": 3,
+        "cardId": "personaggi-38",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 9,
+        "frontImage": "https://i.postimg.cc/MK4R72yf/cimice.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "minkiard n 400",
+        "cardId": "bonus-91",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/8C7R8kNH/minkiard-n-400.png",
+        "isDuplicate": true,
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "name": "apocalisse",
+        "cardId": "bonus-6",
+        "rarity": "rara",
+        "deckType": "bonus",
+        "draftCost": 40,
+        "frontImage": "https://i.postimg.cc/NMGbCtZQ/apocalisse.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "galassia",
+        "cardId": "bonus-61",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 45,
+        "frontImage": "https://i.postimg.cc/63T1mxmJ/galassia.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T00:51:46.138Z"
+  },
+  {
+    "id": 29,
+    "userId": 3,
+    "packId": "bonus",
+    "creditsSpent": 50,
+    "cardsObtained": [
+      {
+        "pti": 400,
+        "name": "tizio jamaicano",
+        "stars": 2,
+        "cardId": "personaggi-166",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/wjpWXm5m/tizio-jamaicano.png",
+        "isDuplicate": true,
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "pti": 400,
+        "name": "zio michele",
+        "stars": 1,
+        "cardId": "personaggi-176",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 8,
+        "frontImage": "https://i.postimg.cc/rwMJ0LcG/zio-michele.png",
+        "isDuplicate": true,
+        "duplicateCredits": 4,
+        "halfRefundCredits": 4
+      },
+      {
+        "pti": 150,
+        "name": "ape",
+        "stars": 3,
+        "cardId": "personaggi-4",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/W3rfvwTX/ape.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T01:08:51.662Z"
+  },
+  {
+    "id": 30,
+    "userId": 3,
+    "packId": "bronzo",
+    "creditsSpent": 75,
+    "cardsObtained": [
+      {
+        "name": "minkiard n 100",
+        "cardId": "bonus-89",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/YST1tcSw/minkiard-n-100.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 1000,
+        "name": "daddy conte",
+        "stars": 2,
+        "cardId": "personaggi-45",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 18,
+        "frontImage": "https://i.postimg.cc/J7YB8VYY/daddy-conte.png",
+        "isDuplicate": true,
+        "duplicateCredits": 9,
+        "halfRefundCredits": 9
+      },
+      {
+        "name": "fantafinanza",
+        "cardId": "bonus-56",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/28WgYm8C/fantafinanza.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "lupara",
+        "cardId": "mosse-48",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/ZprDtkyS/lupara.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "comunismo",
+        "cardId": "bonus-28",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 45,
+        "frontImage": "https://i.postimg.cc/0QChLC8D/comunismo.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T01:11:29.658Z"
+  },
+  {
+    "id": 31,
+    "userId": 3,
+    "packId": "personaggi",
+    "creditsSpent": 50,
+    "cardsObtained": [
+      {
+        "pti": 500,
+        "name": "psy",
+        "stars": 4,
+        "cardId": "personaggi-144",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 17,
+        "frontImage": "https://i.postimg.cc/RV3G5Tdf/psy.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 500,
+        "name": "razzi",
+        "stars": 2,
+        "cardId": "personaggi-146",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 12,
+        "frontImage": "https://i.postimg.cc/6QKhZxXL/razzi.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 1000,
+        "name": "scream",
+        "stars": 3,
+        "cardId": "personaggi-154",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 21,
+        "frontImage": "https://i.postimg.cc/Mp20kJv2/scream.png",
+        "isDuplicate": true,
+        "duplicateCredits": 10,
+        "halfRefundCredits": 10
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T01:11:47.833Z"
+  },
+  {
+    "id": 32,
+    "userId": 3,
+    "packId": "mosse",
+    "creditsSpent": 50,
+    "cardsObtained": [
+      {
+        "name": "torretta",
+        "cardId": "mosse-87",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 10,
+        "frontImage": "https://i.ibb.co/fYgKSN3w/torretta.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "tanfo",
+        "cardId": "mosse-85",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 15,
+        "frontImage": "https://i.ibb.co/fdVMkZkm/tanfo.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "kebab",
+        "cardId": "mosse-42",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 15,
+        "frontImage": "https://i.ibb.co/yFKJgPzw/kebab.png",
+        "isDuplicate": true,
+        "duplicateCredits": 7,
+        "halfRefundCredits": 7
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T01:11:58.957Z"
+  },
+  {
+    "id": 34,
+    "userId": 3,
+    "packId": "diamante",
+    "creditsSpent": 500,
+    "cardsObtained": [
+      {
+        "name": "SCHEDINE O TUTTO O NIENTE",
+        "cardId": "bonus-127",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/7Z2Hjjjz/SCHEDINE-O-TUTTO-O-NIENTE.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "MODALITA ZOMBIE",
+        "cardId": "bonus-103",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/HnzccFTn/MODALITA-ZOMBIE.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "eredit",
+        "cardId": "bonus-48",
+        "rarity": "rara",
+        "deckType": "bonus",
+        "draftCost": 40,
+        "frontImage": "https://i.postimg.cc/k5qckPDY/eredit.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "preta",
+        "cardId": "mosse-70",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/dwSLf01Z/preta.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 1000,
+        "name": "scream",
+        "stars": 3,
+        "cardId": "personaggi-154",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 21,
+        "frontImage": "https://i.postimg.cc/Mp20kJv2/scream.png",
+        "isDuplicate": true,
+        "duplicateCredits": 10,
+        "halfRefundCredits": 10
+      },
+      {
+        "name": "pugno",
+        "cardId": "mosse-73",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/pBtPYvzg/pugno.png",
+        "isDuplicate": true,
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "pti": 2400,
+        "name": "vegeta",
+        "stars": 4,
+        "cardId": "personaggi-170",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 42,
+        "frontImage": "https://i.postimg.cc/909pTmrb/vegeta.png",
+        "isDuplicate": true,
+        "duplicateCredits": 21,
+        "halfRefundCredits": 21
+      },
+      {
+        "name": "onda energetica",
+        "cardId": "mosse-61",
+        "rarity": "epica",
+        "deckType": "mosse",
+        "draftCost": 60,
+        "frontImage": "https://i.ibb.co/RT3w3zYS/onda-energetica.png",
+        "isDuplicate": true,
+        "duplicateCredits": 30,
+        "halfRefundCredits": 30
+      },
+      {
+        "name": "AMEECO",
+        "cardId": "bonus-5",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 55,
+        "frontImage": "https://i.postimg.cc/Ls3NV5Cy/AMEECO.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "evoluzione verde",
+        "cardId": "bonus-53",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/J0f3x99q/evoluzione-verde.png",
+        "isDuplicate": true,
+        "duplicateCredits": 25,
+        "halfRefundCredits": 25
+      },
+      {
+        "name": "ma che t hanno fatto ma t hanno fatto qualcosa",
+        "cardId": "mosse-49",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 80,
+        "frontImage": "https://i.ibb.co/TBGtKzsB/ma-che-t-hanno-fatto-ma-t-hanno-fatto-qualcosa.png",
+        "isDuplicate": true,
+        "duplicateCredits": 40,
+        "halfRefundCredits": 40
+      },
+      {
+        "name": "distruzione totale",
+        "cardId": "bonus-39",
+        "rarity": "leggendaria",
+        "deckType": "bonus",
+        "draftCost": 90,
+        "frontImage": "https://i.postimg.cc/ZqxfRK1h/distruzione-totale.png",
+        "isDuplicate": true,
+        "duplicateCredits": 45,
+        "halfRefundCredits": 45
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T01:27:43.239Z"
+  },
+  {
+    "id": 35,
+    "userId": 3,
+    "packId": "oro",
+    "creditsSpent": 300,
+    "cardsObtained": [
+      {
+        "name": "MODALITA CIECA",
+        "cardId": "bonus-95",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/xT9Lf39q/MODALITA-CIECA.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "mini semaforo",
+        "cardId": "bonus-88",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/K8qPs3Sj/mini-semaforo.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "conversione",
+        "cardId": "bonus-31",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/wjsZ6zq6/conversione.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "motosega",
+        "cardId": "mosse-58",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/kkwgNH9/motosega.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "progiettile litale",
+        "cardId": "mosse-71",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/fzbfYgnq/progiettile-litale.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "pugno",
+        "cardId": "mosse-73",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/pBtPYvzg/pugno.png",
+        "isDuplicate": true,
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "name": "SFERE DEL DRAGO",
+        "cardId": "bonus-131",
+        "rarity": "rara",
+        "deckType": "bonus",
+        "draftCost": 30,
+        "frontImage": "https://i.postimg.cc/pTqRDv5w/SFERE-DEL-DRAGO.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "attacco simultaneo",
+        "cardId": "bonus-10",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 55,
+        "frontImage": "https://i.postimg.cc/QNySmRmr/attacco-simultaneo.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "galassia",
+        "cardId": "bonus-61",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 45,
+        "frontImage": "https://i.postimg.cc/63T1mxmJ/galassia.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "accettata",
+        "cardId": "mosse-1",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 70,
+        "frontImage": "https://i.ibb.co/4ZQjYYkZ/accettata.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T08:53:49.466Z"
+  },
+  {
+    "id": 36,
+    "userId": 3,
+    "packId": "diamante",
+    "creditsSpent": 500,
+    "cardsObtained": [
+      {
+        "name": "ALTA SALVA",
+        "cardId": "bonus-4",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/SKhg8Cr2/ALTA-SALVA.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "carica",
+        "cardId": "bonus-21",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/65xGHL8Y/carica.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "eredit",
+        "cardId": "bonus-48",
+        "rarity": "rara",
+        "deckType": "bonus",
+        "draftCost": 40,
+        "frontImage": "https://i.postimg.cc/k5qckPDY/eredit.png",
+        "isDuplicate": true,
+        "duplicateCredits": 20,
+        "halfRefundCredits": 20
+      },
+      {
+        "name": "sprangata",
+        "cardId": "mosse-80",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/rRVR5YQS/sprangata.png",
+        "isDuplicate": true,
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "pti": 2173,
+        "name": "golden freezer",
+        "stars": 3,
+        "cardId": "personaggi-74",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 36,
+        "frontImage": "https://i.postimg.cc/mZ1FT6xb/golden-freezer.png",
+        "isDuplicate": true,
+        "duplicateCredits": 18,
+        "halfRefundCredits": 18
+      },
+      {
+        "name": "final flash",
+        "cardId": "mosse-29",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/zVxvvdcq/final-flash.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "evoluzione arcobaleno",
+        "cardId": "bonus-49",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/Pqy4HVwX/evoluzione-arcobaleno.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 3000,
+        "name": "gianni giganti",
+        "stars": 1,
+        "cardId": "personaggi-64",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 43,
+        "frontImage": "https://i.postimg.cc/qq6B0YgW/gianni-giganti.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "trasformazione",
+        "cardId": "bonus-149",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/q7w9FLBn/trasformazione.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 2800,
+        "name": "ernesto",
+        "stars": 4,
+        "cardId": "personaggi-182",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 47,
+        "frontImage": "https://i.ibb.co/VY8fjzXm/ernesto.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "distruzione totale",
+        "cardId": "bonus-39",
+        "rarity": "leggendaria",
+        "deckType": "bonus",
+        "draftCost": 90,
+        "frontImage": "https://i.postimg.cc/ZqxfRK1h/distruzione-totale.png",
+        "isDuplicate": true,
+        "duplicateCredits": 45,
+        "halfRefundCredits": 45
+      },
+      {
+        "name": "accettata",
+        "cardId": "mosse-1",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 70,
+        "frontImage": "https://i.ibb.co/4ZQjYYkZ/accettata.png",
+        "isDuplicate": true,
+        "duplicateCredits": 35,
+        "halfRefundCredits": 35
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T08:56:00.658Z"
+  },
+  {
+    "id": 37,
+    "userId": 3,
+    "packId": "mosse",
+    "creditsSpent": 50,
+    "cardsObtained": [
+      {
+        "name": "bomba senza detonatore",
+        "cardId": "mosse-9",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 10,
+        "frontImage": "https://i.ibb.co/KjYQDsFZ/bomba-senza-detonatore.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "puozza itt l sang",
+        "cardId": "mosse-74",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 8,
+        "frontImage": "https://i.ibb.co/ZzX83YXV/puozza-itt-l-sang.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "roulette russa",
+        "cardId": "mosse-76",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 10,
+        "frontImage": "https://i.ibb.co/LzC3QmpC/roulette-russa.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T08:57:56.409Z"
+  },
+  {
+    "id": 38,
+    "userId": 3,
+    "packId": "argento",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "pti": 400,
+        "name": "zio michele",
+        "stars": 1,
+        "cardId": "personaggi-176",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 8,
+        "frontImage": "https://i.postimg.cc/rwMJ0LcG/zio-michele.png",
+        "isDuplicate": true,
+        "duplicateCredits": 4,
+        "halfRefundCredits": 4
+      },
+      {
+        "pti": 500,
+        "name": "psy",
+        "stars": 4,
+        "cardId": "personaggi-144",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 17,
+        "frontImage": "https://i.postimg.cc/RV3G5Tdf/psy.png",
+        "isDuplicate": true,
+        "duplicateCredits": 8,
+        "halfRefundCredits": 8
+      },
+      {
+        "pti": 1994,
+        "name": "berlusconi",
+        "stars": 4,
+        "cardId": "personaggi-12",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 37,
+        "frontImage": "https://i.postimg.cc/zfHxCFb8/berlusconi.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "attacco",
+        "cardId": "mosse-8",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/ZzdFWqBZ/attacco.png",
+        "isDuplicate": true,
+        "duplicateCredits": 20,
+        "halfRefundCredits": 20
+      },
+      {
+        "pti": 2000,
+        "name": "alberto angela",
+        "stars": 3,
+        "cardId": "personaggi-1",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 34,
+        "frontImage": "https://i.postimg.cc/nLXPdt58/alberto-angela.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "comunismo",
+        "cardId": "bonus-28",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 45,
+        "frontImage": "https://i.postimg.cc/0QChLC8D/comunismo.png",
+        "isDuplicate": true,
+        "duplicateCredits": 22,
+        "halfRefundCredits": 22
+      },
+      {
+        "name": "spallino",
+        "cardId": "mosse-79",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 85,
+        "frontImage": "https://i.ibb.co/qF2yVm8C/spallino.png",
+        "isDuplicate": true,
+        "duplicateCredits": 42,
+        "halfRefundCredits": 42
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T09:00:06.078Z"
+  },
+  {
+    "id": 39,
+    "userId": 10,
+    "packId": "daily",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "pti": 500,
+        "name": "john cena",
+        "stars": 1,
+        "cardId": "personaggi-87",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 9,
+        "frontImage": "https://i.postimg.cc/g2zJLg7L/john-cena.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T10:17:30.777Z"
+  },
+  {
+    "id": 40,
+    "userId": 10,
+    "packId": "mission_claimed",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "missionCode": "open_pack_1"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T10:18:03.535Z"
+  },
+  {
+    "id": 41,
+    "userId": 10,
+    "packId": "mission_claimed",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "missionCode": "complete_draft_deck"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T10:18:13.060Z"
+  },
+  {
+    "id": 42,
+    "userId": 10,
+    "packId": "mission_claimed",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "missionCode": "get_epic_card"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T10:18:18.650Z"
+  },
+  {
+    "id": 43,
+    "userId": 10,
+    "packId": "oro",
+    "creditsSpent": 300,
+    "cardsObtained": [
+      {
+        "name": "falafel",
+        "cardId": "mosse-28",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 15,
+        "frontImage": "https://i.ibb.co/chQ9Rv0X/falafel.png",
+        "isDuplicate": true,
+        "duplicateCredits": 7,
+        "halfRefundCredits": 7
+      },
+      {
+        "pti": 800,
+        "name": "obama",
+        "stars": 2,
+        "cardId": "personaggi-125",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 16,
+        "frontImage": "https://i.postimg.cc/ZKq293cK/obama.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 600,
+        "name": "ciro pizzaiolo di sfiducia",
+        "stars": 2,
+        "cardId": "personaggi-41",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 13,
+        "frontImage": "https://i.postimg.cc/bvft5xVz/ciro-pizzaiolo-di-sfiducia.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "mo c abbusc",
+        "cardId": "mosse-55",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/4Z5WL1fq/mo-c-abbusc.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 1400,
+        "name": "cannavacciuolo",
+        "stars": 2,
+        "cardId": "personaggi-30",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 24,
+        "frontImage": "https://i.postimg.cc/9Q6dh50H/cannavacciuolo.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 1300,
+        "name": "manghik",
+        "stars": 2,
+        "cardId": "personaggi-187",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 22,
+        "frontImage": "https://i.ibb.co/WvZmxy07/manghik.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 2300,
+        "name": "piero angela che fa la kamehameha",
+        "stars": 2,
+        "cardId": "personaggi-135",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 36,
+        "frontImage": "https://i.postimg.cc/65SjyPqY/piero-angela-che-fa-la-kamehameha.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "AMEECO",
+        "cardId": "bonus-5",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 55,
+        "frontImage": "https://i.postimg.cc/Ls3NV5Cy/AMEECO.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "Crossover",
+        "cardId": "bonus-34",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 65,
+        "frontImage": "https://i.postimg.cc/2jcKhy3k/Crossover.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "ma che t hanno fatto ma t hanno fatto qualcosa",
+        "cardId": "mosse-49",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 80,
+        "frontImage": "https://i.ibb.co/TBGtKzsB/ma-che-t-hanno-fatto-ma-t-hanno-fatto-qualcosa.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T10:18:42.598Z"
+  },
+  {
+    "id": 44,
+    "userId": 10,
+    "packId": "mosse",
+    "creditsSpent": 50,
+    "cardsObtained": [
+      {
+        "name": "torretta",
+        "cardId": "mosse-87",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 10,
+        "frontImage": "https://i.ibb.co/fYgKSN3w/torretta.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "furto",
+        "cardId": "mosse-36",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 10,
+        "frontImage": "https://i.ibb.co/DDc6zgX7/furto.png",
+        "isDuplicate": true,
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "name": "assorbimento",
+        "cardId": "mosse-4",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/KjyM2Ns6/assorbimento.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T10:19:22.917Z"
+  },
+  {
+    "id": 47,
+    "userId": 3,
+    "packId": "daily",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "pti": 800,
+        "name": "boscaiolo",
+        "stars": 3,
+        "cardId": "personaggi-20",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 18,
+        "frontImage": "https://i.postimg.cc/fTHC1rYM/boscaiolo.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T12:42:13.297Z"
+  },
+  {
+    "id": 48,
+    "userId": 3,
+    "packId": "bronzo",
+    "creditsSpent": 75,
+    "cardsObtained": [
+      {
+        "pti": 100,
+        "name": "il fenomeno",
+        "stars": 1,
+        "cardId": "personaggi-81",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 4,
+        "frontImage": "https://i.postimg.cc/MTCHcqkz/il-fenomeno.png",
+        "isDuplicate": true,
+        "duplicateCredits": 2,
+        "halfRefundCredits": 2
+      },
+      {
+        "pti": 700,
+        "name": "gidi",
+        "stars": 2,
+        "cardId": "personaggi-65",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 14,
+        "frontImage": "https://i.postimg.cc/dDMs0By3/gidi.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "gilet color verde fastidio",
+        "cardId": "mosse-37",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 15,
+        "frontImage": "https://i.ibb.co/ZzMVLcw9/gilet-color-verde-fastidio.png",
+        "isDuplicate": true,
+        "duplicateCredits": 7,
+        "halfRefundCredits": 7
+      },
+      {
+        "pti": 2300,
+        "name": "saverio",
+        "stars": 3,
+        "cardId": "personaggi-151",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 38,
+        "frontImage": "https://i.postimg.cc/6qFr5DcZ/saverio.png",
+        "isDuplicate": true,
+        "duplicateCredits": 19,
+        "halfRefundCredits": 19
+      },
+      {
+        "name": "degli uman piacer non si bisticci a chi piace la cacca e a chi i pasticci",
+        "cardId": "mosse-24",
+        "rarity": "epica",
+        "deckType": "mosse",
+        "draftCost": 60,
+        "frontImage": "https://i.ibb.co/rKXtTQDp/degli-uman-piacer-non-si-bisticci-a-chi-piace-la-cacca-e-a-chi-i-pasticci.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T13:20:48.085Z"
+  },
+  {
+    "id": 49,
+    "userId": 3,
+    "packId": "argento",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "pti": 444,
+        "name": "luca giurato",
+        "stars": 2,
+        "cardId": "personaggi-94",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 11,
+        "frontImage": "https://i.postimg.cc/3Nj8dGCZ/luca-giurato.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 550,
+        "name": "crapa",
+        "stars": 2,
+        "cardId": "personaggi-42",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 12,
+        "frontImage": "https://i.postimg.cc/xC0bf0Sh/crapa.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "duello",
+        "cardId": "mosse-26",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/nMmLjBbP/duello.png",
+        "isDuplicate": true,
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "pti": 1962,
+        "name": "leo",
+        "stars": 2,
+        "cardId": "personaggi-186",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 31,
+        "frontImage": "https://i.ibb.co/spctXVPS/leo.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "IL SORRISO AMARO DI BOB DYLAN",
+        "cardId": "bonus-69",
+        "rarity": "rara",
+        "deckType": "bonus",
+        "draftCost": 40,
+        "frontImage": "https://i.postimg.cc/rpwhDLc0/IL-SORRISO-AMARO-DI-BOB-DYLAN.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "lega olimpo",
+        "cardId": "bonus-79",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/VNvRYBBX/lega-olimpo.png",
+        "isDuplicate": true,
+        "duplicateCredits": 25,
+        "halfRefundCredits": 25
+      },
+      {
+        "pti": 2700,
+        "name": "heihachi mishima",
+        "stars": 4,
+        "cardId": "personaggi-75",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 46,
+        "frontImage": "https://i.postimg.cc/V6prjXtQ/heihachi-mishima.png",
+        "isDuplicate": true,
+        "duplicateCredits": 23,
+        "halfRefundCredits": 23
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T13:21:26.591Z"
+  },
+  {
+    "id": 50,
+    "userId": 3,
+    "packId": "oro",
+    "creditsSpent": 300,
+    "cardsObtained": [
+      {
+        "name": "rissa",
+        "cardId": "mosse-75",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 10,
+        "frontImage": "https://i.ibb.co/DDL4XbdW/rissa.png",
+        "isDuplicate": true,
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "name": "ccezionale",
+        "cardId": "bonus-0",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 5,
+        "frontImage": "https://i.postimg.cc/jq77QkSD/ccezionale.png",
+        "isDuplicate": true,
+        "duplicateCredits": 2,
+        "halfRefundCredits": 2
+      },
+      {
+        "pti": 500,
+        "name": "psy",
+        "stars": 4,
+        "cardId": "personaggi-144",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 17,
+        "frontImage": "https://i.postimg.cc/RV3G5Tdf/psy.png",
+        "isDuplicate": true,
+        "duplicateCredits": 8,
+        "halfRefundCredits": 8
+      },
+      {
+        "name": "sterminio",
+        "cardId": "mosse-82",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/676kqxRK/sterminio.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "final flash",
+        "cardId": "mosse-29",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/zVxvvdcq/final-flash.png",
+        "isDuplicate": true,
+        "duplicateCredits": 20,
+        "halfRefundCredits": 20
+      },
+      {
+        "name": "uuuuuh",
+        "cardId": "mosse-88",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/fVmjZkJP/uuuuuh.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "fregatura",
+        "cardId": "mosse-31",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/bgGR2J6F/fregatura.png",
+        "isDuplicate": true,
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "pti": 2900,
+        "name": "christian de sica",
+        "stars": 3,
+        "cardId": "personaggi-179",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 46,
+        "frontImage": "https://i.ibb.co/JwvDTmsb/christian-de-sica.png",
+        "isDuplicate": true,
+        "duplicateCredits": 23,
+        "halfRefundCredits": 23
+      },
+      {
+        "name": "evoluzione blu",
+        "cardId": "bonus-50",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/PxqM5bWm/evoluzione-blu.png",
+        "isDuplicate": true,
+        "duplicateCredits": 25,
+        "halfRefundCredits": 25
+      },
+      {
+        "name": "ago di pino",
+        "cardId": "mosse-3",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 90,
+        "frontImage": "https://i.ibb.co/Ld485J59/ago-di-pino.png",
+        "isDuplicate": true,
+        "duplicateCredits": 45,
+        "halfRefundCredits": 45
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T13:21:48.451Z"
+  },
+  {
+    "id": 51,
+    "userId": 3,
+    "packId": "diamante",
+    "creditsSpent": 500,
+    "cardsObtained": [
+      {
+        "pti": 800,
+        "name": "obama",
+        "stars": 2,
+        "cardId": "personaggi-125",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 16,
+        "frontImage": "https://i.postimg.cc/ZKq293cK/obama.png",
+        "isDuplicate": true,
+        "duplicateCredits": 8,
+        "halfRefundCredits": 8
+      },
+      {
+        "name": "minkiards n 200",
+        "cardId": "bonus-93",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/7hk0Tg7s/minkiards-n-200.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "ciavatta",
+        "cardId": "mosse-20",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/Fkf3hSC0/ciavatta.png",
+        "isDuplicate": true,
+        "duplicateCredits": 20,
+        "halfRefundCredits": 20
+      },
+      {
+        "name": "fregatura",
+        "cardId": "mosse-31",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/bgGR2J6F/fregatura.png",
+        "isDuplicate": true,
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "name": "verza",
+        "cardId": "mosse-89",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/twtBbpg6/verza.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "diffusione grezzume",
+        "cardId": "mosse-25",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/PvccsXRm/diffusione-grezzume.png",
+        "isDuplicate": true,
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "name": "il dado del giudizio",
+        "cardId": "bonus-68",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/XY8HNvM6/il-dado-del-giudizio.png",
+        "isDuplicate": true,
+        "duplicateCredits": 25,
+        "halfRefundCredits": 25
+      },
+      {
+        "name": "galassia",
+        "cardId": "bonus-61",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 45,
+        "frontImage": "https://i.postimg.cc/63T1mxmJ/galassia.png",
+        "isDuplicate": true,
+        "duplicateCredits": 22,
+        "halfRefundCredits": 22
+      },
+      {
+        "name": "evoluzione rossa",
+        "cardId": "bonus-52",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/x8JyK0F8/evoluzione-rossa.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "IO SEMBRO",
+        "cardId": "bonus-73",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/3Nm1s8j6/IO-SEMBRO.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "ma che t hanno fatto ma t hanno fatto qualcosa",
+        "cardId": "mosse-49",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 80,
+        "frontImage": "https://i.ibb.co/TBGtKzsB/ma-che-t-hanno-fatto-ma-t-hanno-fatto-qualcosa.png",
+        "isDuplicate": true,
+        "duplicateCredits": 40,
+        "halfRefundCredits": 40
+      },
+      {
+        "name": "accettata",
+        "cardId": "mosse-1",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 70,
+        "frontImage": "https://i.ibb.co/4ZQjYYkZ/accettata.png",
+        "isDuplicate": true,
+        "duplicateCredits": 35,
+        "halfRefundCredits": 35
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T13:22:18.873Z"
+  },
+  {
+    "id": 52,
+    "userId": 3,
+    "packId": "argento",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "name": "OCCHIO DEL FOTOGRAFO",
+        "cardId": "bonus-108",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/W1CDkGcG/OCCHIO-DEL-FOTOGRAFO.png",
+        "isDuplicate": true,
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "pti": 450,
+        "name": "il zingaro",
+        "stars": 2,
+        "cardId": "personaggi-83",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 11,
+        "frontImage": "https://i.postimg.cc/pd1pHKqh/il-zingaro.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 1200,
+        "name": "capo rabbino",
+        "stars": 2,
+        "cardId": "personaggi-33",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 21,
+        "frontImage": "https://i.postimg.cc/TPnr275L/capo-rabbino.png",
+        "isDuplicate": true,
+        "duplicateCredits": 10,
+        "halfRefundCredits": 10
+      },
+      {
+        "name": "mina vagante",
+        "cardId": "mosse-53",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/LzRT0MS9/mina-vagante.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 1300,
+        "name": "gnomo armato di ascia",
+        "stars": 2,
+        "cardId": "personaggi-70",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 22,
+        "frontImage": "https://i.postimg.cc/GmxyZBWG/gnomo-armato-di-ascia.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 2800,
+        "name": "ernesto",
+        "stars": 4,
+        "cardId": "personaggi-182",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 47,
+        "frontImage": "https://i.ibb.co/VY8fjzXm/ernesto.png",
+        "isDuplicate": true,
+        "duplicateCredits": 23,
+        "halfRefundCredits": 23
+      },
+      {
+        "name": "galassia",
+        "cardId": "bonus-61",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 45,
+        "frontImage": "https://i.postimg.cc/63T1mxmJ/galassia.png",
+        "isDuplicate": true,
+        "duplicateCredits": 22,
+        "halfRefundCredits": 22
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-07T13:31:49.299Z"
+  },
+  {
+    "id": 53,
+    "userId": 3,
+    "packId": "diamante",
+    "creditsSpent": 500,
+    "cardsObtained": [
+      {
+        "name": "senso di colpa",
+        "cardId": "mosse-78",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 15,
+        "frontImage": "https://i.ibb.co/Y4S2ZmNJ/senso-di-colpa.png",
+        "isDuplicate": true,
+        "duplicateCredits": 7,
+        "halfRefundCredits": 7
+      },
+      {
+        "name": "lega ganza",
+        "cardId": "bonus-77",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/Jz1xFWs6/lega-ganza.png",
+        "isDuplicate": true,
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "pti": 2500,
+        "name": "francesco rossi paolozzi",
+        "stars": 1,
+        "cardId": "personaggi-61",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 36,
+        "frontImage": "https://i.postimg.cc/0NZyCDLX/francesco-rossi-paolozzi.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "fucile a pompa",
+        "cardId": "mosse-34",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/21FPwH1z/fucile-a-pompa.png",
+        "isDuplicate": true,
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "name": "cazzotto in testa",
+        "cardId": "mosse-18",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/W4Wr4wHC/cazzotto-in-testa.png",
+        "isDuplicate": true,
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "name": "baratto",
+        "cardId": "bonus-12",
+        "rarity": "rara",
+        "deckType": "bonus",
+        "draftCost": 25,
+        "frontImage": "https://i.postimg.cc/sgFmd7b6/baratto.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "trasformazione",
+        "cardId": "bonus-149",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/q7w9FLBn/trasformazione.png",
+        "isDuplicate": true,
+        "duplicateCredits": 25,
+        "halfRefundCredits": 25
+      },
+      {
+        "name": "lega olimpo",
+        "cardId": "bonus-79",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/VNvRYBBX/lega-olimpo.png",
+        "isDuplicate": true,
+        "duplicateCredits": 25,
+        "halfRefundCredits": 25
+      },
+      {
+        "pti": 2900,
+        "name": "christian de sica",
+        "stars": 3,
+        "cardId": "personaggi-179",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 46,
+        "frontImage": "https://i.ibb.co/JwvDTmsb/christian-de-sica.png",
+        "isDuplicate": true,
+        "duplicateCredits": 23,
+        "halfRefundCredits": 23
+      },
+      {
+        "pti": 3000,
+        "name": "gianni giganti",
+        "stars": 1,
+        "cardId": "personaggi-64",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 43,
+        "frontImage": "https://i.postimg.cc/qq6B0YgW/gianni-giganti.png",
+        "isDuplicate": true,
+        "duplicateCredits": 21,
+        "halfRefundCredits": 21
+      },
+      {
+        "name": "spallino",
+        "cardId": "mosse-79",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 85,
+        "frontImage": "https://i.ibb.co/qF2yVm8C/spallino.png",
+        "isDuplicate": true,
+        "duplicateCredits": 42,
+        "halfRefundCredits": 42
+      },
+      {
+        "name": "ma che t hanno fatto ma t hanno fatto qualcosa",
+        "cardId": "mosse-49",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 80,
+        "frontImage": "https://i.ibb.co/TBGtKzsB/ma-che-t-hanno-fatto-ma-t-hanno-fatto-qualcosa.png",
+        "isDuplicate": true,
+        "duplicateCredits": 40,
+        "halfRefundCredits": 40
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-08T08:49:44.073Z"
+  },
+  {
+    "id": 66,
+    "userId": 3,
+    "packId": "oro",
+    "creditsSpent": 300,
+    "cardsObtained": [
+      {
+        "pti": 200,
+        "name": "homer",
+        "stars": 1,
+        "cardId": "personaggi-79",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 5,
+        "frontImage": "https://i.postimg.cc/vZb1LY4B/homer.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 800,
+        "name": "pasquale s",
+        "stars": 1,
+        "cardId": "personaggi-132",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 13,
+        "frontImage": "https://i.postimg.cc/0jXtGWf5/pasquale-s.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          }
+        ],
+        "duplicateCredits": 6,
+        "halfRefundCredits": 6
+      },
+      {
+        "pti": 400,
+        "name": "tizio mafioso",
+        "stars": 2,
+        "cardId": "personaggi-167",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/MGZd4JFZ/tizio-mafioso.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          }
+        ],
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "pti": 1100,
+        "name": "gerry scotti",
+        "stars": 3,
+        "cardId": "personaggi-62",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 22,
+        "frontImage": "https://i.postimg.cc/G22hg9RL/gerry-scotti.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          }
+        ],
+        "duplicateCredits": 11,
+        "halfRefundCredits": 11
+      },
+      {
+        "name": "SFERE DEL DRAGO",
+        "cardId": "bonus-131",
+        "rarity": "rara",
+        "deckType": "bonus",
+        "draftCost": 30,
+        "frontImage": "https://i.postimg.cc/pTqRDv5w/SFERE-DEL-DRAGO.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          }
+        ],
+        "duplicateCredits": 15,
+        "halfRefundCredits": 15
+      },
+      {
+        "pti": 1300,
+        "name": "gnomo armato di ascia",
+        "stars": 2,
+        "cardId": "personaggi-70",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 22,
+        "frontImage": "https://i.postimg.cc/GmxyZBWG/gnomo-armato-di-ascia.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          }
+        ],
+        "duplicateCredits": 11,
+        "halfRefundCredits": 11
+      },
+      {
+        "name": "ombelico lanciafiamme",
+        "cardId": "mosse-60",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/GQ2nS4vC/ombelico-lanciafiamme.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          }
+        ],
+        "duplicateCredits": 20,
+        "halfRefundCredits": 20
+      },
+      {
+        "pti": 2900,
+        "name": "christian de sica",
+        "stars": 3,
+        "cardId": "personaggi-179",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 46,
+        "frontImage": "https://i.ibb.co/JwvDTmsb/christian-de-sica.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          }
+        ],
+        "duplicateCredits": 23,
+        "halfRefundCredits": 23
+      },
+      {
+        "name": "galassia",
+        "cardId": "bonus-61",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 45,
+        "frontImage": "https://i.postimg.cc/63T1mxmJ/galassia.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          }
+        ],
+        "duplicateCredits": 22,
+        "halfRefundCredits": 22
+      },
+      {
+        "name": "accettata",
+        "cardId": "mosse-1",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 70,
+        "frontImage": "https://i.ibb.co/4ZQjYYkZ/accettata.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          }
+        ],
+        "duplicateCredits": 35,
+        "halfRefundCredits": 35
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-09T10:35:46.106Z"
+  },
+  {
+    "id": 54,
+    "userId": 3,
+    "packId": "bronzo",
+    "creditsSpent": 75,
+    "cardsObtained": [
+      {
+        "name": "don giuliano leellee",
+        "cardId": "personaggi-49",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 3,
+        "frontImage": "https://i.postimg.cc/QxR9Bg3p/don-giuliano-leellee.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "frushtalla",
+        "cardId": "mosse-33",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 10,
+        "frontImage": "https://i.ibb.co/p6HsRdF7/frushtalla.png",
+        "isDuplicate": true,
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "name": "portale speciale",
+        "cardId": "bonus-116",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/3JbNsXRs/portale-speciale.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 1350,
+        "name": "romina power",
+        "stars": 0,
+        "cardId": "personaggi-149",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 21,
+        "frontImage": "https://i.postimg.cc/wvTcW531/romina-power.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "mutilazione",
+        "cardId": "mosse-59",
+        "rarity": "epica",
+        "deckType": "mosse",
+        "draftCost": 50,
+        "frontImage": "https://i.ibb.co/Q3yR8BTJ/mutilazione.png",
+        "isDuplicate": true,
+        "duplicateCredits": 25,
+        "halfRefundCredits": 25
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-08T10:13:55.807Z"
+  },
+  {
+    "id": 55,
+    "userId": 3,
+    "packId": "bronzo",
+    "creditsSpent": 75,
+    "cardsObtained": [
+      {
+        "name": "visct la mal Parata",
+        "cardId": "bonus-47",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/52wg729F/visct-la-mal-Parata.png",
+        "isDuplicate": true,
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "name": "oh ma quello",
+        "cardId": "bonus-109",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/DzGSdS7t/oh-ma-quello.png",
+        "isDuplicate": true,
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "name": "doping",
+        "cardId": "bonus-42",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 5,
+        "frontImage": "https://i.postimg.cc/mktV83hb/doping.png",
+        "isDuplicate": true,
+        "duplicateCredits": 2,
+        "halfRefundCredits": 2
+      },
+      {
+        "name": "bomba",
+        "cardId": "mosse-10",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/5h58X11J/bomba.png",
+        "isDuplicate": true,
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "name": "comunismo",
+        "cardId": "bonus-28",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 45,
+        "frontImage": "https://i.postimg.cc/0QChLC8D/comunismo.png",
+        "isDuplicate": true,
+        "duplicateCredits": 22,
+        "halfRefundCredits": 22
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-08T10:14:53.662Z"
+  },
+  {
+    "id": 56,
+    "userId": 3,
+    "packId": "diamante",
+    "creditsSpent": 500,
+    "cardsObtained": [
+      {
+        "name": "replay",
+        "cardId": "bonus-118",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/FHMRRh0G/replay.png",
+        "isDuplicate": true,
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "name": "SOFT CONTROL",
+        "cardId": "bonus-133",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/KjWbH5NQ/SOFT-CONTROL.png",
+        "isDuplicate": true,
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "name": "saetta",
+        "cardId": "mosse-77",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/Y7PQDX3y/saetta.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "sempafaagara",
+        "cardId": "mosse-0",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/35jjYwTX/sempafaagara.png",
+        "isDuplicate": true,
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "name": "stomp",
+        "cardId": "mosse-83",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/FkVYYYZQ/stomp.png",
+        "isDuplicate": true,
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "pti": 1962,
+        "name": "leo",
+        "stars": 2,
+        "cardId": "personaggi-186",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 31,
+        "frontImage": "https://i.ibb.co/spctXVPS/leo.png",
+        "isDuplicate": true,
+        "duplicateCredits": 15,
+        "halfRefundCredits": 15
+      },
+      {
+        "pti": 2500,
+        "name": "goku",
+        "stars": 4,
+        "cardId": "personaggi-73",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 43,
+        "frontImage": "https://i.postimg.cc/fLJSt8Jf/goku.png",
+        "isDuplicate": true,
+        "duplicateCredits": 21,
+        "halfRefundCredits": 21
+      },
+      {
+        "name": "degli uman piacer non si bisticci a chi piace la cacca e a chi i pasticci",
+        "cardId": "mosse-24",
+        "rarity": "epica",
+        "deckType": "mosse",
+        "draftCost": 60,
+        "frontImage": "https://i.ibb.co/rKXtTQDp/degli-uman-piacer-non-si-bisticci-a-chi-piace-la-cacca-e-a-chi-i-pasticci.png",
+        "isDuplicate": true,
+        "duplicateCredits": 30,
+        "halfRefundCredits": 30
+      },
+      {
+        "name": "evoluzione giallo",
+        "cardId": "bonus-51",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/nzwGjs2N/evoluzione-giallo.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "comunismo",
+        "cardId": "bonus-28",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 45,
+        "frontImage": "https://i.postimg.cc/0QChLC8D/comunismo.png",
+        "isDuplicate": true,
+        "duplicateCredits": 22,
+        "halfRefundCredits": 22
+      },
+      {
+        "name": "ago di pino",
+        "cardId": "mosse-3",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 90,
+        "frontImage": "https://i.ibb.co/Ld485J59/ago-di-pino.png",
+        "isDuplicate": true,
+        "duplicateCredits": 45,
+        "halfRefundCredits": 45
+      },
+      {
+        "name": "spallino",
+        "cardId": "mosse-79",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 85,
+        "frontImage": "https://i.ibb.co/qF2yVm8C/spallino.png",
+        "isDuplicate": true,
+        "duplicateCredits": 42,
+        "halfRefundCredits": 42
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-08T10:16:18.107Z"
+  },
+  {
+    "id": 57,
+    "userId": 3,
+    "packId": "argento",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "pti": 990,
+        "name": "bigfoot",
+        "stars": 2,
+        "cardId": "personaggi-14",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 18,
+        "frontImage": "https://i.postimg.cc/3NY9HMLx/bigfoot.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "tanfo",
+        "cardId": "mosse-85",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 15,
+        "frontImage": "https://i.ibb.co/fdVMkZkm/tanfo.png",
+        "isDuplicate": true,
+        "duplicateCredits": 7,
+        "halfRefundCredits": 7
+      },
+      {
+        "name": "contrattazione clandestina",
+        "cardId": "mosse-22",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/XZ5F0kBL/contrattazione-clandestina.png",
+        "isDuplicate": true,
+        "duplicateCredits": 20,
+        "halfRefundCredits": 20
+      },
+      {
+        "name": "apocalisse",
+        "cardId": "bonus-6",
+        "rarity": "rara",
+        "deckType": "bonus",
+        "draftCost": 40,
+        "frontImage": "https://i.postimg.cc/NMGbCtZQ/apocalisse.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 1200,
+        "name": "ezio greggio",
+        "stars": 2,
+        "cardId": "personaggi-55",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 21,
+        "frontImage": "https://i.postimg.cc/prmrrrcG/ezio-greggio.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 2800,
+        "name": "zeus",
+        "stars": 4,
+        "cardId": "personaggi-173",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 47,
+        "frontImage": "https://i.postimg.cc/3JM9hvcc/zeus.png",
+        "isDuplicate": true,
+        "duplicateCredits": 23,
+        "halfRefundCredits": 23
+      },
+      {
+        "name": "Crossover",
+        "cardId": "bonus-34",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 65,
+        "frontImage": "https://i.postimg.cc/2jcKhy3k/Crossover.png",
+        "isDuplicate": false,
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-08T11:10:13.945Z"
+  },
+  {
+    "id": 58,
+    "userId": 3,
+    "packId": "daily",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "pti": 500,
+        "name": "don domenico cerrone",
+        "stars": 1,
+        "cardId": "personaggi-180",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 9,
+        "frontImage": "https://i.ibb.co/DPwS3vSj/don-domenico-cerrone.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-08T17:28:02.976Z"
+  },
+  {
+    "id": 59,
+    "userId": 3,
+    "packId": "argento",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "name": "tu mi lasci cadere e poi mi porti su",
+        "cardId": "bonus-152",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/Fzd87Xyg/tu-mi-lasci-cadere-e-poi-mi-porti-su.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "conversione",
+        "cardId": "bonus-31",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/wjsZ6zq6/conversione.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "pti": 2000,
+        "name": "fabrizio",
+        "stars": 2,
+        "cardId": "personaggi-183",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 32,
+        "frontImage": "https://i.ibb.co/Z67LD5qP/fabrizio.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 2400,
+        "name": "bullox",
+        "stars": 3,
+        "cardId": "personaggi-25",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 40,
+        "frontImage": "https://i.postimg.cc/xTdyG3hh/bullox.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 20,
+        "halfRefundCredits": 20
+      },
+      {
+        "pti": 2400,
+        "name": "horsy",
+        "stars": 3,
+        "cardId": "personaggi-80",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 40,
+        "frontImage": "https://i.postimg.cc/6QQygMLx/horsy.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 20,
+        "halfRefundCredits": 20
+      },
+      {
+        "name": "evoluzione giallo",
+        "cardId": "bonus-51",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/nzwGjs2N/evoluzione-giallo.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "degli uman piacer non si bisticci a chi piace la cacca e a chi i pasticci",
+        "cardId": "mosse-24",
+        "rarity": "epica",
+        "deckType": "mosse",
+        "draftCost": 60,
+        "frontImage": "https://i.ibb.co/rKXtTQDp/degli-uman-piacer-non-si-bisticci-a-chi-piace-la-cacca-e-a-chi-i-pasticci.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 30,
+        "halfRefundCredits": 30
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-08T17:46:45.874Z"
+  },
+  {
+    "id": 60,
+    "userId": 3,
+    "packId": "argento",
+    "creditsSpent": 150,
+    "cardsObtained": [
+      {
+        "pti": 300,
+        "name": "MMT J",
+        "stars": 1,
+        "cardId": "personaggi-205",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 7,
+        "frontImage": "https://i.ibb.co/hJkB8mp2/MMT-J.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 3,
+        "halfRefundCredits": 3
+      },
+      {
+        "pti": 800,
+        "name": "pasquale s",
+        "stars": 1,
+        "cardId": "personaggi-132",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 13,
+        "frontImage": "https://i.postimg.cc/0jXtGWf5/pasquale-s.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 1011,
+        "name": "cyber geena",
+        "stars": 3,
+        "cardId": "personaggi-44",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 21,
+        "frontImage": "https://i.postimg.cc/XqPZkdy6/cyber-geena.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "pugno della radiosa primavera",
+        "cardId": "mosse-72",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/Gf2Lzch3/pugno-della-radiosa-primavera.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 20,
+        "halfRefundCredits": 20
+      },
+      {
+        "pti": 1200,
+        "name": "capo rabbino",
+        "stars": 2,
+        "cardId": "personaggi-33",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 21,
+        "frontImage": "https://i.postimg.cc/TPnr275L/capo-rabbino.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 10,
+        "halfRefundCredits": 10
+      },
+      {
+        "name": "io ti schiatoooo",
+        "cardId": "mosse-41",
+        "rarity": "epica",
+        "deckType": "mosse",
+        "draftCost": 60,
+        "frontImage": "https://i.ibb.co/XxmVSshc/io-ti-schiatoooo.png",
+        "isDuplicate": true,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 30,
+        "halfRefundCredits": 30
+      },
+      {
+        "name": "clonazione",
+        "cardId": "bonus-26",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 55,
+        "frontImage": "https://i.postimg.cc/vZkyzXBm/clonazione.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-08T18:00:17.612Z"
+  },
+  {
+    "id": 61,
+    "userId": 3,
+    "packId": "mosse",
+    "creditsSpent": 50,
+    "cardsObtained": [
+      {
+        "name": "rissa",
+        "cardId": "mosse-75",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 10,
+        "frontImage": "https://i.ibb.co/DDL4XbdW/rissa.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "name": "kebab",
+        "cardId": "mosse-42",
+        "rarity": "comune",
+        "deckType": "mosse",
+        "draftCost": 15,
+        "frontImage": "https://i.ibb.co/yFKJgPzw/kebab.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "pioggia di aghi di pino",
+        "cardId": "mosse-66",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/zHb74T4P/pioggia-di-aghi-di-pino.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-09T09:32:12.937Z"
+  },
+  {
+    "id": 62,
+    "userId": 3,
+    "packId": "oro",
+    "creditsSpent": 300,
+    "cardsObtained": [
+      {
+        "name": "carica",
+        "cardId": "bonus-21",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/65xGHL8Y/carica.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 320,
+        "name": "aragosta irachena",
+        "stars": 3,
+        "cardId": "personaggi-6",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 12,
+        "frontImage": "https://i.postimg.cc/sx46BfBW/aragosta-irachena.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 750,
+        "name": "amadeus",
+        "stars": 3,
+        "cardId": "personaggi-2",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 18,
+        "frontImage": "https://i.postimg.cc/d0gSpxPh/amadeus.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "calcio volante",
+        "cardId": "mosse-14",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/sJC8Z702/calcio-volante.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "pti": 2222,
+        "name": "mimmetto",
+        "stars": 2,
+        "cardId": "personaggi-189",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 35,
+        "frontImage": "https://i.ibb.co/1NgqRBk/mimmetto.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "coevoluzione",
+        "cardId": "bonus-27",
+        "rarity": "rara",
+        "deckType": "bonus",
+        "draftCost": 40,
+        "frontImage": "https://i.postimg.cc/fyzQLrH8/coevoluzione.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "frog splash",
+        "cardId": "mosse-32",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/Mk1mtzdy/frog-splash.png",
+        "isDuplicate": true,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "name": "clonazione",
+        "cardId": "bonus-26",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 55,
+        "frontImage": "https://i.postimg.cc/vZkyzXBm/clonazione.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 27,
+        "halfRefundCredits": 27
+      },
+      {
+        "name": "evoluzione blu",
+        "cardId": "bonus-50",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/PxqM5bWm/evoluzione-blu.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 25,
+        "halfRefundCredits": 25
+      },
+      {
+        "name": "ago di pino",
+        "cardId": "mosse-3",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 90,
+        "frontImage": "https://i.ibb.co/Ld485J59/ago-di-pino.png",
+        "isDuplicate": true,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 45,
+        "halfRefundCredits": 45
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-09T09:38:33.714Z"
+  },
+  {
+    "id": 63,
+    "userId": 3,
+    "packId": "bonus",
+    "creditsSpent": 50,
+    "cardsObtained": [
+      {
+        "name": "RUOSS E FESSA",
+        "cardId": "bonus-166",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.ibb.co/svvY1DXz/RUOSS-E-FESSA.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "P na ntecchia",
+        "cardId": "bonus-111",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/Y9fjZTGR/P-na-ntecchia.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "macumba",
+        "cardId": "bonus-85",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 20,
+        "frontImage": "https://i.postimg.cc/SNG7CtgW/macumba.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 10,
+        "halfRefundCredits": 10
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-09T09:39:39.898Z"
+  },
+  {
+    "id": 64,
+    "userId": 3,
+    "packId": "personaggi",
+    "creditsSpent": 50,
+    "cardsObtained": [
+      {
+        "pti": 300,
+        "name": "JANARA",
+        "stars": 1,
+        "cardId": "personaggi-84",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 7,
+        "frontImage": "https://i.postimg.cc/kGW4Kz9K/JANARA.png",
+        "isDuplicate": true,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 3,
+        "halfRefundCredits": 3
+      },
+      {
+        "pti": 0,
+        "name": "magally",
+        "stars": 3,
+        "cardId": "personaggi-97",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 8,
+        "frontImage": "https://i.postimg.cc/gkDcpv0z/magally.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 4,
+        "halfRefundCredits": 4
+      },
+      {
+        "pti": 400,
+        "name": "tizio jamaicano",
+        "stars": 2,
+        "cardId": "personaggi-166",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/wjpWXm5m/tizio-jamaicano.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-09T09:41:38.375Z"
+  },
+  {
+    "id": 65,
+    "userId": 3,
+    "packId": "oro",
+    "creditsSpent": 300,
+    "cardsObtained": [
+      {
+        "name": "detonatore",
+        "cardId": "bonus-36",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 5,
+        "frontImage": "https://i.postimg.cc/7YjttRgj/detonatore.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 170,
+        "name": "malgioglio",
+        "stars": 2,
+        "cardId": "personaggi-101",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 7,
+        "frontImage": "https://i.postimg.cc/1zgyD2rX/malgioglio.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 3,
+        "halfRefundCredits": 3
+      },
+      {
+        "pti": 700,
+        "name": "la maestra vanda",
+        "stars": 2,
+        "cardId": "personaggi-91",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 14,
+        "frontImage": "https://i.postimg.cc/s28D8sg5/la-maestra-vanda.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 1300,
+        "name": "gnomo armato di ascia",
+        "stars": 2,
+        "cardId": "personaggi-70",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 22,
+        "frontImage": "https://i.postimg.cc/GmxyZBWG/gnomo-armato-di-ascia.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 1954,
+        "name": "peeo",
+        "stars": 4,
+        "cardId": "personaggi-133",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 36,
+        "frontImage": "https://i.postimg.cc/fyR29nYg/peeo.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 18,
+        "halfRefundCredits": 18
+      },
+      {
+        "pti": 1250,
+        "name": "magone alezio",
+        "stars": 3,
+        "cardId": "personaggi-99",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 24,
+        "frontImage": "https://i.postimg.cc/fb6DCC8K/magone-alezio.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "name": "sputo",
+        "cardId": "mosse-81",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/j9vpDLx2/sputo.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "onda energetica",
+        "cardId": "mosse-61",
+        "rarity": "epica",
+        "deckType": "mosse",
+        "draftCost": 60,
+        "frontImage": "https://i.ibb.co/RT3w3zYS/onda-energetica.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 30,
+        "halfRefundCredits": 30
+      },
+      {
+        "name": "Crossover",
+        "cardId": "bonus-34",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 65,
+        "frontImage": "https://i.postimg.cc/2jcKhy3k/Crossover.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "distruzione totale",
+        "cardId": "bonus-39",
+        "rarity": "leggendaria",
+        "deckType": "bonus",
+        "draftCost": 90,
+        "frontImage": "https://i.postimg.cc/ZqxfRK1h/distruzione-totale.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 45,
+        "halfRefundCredits": 45
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-09T10:25:16.413Z"
+  },
+  {
+    "id": 67,
+    "userId": 3,
+    "packId": "daily",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "pti": 1000,
+        "name": "neeno phrasseeka",
+        "stars": 3,
+        "cardId": "personaggi-118",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 21,
+        "frontImage": "https://i.postimg.cc/bwW7fJ1Y/neeno-phrasseeka.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-09T20:58:30.472Z"
+  },
+  {
+    "id": 68,
+    "userId": 3,
+    "packId": "diamante",
+    "creditsSpent": 500,
+    "cardsObtained": [
+      {
+        "pti": 170,
+        "name": "malgioglio",
+        "stars": 2,
+        "cardId": "personaggi-101",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 7,
+        "frontImage": "https://i.postimg.cc/1zgyD2rX/malgioglio.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 3,
+        "halfRefundCredits": 3
+      },
+      {
+        "pti": 700,
+        "name": "hitler",
+        "stars": 2,
+        "cardId": "personaggi-77",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 14,
+        "frontImage": "https://i.postimg.cc/Nfh2F7YR/hitler.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 7,
+        "halfRefundCredits": 7
+      },
+      {
+        "name": "f r cina",
+        "cardId": "mosse-30",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/9kSycj31/f-r-cina.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 20,
+        "halfRefundCredits": 20
+      },
+      {
+        "name": "attacco kamikaze",
+        "cardId": "mosse-7",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 40,
+        "frontImage": "https://i.ibb.co/tPMfqdZV/attacco-kamikaze.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 20,
+        "halfRefundCredits": 20
+      },
+      {
+        "name": "progiettile litale",
+        "cardId": "mosse-71",
+        "rarity": "rara",
+        "deckType": "mosse",
+        "draftCost": 25,
+        "frontImage": "https://i.ibb.co/fzbfYgnq/progiettile-litale.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 12,
+        "halfRefundCredits": 12
+      },
+      {
+        "pti": 2300,
+        "name": "piero angela che fa la kamehameha",
+        "stars": 2,
+        "cardId": "personaggi-135",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 36,
+        "frontImage": "https://i.postimg.cc/65SjyPqY/piero-angela-che-fa-la-kamehameha.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 18,
+        "halfRefundCredits": 18
+      },
+      {
+        "name": "AMEECO",
+        "cardId": "bonus-5",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 55,
+        "frontImage": "https://i.postimg.cc/Ls3NV5Cy/AMEECO.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 27,
+        "halfRefundCredits": 27
+      },
+      {
+        "pti": 2500,
+        "name": "goku",
+        "stars": 4,
+        "cardId": "personaggi-73",
+        "rarity": "epica",
+        "deckType": "personaggi",
+        "draftCost": 43,
+        "frontImage": "https://i.postimg.cc/fLJSt8Jf/goku.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 21,
+        "halfRefundCredits": 21
+      },
+      {
+        "name": "evoluzione verde",
+        "cardId": "bonus-53",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/J0f3x99q/evoluzione-verde.png",
+        "isDuplicate": true,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 25,
+        "halfRefundCredits": 25
+      },
+      {
+        "name": "io ti schiatoooo",
+        "cardId": "mosse-41",
+        "rarity": "epica",
+        "deckType": "mosse",
+        "draftCost": 60,
+        "frontImage": "https://i.ibb.co/XxmVSshc/io-ti-schiatoooo.png",
+        "isDuplicate": true,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 30,
+        "halfRefundCredits": 30
+      },
+      {
+        "name": "ago di pino",
+        "cardId": "mosse-3",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 90,
+        "frontImage": "https://i.ibb.co/Ld485J59/ago-di-pino.png",
+        "isDuplicate": true,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 45,
+        "halfRefundCredits": 45
+      },
+      {
+        "name": "spallino",
+        "cardId": "mosse-79",
+        "rarity": "leggendaria",
+        "deckType": "mosse",
+        "draftCost": 85,
+        "frontImage": "https://i.ibb.co/qF2yVm8C/spallino.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 42,
+        "halfRefundCredits": 42
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-09T20:59:56.039Z"
+  },
+  {
+    "id": 69,
+    "userId": 3,
+    "packId": "personaggi",
+    "creditsSpent": 50,
+    "cardsObtained": [
+      {
+        "pti": 777,
+        "name": "gigibaby777",
+        "stars": 2,
+        "cardId": "personaggi-67",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 15,
+        "frontImage": "https://i.postimg.cc/BQDDB7Nh/gigibaby777.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 7,
+        "halfRefundCredits": 7
+      },
+      {
+        "pti": 400,
+        "name": "vu cumpr",
+        "stars": 1,
+        "cardId": "personaggi-171",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 8,
+        "frontImage": "https://i.postimg.cc/mDJjtz2h/vu-cumpr.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 150,
+        "name": "panino malefico",
+        "stars": 3,
+        "cardId": "personaggi-128",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/651SC3jV/panino-malefico.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-09T21:01:20.967Z"
+  },
+  {
+    "id": 70,
+    "userId": 3,
+    "packId": "bronzo",
+    "creditsSpent": 75,
+    "cardsObtained": [
+      {
+        "name": "Harakiri",
+        "cardId": "bonus-65",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/zDsP0Mw6/Harakiri.png",
+        "isDuplicate": true,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "pti": 150,
+        "name": "milhouse",
+        "stars": 1,
+        "cardId": "personaggi-106",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 5,
+        "frontImage": "https://i.postimg.cc/v87b7Wfr/milhouse.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 150,
+        "name": "panino malefico",
+        "stars": 3,
+        "cardId": "personaggi-128",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/651SC3jV/panino-malefico.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": true,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 5,
+        "halfRefundCredits": 5
+      },
+      {
+        "pti": 2400,
+        "name": "horsy",
+        "stars": 3,
+        "cardId": "personaggi-80",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 40,
+        "frontImage": "https://i.postimg.cc/6QQygMLx/horsy.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 20,
+        "halfRefundCredits": 20
+      },
+      {
+        "name": "mutilazione",
+        "cardId": "mosse-59",
+        "rarity": "epica",
+        "deckType": "mosse",
+        "draftCost": 50,
+        "frontImage": "https://i.ibb.co/Q3yR8BTJ/mutilazione.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 25,
+        "halfRefundCredits": 25
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-10T11:37:47.244Z"
+  },
+  {
+    "id": 71,
+    "userId": 3,
+    "packId": "daily",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "name": "IO SEMBRO",
+        "cardId": "bonus-73",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 50,
+        "frontImage": "https://i.postimg.cc/3Nm1s8j6/IO-SEMBRO.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-11T16:06:24.288Z"
+  },
+  {
+    "id": 72,
+    "userId": 3,
+    "packId": "daily",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "name": "portale speciale",
+        "cardId": "bonus-116",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/3JbNsXRs/portale-speciale.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-12T20:59:57.307Z"
+  },
+  {
+    "id": 73,
+    "userId": 3,
+    "packId": "daily",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "pti": 1000,
+        "name": "neeno phrasseeka",
+        "stars": 3,
+        "cardId": "personaggi-118",
+        "rarity": "rara",
+        "deckType": "personaggi",
+        "draftCost": 21,
+        "frontImage": "https://i.postimg.cc/bwW7fJ1Y/neeno-phrasseeka.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-19T14:42:10.198Z"
+  },
+  {
+    "id": 74,
+    "userId": 3,
+    "packId": "bronzo",
+    "creditsSpent": 75,
+    "cardsObtained": [
+      {
+        "name": "kainoken",
+        "cardId": "bonus-74",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 10,
+        "frontImage": "https://i.postimg.cc/FFLTdptZ/kainoken.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 444,
+        "name": "luca giurato",
+        "stars": 2,
+        "cardId": "personaggi-94",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 11,
+        "frontImage": "https://i.postimg.cc/3Nj8dGCZ/luca-giurato.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "pti": 200,
+        "name": "riccio pic",
+        "stars": 1,
+        "cardId": "personaggi-148",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 5,
+        "frontImage": "https://i.postimg.cc/CxkNdLWx/riccio-pic.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": true,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": true,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 2,
+        "halfRefundCredits": 2
+      },
+      {
+        "name": "baratto",
+        "cardId": "bonus-12",
+        "rarity": "rara",
+        "deckType": "bonus",
+        "draftCost": 25,
+        "frontImage": "https://i.postimg.cc/sgFmd7b6/baratto.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      },
+      {
+        "name": "attacco simultaneo",
+        "cardId": "bonus-10",
+        "rarity": "epica",
+        "deckType": "bonus",
+        "draftCost": 55,
+        "frontImage": "https://i.postimg.cc/QNySmRmr/attacco-simultaneo.png",
+        "isDuplicate": false,
+        "deckPresence": [
+          {
+            "deckId": null,
+            "hasCard": false,
+            "deckName": "Mazzo attivo"
+          },
+          {
+            "deckId": 4,
+            "hasCard": false,
+            "deckName": "Full"
+          },
+          {
+            "deckId": 5,
+            "hasCard": false,
+            "deckName": "Esordiente"
+          }
+        ],
+        "duplicateCredits": 0,
+        "halfRefundCredits": 0
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-19T14:42:20.777Z"
+  },
+  {
+    "id": 75,
+    "userId": 3,
+    "packId": "daily",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "name": "MODALITA TUZZA",
+        "cardId": "bonus-102",
+        "rarity": "comune",
+        "deckType": "bonus",
+        "draftCost": 20,
+        "frontImage": "https://i.postimg.cc/WzTq4sLx/MODALITA-TUZZA.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-03-25T12:01:44.806Z"
+  },
+  {
+    "id": 76,
+    "userId": 3,
+    "packId": "daily",
+    "creditsSpent": 0,
+    "cardsObtained": [
+      {
+        "pti": 30,
+        "name": "nano col machete normale che sembra gigante",
+        "cardId": "personaggi-116",
+        "rarity": "comune",
+        "deckType": "personaggi",
+        "draftCost": 0,
+        "frontImage": "https://i.postimg.cc/VLLQj2Yw/nano-col-machete-normale-che-sembra-gigante.png"
+      }
+    ],
+    "duplicatesCredits": 0,
+    "openedAt": "2026-04-01T08:34:09.462Z"
+  }
+]

@@ -1,0 +1,30 @@
+[
+  {
+    "id": 2,
+    "participant1Id": 3,
+    "participant2Id": 10,
+    "lastMessageAt": "2026-03-12T12:05:03.565Z",
+    "createdAt": "2026-03-12T11:10:59.297Z"
+  },
+  {
+    "id": 1,
+    "participant1Id": 3,
+    "participant2Id": 10,
+    "lastMessageAt": "2026-03-12T12:18:06.300Z",
+    "createdAt": "2026-03-12T11:10:59.260Z"
+  },
+  {
+    "id": 3,
+    "participant1Id": 3,
+    "participant2Id": 8,
+    "lastMessageAt": "2026-03-12T12:31:48.503Z",
+    "createdAt": "2026-03-12T11:44:13.980Z"
+  },
+  {
+    "id": 4,
+    "participant1Id": 3,
+    "participant2Id": 8,
+    "lastMessageAt": "2026-03-12T18:03:15.699Z",
+    "createdAt": "2026-03-12T11:44:14.014Z"
+  }
+]

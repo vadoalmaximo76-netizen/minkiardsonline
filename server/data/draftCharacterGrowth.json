@@ -1,0 +1,58 @@
+[
+  {
+    "id": 1,
+    "userId": 3,
+    "cardId": "personaggi-145",
+    "extraPti": 5,
+    "extraStars": 0,
+    "updatedAt": "2026-03-06T22:02:34.424Z"
+  },
+  {
+    "id": 2,
+    "userId": 3,
+    "cardId": "personaggi-32",
+    "extraPti": 5,
+    "extraStars": 0,
+    "updatedAt": "2026-03-07T01:43:43.190Z"
+  },
+  {
+    "id": 3,
+    "userId": 3,
+    "cardId": "personaggi-62",
+    "extraPti": 5,
+    "extraStars": 0,
+    "updatedAt": "2026-03-08T18:06:46.162Z"
+  },
+  {
+    "id": 4,
+    "userId": 3,
+    "cardId": "personaggi-118",
+    "extraPti": 5,
+    "extraStars": 0,
+    "updatedAt": "2026-03-09T09:48:17.780Z"
+  },
+  {
+    "id": 5,
+    "userId": 3,
+    "cardId": "personaggi-67",
+    "extraPti": 5,
+    "extraStars": 0,
+    "updatedAt": "2026-03-09T15:45:01.182Z"
+  },
+  {
+    "id": 6,
+    "userId": 3,
+    "cardId": "personaggi-179",
+    "extraPti": 5,
+    "extraStars": 0,
+    "updatedAt": "2026-03-10T00:15:33.451Z"
+  },
+  {
+    "id": 7,
+    "userId": 3,
+    "cardId": "personaggi-150",
+    "extraPti": 5,
+    "extraStars": 0,
+    "updatedAt": "2026-03-13T08:40:50.575Z"
+  }
+]

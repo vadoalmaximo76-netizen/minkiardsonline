@@ -1,0 +1,56 @@
+[
+  {
+    "id": 1,
+    "requesterId": 3,
+    "addresseeId": 10,
+    "status": "pending",
+    "message": null,
+    "createdAt": "2026-03-12T11:10:24.978Z",
+    "respondedAt": null
+  },
+  {
+    "id": 2,
+    "requesterId": 3,
+    "addresseeId": 10,
+    "status": "pending",
+    "message": null,
+    "createdAt": "2026-03-12T11:10:25.017Z",
+    "respondedAt": null
+  },
+  {
+    "id": 4,
+    "requesterId": 3,
+    "addresseeId": 8,
+    "status": "pending",
+    "message": null,
+    "createdAt": "2026-03-12T11:44:05.317Z",
+    "respondedAt": null
+  },
+  {
+    "id": 3,
+    "requesterId": 3,
+    "addresseeId": 8,
+    "status": "accepted",
+    "message": null,
+    "createdAt": "2026-03-12T11:44:05.279Z",
+    "respondedAt": "2026-03-12T11:44:09.073Z"
+  },
+  {
+    "id": 5,
+    "requesterId": 3,
+    "addresseeId": 1,
+    "status": "pending",
+    "message": null,
+    "createdAt": "2026-03-12T14:05:26.689Z",
+    "respondedAt": null
+  },
+  {
+    "id": 6,
+    "requesterId": 3,
+    "addresseeId": 1,
+    "status": "pending",
+    "message": null,
+    "createdAt": "2026-03-12T14:05:26.725Z",
+    "respondedAt": null
+  }
+]

@@ -1,0 +1,182 @@
+[
+  {
+    "id": 1,
+    "senderId": 3,
+    "receiverId": 8,
+    "gameId": "room-DEZHBN",
+    "status": "pending",
+    "createdAt": "2026-03-12T12:22:06.279Z",
+    "expiresAt": "2026-03-12T12:52:06.264Z"
+  },
+  {
+    "id": 2,
+    "senderId": 3,
+    "receiverId": 8,
+    "gameId": "room-DEZHBN",
+    "status": "pending",
+    "createdAt": "2026-03-12T12:22:06.322Z",
+    "expiresAt": "2026-03-12T12:52:06.302Z"
+  },
+  {
+    "id": 3,
+    "senderId": 3,
+    "receiverId": 8,
+    "gameId": "room-DEZHBN",
+    "status": "pending",
+    "createdAt": "2026-03-12T12:40:08.547Z",
+    "expiresAt": "2026-03-12T13:10:08.532Z"
+  },
+  {
+    "id": 4,
+    "senderId": 3,
+    "receiverId": 8,
+    "gameId": "room-DEZHBN",
+    "status": "pending",
+    "createdAt": "2026-03-12T12:40:08.588Z",
+    "expiresAt": "2026-03-12T13:10:08.566Z"
+  },
+  {
+    "id": 5,
+    "senderId": 3,
+    "receiverId": 8,
+    "gameId": "room-DEZHBN",
+    "status": "pending",
+    "createdAt": "2026-03-12T12:44:13.384Z",
+    "expiresAt": "2026-03-12T13:14:13.369Z"
+  },
+  {
+    "id": 6,
+    "senderId": 3,
+    "receiverId": 8,
+    "gameId": "room-DEZHBN",
+    "status": "pending",
+    "createdAt": "2026-03-12T12:44:13.421Z",
+    "expiresAt": "2026-03-12T13:14:13.402Z"
+  },
+  {
+    "id": 7,
+    "senderId": 3,
+    "receiverId": 1,
+    "gameId": "room-EUSZ1R",
+    "status": "pending",
+    "createdAt": "2026-03-12T13:55:05.202Z",
+    "expiresAt": "2026-03-12T14:25:05.187Z"
+  },
+  {
+    "id": 8,
+    "senderId": 3,
+    "receiverId": 1,
+    "gameId": "room-EUSZ1R",
+    "status": "pending",
+    "createdAt": "2026-03-12T13:55:05.243Z",
+    "expiresAt": "2026-03-12T14:25:05.225Z"
+  },
+  {
+    "id": 9,
+    "senderId": 3,
+    "receiverId": 10,
+    "gameId": "room-EUSZ1R",
+    "status": "pending",
+    "createdAt": "2026-03-12T13:55:10.006Z",
+    "expiresAt": "2026-03-12T14:25:09.991Z"
+  },
+  {
+    "id": 10,
+    "senderId": 3,
+    "receiverId": 10,
+    "gameId": "room-EUSZ1R",
+    "status": "pending",
+    "createdAt": "2026-03-12T13:55:10.044Z",
+    "expiresAt": "2026-03-12T14:25:10.026Z"
+  },
+  {
+    "id": 11,
+    "senderId": 8,
+    "receiverId": 10,
+    "gameId": "room-FTVZH9",
+    "status": "pending",
+    "createdAt": "2026-03-12T14:01:11.710Z",
+    "expiresAt": "2026-03-12T14:31:11.694Z"
+  },
+  {
+    "id": 12,
+    "senderId": 8,
+    "receiverId": 10,
+    "gameId": "room-FTVZH9",
+    "status": "pending",
+    "createdAt": "2026-03-12T14:01:11.748Z",
+    "expiresAt": "2026-03-12T14:31:11.729Z"
+  },
+  {
+    "id": 13,
+    "senderId": 8,
+    "receiverId": 3,
+    "gameId": "room-FTVZH9",
+    "status": "pending",
+    "createdAt": "2026-03-12T14:01:25.654Z",
+    "expiresAt": "2026-03-12T14:31:25.638Z"
+  },
+  {
+    "id": 14,
+    "senderId": 8,
+    "receiverId": 3,
+    "gameId": "room-FTVZH9",
+    "status": "pending",
+    "createdAt": "2026-03-12T14:01:25.690Z",
+    "expiresAt": "2026-03-12T14:31:25.672Z"
+  },
+  {
+    "id": 15,
+    "senderId": 3,
+    "receiverId": 8,
+    "gameId": "room-ZDZUJF",
+    "status": "pending",
+    "createdAt": "2026-03-12T14:02:45.561Z",
+    "expiresAt": "2026-03-12T14:32:45.546Z"
+  },
+  {
+    "id": 16,
+    "senderId": 3,
+    "receiverId": 8,
+    "gameId": "room-ZDZUJF",
+    "status": "pending",
+    "createdAt": "2026-03-12T14:02:45.597Z",
+    "expiresAt": "2026-03-12T14:32:45.579Z"
+  },
+  {
+    "id": 17,
+    "senderId": 3,
+    "receiverId": 10,
+    "gameId": "room-HW7EZT",
+    "status": "pending",
+    "createdAt": "2026-03-12T14:09:24.174Z",
+    "expiresAt": "2026-03-12T14:39:24.158Z"
+  },
+  {
+    "id": 18,
+    "senderId": 3,
+    "receiverId": 10,
+    "gameId": "room-HW7EZT",
+    "status": "pending",
+    "createdAt": "2026-03-12T14:09:24.220Z",
+    "expiresAt": "2026-03-12T14:39:24.198Z"
+  },
+  {
+    "id": 19,
+    "senderId": 3,
+    "receiverId": 8,
+    "gameId": "room-HW7EZT",
+    "status": "pending",
+    "createdAt": "2026-03-12T14:09:27.972Z",
+    "expiresAt": "2026-03-12T14:39:27.956Z"
+  },
+  {
+    "id": 20,
+    "senderId": 3,
+    "receiverId": 8,
+    "gameId": "room-HW7EZT",
+    "status": "pending",
+    "createdAt": "2026-03-12T14:09:28.012Z",
+    "expiresAt": "2026-03-12T14:39:27.995Z"
+  }
+]

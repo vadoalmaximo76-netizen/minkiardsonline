@@ -1,0 +1,162 @@
+[
+  {
+    "id": 1,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "missionId": 4,
+    "progress": 0,
+    "completed": false,
+    "claimed": false,
+    "assignedDate": "2026-02-28",
+    "completedAt": null
+  },
+  {
+    "id": 2,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "missionId": 7,
+    "progress": 0,
+    "completed": false,
+    "claimed": false,
+    "assignedDate": "2026-02-28",
+    "completedAt": null
+  },
+  {
+    "id": 3,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "missionId": 4,
+    "progress": 0,
+    "completed": false,
+    "claimed": false,
+    "assignedDate": "2026-02-28",
+    "completedAt": null
+  },
+  {
+    "id": 4,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "missionId": 7,
+    "progress": 0,
+    "completed": false,
+    "claimed": false,
+    "assignedDate": "2026-02-28",
+    "completedAt": null
+  },
+  {
+    "id": 5,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "missionId": 6,
+    "progress": 0,
+    "completed": false,
+    "claimed": false,
+    "assignedDate": "2026-02-28",
+    "completedAt": null
+  },
+  {
+    "id": 6,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "missionId": 6,
+    "progress": 0,
+    "completed": false,
+    "claimed": false,
+    "assignedDate": "2026-02-28",
+    "completedAt": null
+  },
+  {
+    "id": 8,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "missionId": 12,
+    "progress": 0,
+    "completed": false,
+    "claimed": false,
+    "assignedDate": "2026-03-25",
+    "completedAt": null
+  },
+  {
+    "id": 10,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "missionId": 2,
+    "progress": 0,
+    "completed": false,
+    "claimed": false,
+    "assignedDate": "2026-03-25",
+    "completedAt": null
+  },
+  {
+    "id": 11,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "missionId": 12,
+    "progress": 0,
+    "completed": false,
+    "claimed": false,
+    "assignedDate": "2026-03-25",
+    "completedAt": null
+  },
+  {
+    "id": 13,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "missionId": 2,
+    "progress": 0,
+    "completed": false,
+    "claimed": false,
+    "assignedDate": "2026-03-25",
+    "completedAt": null
+  },
+  {
+    "id": 7,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "missionId": 8,
+    "progress": 5,
+    "completed": true,
+    "claimed": false,
+    "assignedDate": "2026-03-25",
+    "completedAt": "2026-03-25T19:28:09.177Z"
+  },
+  {
+    "id": 9,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "missionId": 8,
+    "progress": 5,
+    "completed": true,
+    "claimed": false,
+    "assignedDate": "2026-03-25",
+    "completedAt": "2026-03-25T19:28:09.208Z"
+  },
+  {
+    "id": 14,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "missionId": 6,
+    "progress": 1620,
+    "completed": true,
+    "claimed": false,
+    "assignedDate": "2026-03-25",
+    "completedAt": "2026-03-25T21:42:57.468Z"
+  },
+  {
+    "id": 16,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "missionId": 6,
+    "progress": 1620,
+    "completed": true,
+    "claimed": false,
+    "assignedDate": "2026-03-25",
+    "completedAt": "2026-03-25T21:42:57.499Z"
+  },
+  {
+    "id": 12,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "missionId": 3,
+    "progress": 10,
+    "completed": true,
+    "claimed": false,
+    "assignedDate": "2026-03-25",
+    "completedAt": "2026-03-25T19:24:14.100Z"
+  },
+  {
+    "id": 15,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "missionId": 3,
+    "progress": 10,
+    "completed": true,
+    "claimed": false,
+    "assignedDate": "2026-03-25",
+    "completedAt": "2026-03-25T19:24:14.131Z"
+  }
+]

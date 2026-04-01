@@ -1,0 +1,98 @@
+[
+  {
+    "id": 1,
+    "userId": 3,
+    "packageId": "1500",
+    "creditsAmount": 1500,
+    "priceEur": 1200,
+    "status": "approved",
+    "paymentNote": null,
+    "adminNote": null,
+    "createdAt": "2026-02-28T17:01:22.606Z",
+    "processedAt": "2026-02-28T17:01:39.768Z"
+  },
+  {
+    "id": 2,
+    "userId": 3,
+    "packageId": "100",
+    "creditsAmount": 100,
+    "priceEur": 100,
+    "status": "rejected",
+    "paymentNote": "Ciao",
+    "adminNote": "Rifiutato dall'admin",
+    "createdAt": "2026-03-06T11:18:01.747Z",
+    "processedAt": "2026-03-06T11:18:31.998Z"
+  },
+  {
+    "id": 3,
+    "userId": 3,
+    "packageId": "5000",
+    "creditsAmount": 5000,
+    "priceEur": 4000,
+    "status": "approved",
+    "paymentNote": null,
+    "adminNote": null,
+    "createdAt": "2026-03-06T12:36:02.939Z",
+    "processedAt": "2026-03-06T12:36:09.959Z"
+  },
+  {
+    "id": 4,
+    "userId": 4,
+    "packageId": "500",
+    "creditsAmount": 500,
+    "priceEur": 500,
+    "status": "approved",
+    "paymentNote": null,
+    "adminNote": null,
+    "createdAt": "2026-03-06T20:49:30.866Z",
+    "processedAt": "2026-03-06T20:49:45.523Z"
+  },
+  {
+    "id": 5,
+    "userId": 3,
+    "packageId": "500",
+    "creditsAmount": 500,
+    "priceEur": 500,
+    "status": "approved",
+    "paymentNote": null,
+    "adminNote": null,
+    "createdAt": "2026-03-06T23:23:13.111Z",
+    "processedAt": "2026-03-06T23:23:19.414Z"
+  },
+  {
+    "id": 6,
+    "userId": 8,
+    "packageId": "100",
+    "creditsAmount": 100,
+    "priceEur": 100,
+    "status": "approved",
+    "paymentNote": null,
+    "adminNote": null,
+    "createdAt": "2026-03-07T00:51:16.904Z",
+    "processedAt": "2026-03-07T00:51:31.123Z"
+  },
+  {
+    "id": 7,
+    "userId": 10,
+    "packageId": "500",
+    "creditsAmount": 500,
+    "priceEur": 500,
+    "status": "approved",
+    "paymentNote": null,
+    "adminNote": null,
+    "createdAt": "2026-03-07T10:17:07.239Z",
+    "processedAt": "2026-03-07T10:17:12.670Z"
+  },
+  {
+    "id": 8,
+    "userId": 3,
+    "packageId": "5000",
+    "creditsAmount": 5000,
+    "priceEur": 4000,
+    "status": "approved",
+    "paymentNote": null,
+    "adminNote": null,
+    "createdAt": "2026-03-07T12:59:43.058Z",
+    "processedAt": "2026-03-07T12:59:47.864Z"
+  }
+]

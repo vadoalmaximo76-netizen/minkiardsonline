@@ -1,0 +1,51 @@
+[
+  {
+    "id": 66,
+    "userId": 1,
+    "cardId": "personaggi-28-1llg5s",
+    "gamesRemaining": 1,
+    "injuredAt": "2026-04-01T12:47:06.064Z"
+  },
+  {
+    "id": 67,
+    "userId": 1,
+    "cardId": "personaggi-4-bo2o99",
+    "gamesRemaining": 1,
+    "injuredAt": "2026-04-01T12:48:50.996Z"
+  },
+  {
+    "id": 68,
+    "userId": 1,
+    "cardId": "personaggi-108-y0o1dd",
+    "gamesRemaining": 1,
+    "injuredAt": "2026-04-01T12:52:01.115Z"
+  },
+  {
+    "id": 75,
+    "userId": 3,
+    "cardId": "personaggi-27-g7e48a",
+    "gamesRemaining": 1,
+    "injuredAt": "2026-04-01T17:25:46.553Z"
+  },
+  {
+    "id": 76,
+    "userId": 3,
+    "cardId": "personaggi-58-qdkk44",
+    "gamesRemaining": 1,
+    "injuredAt": "2026-04-01T17:27:15.520Z"
+  },
+  {
+    "id": 77,
+    "userId": 3,
+    "cardId": "personaggi-80-siwlqq",
+    "gamesRemaining": 1,
+    "injuredAt": "2026-04-01T17:30:28.999Z"
+  },
+  {
+    "id": 78,
+    "userId": 3,
+    "cardId": "personaggi-7",
+    "gamesRemaining": 1,
+    "injuredAt": "2026-04-01T20:49:10.484Z"
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "clanId": 1,
+    "userId": 3,
+    "role": "leader",
+    "joinedAt": "2026-03-06T17:23:56.603Z",
+    "contributedPoints": 1224
+  },
+  {
+    "id": 2,
+    "clanId": 1,
+    "userId": 3,
+    "role": "leader",
+    "joinedAt": "2026-03-06T17:23:56.647Z",
+    "contributedPoints": 1224
+  }
+]

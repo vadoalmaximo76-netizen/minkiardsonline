@@ -1,0 +1,82 @@
+[
+  {
+    "id": 1,
+    "pageRoute": "/",
+    "title": "Benvenuto",
+    "body": "Benvenuto nel mondo delle Minkiards",
+    "bgColor": "#0067c7",
+    "textColor": "#ffffff",
+    "size": "medium",
+    "imageUrl": null,
+    "imagePosition": "top",
+    "isSlide": true,
+    "slides": [
+      {
+        "body": "Ti spiegherò brevemente in che cosa consiste questo gioco. Sei pronto?",
+        "title": "Benvenuto nel mondo delle Minkiards",
+        "imageUrl": ""
+      },
+      {
+        "body": "Si potrebbe minimizzare e definire le Minkiards come un gioco di carte basato su lotte tra personaggi e vince chi resta in vita. La definizione, seppur non errata, risulterebbe non poco riduttiva: le Minkiards sono infatti molto di più. Sono un gioco di strategia e competizione, bisogna prevedere le mosse degli avversari e tutte le possibili variabili, sono un mondo in cui tutto è possibile e nel quale l'adrenalina regna sovrana regalando partite emozionanti",
+        "title": "Che cosa sono le Minkiards",
+        "imageUrl": ""
+      },
+      {
+        "body": "Il consiglio è quello di fare una visita alla modalità \"Allenamento\", che ti insegnerà a muovere i primi passi nel mondo delle Minkiards",
+        "title": "Per cominciare",
+        "imageUrl": ""
+      },
+      {
+        "body": "Potrai, una volta imparate le dinamiche, esplorare le varie modalità e avventurarti in ogni tipo di situazione. Scoprile tutte e buon divertimento!",
+        "title": "E il gioco sarà tuo",
+        "imageUrl": ""
+      }
+    ],
+    "showMode": "first_visit",
+    "isActive": true,
+    "priority": 0,
+    "createdBy": "lucaforte94@gmail.com",
+    "createdAt": "2026-04-01T08:52:28.855Z",
+    "updatedAt": "2026-04-01T08:52:28.855Z"
+  },
+  {
+    "id": 2,
+    "pageRoute": "/palestre",
+    "title": "",
+    "body": "",
+    "bgColor": "#00b4cc",
+    "textColor": "#ffffff",
+    "size": "large",
+    "imageUrl": null,
+    "imagePosition": "top",
+    "isSlide": true,
+    "slides": [
+      {
+        "body": "Qui comincia il tuo cammino per conquistare l'universo delle Minkiards confrontandoti con i boss in ordine crescente di difficoltà",
+        "title": "Questa è la Story Mode",
+        "imageUrl": ""
+      },
+      {
+        "body": "È molto semplice: avrai un mazzo di carte a disposizione per sfidare i vari boss, ma potrai arricchirlo di volta in volta sconfiggendo i tuoi avversari. Alla fine di ogni sfida, infatti, se sconfiggerai il boss riceverai in premio il suo oggetto simbolo e una carta a scelta dal suo mazzo!",
+        "title": "Come funziona?",
+        "imageUrl": ""
+      },
+      {
+        "body": "Quando affronti una sfida avvincente, potresti avere dei personaggi caduti in battaglia. Avranno bisogno di riposo per poter tornare a combattere, per questo non saranno disponibili nella sfida successiva. Ma niente paura, puoi recuperarli velocemente con l'apposita cura e li avrai da subito di nuovo nel tuo mazzo!",
+        "title": "Attenzione ai personaggi indisponibili",
+        "imageUrl": ""
+      },
+      {
+        "body": "Comincia la sfida, buon divertimento e buona fortuna!",
+        "title": "Sei pronto?",
+        "imageUrl": ""
+      }
+    ],
+    "showMode": "first_visit",
+    "isActive": true,
+    "priority": 0,
+    "createdBy": "lucaforte94@gmail.com",
+    "createdAt": "2026-04-01T08:58:33.430Z",
+    "updatedAt": "2026-04-01T23:19:01.886Z"
+  }
+]

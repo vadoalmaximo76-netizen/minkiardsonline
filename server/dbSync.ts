@@ -2,7 +2,7 @@ import { drizzle } from 'drizzle-orm/neon-http';
 import { neon } from '@neondatabase/serverless';
 import * as schema from '../shared/schema';
 import { eq, notInArray, sql } from 'drizzle-orm';
-import { jsonStorage } from './jsonStorage';
+import { jsonStorage, ensureAllJsonSyncFiles } from './jsonStorage';
 import { EventEmitter } from 'events';
 
 type ExtDbType = ReturnType<typeof drizzle<typeof schema>>;
@@ -31,6 +31,9 @@ function initExtDb() {
 }
 
 initExtDb();
+
+// Ensure all JSON sync files exist on startup (creates empty [] files for any missing)
+ensureAllJsonSyncFiles();
 
 const syncEmitter = new EventEmitter();
 syncEmitter.setMaxListeners(50);
@@ -115,6 +118,24 @@ const tableMap: Record<string, any> = {
   private_messages: schema.privateMessages,
   push_subscriptions: schema.pushSubscriptions,
   card_collection: schema.cardCollection,
+  user_draft_credits: schema.userDraftCredits,
+  draft_decks: schema.draftDecks,
+  credit_purchases: schema.creditPurchases,
+  user_card_collection: schema.userCardCollection,
+  draft_pack_openings: schema.draftPackOpenings,
+  draft_deck_presets: schema.draftDeckPresets,
+  draft_character_growth: schema.draftCharacterGrowth,
+  story_character_growth: schema.storyCharacterGrowth,
+  card_trade_listings: schema.cardTradeListings,
+  card_trade_history: schema.cardTradeHistory,
+  draft_tournaments: schema.draftTournaments,
+  gym_leaders: schema.gymLeaders,
+  user_gym_progress: schema.userGymProgress,
+  user_story_deck: schema.userStoryDeck,
+  injured_personaggi: schema.injuredPersonaggi,
+  daily_challenge_scores: schema.dailyChallengeScores,
+  page_tooltips: schema.pageTooltips,
+  notifications: schema.notifications,
 };
 
 function buildWhereFromData(table: any, whereData: any): any {
@@ -288,7 +309,315 @@ function syncToJson(event: SyncEvent) {
     },
   };
 
-  const handler = jsonSyncHandlers[event.table];
+  // Generic handler for all extended tables (upsert by id for insert/update, delete by id)
+  const genericJsonSyncHandlers: Record<string, () => void> = {
+    matches: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.matches.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.matches.delete(syncId);
+      }
+    },
+    training_tips: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.trainingTips.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.trainingTips.delete(syncId);
+      }
+    },
+    player_achievements: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.playerAchievements.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.playerAchievements.delete(syncId);
+      }
+    },
+    player_daily_missions: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.playerDailyMissions.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.playerDailyMissions.delete(syncId);
+      }
+    },
+    friend_requests: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.friendRequests.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.friendRequests.delete(syncId);
+      }
+    },
+    friendships: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.friendships.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.friendships.delete(syncId);
+      }
+    },
+    game_invitations: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.gameInvitations.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.gameInvitations.delete(syncId);
+      }
+    },
+    clans: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.clans.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.clans.delete(syncId);
+      }
+    },
+    clan_members: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.clanMembers.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.clanMembers.delete(syncId);
+      }
+    },
+    clan_join_requests: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.clanJoinRequests.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.clanJoinRequests.delete(syncId);
+      }
+    },
+    tournaments: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.tournaments.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.tournaments.delete(syncId);
+      }
+    },
+    tournament_participants: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.tournamentParticipants.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.tournamentParticipants.delete(syncId);
+      }
+    },
+    tournament_matches: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.tournamentMatches.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.tournamentMatches.delete(syncId);
+      }
+    },
+    seasonal_events: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.seasonalEvents.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.seasonalEvents.delete(syncId);
+      }
+    },
+    seasonal_cards: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.seasonalCards.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.seasonalCards.delete(syncId);
+      }
+    },
+    seasonal_passes: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.seasonalPasses.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.seasonalPasses.delete(syncId);
+      }
+    },
+    pass_rewards: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.passRewards.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.passRewards.delete(syncId);
+      }
+    },
+    player_pass_progress: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.playerPassProgress.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.playerPassProgress.delete(syncId);
+      }
+    },
+    conversations: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.conversations.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.conversations.delete(syncId);
+      }
+    },
+    card_collection: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.cardCollection.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.cardCollection.delete(syncId);
+      }
+    },
+    push_subscriptions: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.pushSubscriptions.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.pushSubscriptions.delete(syncId);
+      }
+    },
+    user_draft_credits: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.userDraftCredits.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.userDraftCredits.delete(syncId);
+      }
+    },
+    draft_decks: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.draftDecks.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.draftDecks.delete(syncId);
+      }
+    },
+    credit_purchases: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.creditPurchases.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.creditPurchases.delete(syncId);
+      }
+    },
+    user_card_collection: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.userCardCollection.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.userCardCollection.delete(syncId);
+      }
+    },
+    draft_pack_openings: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.draftPackOpenings.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.draftPackOpenings.delete(syncId);
+      }
+    },
+    draft_deck_presets: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.draftDeckPresets.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.draftDeckPresets.delete(syncId);
+      }
+    },
+    draft_character_growth: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.draftCharacterGrowth.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.draftCharacterGrowth.delete(syncId);
+      }
+    },
+    story_character_growth: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.storyCharacterGrowth.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.storyCharacterGrowth.delete(syncId);
+      }
+    },
+    card_trade_listings: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.cardTradeListings.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.cardTradeListings.delete(syncId);
+      }
+    },
+    card_trade_history: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.cardTradeHistory.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.cardTradeHistory.delete(syncId);
+      }
+    },
+    draft_tournaments: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.draftTournaments.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.draftTournaments.delete(syncId);
+      }
+    },
+    gym_leaders: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.gymLeaders.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.gymLeaders.delete(syncId);
+      }
+    },
+    user_gym_progress: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.userGymProgress.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.userGymProgress.delete(syncId);
+      }
+    },
+    user_story_deck: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.userStoryDeck.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.userStoryDeck.delete(syncId);
+      }
+    },
+    injured_personaggi: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.injuredPersonaggi.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.injuredPersonaggi.delete(syncId);
+      }
+    },
+    daily_challenge_scores: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.dailyChallengeScores.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.dailyChallengeScores.delete(syncId);
+      }
+    },
+    page_tooltips: () => {
+      const d = cleanData(event.data);
+      if ((event.operation === 'insert' || event.operation === 'update') && d.id) {
+        jsonStorage.pageTooltips.upsert(d);
+      } else if (event.operation === 'delete' && syncId) {
+        jsonStorage.pageTooltips.delete(syncId);
+      }
+    },
+  };
+
+  const handler = jsonSyncHandlers[event.table] ?? genericJsonSyncHandlers[event.table];
   if (handler) {
     handler();
   }
@@ -333,6 +662,7 @@ export function getSyncStatus(): SyncStatus {
 }
 
 // Tables that have meaningful JSON representations
+// Excluded (high-volume/temporary): game_events, private_messages, notifications, game_states
 const JSON_SYNC_TABLES = new Set([
   'users',
   'custom_cards',
@@ -343,6 +673,44 @@ const JSON_SYNC_TABLES = new Set([
   'mission_templates',
   'tutorial_steps',
   'player_skins',
+  'matches',
+  'training_tips',
+  'player_achievements',
+  'player_daily_missions',
+  'friend_requests',
+  'friendships',
+  'game_invitations',
+  'clans',
+  'clan_members',
+  'clan_join_requests',
+  'tournaments',
+  'tournament_participants',
+  'tournament_matches',
+  'seasonal_events',
+  'seasonal_cards',
+  'seasonal_passes',
+  'pass_rewards',
+  'player_pass_progress',
+  'conversations',
+  'card_collection',
+  'push_subscriptions',
+  'user_draft_credits',
+  'draft_decks',
+  'credit_purchases',
+  'user_card_collection',
+  'draft_pack_openings',
+  'draft_deck_presets',
+  'draft_character_growth',
+  'story_character_growth',
+  'card_trade_listings',
+  'card_trade_history',
+  'draft_tournaments',
+  'gym_leaders',
+  'user_gym_progress',
+  'user_story_deck',
+  'injured_personaggi',
+  'daily_challenge_scores',
+  'page_tooltips',
 ]);
 
 // Extract column name from a "column X does not exist" error message
@@ -497,6 +865,56 @@ function bulkSyncTableToJson(tableKey: string, rows: any[]) {
           try { jsonStorage.playerSkins.create(cleanData(row)); count++; } catch (_e) {}
         }
       }
+    } else {
+      // Generic upsert-by-id for all other JSON_SYNC_TABLES
+      const storeMap: Record<string, any> = {
+        matches: jsonStorage.matches,
+        training_tips: jsonStorage.trainingTips,
+        player_achievements: jsonStorage.playerAchievements,
+        player_daily_missions: jsonStorage.playerDailyMissions,
+        friend_requests: jsonStorage.friendRequests,
+        friendships: jsonStorage.friendships,
+        game_invitations: jsonStorage.gameInvitations,
+        clans: jsonStorage.clans,
+        clan_members: jsonStorage.clanMembers,
+        clan_join_requests: jsonStorage.clanJoinRequests,
+        tournaments: jsonStorage.tournaments,
+        tournament_participants: jsonStorage.tournamentParticipants,
+        tournament_matches: jsonStorage.tournamentMatches,
+        seasonal_events: jsonStorage.seasonalEvents,
+        seasonal_cards: jsonStorage.seasonalCards,
+        seasonal_passes: jsonStorage.seasonalPasses,
+        pass_rewards: jsonStorage.passRewards,
+        player_pass_progress: jsonStorage.playerPassProgress,
+        conversations: jsonStorage.conversations,
+        card_collection: jsonStorage.cardCollection,
+        push_subscriptions: jsonStorage.pushSubscriptions,
+        user_draft_credits: jsonStorage.userDraftCredits,
+        draft_decks: jsonStorage.draftDecks,
+        credit_purchases: jsonStorage.creditPurchases,
+        user_card_collection: jsonStorage.userCardCollection,
+        draft_pack_openings: jsonStorage.draftPackOpenings,
+        draft_deck_presets: jsonStorage.draftDeckPresets,
+        draft_character_growth: jsonStorage.draftCharacterGrowth,
+        story_character_growth: jsonStorage.storyCharacterGrowth,
+        card_trade_listings: jsonStorage.cardTradeListings,
+        card_trade_history: jsonStorage.cardTradeHistory,
+        draft_tournaments: jsonStorage.draftTournaments,
+        gym_leaders: jsonStorage.gymLeaders,
+        user_gym_progress: jsonStorage.userGymProgress,
+        user_story_deck: jsonStorage.userStoryDeck,
+        injured_personaggi: jsonStorage.injuredPersonaggi,
+        daily_challenge_scores: jsonStorage.dailyChallengeScores,
+        page_tooltips: jsonStorage.pageTooltips,
+      };
+      const store = storeMap[tableKey];
+      if (store) {
+        for (const row of rows) {
+          if (row.id) {
+            try { store.upsert(cleanData(row)); count++; } catch (_e) {}
+          }
+        }
+      }
     }
   } catch (err: any) {
     console.warn(`[BulkSync] JSON sync failed for ${tableKey}:`, err.message);
@@ -553,6 +971,7 @@ export async function fullSync(): Promise<SyncStatus['lastResult']> {
   }
 
   // Tables ordered by dependency (parents before children)
+  // Excluded from JSON sync (but synced to Replit DB): game_events, private_messages, notifications, game_states
   const TABLE_ORDER = [
     'users', 'personaggi', 'matches', 'game_events',
     'custom_cards', 'card_modifications', 'card_skins',
@@ -565,6 +984,16 @@ export async function fullSync(): Promise<SyncStatus['lastResult']> {
     'pass_rewards', 'player_pass_progress',
     'training_tips', 'conversations', 'private_messages',
     'push_subscriptions', 'card_collection', 'game_states',
+    'notifications',
+    'user_draft_credits', 'draft_decks', 'credit_purchases',
+    'user_card_collection', 'draft_pack_openings', 'draft_deck_presets',
+    'draft_character_growth', 'story_character_growth',
+    'card_trade_listings', 'card_trade_history',
+    'draft_tournaments',
+    'gym_leaders', 'user_gym_progress', 'user_story_deck',
+    'injured_personaggi',
+    'daily_challenge_scores',
+    'page_tooltips',
   ];
 
   for (const tableKey of TABLE_ORDER) {

@@ -1,0 +1,4530 @@
+[
+  {
+    "id": 1,
+    "userId": 3,
+    "cardId": "bonus-118",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:42:50.837Z"
+  },
+  {
+    "id": 2,
+    "userId": 3,
+    "cardId": "personaggi-169",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:42:50.874Z"
+  },
+  {
+    "id": 4,
+    "userId": 3,
+    "cardId": "personaggi-26",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:42:50.936Z"
+  },
+  {
+    "id": 5,
+    "userId": 3,
+    "cardId": "mosse-73",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T11:42:50.967Z"
+  },
+  {
+    "id": 6,
+    "userId": 3,
+    "cardId": "personaggi-157",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:43:35.759Z"
+  },
+  {
+    "id": 7,
+    "userId": 3,
+    "cardId": "personaggi-67",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:43:35.791Z"
+  },
+  {
+    "id": 8,
+    "userId": 3,
+    "cardId": "personaggi-176",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:43:35.821Z"
+  },
+  {
+    "id": 9,
+    "userId": 3,
+    "cardId": "bonus-150",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:43:35.852Z"
+  },
+  {
+    "id": 10,
+    "userId": 3,
+    "cardId": "personaggi-74",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T11:43:35.883Z"
+  },
+  {
+    "id": 11,
+    "userId": 3,
+    "cardId": "bonus-155",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:43:52.579Z"
+  },
+  {
+    "id": 13,
+    "userId": 3,
+    "cardId": "personaggi-166",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:43:52.641Z"
+  },
+  {
+    "id": 14,
+    "userId": 3,
+    "cardId": "mosse-30",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T11:43:52.672Z"
+  },
+  {
+    "id": 15,
+    "userId": 3,
+    "cardId": "mosse-63",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T11:43:52.703Z"
+  },
+  {
+    "id": 16,
+    "userId": 3,
+    "cardId": "mosse-8",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T11:43:52.734Z"
+  },
+  {
+    "id": 17,
+    "userId": 3,
+    "cardId": "personaggi-47",
+    "deckType": "personaggi",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-06T11:43:52.765Z"
+  },
+  {
+    "id": 18,
+    "userId": 3,
+    "cardId": "bonus-70",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:44:28.248Z"
+  },
+  {
+    "id": 19,
+    "userId": 3,
+    "cardId": "personaggi-18",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:44:28.279Z"
+  },
+  {
+    "id": 20,
+    "userId": 3,
+    "cardId": "personaggi-38",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:44:28.311Z"
+  },
+  {
+    "id": 21,
+    "userId": 3,
+    "cardId": "mosse-55",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T11:44:28.342Z"
+  },
+  {
+    "id": 22,
+    "userId": 3,
+    "cardId": "mosse-62",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T11:44:28.379Z"
+  },
+  {
+    "id": 23,
+    "userId": 3,
+    "cardId": "mosse-32",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T11:44:28.410Z"
+  },
+  {
+    "id": 25,
+    "userId": 3,
+    "cardId": "bonus-79",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-06T11:44:28.474Z"
+  },
+  {
+    "id": 26,
+    "userId": 3,
+    "cardId": "personaggi-173",
+    "deckType": "personaggi",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-06T11:44:28.506Z"
+  },
+  {
+    "id": 27,
+    "userId": 3,
+    "cardId": "mosse-49",
+    "deckType": "mosse",
+    "rarity": "leggendaria",
+    "obtainedAt": "2026-03-06T11:44:28.536Z"
+  },
+  {
+    "id": 28,
+    "userId": 3,
+    "cardId": "bonus-58",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:53:23.612Z"
+  },
+  {
+    "id": 29,
+    "userId": 3,
+    "cardId": "personaggi-30",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:53:23.644Z"
+  },
+  {
+    "id": 30,
+    "userId": 3,
+    "cardId": "personaggi-158",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:53:23.676Z"
+  },
+  {
+    "id": 31,
+    "userId": 3,
+    "cardId": "personaggi-99",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:53:23.707Z"
+  },
+  {
+    "id": 32,
+    "userId": 3,
+    "cardId": "mosse-80",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T11:53:23.739Z"
+  },
+  {
+    "id": 33,
+    "userId": 3,
+    "cardId": "bonus-63",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:57:41.913Z"
+  },
+  {
+    "id": 34,
+    "userId": 3,
+    "cardId": "bonus-42",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:57:41.944Z"
+  },
+  {
+    "id": 36,
+    "userId": 3,
+    "cardId": "personaggi-52",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T11:57:42.005Z"
+  },
+  {
+    "id": 37,
+    "userId": 3,
+    "cardId": "mosse-67",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T11:57:42.036Z"
+  },
+  {
+    "id": 38,
+    "userId": 3,
+    "cardId": "personaggi-178",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T12:04:00.313Z"
+  },
+  {
+    "id": 39,
+    "userId": 3,
+    "cardId": "bonus-110",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T12:04:00.343Z"
+  },
+  {
+    "id": 40,
+    "userId": 3,
+    "cardId": "bonus-76",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T12:04:00.374Z"
+  },
+  {
+    "id": 41,
+    "userId": 3,
+    "cardId": "personaggi-151",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T12:04:00.405Z"
+  },
+  {
+    "id": 43,
+    "userId": 3,
+    "cardId": "bonus-168",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T12:32:08.908Z"
+  },
+  {
+    "id": 44,
+    "userId": 3,
+    "cardId": "personaggi-32",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T12:36:58.699Z"
+  },
+  {
+    "id": 45,
+    "userId": 3,
+    "cardId": "personaggi-69",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T12:36:58.735Z"
+  },
+  {
+    "id": 46,
+    "userId": 3,
+    "cardId": "personaggi-62",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T12:36:58.766Z"
+  },
+  {
+    "id": 47,
+    "userId": 3,
+    "cardId": "mosse-12",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T12:36:58.797Z"
+  },
+  {
+    "id": 48,
+    "userId": 3,
+    "cardId": "personaggi-118",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T12:36:58.828Z"
+  },
+  {
+    "id": 49,
+    "userId": 3,
+    "cardId": "mosse-4",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T12:36:58.858Z"
+  },
+  {
+    "id": 50,
+    "userId": 3,
+    "cardId": "personaggi-170",
+    "deckType": "personaggi",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-06T12:36:58.890Z"
+  },
+  {
+    "id": 51,
+    "userId": 3,
+    "cardId": "bonus-53",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-06T12:36:58.920Z"
+  },
+  {
+    "id": 52,
+    "userId": 3,
+    "cardId": "bonus-68",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-06T12:36:58.952Z"
+  },
+  {
+    "id": 53,
+    "userId": 3,
+    "cardId": "mosse-79",
+    "deckType": "mosse",
+    "rarity": "leggendaria",
+    "obtainedAt": "2026-03-06T12:36:58.983Z"
+  },
+  {
+    "id": 54,
+    "userId": 3,
+    "cardId": "personaggi-109",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T14:13:08.914Z"
+  },
+  {
+    "id": 55,
+    "userId": 3,
+    "cardId": "personaggi-190",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T14:13:08.947Z"
+  },
+  {
+    "id": 56,
+    "userId": 3,
+    "cardId": "bonus-98",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T14:13:08.978Z"
+  },
+  {
+    "id": 57,
+    "userId": 3,
+    "cardId": "personaggi-132",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T14:13:09.008Z"
+  },
+  {
+    "id": 58,
+    "userId": 3,
+    "cardId": "bonus-90",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T17:27:32.464Z"
+  },
+  {
+    "id": 59,
+    "userId": 3,
+    "cardId": "bonus-100",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T17:27:32.501Z"
+  },
+  {
+    "id": 60,
+    "userId": 3,
+    "cardId": "personaggi-145",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T17:27:32.533Z"
+  },
+  {
+    "id": 61,
+    "userId": 3,
+    "cardId": "mosse-17",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T17:27:32.564Z"
+  },
+  {
+    "id": 62,
+    "userId": 3,
+    "cardId": "mosse-18",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T17:27:32.596Z"
+  },
+  {
+    "id": 63,
+    "userId": 3,
+    "cardId": "bonus-45",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-06T17:27:32.627Z"
+  },
+  {
+    "id": 64,
+    "userId": 3,
+    "cardId": "personaggi-60",
+    "deckType": "personaggi",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-06T17:27:32.659Z"
+  },
+  {
+    "id": 65,
+    "userId": 3,
+    "cardId": "bonus-50",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-06T17:27:32.691Z"
+  },
+  {
+    "id": 66,
+    "userId": 3,
+    "cardId": "mosse-59",
+    "deckType": "mosse",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-06T17:27:32.723Z"
+  },
+  {
+    "id": 67,
+    "userId": 3,
+    "cardId": "bonus-39",
+    "deckType": "bonus",
+    "rarity": "leggendaria",
+    "obtainedAt": "2026-03-06T17:27:32.755Z"
+  },
+  {
+    "id": 68,
+    "userId": 3,
+    "cardId": "personaggi-79",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T17:30:43.748Z"
+  },
+  {
+    "id": 69,
+    "userId": 3,
+    "cardId": "mosse-42",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T17:30:43.785Z"
+  },
+  {
+    "id": 70,
+    "userId": 3,
+    "cardId": "personaggi-45",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T17:30:43.816Z"
+  },
+  {
+    "id": 71,
+    "userId": 3,
+    "cardId": "personaggi-100",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T17:30:43.854Z"
+  },
+  {
+    "id": 72,
+    "userId": 3,
+    "cardId": "personaggi-29",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T17:30:43.885Z"
+  },
+  {
+    "id": 73,
+    "userId": 4,
+    "cardId": "personaggi-178",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T20:49:17.772Z"
+  },
+  {
+    "id": 74,
+    "userId": 8,
+    "cardId": "personaggi-119",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:56.576Z"
+  },
+  {
+    "id": 75,
+    "userId": 8,
+    "cardId": "personaggi-79",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:56.612Z"
+  },
+  {
+    "id": 76,
+    "userId": 8,
+    "cardId": "personaggi-118",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:09:56.642Z"
+  },
+  {
+    "id": 77,
+    "userId": 8,
+    "cardId": "personaggi-164",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:09:56.673Z"
+  },
+  {
+    "id": 78,
+    "userId": 8,
+    "cardId": "personaggi-190",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:56.703Z"
+  },
+  {
+    "id": 79,
+    "userId": 8,
+    "cardId": "personaggi-155",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:56.734Z"
+  },
+  {
+    "id": 80,
+    "userId": 8,
+    "cardId": "personaggi-66",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:56.764Z"
+  },
+  {
+    "id": 81,
+    "userId": 8,
+    "cardId": "personaggi-76",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:56.795Z"
+  },
+  {
+    "id": 82,
+    "userId": 8,
+    "cardId": "personaggi-2",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:09:56.826Z"
+  },
+  {
+    "id": 83,
+    "userId": 8,
+    "cardId": "personaggi-129",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:56.856Z"
+  },
+  {
+    "id": 84,
+    "userId": 8,
+    "cardId": "personaggi-96",
+    "deckType": "personaggi",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-06T21:09:56.888Z"
+  },
+  {
+    "id": 85,
+    "userId": 8,
+    "cardId": "personaggi-87",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:56.919Z"
+  },
+  {
+    "id": 86,
+    "userId": 8,
+    "cardId": "personaggi-24",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:56.950Z"
+  },
+  {
+    "id": 87,
+    "userId": 8,
+    "cardId": "personaggi-159",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:56.981Z"
+  },
+  {
+    "id": 88,
+    "userId": 8,
+    "cardId": "personaggi-94",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.012Z"
+  },
+  {
+    "id": 89,
+    "userId": 8,
+    "cardId": "personaggi-172",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.042Z"
+  },
+  {
+    "id": 90,
+    "userId": 8,
+    "cardId": "personaggi-89",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:09:57.073Z"
+  },
+  {
+    "id": 91,
+    "userId": 8,
+    "cardId": "personaggi-7",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.103Z"
+  },
+  {
+    "id": 92,
+    "userId": 8,
+    "cardId": "personaggi-128",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.134Z"
+  },
+  {
+    "id": 93,
+    "userId": 8,
+    "cardId": "personaggi-91",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.165Z"
+  },
+  {
+    "id": 94,
+    "userId": 8,
+    "cardId": "personaggi-83",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.196Z"
+  },
+  {
+    "id": 95,
+    "userId": 8,
+    "cardId": "personaggi-71",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.226Z"
+  },
+  {
+    "id": 96,
+    "userId": 8,
+    "cardId": "personaggi-42",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.257Z"
+  },
+  {
+    "id": 97,
+    "userId": 8,
+    "cardId": "personaggi-41",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.288Z"
+  },
+  {
+    "id": 98,
+    "userId": 8,
+    "cardId": "personaggi-130",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.319Z"
+  },
+  {
+    "id": 99,
+    "userId": 8,
+    "cardId": "personaggi-28",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.350Z"
+  },
+  {
+    "id": 100,
+    "userId": 8,
+    "cardId": "personaggi-192",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.381Z"
+  },
+  {
+    "id": 101,
+    "userId": 8,
+    "cardId": "personaggi-46",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.411Z"
+  },
+  {
+    "id": 102,
+    "userId": 8,
+    "cardId": "personaggi-162",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:09:57.442Z"
+  },
+  {
+    "id": 103,
+    "userId": 8,
+    "cardId": "personaggi-57",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.472Z"
+  },
+  {
+    "id": 104,
+    "userId": 8,
+    "cardId": "personaggi-148",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.504Z"
+  },
+  {
+    "id": 105,
+    "userId": 8,
+    "cardId": "personaggi-174",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.534Z"
+  },
+  {
+    "id": 106,
+    "userId": 8,
+    "cardId": "personaggi-17",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.565Z"
+  },
+  {
+    "id": 107,
+    "userId": 8,
+    "cardId": "mosse-13",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.595Z"
+  },
+  {
+    "id": 108,
+    "userId": 8,
+    "cardId": "mosse-62",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.625Z"
+  },
+  {
+    "id": 109,
+    "userId": 8,
+    "cardId": "mosse-19",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.656Z"
+  },
+  {
+    "id": 110,
+    "userId": 8,
+    "cardId": "mosse-56",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.686Z"
+  },
+  {
+    "id": 111,
+    "userId": 8,
+    "cardId": "mosse-52",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.717Z"
+  },
+  {
+    "id": 112,
+    "userId": 8,
+    "cardId": "mosse-82",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:09:57.750Z"
+  },
+  {
+    "id": 113,
+    "userId": 8,
+    "cardId": "mosse-51",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.780Z"
+  },
+  {
+    "id": 114,
+    "userId": 8,
+    "cardId": "mosse-85",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.811Z"
+  },
+  {
+    "id": 115,
+    "userId": 8,
+    "cardId": "mosse-76",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.841Z"
+  },
+  {
+    "id": 116,
+    "userId": 8,
+    "cardId": "mosse-64",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.872Z"
+  },
+  {
+    "id": 117,
+    "userId": 8,
+    "cardId": "mosse-11",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:09:57.903Z"
+  },
+  {
+    "id": 118,
+    "userId": 8,
+    "cardId": "mosse-2",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:09:57.933Z"
+  },
+  {
+    "id": 119,
+    "userId": 8,
+    "cardId": "mosse-4",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.964Z"
+  },
+  {
+    "id": 120,
+    "userId": 8,
+    "cardId": "mosse-66",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:57.994Z"
+  },
+  {
+    "id": 121,
+    "userId": 8,
+    "cardId": "mosse-15",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.025Z"
+  },
+  {
+    "id": 122,
+    "userId": 8,
+    "cardId": "mosse-32",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.055Z"
+  },
+  {
+    "id": 123,
+    "userId": 8,
+    "cardId": "mosse-83",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:09:58.085Z"
+  },
+  {
+    "id": 124,
+    "userId": 8,
+    "cardId": "mosse-36",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.116Z"
+  },
+  {
+    "id": 125,
+    "userId": 8,
+    "cardId": "mosse-67",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.146Z"
+  },
+  {
+    "id": 126,
+    "userId": 8,
+    "cardId": "mosse-30",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:09:58.178Z"
+  },
+  {
+    "id": 127,
+    "userId": 8,
+    "cardId": "mosse-22",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:09:58.208Z"
+  },
+  {
+    "id": 128,
+    "userId": 8,
+    "cardId": "mosse-63",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.239Z"
+  },
+  {
+    "id": 129,
+    "userId": 8,
+    "cardId": "mosse-42",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.269Z"
+  },
+  {
+    "id": 130,
+    "userId": 8,
+    "cardId": "mosse-33",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.300Z"
+  },
+  {
+    "id": 131,
+    "userId": 8,
+    "cardId": "mosse-12",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.331Z"
+  },
+  {
+    "id": 132,
+    "userId": 8,
+    "cardId": "mosse-43",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.361Z"
+  },
+  {
+    "id": 133,
+    "userId": 8,
+    "cardId": "mosse-25",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.392Z"
+  },
+  {
+    "id": 134,
+    "userId": 8,
+    "cardId": "mosse-68",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.422Z"
+  },
+  {
+    "id": 135,
+    "userId": 8,
+    "cardId": "mosse-50",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.453Z"
+  },
+  {
+    "id": 136,
+    "userId": 8,
+    "cardId": "mosse-23",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.484Z"
+  },
+  {
+    "id": 137,
+    "userId": 8,
+    "cardId": "mosse-71",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.515Z"
+  },
+  {
+    "id": 138,
+    "userId": 8,
+    "cardId": "mosse-5",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.546Z"
+  },
+  {
+    "id": 139,
+    "userId": 8,
+    "cardId": "mosse-37",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.576Z"
+  },
+  {
+    "id": 140,
+    "userId": 8,
+    "cardId": "bonus-116",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.607Z"
+  },
+  {
+    "id": 141,
+    "userId": 8,
+    "cardId": "bonus-148",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:09:58.638Z"
+  },
+  {
+    "id": 142,
+    "userId": 8,
+    "cardId": "bonus-26",
+    "deckType": "bonus",
+    "rarity": "leggendaria",
+    "obtainedAt": "2026-03-06T21:09:58.669Z"
+  },
+  {
+    "id": 143,
+    "userId": 8,
+    "cardId": "bonus-117",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.699Z"
+  },
+  {
+    "id": 144,
+    "userId": 8,
+    "cardId": "bonus-75",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.730Z"
+  },
+  {
+    "id": 145,
+    "userId": 8,
+    "cardId": "bonus-20",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.760Z"
+  },
+  {
+    "id": 146,
+    "userId": 8,
+    "cardId": "bonus-82",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.791Z"
+  },
+  {
+    "id": 147,
+    "userId": 8,
+    "cardId": "bonus-135",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:09:58.821Z"
+  },
+  {
+    "id": 148,
+    "userId": 8,
+    "cardId": "bonus-80",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.853Z"
+  },
+  {
+    "id": 149,
+    "userId": 8,
+    "cardId": "bonus-165",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:09:58.883Z"
+  },
+  {
+    "id": 150,
+    "userId": 8,
+    "cardId": "bonus-99",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.914Z"
+  },
+  {
+    "id": 151,
+    "userId": 8,
+    "cardId": "bonus-13",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.945Z"
+  },
+  {
+    "id": 152,
+    "userId": 8,
+    "cardId": "bonus-76",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:58.975Z"
+  },
+  {
+    "id": 153,
+    "userId": 8,
+    "cardId": "bonus-41",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.006Z"
+  },
+  {
+    "id": 154,
+    "userId": 8,
+    "cardId": "bonus-12",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-06T21:09:59.038Z"
+  },
+  {
+    "id": 155,
+    "userId": 8,
+    "cardId": "bonus-158",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:09:59.069Z"
+  },
+  {
+    "id": 156,
+    "userId": 8,
+    "cardId": "bonus-96",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.100Z"
+  },
+  {
+    "id": 157,
+    "userId": 8,
+    "cardId": "bonus-93",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.131Z"
+  },
+  {
+    "id": 158,
+    "userId": 8,
+    "cardId": "bonus-11",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.161Z"
+  },
+  {
+    "id": 159,
+    "userId": 8,
+    "cardId": "bonus-123",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.192Z"
+  },
+  {
+    "id": 160,
+    "userId": 8,
+    "cardId": "bonus-17",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.223Z"
+  },
+  {
+    "id": 161,
+    "userId": 8,
+    "cardId": "bonus-91",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.254Z"
+  },
+  {
+    "id": 162,
+    "userId": 8,
+    "cardId": "bonus-105",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.285Z"
+  },
+  {
+    "id": 163,
+    "userId": 8,
+    "cardId": "bonus-163",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:09:59.315Z"
+  },
+  {
+    "id": 164,
+    "userId": 8,
+    "cardId": "bonus-57",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.346Z"
+  },
+  {
+    "id": 165,
+    "userId": 8,
+    "cardId": "bonus-43",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.376Z"
+  },
+  {
+    "id": 166,
+    "userId": 8,
+    "cardId": "bonus-44",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.408Z"
+  },
+  {
+    "id": 167,
+    "userId": 8,
+    "cardId": "bonus-7",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.438Z"
+  },
+  {
+    "id": 168,
+    "userId": 8,
+    "cardId": "bonus-70",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.470Z"
+  },
+  {
+    "id": 169,
+    "userId": 8,
+    "cardId": "bonus-1",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.501Z"
+  },
+  {
+    "id": 170,
+    "userId": 8,
+    "cardId": "bonus-112",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.531Z"
+  },
+  {
+    "id": 171,
+    "userId": 8,
+    "cardId": "bonus-83",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.562Z"
+  },
+  {
+    "id": 172,
+    "userId": 8,
+    "cardId": "bonus-9",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:09:59.593Z"
+  },
+  {
+    "id": 174,
+    "userId": 8,
+    "cardId": "bonus-137",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:20:28.899Z"
+  },
+  {
+    "id": 175,
+    "userId": 8,
+    "cardId": "personaggi-146",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:20:28.931Z"
+  },
+  {
+    "id": 176,
+    "userId": 8,
+    "cardId": "mosse-87",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:20:28.963Z"
+  },
+  {
+    "id": 177,
+    "userId": 8,
+    "cardId": "bonus-62",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:20:28.994Z"
+  },
+  {
+    "id": 178,
+    "userId": 8,
+    "cardId": "personaggi-0",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:20:29.025Z"
+  },
+  {
+    "id": 179,
+    "userId": 8,
+    "cardId": "mosse-6",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:20:29.056Z"
+  },
+  {
+    "id": 180,
+    "userId": 8,
+    "cardId": "bonus-52",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-06T21:20:29.088Z"
+  },
+  {
+    "id": 181,
+    "userId": 8,
+    "cardId": "personaggi-48",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:22:49.198Z"
+  },
+  {
+    "id": 182,
+    "userId": 8,
+    "cardId": "personaggi-21",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:22:49.229Z"
+  },
+  {
+    "id": 183,
+    "userId": 8,
+    "cardId": "mosse-46",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:22:49.261Z"
+  },
+  {
+    "id": 184,
+    "userId": 8,
+    "cardId": "bonus-77",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:23:02.263Z"
+  },
+  {
+    "id": 185,
+    "userId": 8,
+    "cardId": "personaggi-110",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:23:02.294Z"
+  },
+  {
+    "id": 186,
+    "userId": 8,
+    "cardId": "bonus-140",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:23:02.325Z"
+  },
+  {
+    "id": 187,
+    "userId": 8,
+    "cardId": "bonus-126",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T21:23:02.355Z"
+  },
+  {
+    "id": 188,
+    "userId": 8,
+    "cardId": "personaggi-80",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T21:23:02.387Z"
+  },
+  {
+    "id": 189,
+    "userId": 3,
+    "cardId": "bonus-161",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T22:26:30.661Z"
+  },
+  {
+    "id": 190,
+    "userId": 3,
+    "cardId": "bonus-147",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T22:26:30.750Z"
+  },
+  {
+    "id": 191,
+    "userId": 3,
+    "cardId": "personaggi-156",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T22:26:30.788Z"
+  },
+  {
+    "id": 192,
+    "userId": 3,
+    "cardId": "mosse-16",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T22:26:30.820Z"
+  },
+  {
+    "id": 193,
+    "userId": 3,
+    "cardId": "mosse-72",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T22:26:30.852Z"
+  },
+  {
+    "id": 194,
+    "userId": 3,
+    "cardId": "personaggi-197",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T22:26:30.883Z"
+  },
+  {
+    "id": 195,
+    "userId": 3,
+    "cardId": "mosse-34",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T22:26:30.918Z"
+  },
+  {
+    "id": 196,
+    "userId": 3,
+    "cardId": "mosse-61",
+    "deckType": "mosse",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-06T22:26:30.950Z"
+  },
+  {
+    "id": 197,
+    "userId": 3,
+    "cardId": "mosse-3",
+    "deckType": "mosse",
+    "rarity": "leggendaria",
+    "obtainedAt": "2026-03-06T22:26:30.982Z"
+  },
+  {
+    "id": 198,
+    "userId": 3,
+    "cardId": "personaggi-119",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T23:08:43.977Z"
+  },
+  {
+    "id": 199,
+    "userId": 3,
+    "cardId": "personaggi-128",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T23:21:03.570Z"
+  },
+  {
+    "id": 200,
+    "userId": 3,
+    "cardId": "bonus-11",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T23:21:03.603Z"
+  },
+  {
+    "id": 201,
+    "userId": 3,
+    "cardId": "personaggi-131",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T23:21:03.634Z"
+  },
+  {
+    "id": 202,
+    "userId": 3,
+    "cardId": "personaggi-192",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T23:21:03.666Z"
+  },
+  {
+    "id": 203,
+    "userId": 3,
+    "cardId": "mosse-26",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T23:21:03.698Z"
+  },
+  {
+    "id": 204,
+    "userId": 3,
+    "cardId": "personaggi-24",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T23:21:20.192Z"
+  },
+  {
+    "id": 205,
+    "userId": 3,
+    "cardId": "bonus-160",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-06T23:21:20.223Z"
+  },
+  {
+    "id": 206,
+    "userId": 3,
+    "cardId": "personaggi-154",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-06T23:21:20.254Z"
+  },
+  {
+    "id": 207,
+    "userId": 3,
+    "cardId": "personaggi-73",
+    "deckType": "personaggi",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-06T23:21:20.286Z"
+  },
+  {
+    "id": 208,
+    "userId": 8,
+    "cardId": "bonus-108",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T00:45:08.683Z"
+  },
+  {
+    "id": 209,
+    "userId": 8,
+    "cardId": "personaggi-106",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T00:45:59.753Z"
+  },
+  {
+    "id": 211,
+    "userId": 8,
+    "cardId": "bonus-60",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T00:51:46.011Z"
+  },
+  {
+    "id": 212,
+    "userId": 8,
+    "cardId": "personaggi-38",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T00:51:46.043Z"
+  },
+  {
+    "id": 213,
+    "userId": 8,
+    "cardId": "bonus-6",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T00:51:46.075Z"
+  },
+  {
+    "id": 214,
+    "userId": 8,
+    "cardId": "bonus-61",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T00:51:46.107Z"
+  },
+  {
+    "id": 215,
+    "userId": 3,
+    "cardId": "personaggi-4",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T01:08:51.626Z"
+  },
+  {
+    "id": 216,
+    "userId": 3,
+    "cardId": "bonus-89",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T01:11:29.530Z"
+  },
+  {
+    "id": 217,
+    "userId": 3,
+    "cardId": "bonus-56",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T01:11:29.563Z"
+  },
+  {
+    "id": 218,
+    "userId": 3,
+    "cardId": "mosse-48",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T01:11:29.594Z"
+  },
+  {
+    "id": 219,
+    "userId": 3,
+    "cardId": "bonus-28",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T01:11:29.626Z"
+  },
+  {
+    "id": 220,
+    "userId": 3,
+    "cardId": "personaggi-144",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T01:11:47.771Z"
+  },
+  {
+    "id": 221,
+    "userId": 3,
+    "cardId": "personaggi-146",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T01:11:47.802Z"
+  },
+  {
+    "id": 222,
+    "userId": 3,
+    "cardId": "mosse-87",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T01:11:58.896Z"
+  },
+  {
+    "id": 223,
+    "userId": 3,
+    "cardId": "mosse-85",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T01:11:58.927Z"
+  },
+  {
+    "id": 224,
+    "userId": 3,
+    "cardId": "personaggi-122",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T01:17:41.366Z"
+  },
+  {
+    "id": 225,
+    "userId": 3,
+    "cardId": "personaggi-179",
+    "deckType": "personaggi",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T01:17:41.398Z"
+  },
+  {
+    "id": 226,
+    "userId": 3,
+    "cardId": "personaggi-75",
+    "deckType": "personaggi",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T01:17:41.431Z"
+  },
+  {
+    "id": 227,
+    "userId": 3,
+    "cardId": "bonus-127",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T01:27:43.026Z"
+  },
+  {
+    "id": 228,
+    "userId": 3,
+    "cardId": "bonus-103",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T01:27:43.058Z"
+  },
+  {
+    "id": 229,
+    "userId": 3,
+    "cardId": "bonus-48",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T01:27:43.088Z"
+  },
+  {
+    "id": 230,
+    "userId": 3,
+    "cardId": "mosse-70",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T01:27:43.177Z"
+  },
+  {
+    "id": 231,
+    "userId": 3,
+    "cardId": "bonus-5",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T01:27:43.208Z"
+  },
+  {
+    "id": 232,
+    "userId": 3,
+    "cardId": "bonus-95",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T08:53:49.179Z"
+  },
+  {
+    "id": 233,
+    "userId": 3,
+    "cardId": "bonus-88",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T08:53:49.216Z"
+  },
+  {
+    "id": 234,
+    "userId": 3,
+    "cardId": "bonus-31",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T08:53:49.247Z"
+  },
+  {
+    "id": 235,
+    "userId": 3,
+    "cardId": "mosse-58",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T08:53:49.278Z"
+  },
+  {
+    "id": 236,
+    "userId": 3,
+    "cardId": "mosse-71",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T08:53:49.310Z"
+  },
+  {
+    "id": 237,
+    "userId": 3,
+    "cardId": "bonus-131",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T08:53:49.341Z"
+  },
+  {
+    "id": 238,
+    "userId": 3,
+    "cardId": "bonus-10",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T08:53:49.372Z"
+  },
+  {
+    "id": 239,
+    "userId": 3,
+    "cardId": "bonus-61",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T08:53:49.404Z"
+  },
+  {
+    "id": 240,
+    "userId": 3,
+    "cardId": "mosse-1",
+    "deckType": "mosse",
+    "rarity": "leggendaria",
+    "obtainedAt": "2026-03-07T08:53:49.435Z"
+  },
+  {
+    "id": 241,
+    "userId": 3,
+    "cardId": "bonus-4",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T08:56:00.446Z"
+  },
+  {
+    "id": 242,
+    "userId": 3,
+    "cardId": "bonus-21",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T08:56:00.476Z"
+  },
+  {
+    "id": 243,
+    "userId": 3,
+    "cardId": "mosse-29",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T08:56:00.506Z"
+  },
+  {
+    "id": 244,
+    "userId": 3,
+    "cardId": "bonus-49",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T08:56:00.537Z"
+  },
+  {
+    "id": 245,
+    "userId": 3,
+    "cardId": "personaggi-64",
+    "deckType": "personaggi",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T08:56:00.567Z"
+  },
+  {
+    "id": 246,
+    "userId": 3,
+    "cardId": "bonus-149",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T08:56:00.597Z"
+  },
+  {
+    "id": 247,
+    "userId": 3,
+    "cardId": "personaggi-182",
+    "deckType": "personaggi",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T08:56:00.627Z"
+  },
+  {
+    "id": 248,
+    "userId": 3,
+    "cardId": "mosse-9",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T08:57:56.314Z"
+  },
+  {
+    "id": 249,
+    "userId": 3,
+    "cardId": "mosse-74",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T08:57:56.345Z"
+  },
+  {
+    "id": 250,
+    "userId": 3,
+    "cardId": "mosse-76",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T08:57:56.377Z"
+  },
+  {
+    "id": 251,
+    "userId": 3,
+    "cardId": "personaggi-12",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T09:00:06.017Z"
+  },
+  {
+    "id": 252,
+    "userId": 3,
+    "cardId": "personaggi-1",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T09:00:06.047Z"
+  },
+  {
+    "id": 253,
+    "userId": 10,
+    "cardId": "personaggi-112",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:49.986Z"
+  },
+  {
+    "id": 254,
+    "userId": 10,
+    "cardId": "personaggi-69",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.026Z"
+  },
+  {
+    "id": 255,
+    "userId": 10,
+    "cardId": "personaggi-155",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.056Z"
+  },
+  {
+    "id": 256,
+    "userId": 10,
+    "cardId": "personaggi-202",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.087Z"
+  },
+  {
+    "id": 257,
+    "userId": 10,
+    "cardId": "personaggi-53",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:13:50.117Z"
+  },
+  {
+    "id": 258,
+    "userId": 10,
+    "cardId": "personaggi-63",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:13:50.148Z"
+  },
+  {
+    "id": 259,
+    "userId": 10,
+    "cardId": "personaggi-10",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:13:50.178Z"
+  },
+  {
+    "id": 260,
+    "userId": 10,
+    "cardId": "personaggi-137",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.209Z"
+  },
+  {
+    "id": 261,
+    "userId": 10,
+    "cardId": "personaggi-140",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.240Z"
+  },
+  {
+    "id": 262,
+    "userId": 10,
+    "cardId": "personaggi-26",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.270Z"
+  },
+  {
+    "id": 263,
+    "userId": 10,
+    "cardId": "personaggi-159",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.301Z"
+  },
+  {
+    "id": 264,
+    "userId": 10,
+    "cardId": "personaggi-58",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.331Z"
+  },
+  {
+    "id": 265,
+    "userId": 10,
+    "cardId": "personaggi-78",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.364Z"
+  },
+  {
+    "id": 266,
+    "userId": 10,
+    "cardId": "personaggi-109",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.395Z"
+  },
+  {
+    "id": 267,
+    "userId": 10,
+    "cardId": "personaggi-87",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.426Z"
+  },
+  {
+    "id": 268,
+    "userId": 10,
+    "cardId": "personaggi-124",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.457Z"
+  },
+  {
+    "id": 269,
+    "userId": 10,
+    "cardId": "personaggi-34",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.489Z"
+  },
+  {
+    "id": 270,
+    "userId": 10,
+    "cardId": "personaggi-100",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:13:50.520Z"
+  },
+  {
+    "id": 271,
+    "userId": 10,
+    "cardId": "personaggi-131",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.550Z"
+  },
+  {
+    "id": 272,
+    "userId": 10,
+    "cardId": "personaggi-194",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.584Z"
+  },
+  {
+    "id": 273,
+    "userId": 10,
+    "cardId": "personaggi-195",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:13:50.614Z"
+  },
+  {
+    "id": 274,
+    "userId": 10,
+    "cardId": "personaggi-116",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.645Z"
+  },
+  {
+    "id": 275,
+    "userId": 10,
+    "cardId": "personaggi-67",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.675Z"
+  },
+  {
+    "id": 276,
+    "userId": 10,
+    "cardId": "personaggi-48",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.707Z"
+  },
+  {
+    "id": 278,
+    "userId": 10,
+    "cardId": "personaggi-107",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.769Z"
+  },
+  {
+    "id": 279,
+    "userId": 10,
+    "cardId": "personaggi-139",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.799Z"
+  },
+  {
+    "id": 280,
+    "userId": 10,
+    "cardId": "personaggi-38",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.831Z"
+  },
+  {
+    "id": 281,
+    "userId": 10,
+    "cardId": "personaggi-32",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.861Z"
+  },
+  {
+    "id": 282,
+    "userId": 10,
+    "cardId": "personaggi-9",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.891Z"
+  },
+  {
+    "id": 283,
+    "userId": 10,
+    "cardId": "personaggi-206",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.921Z"
+  },
+  {
+    "id": 284,
+    "userId": 10,
+    "cardId": "personaggi-66",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:50.951Z"
+  },
+  {
+    "id": 285,
+    "userId": 10,
+    "cardId": "personaggi-163",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:13:50.982Z"
+  },
+  {
+    "id": 286,
+    "userId": 10,
+    "cardId": "mosse-48",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.014Z"
+  },
+  {
+    "id": 287,
+    "userId": 10,
+    "cardId": "mosse-73",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.044Z"
+  },
+  {
+    "id": 288,
+    "userId": 10,
+    "cardId": "mosse-8",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:13:51.075Z"
+  },
+  {
+    "id": 289,
+    "userId": 10,
+    "cardId": "mosse-14",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.106Z"
+  },
+  {
+    "id": 290,
+    "userId": 10,
+    "cardId": "mosse-18",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.138Z"
+  },
+  {
+    "id": 291,
+    "userId": 10,
+    "cardId": "mosse-82",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:13:51.169Z"
+  },
+  {
+    "id": 292,
+    "userId": 10,
+    "cardId": "mosse-86",
+    "deckType": "mosse",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T10:13:51.200Z"
+  },
+  {
+    "id": 293,
+    "userId": 10,
+    "cardId": "mosse-38",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.230Z"
+  },
+  {
+    "id": 294,
+    "userId": 10,
+    "cardId": "mosse-42",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.260Z"
+  },
+  {
+    "id": 295,
+    "userId": 10,
+    "cardId": "mosse-68",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.292Z"
+  },
+  {
+    "id": 296,
+    "userId": 10,
+    "cardId": "mosse-13",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.322Z"
+  },
+  {
+    "id": 297,
+    "userId": 10,
+    "cardId": "mosse-54",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.353Z"
+  },
+  {
+    "id": 298,
+    "userId": 10,
+    "cardId": "mosse-20",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:13:51.383Z"
+  },
+  {
+    "id": 299,
+    "userId": 10,
+    "cardId": "mosse-51",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.414Z"
+  },
+  {
+    "id": 300,
+    "userId": 10,
+    "cardId": "mosse-34",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.444Z"
+  },
+  {
+    "id": 301,
+    "userId": 10,
+    "cardId": "mosse-81",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:13:51.474Z"
+  },
+  {
+    "id": 302,
+    "userId": 10,
+    "cardId": "mosse-63",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.505Z"
+  },
+  {
+    "id": 303,
+    "userId": 10,
+    "cardId": "mosse-32",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.535Z"
+  },
+  {
+    "id": 304,
+    "userId": 10,
+    "cardId": "mosse-90",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:13:51.566Z"
+  },
+  {
+    "id": 305,
+    "userId": 10,
+    "cardId": "mosse-9",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.596Z"
+  },
+  {
+    "id": 306,
+    "userId": 10,
+    "cardId": "mosse-10",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.627Z"
+  },
+  {
+    "id": 307,
+    "userId": 10,
+    "cardId": "mosse-12",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.659Z"
+  },
+  {
+    "id": 308,
+    "userId": 10,
+    "cardId": "mosse-74",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.692Z"
+  },
+  {
+    "id": 309,
+    "userId": 10,
+    "cardId": "mosse-0",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.722Z"
+  },
+  {
+    "id": 310,
+    "userId": 10,
+    "cardId": "mosse-70",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.752Z"
+  },
+  {
+    "id": 311,
+    "userId": 10,
+    "cardId": "mosse-28",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.782Z"
+  },
+  {
+    "id": 312,
+    "userId": 10,
+    "cardId": "mosse-62",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.813Z"
+  },
+  {
+    "id": 313,
+    "userId": 10,
+    "cardId": "mosse-76",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.844Z"
+  },
+  {
+    "id": 314,
+    "userId": 10,
+    "cardId": "mosse-39",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.874Z"
+  },
+  {
+    "id": 315,
+    "userId": 10,
+    "cardId": "mosse-23",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.904Z"
+  },
+  {
+    "id": 316,
+    "userId": 10,
+    "cardId": "mosse-16",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:51.935Z"
+  },
+  {
+    "id": 318,
+    "userId": 10,
+    "cardId": "mosse-67",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.004Z"
+  },
+  {
+    "id": 319,
+    "userId": 10,
+    "cardId": "bonus-15",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.034Z"
+  },
+  {
+    "id": 320,
+    "userId": 10,
+    "cardId": "bonus-166",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:13:52.065Z"
+  },
+  {
+    "id": 321,
+    "userId": 10,
+    "cardId": "bonus-72",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.095Z"
+  },
+  {
+    "id": 322,
+    "userId": 10,
+    "cardId": "bonus-155",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:13:52.126Z"
+  },
+  {
+    "id": 323,
+    "userId": 10,
+    "cardId": "bonus-22",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.156Z"
+  },
+  {
+    "id": 324,
+    "userId": 10,
+    "cardId": "bonus-129",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.188Z"
+  },
+  {
+    "id": 325,
+    "userId": 10,
+    "cardId": "bonus-35",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.218Z"
+  },
+  {
+    "id": 326,
+    "userId": 10,
+    "cardId": "bonus-31",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.249Z"
+  },
+  {
+    "id": 327,
+    "userId": 10,
+    "cardId": "bonus-9",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.280Z"
+  },
+  {
+    "id": 328,
+    "userId": 10,
+    "cardId": "bonus-89",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.310Z"
+  },
+  {
+    "id": 329,
+    "userId": 10,
+    "cardId": "bonus-96",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.341Z"
+  },
+  {
+    "id": 330,
+    "userId": 10,
+    "cardId": "bonus-136",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:13:52.371Z"
+  },
+  {
+    "id": 331,
+    "userId": 10,
+    "cardId": "bonus-169",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:13:52.401Z"
+  },
+  {
+    "id": 332,
+    "userId": 10,
+    "cardId": "bonus-124",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.431Z"
+  },
+  {
+    "id": 333,
+    "userId": 10,
+    "cardId": "bonus-110",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.461Z"
+  },
+  {
+    "id": 334,
+    "userId": 10,
+    "cardId": "bonus-121",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.492Z"
+  },
+  {
+    "id": 335,
+    "userId": 10,
+    "cardId": "bonus-28",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T10:13:52.522Z"
+  },
+  {
+    "id": 336,
+    "userId": 10,
+    "cardId": "bonus-162",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:13:52.552Z"
+  },
+  {
+    "id": 337,
+    "userId": 10,
+    "cardId": "bonus-11",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.582Z"
+  },
+  {
+    "id": 338,
+    "userId": 10,
+    "cardId": "bonus-57",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.612Z"
+  },
+  {
+    "id": 339,
+    "userId": 10,
+    "cardId": "bonus-114",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.643Z"
+  },
+  {
+    "id": 340,
+    "userId": 10,
+    "cardId": "bonus-97",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.673Z"
+  },
+  {
+    "id": 341,
+    "userId": 10,
+    "cardId": "bonus-20",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.703Z"
+  },
+  {
+    "id": 342,
+    "userId": 10,
+    "cardId": "bonus-79",
+    "deckType": "bonus",
+    "rarity": "leggendaria",
+    "obtainedAt": "2026-03-07T10:13:52.733Z"
+  },
+  {
+    "id": 343,
+    "userId": 10,
+    "cardId": "bonus-75",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.764Z"
+  },
+  {
+    "id": 344,
+    "userId": 10,
+    "cardId": "bonus-13",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.795Z"
+  },
+  {
+    "id": 345,
+    "userId": 10,
+    "cardId": "bonus-25",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.825Z"
+  },
+  {
+    "id": 346,
+    "userId": 10,
+    "cardId": "bonus-92",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.856Z"
+  },
+  {
+    "id": 347,
+    "userId": 10,
+    "cardId": "bonus-55",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.887Z"
+  },
+  {
+    "id": 348,
+    "userId": 10,
+    "cardId": "bonus-29",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.919Z"
+  },
+  {
+    "id": 349,
+    "userId": 10,
+    "cardId": "bonus-116",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.949Z"
+  },
+  {
+    "id": 350,
+    "userId": 10,
+    "cardId": "bonus-60",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:52.980Z"
+  },
+  {
+    "id": 351,
+    "userId": 10,
+    "cardId": "bonus-23",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:13:53.010Z"
+  },
+  {
+    "id": 353,
+    "userId": 10,
+    "cardId": "personaggi-125",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:18:42.333Z"
+  },
+  {
+    "id": 354,
+    "userId": 10,
+    "cardId": "personaggi-41",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:18:42.362Z"
+  },
+  {
+    "id": 355,
+    "userId": 10,
+    "cardId": "mosse-55",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:18:42.392Z"
+  },
+  {
+    "id": 356,
+    "userId": 10,
+    "cardId": "personaggi-30",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:18:42.422Z"
+  },
+  {
+    "id": 357,
+    "userId": 10,
+    "cardId": "personaggi-187",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:18:42.451Z"
+  },
+  {
+    "id": 358,
+    "userId": 10,
+    "cardId": "personaggi-135",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:18:42.480Z"
+  },
+  {
+    "id": 359,
+    "userId": 10,
+    "cardId": "bonus-5",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T10:18:42.510Z"
+  },
+  {
+    "id": 360,
+    "userId": 10,
+    "cardId": "bonus-34",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T10:18:42.539Z"
+  },
+  {
+    "id": 361,
+    "userId": 10,
+    "cardId": "mosse-49",
+    "deckType": "mosse",
+    "rarity": "leggendaria",
+    "obtainedAt": "2026-03-07T10:18:42.568Z"
+  },
+  {
+    "id": 362,
+    "userId": 10,
+    "cardId": "mosse-87",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T10:19:22.856Z"
+  },
+  {
+    "id": 363,
+    "userId": 10,
+    "cardId": "mosse-4",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T10:19:22.886Z"
+  },
+  {
+    "id": 364,
+    "userId": 3,
+    "cardId": "bonus-119",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T11:09:18.814Z"
+  },
+  {
+    "id": 365,
+    "userId": 3,
+    "cardId": "personaggi-90",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T11:09:18.915Z"
+  },
+  {
+    "id": 366,
+    "userId": 3,
+    "cardId": "personaggi-0",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T11:09:18.945Z"
+  },
+  {
+    "id": 367,
+    "userId": 3,
+    "cardId": "mosse-13",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T11:09:18.975Z"
+  },
+  {
+    "id": 368,
+    "userId": 3,
+    "cardId": "bonus-33",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T11:09:19.005Z"
+  },
+  {
+    "id": 369,
+    "userId": 3,
+    "cardId": "bonus-122",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:26:12.153Z"
+  },
+  {
+    "id": 370,
+    "userId": 3,
+    "cardId": "bonus-1",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:26:12.191Z"
+  },
+  {
+    "id": 371,
+    "userId": 3,
+    "cardId": "personaggi-20",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:42:13.229Z"
+  },
+  {
+    "id": 372,
+    "userId": 3,
+    "cardId": "personaggi-58",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.061Z"
+  },
+  {
+    "id": 374,
+    "userId": 3,
+    "cardId": "personaggi-130",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.123Z"
+  },
+  {
+    "id": 375,
+    "userId": 3,
+    "cardId": "personaggi-127",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.154Z"
+  },
+  {
+    "id": 378,
+    "userId": 3,
+    "cardId": "personaggi-114",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.254Z"
+  },
+  {
+    "id": 379,
+    "userId": 3,
+    "cardId": "personaggi-168",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T12:52:47.285Z"
+  },
+  {
+    "id": 380,
+    "userId": 3,
+    "cardId": "personaggi-105",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.315Z"
+  },
+  {
+    "id": 381,
+    "userId": 3,
+    "cardId": "personaggi-164",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T12:52:47.346Z"
+  },
+  {
+    "id": 382,
+    "userId": 3,
+    "cardId": "personaggi-76",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.377Z"
+  },
+  {
+    "id": 383,
+    "userId": 3,
+    "cardId": "personaggi-206",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.408Z"
+  },
+  {
+    "id": 384,
+    "userId": 3,
+    "cardId": "personaggi-138",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.438Z"
+  },
+  {
+    "id": 386,
+    "userId": 3,
+    "cardId": "personaggi-171",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.501Z"
+  },
+  {
+    "id": 387,
+    "userId": 3,
+    "cardId": "personaggi-46",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.532Z"
+  },
+  {
+    "id": 388,
+    "userId": 3,
+    "cardId": "personaggi-77",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.562Z"
+  },
+  {
+    "id": 389,
+    "userId": 3,
+    "cardId": "personaggi-124",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.592Z"
+  },
+  {
+    "id": 390,
+    "userId": 3,
+    "cardId": "personaggi-150",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.622Z"
+  },
+  {
+    "id": 391,
+    "userId": 3,
+    "cardId": "personaggi-125",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.652Z"
+  },
+  {
+    "id": 392,
+    "userId": 3,
+    "cardId": "personaggi-174",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.684Z"
+  },
+  {
+    "id": 393,
+    "userId": 3,
+    "cardId": "personaggi-97",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.714Z"
+  },
+  {
+    "id": 394,
+    "userId": 3,
+    "cardId": "personaggi-31",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.744Z"
+  },
+  {
+    "id": 395,
+    "userId": 3,
+    "cardId": "personaggi-71",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.774Z"
+  },
+  {
+    "id": 396,
+    "userId": 3,
+    "cardId": "personaggi-177",
+    "deckType": "personaggi",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T12:52:47.804Z"
+  },
+  {
+    "id": 398,
+    "userId": 3,
+    "cardId": "personaggi-23",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T12:52:47.864Z"
+  },
+  {
+    "id": 399,
+    "userId": 3,
+    "cardId": "personaggi-57",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.894Z"
+  },
+  {
+    "id": 400,
+    "userId": 3,
+    "cardId": "personaggi-9",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.925Z"
+  },
+  {
+    "id": 401,
+    "userId": 3,
+    "cardId": "personaggi-159",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.955Z"
+  },
+  {
+    "id": 402,
+    "userId": 3,
+    "cardId": "personaggi-203",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:47.984Z"
+  },
+  {
+    "id": 403,
+    "userId": 3,
+    "cardId": "personaggi-112",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:48.015Z"
+  },
+  {
+    "id": 405,
+    "userId": 3,
+    "cardId": "mosse-66",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:48.075Z"
+  },
+  {
+    "id": 409,
+    "userId": 3,
+    "cardId": "mosse-56",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:48.195Z"
+  },
+  {
+    "id": 410,
+    "userId": 3,
+    "cardId": "mosse-36",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:48.225Z"
+  },
+  {
+    "id": 411,
+    "userId": 3,
+    "cardId": "mosse-25",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:48.256Z"
+  },
+  {
+    "id": 413,
+    "userId": 3,
+    "cardId": "mosse-54",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:48.316Z"
+  },
+  {
+    "id": 414,
+    "userId": 3,
+    "cardId": "mosse-84",
+    "deckType": "mosse",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T12:52:48.346Z"
+  },
+  {
+    "id": 418,
+    "userId": 3,
+    "cardId": "mosse-43",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:48.468Z"
+  },
+  {
+    "id": 420,
+    "userId": 3,
+    "cardId": "mosse-10",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:48.528Z"
+  },
+  {
+    "id": 422,
+    "userId": 3,
+    "cardId": "mosse-75",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:48.588Z"
+  },
+  {
+    "id": 423,
+    "userId": 3,
+    "cardId": "mosse-81",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T12:52:48.618Z"
+  },
+  {
+    "id": 424,
+    "userId": 3,
+    "cardId": "mosse-5",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:48.649Z"
+  },
+  {
+    "id": 425,
+    "userId": 3,
+    "cardId": "mosse-22",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T12:52:48.679Z"
+  },
+  {
+    "id": 426,
+    "userId": 3,
+    "cardId": "mosse-51",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:48.710Z"
+  },
+  {
+    "id": 427,
+    "userId": 3,
+    "cardId": "mosse-35",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:48.740Z"
+  },
+  {
+    "id": 428,
+    "userId": 3,
+    "cardId": "mosse-65",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:48.772Z"
+  },
+  {
+    "id": 430,
+    "userId": 3,
+    "cardId": "mosse-45",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:48.832Z"
+  },
+  {
+    "id": 431,
+    "userId": 3,
+    "cardId": "mosse-40",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:48.862Z"
+  },
+  {
+    "id": 432,
+    "userId": 3,
+    "cardId": "mosse-31",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:48.892Z"
+  },
+  {
+    "id": 434,
+    "userId": 3,
+    "cardId": "mosse-7",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T12:52:48.953Z"
+  },
+  {
+    "id": 435,
+    "userId": 3,
+    "cardId": "mosse-90",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T12:52:48.984Z"
+  },
+  {
+    "id": 436,
+    "userId": 3,
+    "cardId": "mosse-23",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.015Z"
+  },
+  {
+    "id": 437,
+    "userId": 3,
+    "cardId": "mosse-33",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.045Z"
+  },
+  {
+    "id": 438,
+    "userId": 3,
+    "cardId": "bonus-80",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.075Z"
+  },
+  {
+    "id": 440,
+    "userId": 3,
+    "cardId": "bonus-105",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.136Z"
+  },
+  {
+    "id": 442,
+    "userId": 3,
+    "cardId": "bonus-133",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.196Z"
+  },
+  {
+    "id": 443,
+    "userId": 3,
+    "cardId": "bonus-148",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T12:52:49.226Z"
+  },
+  {
+    "id": 444,
+    "userId": 3,
+    "cardId": "bonus-107",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.256Z"
+  },
+  {
+    "id": 445,
+    "userId": 3,
+    "cardId": "bonus-126",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.286Z"
+  },
+  {
+    "id": 446,
+    "userId": 3,
+    "cardId": "bonus-23",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.316Z"
+  },
+  {
+    "id": 447,
+    "userId": 3,
+    "cardId": "bonus-32",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.345Z"
+  },
+  {
+    "id": 449,
+    "userId": 3,
+    "cardId": "bonus-67",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.405Z"
+  },
+  {
+    "id": 450,
+    "userId": 3,
+    "cardId": "bonus-37",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.434Z"
+  },
+  {
+    "id": 453,
+    "userId": 3,
+    "cardId": "bonus-109",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.526Z"
+  },
+  {
+    "id": 454,
+    "userId": 3,
+    "cardId": "bonus-77",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.555Z"
+  },
+  {
+    "id": 455,
+    "userId": 3,
+    "cardId": "bonus-152",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T12:52:49.585Z"
+  },
+  {
+    "id": 456,
+    "userId": 3,
+    "cardId": "bonus-15",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.616Z"
+  },
+  {
+    "id": 457,
+    "userId": 3,
+    "cardId": "bonus-44",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.647Z"
+  },
+  {
+    "id": 458,
+    "userId": 3,
+    "cardId": "bonus-132",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.677Z"
+  },
+  {
+    "id": 460,
+    "userId": 3,
+    "cardId": "bonus-40",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.737Z"
+  },
+  {
+    "id": 461,
+    "userId": 3,
+    "cardId": "bonus-124",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.768Z"
+  },
+  {
+    "id": 462,
+    "userId": 3,
+    "cardId": "bonus-120",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.798Z"
+  },
+  {
+    "id": 463,
+    "userId": 3,
+    "cardId": "bonus-134",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.828Z"
+  },
+  {
+    "id": 464,
+    "userId": 3,
+    "cardId": "bonus-43",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.857Z"
+  },
+  {
+    "id": 466,
+    "userId": 3,
+    "cardId": "bonus-19",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.916Z"
+  },
+  {
+    "id": 467,
+    "userId": 3,
+    "cardId": "bonus-78",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:49.946Z"
+  },
+  {
+    "id": 470,
+    "userId": 3,
+    "cardId": "bonus-111",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T12:52:50.035Z"
+  },
+  {
+    "id": 471,
+    "userId": 3,
+    "cardId": "personaggi-140",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:13.502Z"
+  },
+  {
+    "id": 472,
+    "userId": 3,
+    "cardId": "personaggi-25",
+    "deckType": "personaggi",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T13:00:13.535Z"
+  },
+  {
+    "id": 474,
+    "userId": 3,
+    "cardId": "personaggi-205",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:13.597Z"
+  },
+  {
+    "id": 475,
+    "userId": 3,
+    "cardId": "personaggi-7",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:13.627Z"
+  },
+  {
+    "id": 476,
+    "userId": 3,
+    "cardId": "personaggi-120",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:13.658Z"
+  },
+  {
+    "id": 477,
+    "userId": 3,
+    "cardId": "personaggi-81",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:13.689Z"
+  },
+  {
+    "id": 478,
+    "userId": 3,
+    "cardId": "personaggi-101",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:13.720Z"
+  },
+  {
+    "id": 479,
+    "userId": 3,
+    "cardId": "personaggi-15",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:13.752Z"
+  },
+  {
+    "id": 482,
+    "userId": 3,
+    "cardId": "personaggi-115",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:13.843Z"
+  },
+  {
+    "id": 483,
+    "userId": 3,
+    "cardId": "personaggi-153",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:13.874Z"
+  },
+  {
+    "id": 487,
+    "userId": 3,
+    "cardId": "personaggi-188",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:00:13.996Z"
+  },
+  {
+    "id": 489,
+    "userId": 3,
+    "cardId": "personaggi-117",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:14.058Z"
+  },
+  {
+    "id": 491,
+    "userId": 3,
+    "cardId": "personaggi-11",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:14.120Z"
+  },
+  {
+    "id": 493,
+    "userId": 3,
+    "cardId": "personaggi-66",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:14.182Z"
+  },
+  {
+    "id": 496,
+    "userId": 3,
+    "cardId": "personaggi-22",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:14.274Z"
+  },
+  {
+    "id": 497,
+    "userId": 3,
+    "cardId": "personaggi-108",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:14.305Z"
+  },
+  {
+    "id": 498,
+    "userId": 3,
+    "cardId": "personaggi-51",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:14.335Z"
+  },
+  {
+    "id": 500,
+    "userId": 3,
+    "cardId": "personaggi-162",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:00:14.397Z"
+  },
+  {
+    "id": 501,
+    "userId": 3,
+    "cardId": "personaggi-85",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:14.427Z"
+  },
+  {
+    "id": 504,
+    "userId": 3,
+    "cardId": "mosse-44",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:14.520Z"
+  },
+  {
+    "id": 507,
+    "userId": 3,
+    "cardId": "mosse-15",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:14.612Z"
+  },
+  {
+    "id": 511,
+    "userId": 3,
+    "cardId": "mosse-64",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:14.734Z"
+  },
+  {
+    "id": 517,
+    "userId": 3,
+    "cardId": "mosse-2",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:00:14.922Z"
+  },
+  {
+    "id": 518,
+    "userId": 3,
+    "cardId": "mosse-46",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:14.953Z"
+  },
+  {
+    "id": 521,
+    "userId": 3,
+    "cardId": "mosse-83",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:00:15.045Z"
+  },
+  {
+    "id": 524,
+    "userId": 3,
+    "cardId": "mosse-78",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:15.136Z"
+  },
+  {
+    "id": 525,
+    "userId": 3,
+    "cardId": "mosse-0",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:15.167Z"
+  },
+  {
+    "id": 526,
+    "userId": 3,
+    "cardId": "mosse-52",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:15.198Z"
+  },
+  {
+    "id": 527,
+    "userId": 3,
+    "cardId": "mosse-19",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:15.228Z"
+  },
+  {
+    "id": 528,
+    "userId": 3,
+    "cardId": "mosse-50",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:15.258Z"
+  },
+  {
+    "id": 533,
+    "userId": 3,
+    "cardId": "mosse-20",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:00:15.413Z"
+  },
+  {
+    "id": 534,
+    "userId": 3,
+    "cardId": "mosse-38",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:15.443Z"
+  },
+  {
+    "id": 537,
+    "userId": 3,
+    "cardId": "bonus-27",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T13:00:15.539Z"
+  },
+  {
+    "id": 538,
+    "userId": 3,
+    "cardId": "bonus-20",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:15.570Z"
+  },
+  {
+    "id": 539,
+    "userId": 3,
+    "cardId": "bonus-0",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:15.600Z"
+  },
+  {
+    "id": 541,
+    "userId": 3,
+    "cardId": "bonus-137",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:00:15.662Z"
+  },
+  {
+    "id": 543,
+    "userId": 3,
+    "cardId": "bonus-87",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:15.722Z"
+  },
+  {
+    "id": 544,
+    "userId": 3,
+    "cardId": "bonus-92",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:15.753Z"
+  },
+  {
+    "id": 547,
+    "userId": 3,
+    "cardId": "bonus-104",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:15.845Z"
+  },
+  {
+    "id": 548,
+    "userId": 3,
+    "cardId": "bonus-108",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:15.876Z"
+  },
+  {
+    "id": 552,
+    "userId": 3,
+    "cardId": "bonus-153",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:00:15.998Z"
+  },
+  {
+    "id": 553,
+    "userId": 3,
+    "cardId": "bonus-47",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:16.028Z"
+  },
+  {
+    "id": 555,
+    "userId": 3,
+    "cardId": "bonus-38",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:16.089Z"
+  },
+  {
+    "id": 556,
+    "userId": 3,
+    "cardId": "bonus-55",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:16.121Z"
+  },
+  {
+    "id": 557,
+    "userId": 3,
+    "cardId": "bonus-162",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:00:16.152Z"
+  },
+  {
+    "id": 560,
+    "userId": 3,
+    "cardId": "bonus-138",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:00:16.245Z"
+  },
+  {
+    "id": 563,
+    "userId": 3,
+    "cardId": "bonus-96",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:16.337Z"
+  },
+  {
+    "id": 566,
+    "userId": 3,
+    "cardId": "bonus-117",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:16.431Z"
+  },
+  {
+    "id": 567,
+    "userId": 3,
+    "cardId": "bonus-128",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:16.465Z"
+  },
+  {
+    "id": 568,
+    "userId": 3,
+    "cardId": "bonus-121",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:16.495Z"
+  },
+  {
+    "id": 569,
+    "userId": 3,
+    "cardId": "bonus-57",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:00:16.526Z"
+  },
+  {
+    "id": 574,
+    "userId": 3,
+    "cardId": "personaggi-139",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:00.680Z"
+  },
+  {
+    "id": 577,
+    "userId": 3,
+    "cardId": "personaggi-155",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:00.770Z"
+  },
+  {
+    "id": 579,
+    "userId": 3,
+    "cardId": "personaggi-167",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:00.830Z"
+  },
+  {
+    "id": 582,
+    "userId": 3,
+    "cardId": "personaggi-129",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:00.919Z"
+  },
+  {
+    "id": 586,
+    "userId": 3,
+    "cardId": "personaggi-111",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:01.038Z"
+  },
+  {
+    "id": 589,
+    "userId": 3,
+    "cardId": "personaggi-56",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:01.128Z"
+  },
+  {
+    "id": 592,
+    "userId": 3,
+    "cardId": "personaggi-84",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:01.217Z"
+  },
+  {
+    "id": 593,
+    "userId": 3,
+    "cardId": "personaggi-87",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:01.248Z"
+  },
+  {
+    "id": 596,
+    "userId": 3,
+    "cardId": "personaggi-43",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:01.336Z"
+  },
+  {
+    "id": 599,
+    "userId": 3,
+    "cardId": "personaggi-102",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:19:01.426Z"
+  },
+  {
+    "id": 601,
+    "userId": 3,
+    "cardId": "personaggi-8",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:01.485Z"
+  },
+  {
+    "id": 602,
+    "userId": 3,
+    "cardId": "personaggi-50",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:19:01.514Z"
+  },
+  {
+    "id": 606,
+    "userId": 3,
+    "cardId": "mosse-21",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:19:01.632Z"
+  },
+  {
+    "id": 611,
+    "userId": 3,
+    "cardId": "mosse-14",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:01.780Z"
+  },
+  {
+    "id": 614,
+    "userId": 3,
+    "cardId": "mosse-37",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:01.869Z"
+  },
+  {
+    "id": 626,
+    "userId": 3,
+    "cardId": "mosse-41",
+    "deckType": "mosse",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T13:19:02.232Z"
+  },
+  {
+    "id": 627,
+    "userId": 3,
+    "cardId": "mosse-11",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:19:02.262Z"
+  },
+  {
+    "id": 630,
+    "userId": 3,
+    "cardId": "mosse-39",
+    "deckType": "mosse",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:02.351Z"
+  },
+  {
+    "id": 637,
+    "userId": 3,
+    "cardId": "bonus-71",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:02.560Z"
+  },
+  {
+    "id": 641,
+    "userId": 3,
+    "cardId": "bonus-82",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:02.680Z"
+  },
+  {
+    "id": 642,
+    "userId": 3,
+    "cardId": "bonus-22",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:02.709Z"
+  },
+  {
+    "id": 646,
+    "userId": 3,
+    "cardId": "bonus-125",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:02.827Z"
+  },
+  {
+    "id": 651,
+    "userId": 3,
+    "cardId": "bonus-136",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:19:02.977Z"
+  },
+  {
+    "id": 654,
+    "userId": 3,
+    "cardId": "bonus-169",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:19:03.066Z"
+  },
+  {
+    "id": 655,
+    "userId": 3,
+    "cardId": "bonus-65",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:03.097Z"
+  },
+  {
+    "id": 656,
+    "userId": 3,
+    "cardId": "bonus-106",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:03.126Z"
+  },
+  {
+    "id": 657,
+    "userId": 3,
+    "cardId": "bonus-72",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:03.157Z"
+  },
+  {
+    "id": 658,
+    "userId": 3,
+    "cardId": "bonus-140",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:19:03.186Z"
+  },
+  {
+    "id": 659,
+    "userId": 3,
+    "cardId": "bonus-59",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:03.216Z"
+  },
+  {
+    "id": 664,
+    "userId": 3,
+    "cardId": "bonus-115",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:03.363Z"
+  },
+  {
+    "id": 665,
+    "userId": 3,
+    "cardId": "bonus-114",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:03.393Z"
+  },
+  {
+    "id": 666,
+    "userId": 3,
+    "cardId": "bonus-112",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:03.422Z"
+  },
+  {
+    "id": 667,
+    "userId": 3,
+    "cardId": "bonus-113",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:19:03.452Z"
+  },
+  {
+    "id": 669,
+    "userId": 3,
+    "cardId": "personaggi-65",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:20:48.024Z"
+  },
+  {
+    "id": 670,
+    "userId": 3,
+    "cardId": "mosse-24",
+    "deckType": "mosse",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T13:20:48.053Z"
+  },
+  {
+    "id": 671,
+    "userId": 3,
+    "cardId": "personaggi-94",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:21:26.470Z"
+  },
+  {
+    "id": 672,
+    "userId": 3,
+    "cardId": "personaggi-42",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:21:26.501Z"
+  },
+  {
+    "id": 673,
+    "userId": 3,
+    "cardId": "personaggi-186",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:21:26.531Z"
+  },
+  {
+    "id": 674,
+    "userId": 3,
+    "cardId": "bonus-69",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:21:26.561Z"
+  },
+  {
+    "id": 675,
+    "userId": 3,
+    "cardId": "mosse-82",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:21:48.391Z"
+  },
+  {
+    "id": 676,
+    "userId": 3,
+    "cardId": "mosse-88",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:21:48.420Z"
+  },
+  {
+    "id": 677,
+    "userId": 3,
+    "cardId": "bonus-93",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:22:18.722Z"
+  },
+  {
+    "id": 678,
+    "userId": 3,
+    "cardId": "mosse-89",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:22:18.759Z"
+  },
+  {
+    "id": 679,
+    "userId": 3,
+    "cardId": "bonus-52",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T13:22:18.790Z"
+  },
+  {
+    "id": 680,
+    "userId": 3,
+    "cardId": "bonus-73",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-07T13:22:18.842Z"
+  },
+  {
+    "id": 681,
+    "userId": 3,
+    "cardId": "personaggi-83",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-07T13:31:49.205Z"
+  },
+  {
+    "id": 682,
+    "userId": 3,
+    "cardId": "mosse-53",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:31:49.237Z"
+  },
+  {
+    "id": 683,
+    "userId": 3,
+    "cardId": "personaggi-70",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-07T13:31:49.269Z"
+  },
+  {
+    "id": 685,
+    "userId": 3,
+    "cardId": "personaggi-61",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-08T08:49:44.004Z"
+  },
+  {
+    "id": 686,
+    "userId": 3,
+    "cardId": "bonus-12",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-08T08:49:44.042Z"
+  },
+  {
+    "id": 687,
+    "userId": 3,
+    "cardId": "personaggi-49",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-08T10:13:55.708Z"
+  },
+  {
+    "id": 688,
+    "userId": 3,
+    "cardId": "bonus-116",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-08T10:13:55.744Z"
+  },
+  {
+    "id": 689,
+    "userId": 3,
+    "cardId": "personaggi-149",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-08T10:13:55.776Z"
+  },
+  {
+    "id": 690,
+    "userId": 3,
+    "cardId": "mosse-77",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-08T10:16:18.029Z"
+  },
+  {
+    "id": 691,
+    "userId": 3,
+    "cardId": "bonus-51",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-08T10:16:18.062Z"
+  },
+  {
+    "id": 692,
+    "userId": 3,
+    "cardId": "personaggi-14",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-08T11:10:13.802Z"
+  },
+  {
+    "id": 693,
+    "userId": 3,
+    "cardId": "bonus-6",
+    "deckType": "bonus",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-08T11:10:13.842Z"
+  },
+  {
+    "id": 694,
+    "userId": 3,
+    "cardId": "personaggi-55",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-08T11:10:13.876Z"
+  },
+  {
+    "id": 695,
+    "userId": 3,
+    "cardId": "bonus-34",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-08T11:10:13.911Z"
+  },
+  {
+    "id": 696,
+    "userId": 3,
+    "cardId": "personaggi-180",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-08T17:28:02.905Z"
+  },
+  {
+    "id": 699,
+    "userId": 3,
+    "cardId": "personaggi-183",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-08T17:46:45.715Z"
+  },
+  {
+    "id": 701,
+    "userId": 3,
+    "cardId": "personaggi-80",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-08T17:46:45.781Z"
+  },
+  {
+    "id": 706,
+    "userId": 3,
+    "cardId": "personaggi-44",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-08T18:00:17.456Z"
+  },
+  {
+    "id": 710,
+    "userId": 3,
+    "cardId": "bonus-26",
+    "deckType": "bonus",
+    "rarity": "epica",
+    "obtainedAt": "2026-03-08T18:00:17.580Z"
+  },
+  {
+    "id": 715,
+    "userId": 3,
+    "cardId": "personaggi-6",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-09T09:38:33.373Z"
+  },
+  {
+    "id": 716,
+    "userId": 3,
+    "cardId": "personaggi-2",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-09T09:38:33.466Z"
+  },
+  {
+    "id": 718,
+    "userId": 3,
+    "cardId": "personaggi-189",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-09T09:38:33.527Z"
+  },
+  {
+    "id": 724,
+    "userId": 3,
+    "cardId": "bonus-166",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-09T09:39:39.805Z"
+  },
+  {
+    "id": 726,
+    "userId": 3,
+    "cardId": "bonus-85",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-09T09:39:39.867Z"
+  },
+  {
+    "id": 730,
+    "userId": 3,
+    "cardId": "personaggi-199",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-09T09:42:37.295Z"
+  },
+  {
+    "id": 731,
+    "userId": 3,
+    "cardId": "bonus-36",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-09T10:25:16.018Z"
+  },
+  {
+    "id": 733,
+    "userId": 3,
+    "cardId": "personaggi-91",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-09T10:25:16.150Z"
+  },
+  {
+    "id": 735,
+    "userId": 3,
+    "cardId": "personaggi-133",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-09T10:25:16.221Z"
+  },
+  {
+    "id": 747,
+    "userId": 3,
+    "cardId": "mosse-60",
+    "deckType": "mosse",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-09T10:35:45.977Z"
+  },
+  {
+    "id": 757,
+    "userId": 3,
+    "cardId": "personaggi-135",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-09T20:59:55.820Z"
+  },
+  {
+    "id": 768,
+    "userId": 3,
+    "cardId": "personaggi-106",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-10T11:37:47.112Z"
+  },
+  {
+    "id": 773,
+    "userId": 10,
+    "cardId": "personaggi-33",
+    "deckType": "personaggi",
+    "rarity": "rara",
+    "obtainedAt": "2026-03-12T11:17:41.283Z"
+  },
+  {
+    "id": 776,
+    "userId": 3,
+    "cardId": "bonus-74",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-19T14:42:20.587Z"
+  },
+  {
+    "id": 778,
+    "userId": 3,
+    "cardId": "personaggi-148",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-19T14:42:20.663Z"
+  },
+  {
+    "id": 781,
+    "userId": 3,
+    "cardId": "bonus-102",
+    "deckType": "bonus",
+    "rarity": "comune",
+    "obtainedAt": "2026-03-25T12:01:44.735Z"
+  },
+  {
+    "id": 782,
+    "userId": 3,
+    "cardId": "personaggi-116",
+    "deckType": "personaggi",
+    "rarity": "comune",
+    "obtainedAt": "2026-04-01T08:34:09.393Z"
+  }
+]

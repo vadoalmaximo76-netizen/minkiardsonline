@@ -1,0 +1,1100 @@
+[
+  {
+    "id": 15,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 17,
+    "progress": 30,
+    "completed": true,
+    "completedAt": "2026-03-09T22:45:18.014Z",
+    "claimed": false
+  },
+  {
+    "id": 49,
+    "usernameOrEmail": "mikehermantraut@gmail.com",
+    "achievementId": 7,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 13,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 10,
+    "progress": 100399,
+    "completed": true,
+    "completedAt": "2026-03-14T13:32:23.555Z",
+    "claimed": false
+  },
+  {
+    "id": 46,
+    "usernameOrEmail": "mikehermantraut@gmail.com",
+    "achievementId": 5,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 80,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 2,
+    "progress": 3,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 48,
+    "usernameOrEmail": "mikehermantraut@gmail.com",
+    "achievementId": 6,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 50,
+    "usernameOrEmail": "mikehermantraut@gmail.com",
+    "achievementId": 7,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 52,
+    "usernameOrEmail": "mikehermantraut@gmail.com",
+    "achievementId": 16,
+    "progress": 0,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 51,
+    "usernameOrEmail": "mikehermantraut@gmail.com",
+    "achievementId": 16,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 4,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 6,
+    "progress": 500,
+    "completed": true,
+    "completedAt": "2026-03-19T14:33:56.472Z",
+    "claimed": false
+  },
+  {
+    "id": 20,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 12,
+    "progress": 50,
+    "completed": true,
+    "completedAt": "2026-03-11T17:57:52.149Z",
+    "claimed": false
+  },
+  {
+    "id": 36,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 18,
+    "progress": 3,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 65,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 8,
+    "progress": 5216,
+    "completed": true,
+    "completedAt": "2026-03-26T12:04:47.354Z",
+    "claimed": false
+  },
+  {
+    "id": 58,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 7,
+    "progress": 218,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 88,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 18,
+    "progress": 0,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 82,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 3,
+    "progress": 3,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 2,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 5,
+    "progress": 100,
+    "completed": true,
+    "completedAt": "2026-03-06T10:08:51.472Z",
+    "claimed": false
+  },
+  {
+    "id": 18,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 11,
+    "progress": 10,
+    "completed": true,
+    "completedAt": "2026-03-04T18:32:20.050Z",
+    "claimed": false
+  },
+  {
+    "id": 77,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 1,
+    "progress": 1,
+    "completed": true,
+    "completedAt": "2026-03-26T12:09:40.764Z",
+    "claimed": false
+  },
+  {
+    "id": 59,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 14,
+    "progress": 9,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 75,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 1,
+    "progress": 1,
+    "completed": true,
+    "completedAt": "2026-03-26T10:21:37.896Z",
+    "claimed": false
+  },
+  {
+    "id": 67,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 9,
+    "progress": 17695,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 44,
+    "usernameOrEmail": "karimabdul01@gmail.com",
+    "achievementId": 16,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 87,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 18,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 53,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 5,
+    "progress": 100,
+    "completed": true,
+    "completedAt": "2026-03-26T13:50:50.075Z",
+    "claimed": false
+  },
+  {
+    "id": 73,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 12,
+    "progress": 19,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 23,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 14,
+    "progress": 25,
+    "completed": true,
+    "completedAt": "2026-03-11T17:58:51.857Z",
+    "claimed": false
+  },
+  {
+    "id": 84,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 4,
+    "progress": 3,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 26,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 15,
+    "progress": 60,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 35,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 18,
+    "progress": 2,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 10,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 8,
+    "progress": 5526,
+    "completed": true,
+    "completedAt": "2026-03-02T20:30:34.871Z",
+    "claimed": false
+  },
+  {
+    "id": 69,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 10,
+    "progress": 10862,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 31,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 3,
+    "progress": 47,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 38,
+    "usernameOrEmail": "karimabdul01@gmail.com",
+    "achievementId": 5,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 21,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 13,
+    "progress": 74,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 40,
+    "usernameOrEmail": "karimabdul01@gmail.com",
+    "achievementId": 6,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 8,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 16,
+    "progress": 50,
+    "completed": true,
+    "completedAt": "2026-03-05T20:39:04.003Z",
+    "claimed": false
+  },
+  {
+    "id": 42,
+    "usernameOrEmail": "karimabdul01@gmail.com",
+    "achievementId": 7,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 89,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 5,
+    "progress": 29,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 27,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 1,
+    "progress": 1,
+    "completed": true,
+    "completedAt": "2026-03-01T00:00:46.560Z",
+    "claimed": false
+  },
+  {
+    "id": 90,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 5,
+    "progress": 0,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 29,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 2,
+    "progress": 10,
+    "completed": true,
+    "completedAt": "2026-03-09T23:52:16.029Z",
+    "claimed": false
+  },
+  {
+    "id": 43,
+    "usernameOrEmail": "karimabdul01@gmail.com",
+    "achievementId": 16,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 37,
+    "usernameOrEmail": "karimabdul01@gmail.com",
+    "achievementId": 5,
+    "progress": 5,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 39,
+    "usernameOrEmail": "karimabdul01@gmail.com",
+    "achievementId": 6,
+    "progress": 5,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 79,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 2,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 55,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 6,
+    "progress": 206,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 11,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 9,
+    "progress": 25115,
+    "completed": true,
+    "completedAt": "2026-03-11T08:06:32.222Z",
+    "claimed": false
+  },
+  {
+    "id": 41,
+    "usernameOrEmail": "karimabdul01@gmail.com",
+    "achievementId": 7,
+    "progress": 5,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 9,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 8,
+    "progress": 655,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 17,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 11,
+    "progress": 2,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 45,
+    "usernameOrEmail": "mikehermantraut@gmail.com",
+    "achievementId": 5,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 28,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 1,
+    "progress": 1,
+    "completed": true,
+    "completedAt": "2026-03-02T20:30:58.816Z",
+    "claimed": false
+  },
+  {
+    "id": 63,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 16,
+    "progress": 50,
+    "completed": true,
+    "completedAt": "2026-03-26T12:24:55.949Z",
+    "claimed": false
+  },
+  {
+    "id": 60,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 14,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 1,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 5,
+    "progress": 64,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 16,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 17,
+    "progress": 12,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 30,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 2,
+    "progress": 10,
+    "completed": true,
+    "completedAt": "2026-03-09T09:16:15.316Z",
+    "claimed": false
+  },
+  {
+    "id": 7,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 16,
+    "progress": 38,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 19,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 12,
+    "progress": 9,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 47,
+    "usernameOrEmail": "mikehermantraut@gmail.com",
+    "achievementId": 6,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 25,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 15,
+    "progress": 10,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 85,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 17,
+    "progress": 30,
+    "completed": true,
+    "completedAt": "2026-03-26T13:32:25.142Z",
+    "claimed": false
+  },
+  {
+    "id": 34,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 4,
+    "progress": 37,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 12,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 9,
+    "progress": 21586,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 14,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 10,
+    "progress": 3375,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 33,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 4,
+    "progress": 20,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 32,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 3,
+    "progress": 10,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 3,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 6,
+    "progress": 238,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 24,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 14,
+    "progress": 6,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 22,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 13,
+    "progress": 102,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 78,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 13,
+    "progress": 15,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 61,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 15,
+    "progress": 5,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 72,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 11,
+    "progress": 10,
+    "completed": true,
+    "completedAt": "2026-03-26T13:32:25.000Z",
+    "claimed": false
+  },
+  {
+    "id": 74,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 12,
+    "progress": 0,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 81,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 3,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 5,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 7,
+    "progress": 987,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 83,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 4,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 62,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 15,
+    "progress": 5,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 66,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 8,
+    "progress": 590,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 76,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 13,
+    "progress": 4,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 86,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 17,
+    "progress": 0,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 64,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 16,
+    "progress": 3,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 71,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 11,
+    "progress": 8,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 70,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 10,
+    "progress": 16139,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 56,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 6,
+    "progress": 43,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 54,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 5,
+    "progress": 71,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 68,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 9,
+    "progress": 9306,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 57,
+    "usernameOrEmail": "torolocotoroloco@gmail.com",
+    "achievementId": 7,
+    "progress": 31,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 91,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 6,
+    "progress": 28,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 93,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 7,
+    "progress": 28,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 92,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 6,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 94,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 7,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 95,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 17,
+    "progress": 4,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 97,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 16,
+    "progress": 16,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 98,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 16,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 102,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 9,
+    "progress": 1040,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 6,
+    "usernameOrEmail": "lucaforte94@gmail.com",
+    "achievementId": 7,
+    "progress": 440,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 99,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 8,
+    "progress": 740,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 96,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 17,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 101,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 9,
+    "progress": 50,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 105,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 11,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 106,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 14,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 109,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 12,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 110,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 15,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 116,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 1,
+    "progress": 0,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 112,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 13,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 114,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 1,
+    "progress": 1,
+    "completed": true,
+    "completedAt": "2026-04-01T12:44:41.463Z",
+    "claimed": false
+  },
+  {
+    "id": 118,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 2,
+    "progress": 0,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 117,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 2,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 120,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 3,
+    "progress": 0,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 119,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 3,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 122,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 4,
+    "progress": 0,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 121,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 4,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 107,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 11,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 111,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 12,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 115,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 13,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 104,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 10,
+    "progress": 650,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 100,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 8,
+    "progress": 350,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 103,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 10,
+    "progress": 440,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 108,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 14,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  },
+  {
+    "id": 113,
+    "usernameOrEmail": "ernestogambelarghe@gmail.com",
+    "achievementId": 15,
+    "progress": 1,
+    "completed": false,
+    "completedAt": null,
+    "claimed": false
+  }
+]

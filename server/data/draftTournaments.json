@@ -1,0 +1,71 @@
+[
+  {
+    "id": 1,
+    "userId": 3,
+    "status": "completed",
+    "wins": 7,
+    "losses": 0,
+    "entryCredits": 100,
+    "rewardsGranted": [
+      {
+        "win": 1,
+        "credits": 75,
+        "grantedAt": "2026-03-09T10:11:16.483Z"
+      },
+      {
+        "win": 2,
+        "credits": 100,
+        "grantedAt": "2026-03-09T10:11:19.230Z"
+      },
+      {
+        "win": 3,
+        "credits": 150,
+        "grantedAt": "2026-03-09T10:11:21.291Z"
+      },
+      {
+        "win": 4,
+        "credits": 200,
+        "grantedAt": "2026-03-09T10:11:22.958Z"
+      },
+      {
+        "win": 5,
+        "credits": 300,
+        "grantedAt": "2026-03-09T10:11:24.523Z"
+      },
+      {
+        "win": 6,
+        "credits": 500,
+        "grantedAt": "2026-03-09T10:11:26.149Z"
+      },
+      {
+        "win": 7,
+        "credits": 750,
+        "grantedAt": "2026-03-09T10:11:27.841Z"
+      }
+    ],
+    "startedAt": "2026-03-09T10:10:58.609Z",
+    "endedAt": "2026-03-09T10:11:27.902Z"
+  },
+  {
+    "id": 2,
+    "userId": 3,
+    "status": "completed",
+    "wins": 0,
+    "losses": 3,
+    "entryCredits": 100,
+    "rewardsGranted": [],
+    "startedAt": "2026-03-09T10:11:30.168Z",
+    "endedAt": "2026-03-09T10:13:07.145Z"
+  },
+  {
+    "id": 3,
+    "userId": 3,
+    "status": "active",
+    "wins": 0,
+    "losses": 0,
+    "entryCredits": 100,
+    "rewardsGranted": [],
+    "startedAt": "2026-03-09T10:18:52.922Z",
+    "endedAt": null
+  }
+]

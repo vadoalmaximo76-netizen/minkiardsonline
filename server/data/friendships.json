@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "userAId": 3,
+    "userBId": 8,
+    "createdAt": "2026-03-12T11:44:09.089Z"
+  },
+  {
+    "id": 2,
+    "userAId": 3,
+    "userBId": 8,
+    "createdAt": "2026-03-12T11:44:09.125Z"
+  }
+]

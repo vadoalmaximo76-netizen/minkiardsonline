@@ -1,0 +1,42 @@
+[
+  {
+    "id": 6,
+    "userId": 8,
+    "freeCredits": 60,
+    "paidCredits": 25,
+    "lastDailyCardClaim": "2026-03-06T21:19:26.527Z",
+    "updatedAt": "2026-03-07T00:51:45.932Z"
+  },
+  {
+    "id": 1,
+    "userId": 3,
+    "freeCredits": 1801,
+    "paidCredits": 0,
+    "lastDailyCardClaim": "2026-04-01T08:34:09.371Z",
+    "updatedAt": "2026-04-01T08:34:09.371Z"
+  },
+  {
+    "id": 2,
+    "userId": 4,
+    "freeCredits": 0,
+    "paidCredits": 500,
+    "lastDailyCardClaim": "2026-03-06T20:49:17.751Z",
+    "updatedAt": "2026-03-06T20:49:45.492Z"
+  },
+  {
+    "id": 5,
+    "userId": 6,
+    "freeCredits": 0,
+    "paidCredits": 0,
+    "lastDailyCardClaim": null,
+    "updatedAt": "2026-03-06T21:01:41.961Z"
+  },
+  {
+    "id": 10,
+    "userId": 10,
+    "freeCredits": 98,
+    "paidCredits": 150,
+    "lastDailyCardClaim": "2026-03-07T10:17:30.696Z",
+    "updatedAt": "2026-03-07T10:19:22.780Z"
+  }
+]

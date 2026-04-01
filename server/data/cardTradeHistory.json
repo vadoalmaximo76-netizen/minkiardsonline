@@ -1,0 +1,58 @@
+[
+  {
+    "id": 1,
+    "listingId": 6,
+    "buyerId": 3,
+    "buyerName": "Fake",
+    "creditsSpent": 50,
+    "tradedAt": "2026-03-06T23:08:44.045Z"
+  },
+  {
+    "id": 2,
+    "listingId": 13,
+    "buyerId": 8,
+    "buyerName": "karim01",
+    "creditsSpent": 15,
+    "tradedAt": "2026-03-07T00:45:08.913Z"
+  },
+  {
+    "id": 3,
+    "listingId": 10,
+    "buyerId": 8,
+    "buyerName": "karim01",
+    "creditsSpent": 5,
+    "tradedAt": "2026-03-07T00:45:59.969Z"
+  },
+  {
+    "id": 4,
+    "listingId": 11,
+    "buyerId": 8,
+    "buyerName": "karim01",
+    "creditsSpent": 5,
+    "tradedAt": "2026-03-07T00:46:42.464Z"
+  },
+  {
+    "id": 5,
+    "listingId": 30,
+    "buyerId": 3,
+    "buyerName": "Fake",
+    "creditsSpent": 50,
+    "tradedAt": "2026-03-08T01:24:49.151Z"
+  },
+  {
+    "id": 6,
+    "listingId": 29,
+    "buyerId": 3,
+    "buyerName": "Fake",
+    "creditsSpent": 10,
+    "tradedAt": "2026-03-09T09:42:37.567Z"
+  },
+  {
+    "id": 7,
+    "listingId": 43,
+    "buyerId": 10,
+    "buyerName": "Mike",
+    "creditsSpent": 9,
+    "tradedAt": "2026-03-12T11:17:41.574Z"
+  }
+]

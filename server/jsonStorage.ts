@@ -198,6 +198,87 @@ function writeJsonFile<T>(type: keyof JsonData, data: T[]): void {
   }
 }
 
+// Generic helpers for tables not in JsonData (new extended tables)
+function readGenericFile<T extends { id: number }>(filename: string): T[] {
+  ensureDataDir();
+  const filePath = path.join(DATA_DIR, `${filename}.json`);
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, '[]', 'utf-8');
+    return [];
+  }
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    return JSON.parse(content);
+  } catch (error) {
+    console.error(`Error reading ${filename}.json:`, error);
+    return [];
+  }
+}
+
+function writeGenericFile<T>(filename: string, data: T[]): void {
+  ensureDataDir();
+  const filePath = path.join(DATA_DIR, `${filename}.json`);
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (error) {
+    console.error(`Error writing ${filename}.json:`, error);
+    throw error;
+  }
+}
+
+function genericUpsert<T extends { id: number }>(filename: string, row: T): void {
+  const items = readGenericFile<T>(filename);
+  const idx = items.findIndex(r => r.id === row.id);
+  if (idx !== -1) {
+    items[idx] = row;
+  } else {
+    items.push(row);
+  }
+  writeGenericFile(filename, items);
+}
+
+function genericDelete<T extends { id: number }>(filename: string, id: number): void {
+  const items = readGenericFile<T>(filename);
+  const filtered = items.filter(r => r.id !== id);
+  writeGenericFile(filename, filtered);
+}
+
+function genericReplaceAll<T>(filename: string, rows: T[]): void {
+  writeGenericFile(filename, rows);
+}
+
+function makeGenericStore(filename: string) {
+  return {
+    getAll<T extends { id: number }>(): T[] {
+      return readGenericFile<T>(filename);
+    },
+    getById<T extends { id: number }>(id: number): T | undefined {
+      return readGenericFile<T>(filename).find(r => r.id === id);
+    },
+    upsert<T extends { id: number }>(row: T): void {
+      genericUpsert<T>(filename, row);
+    },
+    create<T extends { id: number }>(row: T): T {
+      genericUpsert<T>(filename, row);
+      return row;
+    },
+    update<T extends { id: number }>(id: number, data: Partial<T>): T | null {
+      const items = readGenericFile<T>(filename);
+      const idx = items.findIndex(r => r.id === id);
+      if (idx === -1) return null;
+      items[idx] = { ...items[idx], ...data };
+      writeGenericFile(filename, items);
+      return items[idx];
+    },
+    delete(id: number): void {
+      genericDelete(filename, id);
+    },
+    replaceAll<T>(rows: T[]): void {
+      genericReplaceAll(filename, rows);
+    },
+  };
+}
+
 function getNextId(items: { id: number }[]): number {
   if (items.length === 0) return 1;
   return Math.max(...items.map(item => item.id)) + 1;
@@ -825,6 +906,46 @@ export const jsonStorage = {
     },
   },
 
+  // ── Extended JSON sync stores (generic upsert-by-id pattern) ─────────────
+  matches: makeGenericStore('matches'),
+  trainingTips: makeGenericStore('trainingTips'),
+  playerAchievements: makeGenericStore('playerAchievements'),
+  playerDailyMissions: makeGenericStore('playerDailyMissions'),
+  friendRequests: makeGenericStore('friendRequests'),
+  friendships: makeGenericStore('friendships'),
+  gameInvitations: makeGenericStore('gameInvitations'),
+  clans: makeGenericStore('clans'),
+  clanMembers: makeGenericStore('clanMembers'),
+  clanJoinRequests: makeGenericStore('clanJoinRequests'),
+  tournaments: makeGenericStore('tournaments'),
+  tournamentParticipants: makeGenericStore('tournamentParticipants'),
+  tournamentMatches: makeGenericStore('tournamentMatches'),
+  seasonalEvents: makeGenericStore('seasonalEvents'),
+  seasonalCards: makeGenericStore('seasonalCards'),
+  seasonalPasses: makeGenericStore('seasonalPasses'),
+  passRewards: makeGenericStore('passRewards'),
+  playerPassProgress: makeGenericStore('playerPassProgress'),
+  conversations: makeGenericStore('conversations'),
+  cardCollection: makeGenericStore('cardCollection'),
+  pushSubscriptions: makeGenericStore('pushSubscriptions'),
+  userDraftCredits: makeGenericStore('userDraftCredits'),
+  draftDecks: makeGenericStore('draftDecks'),
+  creditPurchases: makeGenericStore('creditPurchases'),
+  userCardCollection: makeGenericStore('userCardCollection'),
+  draftPackOpenings: makeGenericStore('draftPackOpenings'),
+  draftDeckPresets: makeGenericStore('draftDeckPresets'),
+  draftCharacterGrowth: makeGenericStore('draftCharacterGrowth'),
+  storyCharacterGrowth: makeGenericStore('storyCharacterGrowth'),
+  cardTradeListings: makeGenericStore('cardTradeListings'),
+  cardTradeHistory: makeGenericStore('cardTradeHistory'),
+  draftTournaments: makeGenericStore('draftTournaments'),
+  gymLeaders: makeGenericStore('gymLeaders'),
+  userGymProgress: makeGenericStore('userGymProgress'),
+  userStoryDeck: makeGenericStore('userStoryDeck'),
+  injuredPersonaggi: makeGenericStore('injuredPersonaggi'),
+  dailyChallengeScores: makeGenericStore('dailyChallengeScores'),
+  pageTooltips: makeGenericStore('pageTooltips'),
+
   cardVersion: {
     getFilePath(): string {
       return path.join(DATA_DIR, 'cardVersion.json');
@@ -1065,3 +1186,40 @@ export const rankiardTiersStorage = {
 };
 
 export type { CustomCard, CardModification, CardSkin, PersonaggioCache, Achievement, MissionTemplate, TutorialStep, PlayerSkin, JsonUser };
+
+// Pre-create all JSON files for tables included in JSON_SYNC_TABLES so that
+// recovery tooling can always find an authoritative file even before any row
+// has been written to the store.
+export function ensureAllJsonSyncFiles(): void {
+  ensureDataDir();
+  const filenames = [
+    'customCards', 'cardModifications', 'cardSkins', 'personaggiCache',
+    'achievements', 'missionTemplates', 'tutorialSteps', 'playerSkins', 'users',
+    'matches', 'trainingTips', 'playerAchievements', 'playerDailyMissions',
+    'friendRequests', 'friendships', 'gameInvitations',
+    'clans', 'clanMembers', 'clanJoinRequests',
+    'tournaments', 'tournamentParticipants', 'tournamentMatches',
+    'seasonalEvents', 'seasonalCards', 'seasonalPasses', 'passRewards', 'playerPassProgress',
+    'conversations', 'cardCollection', 'pushSubscriptions',
+    'userDraftCredits', 'draftDecks', 'creditPurchases',
+    'userCardCollection', 'draftPackOpenings', 'draftDeckPresets',
+    'draftCharacterGrowth', 'storyCharacterGrowth',
+    'cardTradeListings', 'cardTradeHistory',
+    'draftTournaments',
+    'gymLeaders', 'userGymProgress', 'userStoryDeck',
+    'injuredPersonaggi',
+    'dailyChallengeScores',
+    'pageTooltips',
+  ];
+  for (const name of filenames) {
+    const filePath = path.join(DATA_DIR, `${name}.json`);
+    if (!fs.existsSync(filePath)) {
+      try {
+        fs.writeFileSync(filePath, '[]', 'utf-8');
+        console.log(`[JSON] Initialized empty file: ${name}.json`);
+      } catch (err: any) {
+        console.warn(`[JSON] Failed to initialize ${name}.json:`, err.message);
+      }
+    }
+  }
+}

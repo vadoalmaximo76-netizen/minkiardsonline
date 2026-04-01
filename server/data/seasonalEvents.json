@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "name": "Pesca di Zio Vincenzo",
+    "description": "Salutiamo zio Vincenzo al Volturno",
+    "startDate": "2026-03-06T00:00:00.000Z",
+    "endDate": "2026-03-07T00:00:00.000Z",
+    "bannerImage": null,
+    "isActive": true,
+    "createdAt": "2026-03-06T14:20:50.542Z"
+  },
+  {
+    "id": 2,
+    "name": "Pesca di Zio Vincenzo",
+    "description": "Salutiamo zio Vincenzo al Volturno",
+    "startDate": "2026-03-06T00:00:00.000Z",
+    "endDate": "2026-03-07T00:00:00.000Z",
+    "bannerImage": null,
+    "isActive": true,
+    "createdAt": "2026-03-06T14:20:50.578Z"
+  }
+]

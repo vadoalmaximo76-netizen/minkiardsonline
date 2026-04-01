@@ -1,0 +1,46 @@
+[
+  {
+    "id": 3,
+    "userId": 12,
+    "passId": 1,
+    "currentLevel": 2,
+    "currentXp": 350,
+    "hasPremium": false,
+    "claimedLevels": [],
+    "updatedAt": "2026-03-26T10:20:13.928Z"
+  },
+  {
+    "id": 4,
+    "userId": 1,
+    "passId": 1,
+    "currentLevel": 1,
+    "currentXp": 200,
+    "hasPremium": false,
+    "claimedLevels": [],
+    "updatedAt": "2026-04-01T12:44:41.151Z"
+  },
+  {
+    "id": 1,
+    "userId": 3,
+    "passId": 1,
+    "currentLevel": 12,
+    "currentXp": 850,
+    "hasPremium": false,
+    "claimedLevels": [
+      1
+    ],
+    "updatedAt": "2026-03-06T14:18:47.956Z"
+  },
+  {
+    "id": 2,
+    "userId": 3,
+    "passId": 1,
+    "currentLevel": 12,
+    "currentXp": 850,
+    "hasPremium": false,
+    "claimedLevels": [
+      1
+    ],
+    "updatedAt": "2026-03-06T14:18:47.989Z"
+  }
+]

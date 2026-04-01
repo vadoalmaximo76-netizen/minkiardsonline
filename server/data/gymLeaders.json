@@ -1,0 +1,1273 @@
+[
+  {
+    "id": 3,
+    "orderIndex": 4,
+    "name": "Ernesto",
+    "gymName": "Villa Ernesto",
+    "description": "Ah ma stai a piedi?",
+    "specialty": "È proprio wappa",
+    "leaderImageUrl": "https://i.ibb.co/CDVcpB6/Progetto-senza-titolo-20.png",
+    "badgeImageUrl": "https://www.italiatrend.com/wp-content/uploads/2024/09/Camperos-uomo_5.jpg",
+    "backgroundImageUrl": "https://graficaisernina.it/assets/images/grafica_isernina.jpg",
+    "cpuLevel": "medium",
+    "deckBias": {
+      "bonus": 3,
+      "mosse": 3,
+      "personaggi": 3
+    },
+    "customDeck": [
+      "personaggi-182",
+      "personaggi-5",
+      "personaggi-139",
+      "personaggi-173",
+      "personaggi-142",
+      "mosse-5",
+      "mosse-9",
+      "mosse-26",
+      "mosse-33",
+      "mosse-34",
+      "mosse-48",
+      "mosse-47",
+      "mosse-51",
+      "mosse-58",
+      "mosse-77",
+      "mosse-80",
+      "mosse-82",
+      "bonus-16",
+      "bonus-36",
+      "bonus-79",
+      "bonus-148",
+      "bonus-163",
+      "bonus-63",
+      "bonus-87",
+      "bonus-142",
+      "bonus-160",
+      "bonus-171",
+      "bonus-149",
+      "scenario-2",
+      "personaggi-107"
+    ],
+    "livesCount": 5,
+    "playerStartingDeck": [],
+    "starterDeckOptions": [
+      {
+        "name": "Scuderia Horsy",
+        "cardIds": [],
+        "imageUrl": "",
+        "glowColor": "#38bdf8"
+      },
+      {
+        "name": "Armata Bullox",
+        "cardIds": [],
+        "imageUrl": "",
+        "glowColor": "#ef4444"
+      }
+    ],
+    "rewardCredits": 150,
+    "rewardDescription": null,
+    "youtubeMusicUrl": "https://www.youtube.com/watch?v=fPJYsE-wCYo&list=RDfPJYsE-wCYo&start_radio=1",
+    "leaderMessages": {
+      "gameWin": [
+        "Mi sa che vado a festeggiare con una bella pizza uappa",
+        "H h h h h h! Che vittoria uappa",
+        ""
+      ],
+      "gameLose": [
+        "Bravo, mi sei piaciuto",
+        "Uappa 'sta partita, complimenti",
+        ""
+      ],
+      "gameStart": [
+        "Comparoneeee",
+        "H h h h h h!",
+        "We patinello!"
+      ],
+      "playBonus": [
+        "Che serio 'sto bonus",
+        "H h h h h h!",
+        "H h h h h h!"
+      ],
+      "playMossa": [
+        "Questa m'è piaciuta",
+        "Proprio uappa 'sta mossa",
+        "H h h h h h!"
+      ],
+      "takeMossa": [
+        "No più che altro perché mi stavi a guarda' il culo?",
+        "",
+        ""
+      ],
+      "eliminateEnemy": [
+        "H h h h h h!",
+        "H h h h h h!",
+        "H h h h h h!"
+      ],
+      "playPersonaggio": [
+        "H h h h h h!",
+        "Guarda che uappo 'sto personaggio",
+        "È proprio serio!"
+      ],
+      "ownPersonaggioDies": [
+        "Aressino, attacca!",
+        "Ma... mi è venuta un'idea",
+        ""
+      ]
+    },
+    "cpuCount": 1,
+    "cpuConfigs": [],
+    "attackMode": "hunt_human",
+    "isActive": true,
+    "createdAt": "2026-03-18T23:43:37.138Z"
+  },
+  {
+    "id": 4,
+    "orderIndex": 7,
+    "name": "Gregorio",
+    "gymName": "Casa di Gregorio ",
+    "description": null,
+    "specialty": "Prosciutto e melone",
+    "leaderImageUrl": null,
+    "badgeImageUrl": null,
+    "backgroundImageUrl": null,
+    "cpuLevel": "hard",
+    "deckBias": {
+      "bonus": 0.1,
+      "mosse": 0.1,
+      "personaggi": 0.1
+    },
+    "customDeck": [
+      "personaggi-30",
+      "personaggi-69",
+      "personaggi-103",
+      "personaggi-151",
+      "personaggi-175",
+      "mosse-0",
+      "mosse-1",
+      "mosse-2",
+      "mosse-27",
+      "mosse-30",
+      "bonus-154",
+      "bonus-149",
+      "bonus-30",
+      "bonus-119",
+      "bonus-16",
+      "scenario-7"
+    ],
+    "livesCount": 5,
+    "playerStartingDeck": [],
+    "starterDeckOptions": [
+      {
+        "name": "Scuderia Horsy",
+        "cardIds": [],
+        "imageUrl": "",
+        "glowColor": "#38bdf8"
+      },
+      {
+        "name": "Armata Bullox",
+        "cardIds": [],
+        "imageUrl": "",
+        "glowColor": "#ef4444"
+      }
+    ],
+    "rewardCredits": 150,
+    "rewardDescription": null,
+    "youtubeMusicUrl": null,
+    "leaderMessages": {
+      "gameWin": [
+        "",
+        "",
+        ""
+      ],
+      "gameLose": [
+        "",
+        "",
+        ""
+      ],
+      "gameStart": [
+        "",
+        "",
+        ""
+      ],
+      "playBonus": [
+        "",
+        "",
+        ""
+      ],
+      "playMossa": [
+        "",
+        "",
+        ""
+      ],
+      "takeMossa": [
+        "",
+        "",
+        ""
+      ],
+      "eliminateEnemy": [
+        "",
+        "",
+        ""
+      ],
+      "playPersonaggio": [
+        "",
+        "",
+        ""
+      ],
+      "ownPersonaggioDies": [
+        "",
+        "",
+        ""
+      ]
+    },
+    "cpuCount": 1,
+    "cpuConfigs": [],
+    "attackMode": "free_for_all",
+    "isActive": true,
+    "createdAt": "2026-03-19T00:27:00.741Z"
+  },
+  {
+    "id": 8,
+    "orderIndex": 8,
+    "name": "Magone Alezio",
+    "gymName": "Stregoni del Sinedrio",
+    "description": "Vuoi una magia? Allora ti faremo sparire",
+    "specialty": "Magia nera",
+    "leaderImageUrl": null,
+    "badgeImageUrl": null,
+    "backgroundImageUrl": null,
+    "cpuLevel": "hard",
+    "deckBias": {
+      "bonus": 1,
+      "mosse": 1,
+      "personaggi": 1
+    },
+    "customDeck": [
+      "personaggi-8",
+      "personaggi-29",
+      "personaggi-33",
+      "personaggi-84",
+      "personaggi-99",
+      "personaggi-98",
+      "personaggi-100",
+      "personaggi-104",
+      "personaggi-112",
+      "personaggi-118",
+      "personaggi-200",
+      "mosse-74",
+      "mosse-90",
+      "mosse-66",
+      "mosse-77",
+      "mosse-8",
+      "bonus-6",
+      "bonus-24",
+      "bonus-64",
+      "bonus-68",
+      "bonus-69",
+      "bonus-82",
+      "bonus-85",
+      "bonus-116",
+      "bonus-139",
+      "bonus-146",
+      "bonus-149",
+      "bonus-150",
+      "bonus-157",
+      "bonus-161",
+      "bonus-164",
+      "bonus-165",
+      "personaggi-191",
+      "personaggi_speciali-61",
+      "bonus-147",
+      "scenario-14"
+    ],
+    "livesCount": 5,
+    "playerStartingDeck": [],
+    "starterDeckOptions": [
+      {
+        "name": "Scuderia Horsy",
+        "cardIds": [],
+        "imageUrl": "",
+        "glowColor": "#38bdf8"
+      },
+      {
+        "name": "Armata Bullox",
+        "cardIds": [],
+        "imageUrl": "",
+        "glowColor": "#ef4444"
+      }
+    ],
+    "rewardCredits": 220,
+    "rewardDescription": null,
+    "youtubeMusicUrl": null,
+    "leaderMessages": {
+      "gameWin": [
+        "",
+        "",
+        ""
+      ],
+      "gameLose": [
+        "",
+        "",
+        ""
+      ],
+      "gameStart": [
+        "",
+        "",
+        ""
+      ],
+      "playBonus": [
+        "",
+        "",
+        ""
+      ],
+      "playMossa": [
+        "",
+        "",
+        ""
+      ],
+      "takeMossa": [
+        "",
+        "",
+        ""
+      ],
+      "eliminateEnemy": [
+        "",
+        "",
+        ""
+      ],
+      "playPersonaggio": [
+        "",
+        "",
+        ""
+      ],
+      "ownPersonaggioDies": [
+        "",
+        "",
+        ""
+      ]
+    },
+    "cpuCount": 1,
+    "cpuConfigs": [],
+    "attackMode": "free_for_all",
+    "isActive": true,
+    "createdAt": "2026-03-26T09:14:31.795Z"
+  },
+  {
+    "id": 7,
+    "orderIndex": 9,
+    "name": "Golden",
+    "gymName": "Dragolden Z",
+    "description": "Questi sono i miei guerrièri",
+    "specialty": "Giugì giugì",
+    "leaderImageUrl": null,
+    "badgeImageUrl": null,
+    "backgroundImageUrl": null,
+    "cpuLevel": "hard",
+    "deckBias": {
+      "bonus": 1,
+      "mosse": 1,
+      "personaggi": 1
+    },
+    "customDeck": [
+      "personaggi-73",
+      "personaggi-170",
+      "personaggi-150",
+      "personaggi-121",
+      "personaggi-74",
+      "personaggi-34",
+      "mosse-29",
+      "mosse-61",
+      "mosse-4",
+      "mosse-11",
+      "mosse-59",
+      "mosse-73",
+      "bonus-41",
+      "bonus-55",
+      "bonus-60",
+      "bonus-82",
+      "bonus-80",
+      "bonus-106",
+      "bonus-127",
+      "bonus-129",
+      "bonus-131",
+      "bonus-149",
+      "bonus-154",
+      "bonus-162",
+      "bonus-169",
+      "bonus-37",
+      "bonus-68",
+      "scenario-12"
+    ],
+    "livesCount": 6,
+    "playerStartingDeck": [],
+    "starterDeckOptions": [
+      {
+        "name": "Scuderia Horsy",
+        "cardIds": [],
+        "imageUrl": "",
+        "glowColor": "#38bdf8"
+      },
+      {
+        "name": "Armata Bullox",
+        "cardIds": [],
+        "imageUrl": "",
+        "glowColor": "#ef4444"
+      }
+    ],
+    "rewardCredits": 200,
+    "rewardDescription": null,
+    "youtubeMusicUrl": null,
+    "leaderMessages": {
+      "gameWin": [
+        "",
+        "",
+        ""
+      ],
+      "gameLose": [
+        "",
+        "",
+        ""
+      ],
+      "gameStart": [
+        "",
+        "",
+        ""
+      ],
+      "playBonus": [
+        "",
+        "",
+        ""
+      ],
+      "playMossa": [
+        "",
+        "",
+        ""
+      ],
+      "takeMossa": [
+        "",
+        "",
+        ""
+      ],
+      "eliminateEnemy": [
+        "",
+        "",
+        ""
+      ],
+      "playPersonaggio": [
+        "",
+        "",
+        ""
+      ],
+      "ownPersonaggioDies": [
+        "",
+        "",
+        ""
+      ]
+    },
+    "cpuCount": 1,
+    "cpuConfigs": [],
+    "attackMode": "free_for_all",
+    "isActive": true,
+    "createdAt": "2026-03-26T08:59:25.452Z"
+  },
+  {
+    "id": 10,
+    "orderIndex": 1,
+    "name": "Il Fenomeno",
+    "gymName": "Casa del Fenomeno",
+    "description": "Sce...",
+    "specialty": "C'è solo un Fenomeno",
+    "leaderImageUrl": "https://i.ibb.co/7JwSKS6t/Progetto-senza-titolo-22.png",
+    "badgeImageUrl": "https://idearicamo.com/data/sized/83fde7be6979145cc5559655fd840116.jpg",
+    "backgroundImageUrl": "https://www.unidprofessional.com/wp-content/uploads/2022/01/Concorso-Guardia-di-Finanza.jpg",
+    "cpuLevel": "easy",
+    "deckBias": {
+      "bonus": 1,
+      "mosse": 1,
+      "personaggi": 1
+    },
+    "customDeck": [
+      "personaggi-81",
+      "mosse-19",
+      "mosse-46",
+      "mosse-81",
+      "mosse-86",
+      "bonus-43",
+      "bonus-56",
+      "bonus-96",
+      "bonus-108",
+      "bonus-114",
+      "bonus-126",
+      "bonus-149",
+      "bonus-153"
+    ],
+    "livesCount": 1,
+    "playerStartingDeck": [],
+    "starterDeckOptions": [
+      {
+        "name": "Scuderia Horsy",
+        "cardIds": [
+          "personaggi-80",
+          "personaggi-14",
+          "personaggi-27",
+          "personaggi-31",
+          "personaggi-37",
+          "personaggi-42",
+          "personaggi-58",
+          "personaggi-76",
+          "mosse-12",
+          "mosse-16",
+          "mosse-32",
+          "mosse-52",
+          "mosse-60",
+          "mosse-68",
+          "personaggi-172",
+          "mosse-88",
+          "mosse-81",
+          "mosse-40",
+          "bonus-100",
+          "bonus-105",
+          "bonus-128",
+          "bonus-9",
+          "bonus-7",
+          "bonus-38",
+          "bonus-121",
+          "bonus-155",
+          "bonus-14"
+        ],
+        "imageUrl": "https://i.postimg.cc/8CykK1Lk/71.png",
+        "glowColor": "#38bdf8"
+      },
+      {
+        "name": "Armata Bullox",
+        "cardIds": [
+          "personaggi-25",
+          "personaggi-4",
+          "personaggi-105",
+          "personaggi-58",
+          "personaggi-199",
+          "custom-2",
+          "personaggi-37",
+          "personaggi-28",
+          "mosse-12",
+          "mosse-16",
+          "mosse-90",
+          "mosse-81",
+          "mosse-42",
+          "personaggi-108",
+          "mosse-38",
+          "mosse-52",
+          "mosse-60",
+          "mosse-68",
+          "bonus-9",
+          "bonus-25",
+          "bonus-155",
+          "bonus-38",
+          "bonus-100",
+          "bonus-105",
+          "bonus-101",
+          "bonus-128",
+          "bonus-14"
+        ],
+        "imageUrl": "https://i.ibb.co/RkRQ2gLq/72.png",
+        "glowColor": "#ef4444"
+      }
+    ],
+    "rewardCredits": 10,
+    "rewardDescription": null,
+    "youtubeMusicUrl": "https://www.youtube.com/watch?v=XxCso8WgvGg&list=RDXxCso8WgvGg&start_radio=1",
+    "leaderMessages": {
+      "gameWin": [
+        "Ho proprio il piede che sta 'na favola",
+        "Ti sei beccato una bella semirovesciata in faccia",
+        "Heheheheheheheh"
+      ],
+      "gameLose": [
+        "Sei fortunato che non ho il piede che sta 'na favola...",
+        "Mi hai messo troppa pressione!",
+        "Sei fortunato che ho le orecchie infiammate..."
+      ],
+      "gameStart": [
+        "Heheheh",
+        "Sce...",
+        "Stavo preparando le piade con la Nutella, però giochiamo!"
+      ],
+      "playBonus": [
+        "Capi...",
+        "Sce...",
+        "Ci voleva proprio, come un bel pacco di bresaola"
+      ],
+      "playMossa": [
+        "Ecco la mia muscolatura tosta",
+        "Heheheheh",
+        "C'ho l'acido"
+      ],
+      "takeMossa": [
+        "Ma che ti ho fatto? Faccio sempre belle battute",
+        "Ahia! L'alluce!",
+        "Cazzo di Buddha!"
+      ],
+      "eliminateEnemy": [
+        "Heheheheheh",
+        "Ammira i miei capelli giallo cenere!",
+        "Subisci la potenza dei miei bicipiti!"
+      ],
+      "playPersonaggio": [
+        "Eccomi in tutto il mio splendore",
+        "Sono pronto a slabbrarti l'ano",
+        "Ti ricordo che ho i polpacci da ciclista"
+      ],
+      "ownPersonaggioDies": [
+        "Grazj, grazj...",
+        "Il nostro rapporto non è più vicendevole",
+        "Ah? Grazj"
+      ]
+    },
+    "cpuCount": 1,
+    "cpuConfigs": [],
+    "attackMode": "free_for_all",
+    "isActive": true,
+    "createdAt": "2026-03-26T10:01:37.278Z"
+  },
+  {
+    "id": 2,
+    "orderIndex": 3,
+    "name": "Pulcinella",
+    "gymName": "Vedi Napoli e poi muori",
+    "description": "Ué ué uaglió, bell stu mazz",
+    "specialty": "Chist è 'o paes' r'o sole ☀️",
+    "leaderImageUrl": "https://www.museodipulcinella.it/wp-content/uploads/2021/10/carmine-coppola.png",
+    "badgeImageUrl": "https://www.forumetici.it/wp-content/uploads/2022/04/cappello-del-napoli-793azl-247x296.png",
+    "backgroundImageUrl": "https://www.viaggiemiraggi.org/wp-content/uploads/2017/11/visitare_napoli.jpg",
+    "cpuLevel": "easy",
+    "deckBias": {
+      "bonus": 1,
+      "mosse": 1,
+      "personaggi": 1
+    },
+    "customDeck": [
+      "personaggi-30",
+      "personaggi-48",
+      "personaggi-49",
+      "personaggi-57",
+      "personaggi-68",
+      "personaggi-85",
+      "personaggi-117",
+      "personaggi-124",
+      "personaggi-168",
+      "mosse-10",
+      "mosse-15",
+      "mosse-22",
+      "mosse-31",
+      "mosse-36",
+      "mosse-45",
+      "mosse-54",
+      "mosse-63",
+      "mosse-85",
+      "bonus-31",
+      "bonus-32",
+      "bonus-34",
+      "bonus-83",
+      "bonus-104",
+      "bonus-105",
+      "bonus-130",
+      "bonus-145",
+      "bonus-154",
+      "custom-1",
+      "mosse-62",
+      "scenario-18"
+    ],
+    "livesCount": 3,
+    "playerStartingDeck": [],
+    "starterDeckOptions": [
+      {
+        "name": "Scuderia Horsy",
+        "cardIds": [],
+        "imageUrl": "",
+        "glowColor": "#38bdf8"
+      },
+      {
+        "name": "Armata Bullox",
+        "cardIds": [],
+        "imageUrl": "",
+        "glowColor": "#ef4444"
+      }
+    ],
+    "rewardCredits": 50,
+    "rewardDescription": null,
+    "youtubeMusicUrl": "https://youtu.be/JQEvyqmGNoE?is=nlfSVfCIs0YYD_Py",
+    "leaderMessages": {
+      "gameWin": [
+        "Ciatafanubukkin ",
+        "",
+        ""
+      ],
+      "gameLose": [
+        "Voi del Nord odiate Napoli! ",
+        "",
+        ""
+      ],
+      "gameStart": [
+        "Jamm ja! ",
+        "",
+        ""
+      ],
+      "playBonus": [
+        "Accussì! ",
+        "",
+        ""
+      ],
+      "playMossa": [
+        "T' schiatt' 'a cap'! ",
+        "",
+        ""
+      ],
+      "takeMossa": [
+        "Ué ommemmerd! ",
+        "",
+        ""
+      ],
+      "eliminateEnemy": [
+        "Simm tropp fort! ",
+        "",
+        ""
+      ],
+      "playPersonaggio": [
+        "Vai uaglió! ",
+        "",
+        ""
+      ],
+      "ownPersonaggioDies": [
+        "Si' 'na lota! ",
+        "",
+        ""
+      ]
+    },
+    "cpuCount": 1,
+    "cpuConfigs": [],
+    "attackMode": "free_for_all",
+    "isActive": true,
+    "createdAt": "2026-03-14T13:42:06.793Z"
+  },
+  {
+    "id": 5,
+    "orderIndex": 6,
+    "name": "Smith",
+    "gymName": "Tuttosport",
+    "description": "Non entrare nei loschi affari di Capello e Smith",
+    "specialty": "Brothers in arms",
+    "leaderImageUrl": "https://i.ibb.co/ycmJZVhp/1.png",
+    "badgeImageUrl": "https://www.errediforniture.it/22878-large_default/calice-vino-rosso-amber-cl-365-pasabahce-h-20-o-cm-84-confezione-da-6.jpg",
+    "backgroundImageUrl": "https://i.ibb.co/5Xs62sVS/Immagine-2026-03-24-164852.png",
+    "cpuLevel": "medium",
+    "deckBias": {
+      "bonus": 1,
+      "mosse": 1,
+      "personaggi": 1
+    },
+    "customDeck": [
+      "personaggi-32",
+      "personaggi-70",
+      "personaggi-198",
+      "personaggi-190",
+      "personaggi-201",
+      "mosse-17",
+      "mosse-34",
+      "mosse-36",
+      "mosse-48",
+      "mosse-57",
+      "bonus-170",
+      "bonus-120",
+      "bonus-117",
+      "bonus-89",
+      "bonus-58",
+      "scenario-6"
+    ],
+    "livesCount": 3,
+    "playerStartingDeck": [],
+    "starterDeckOptions": [
+      {
+        "name": "Scuderia Horsy",
+        "cardIds": [],
+        "imageUrl": "",
+        "glowColor": "#38bdf8"
+      },
+      {
+        "name": "Armata Bullox",
+        "cardIds": [],
+        "imageUrl": "",
+        "glowColor": "#ef4444"
+      }
+    ],
+    "rewardCredits": 120,
+    "rewardDescription": null,
+    "youtubeMusicUrl": "https://www.youtube.com/watch?v=u9Dg-g7t2l4&list=RDu9Dg-g7t2l4&start_radio=1",
+    "leaderMessages": {
+      "gameWin": [
+        "",
+        "",
+        ""
+      ],
+      "gameLose": [
+        "",
+        "",
+        ""
+      ],
+      "gameStart": [
+        "",
+        "",
+        ""
+      ],
+      "playBonus": [
+        "",
+        "",
+        ""
+      ],
+      "playMossa": [
+        "",
+        "",
+        ""
+      ],
+      "takeMossa": [
+        "",
+        "",
+        ""
+      ],
+      "eliminateEnemy": [
+        "",
+        "",
+        ""
+      ],
+      "playPersonaggio": [
+        "",
+        "",
+        ""
+      ],
+      "ownPersonaggioDies": [
+        "",
+        "",
+        ""
+      ]
+    },
+    "cpuCount": 2,
+    "cpuConfigs": [
+      {
+        "name": "Capello",
+        "cpuLevel": "medium",
+        "imageUrl": "https://i.ibb.co/Gv9XqKF1/2.png",
+        "customDeck": [
+          "personaggi-28",
+          "personaggi-32",
+          "personaggi-61",
+          "personaggi-196",
+          "personaggi-19",
+          "mosse-69",
+          "mosse-70",
+          "mosse-80",
+          "mosse-87",
+          "mosse-76",
+          "bonus-48",
+          "bonus-91",
+          "bonus-96",
+          "bonus-114",
+          "bonus-32"
+        ],
+        "leaderMessages": {
+          "gameWin": [
+            "",
+            "",
+            ""
+          ],
+          "gameLose": [
+            "",
+            "",
+            ""
+          ],
+          "gameStart": [
+            "",
+            "",
+            ""
+          ],
+          "playBonus": [
+            "",
+            "",
+            ""
+          ],
+          "playMossa": [
+            "",
+            "",
+            ""
+          ],
+          "takeMossa": [
+            "",
+            "",
+            ""
+          ],
+          "eliminateEnemy": [
+            "",
+            "",
+            ""
+          ],
+          "playPersonaggio": [
+            "",
+            "",
+            ""
+          ],
+          "ownPersonaggioDies": [
+            "",
+            "",
+            ""
+          ]
+        }
+      }
+    ],
+    "attackMode": "hunt_human",
+    "isActive": true,
+    "createdAt": "2026-03-22T23:47:09.411Z"
+  },
+  {
+    "id": 9,
+    "orderIndex": 10,
+    "name": "Pio",
+    "gymName": "Casa di PIO",
+    "description": "Amico, è un cazzo di casino, amico",
+    "specialty": "AMICO",
+    "leaderImageUrl": null,
+    "badgeImageUrl": null,
+    "backgroundImageUrl": null,
+    "cpuLevel": "hard",
+    "deckBias": {
+      "bonus": 1,
+      "mosse": 1,
+      "personaggi": 1
+    },
+    "customDeck": [
+      "personaggi-23",
+      "personaggi-49",
+      "personaggi-59",
+      "personaggi-133",
+      "personaggi-177",
+      "personaggi-178",
+      "personaggi-163",
+      "personaggi-180",
+      "personaggi-188",
+      "personaggi-192",
+      "personaggi-202",
+      "personaggi-140",
+      "mosse-4",
+      "mosse-6",
+      "mosse-8",
+      "mosse-26",
+      "mosse-45",
+      "mosse-56",
+      "mosse-55",
+      "mosse-57",
+      "mosse-69",
+      "mosse-89",
+      "mosse-60",
+      "mosse-18",
+      "bonus-49",
+      "bonus-92",
+      "bonus-102",
+      "bonus-137",
+      "bonus-149",
+      "bonus-168",
+      "scenario-3"
+    ],
+    "livesCount": 10,
+    "playerStartingDeck": [],
+    "starterDeckOptions": [
+      {
+        "name": "Scuderia Horsy",
+        "cardIds": [],
+        "imageUrl": "",
+        "glowColor": "#38bdf8"
+      },
+      {
+        "name": "Armata Bullox",
+        "cardIds": [],
+        "imageUrl": "",
+        "glowColor": "#ef4444"
+      }
+    ],
+    "rewardCredits": 300,
+    "rewardDescription": null,
+    "youtubeMusicUrl": null,
+    "leaderMessages": {
+      "gameWin": [
+        "",
+        "",
+        ""
+      ],
+      "gameLose": [
+        "",
+        "",
+        ""
+      ],
+      "gameStart": [
+        "",
+        "",
+        ""
+      ],
+      "playBonus": [
+        "",
+        "",
+        ""
+      ],
+      "playMossa": [
+        "",
+        "",
+        ""
+      ],
+      "takeMossa": [
+        "",
+        "",
+        ""
+      ],
+      "eliminateEnemy": [
+        "",
+        "",
+        ""
+      ],
+      "playPersonaggio": [
+        "",
+        "",
+        ""
+      ],
+      "ownPersonaggioDies": [
+        "",
+        "",
+        ""
+      ]
+    },
+    "cpuCount": 1,
+    "cpuConfigs": [],
+    "attackMode": "free_for_all",
+    "isActive": true,
+    "createdAt": "2026-03-26T09:42:29.303Z"
+  },
+  {
+    "id": 1,
+    "orderIndex": 2,
+    "name": "Totti",
+    "gymName": "Casa di Totti",
+    "description": "Benvenuti a casa der Pupone, attenti che ve fa er cucchiaio 🥄",
+    "specialty": "Palestra Maggica",
+    "leaderImageUrl": "https://kingsleague-cdn.kama.football/account/production/player/236066215.png",
+    "badgeImageUrl": "https://cdn.freebiesupply.com/logos/large/2x/roma-3-logo-svg-vector.svg",
+    "backgroundImageUrl": "https://sololaroma.it/wp-content/uploads/2025/03/Tifosi-della-Roma.jpg",
+    "cpuLevel": "easy",
+    "deckBias": {
+      "bonus": 1,
+      "mosse": 1,
+      "personaggi": 1
+    },
+    "customDeck": [
+      "personaggi-181",
+      "personaggi-179",
+      "personaggi-66",
+      "mosse-87",
+      "mosse-86",
+      "mosse-79",
+      "mosse-65",
+      "mosse-46",
+      "mosse-6",
+      "mosse-12",
+      "mosse-16",
+      "mosse-17",
+      "bonus-0",
+      "bonus-4",
+      "bonus-5",
+      "bonus-13",
+      "bonus-46",
+      "bonus-65",
+      "bonus-63",
+      "bonus-98",
+      "bonus-97",
+      "bonus-99",
+      "bonus-117"
+    ],
+    "livesCount": 3,
+    "playerStartingDeck": [],
+    "starterDeckOptions": [],
+    "rewardCredits": 30,
+    "rewardDescription": "50",
+    "youtubeMusicUrl": "https://www.youtube.com/watch?v=kVxs-ngkCUU&list=RDkVxs-ngkCUU&start_radio=1",
+    "leaderMessages": {
+      "gameWin": [
+        "Ma 'ndo pensavi d'annà?",
+        "Sei popo da'a Lazio",
+        "T'è annata male, pischè"
+      ],
+      "gameLose": [
+        "Mejo perde co' te qua che co' Ilary in tribunale",
+        "T'è annata bene, pischè",
+        "E bravo ar pischello, mo' levete dar cazzo"
+      ],
+      "gameStart": [
+        "E te chi sei? Mo' te faccio vede chi è er Pupone",
+        "E daje su, divertimose",
+        "Ma che te pensi de fa?"
+      ],
+      "playBonus": [
+        "E nnamo!",
+        "Forza un po'",
+        "Mo' te faccio vede"
+      ],
+      "playMossa": [
+        "Beccate questo",
+        "Mo' ssei contento?",
+        "Mo' te faccio er cucchiaio"
+      ],
+      "takeMossa": [
+        "Oh ma che sei da'a Lazio?!",
+        "Oh ma che voi?",
+        "Mo' te corco."
+      ],
+      "eliminateEnemy": [
+        "T'ho purgato ancora",
+        "Nun piagne però",
+        "Eddaje!"
+      ],
+      "playPersonaggio": [
+        "E mo' vedemo",
+        "Daje",
+        "Mo' se raggiona"
+      ],
+      "ownPersonaggioDies": [
+        "Li mortacci tua!",
+        "Li mortanguerieri!",
+        "Aò, a' testa de cazzo!"
+      ]
+    },
+    "cpuCount": 1,
+    "cpuConfigs": [],
+    "attackMode": "free_for_all",
+    "isActive": true,
+    "createdAt": "2026-03-14T12:31:45.216Z"
+  },
+  {
+    "id": 6,
+    "orderIndex": 5,
+    "name": "Goghi",
+    "gymName": "Villa Goghi",
+    "description": "Non puoi competere con il re delle mozzarelline",
+    "specialty": "Missione stick",
+    "leaderImageUrl": "https://i.ibb.co/pk67tSQ/Progetto-senza-titolo-23.png",
+    "badgeImageUrl": "https://www.saporedimare.it/wp-content/uploads/elementor/thumbs/Mozzarelline-panate_tiny-1-plguajm2n168flgr4h15qfv210xeoldfeoqp7d8z2m.png",
+    "backgroundImageUrl": "https://i.ibb.co/5Xs62sVS/Immagine-2026-03-24-164852.png",
+    "cpuLevel": "medium",
+    "deckBias": {
+      "bonus": 1,
+      "mosse": 1,
+      "personaggi": 1
+    },
+    "customDeck": [
+      "personaggi-72",
+      "personaggi-87",
+      "personaggi-54",
+      "personaggi-164",
+      "personaggi-65",
+      "personaggi-157",
+      "personaggi-82",
+      "bonus-18",
+      "bonus-19",
+      "bonus-20",
+      "bonus-22",
+      "bonus-39",
+      "bonus-49",
+      "bonus-50",
+      "bonus-51",
+      "bonus-52",
+      "bonus-53",
+      "bonus-63",
+      "bonus-88",
+      "bonus-109",
+      "bonus-149",
+      "bonus-167",
+      "mosse-3",
+      "mosse-6",
+      "mosse-23",
+      "mosse-49",
+      "mosse-65",
+      "mosse-66",
+      "mosse-83",
+      "mosse-52",
+      "mosse-54",
+      "mosse-56",
+      "personaggi-78",
+      "bonus-113",
+      "scenario-11"
+    ],
+    "livesCount": 5,
+    "playerStartingDeck": [],
+    "starterDeckOptions": [
+      {
+        "name": "Scuderia Horsy",
+        "cardIds": [],
+        "imageUrl": "",
+        "glowColor": "#38bdf8"
+      },
+      {
+        "name": "Armata Bullox",
+        "cardIds": [],
+        "imageUrl": "",
+        "glowColor": "#ef4444"
+      }
+    ],
+    "rewardCredits": 180,
+    "rewardDescription": null,
+    "youtubeMusicUrl": "https://youtu.be/hVN-GVdH3qY?si=nf2_kKfIa8eloSNJ",
+    "leaderMessages": {
+      "gameWin": [
+        "",
+        "",
+        ""
+      ],
+      "gameLose": [
+        "",
+        "",
+        ""
+      ],
+      "gameStart": [
+        "",
+        "",
+        ""
+      ],
+      "playBonus": [
+        "",
+        "",
+        ""
+      ],
+      "playMossa": [
+        "",
+        "",
+        ""
+      ],
+      "takeMossa": [
+        "",
+        "",
+        ""
+      ],
+      "eliminateEnemy": [
+        "",
+        "",
+        ""
+      ],
+      "playPersonaggio": [
+        "",
+        "",
+        ""
+      ],
+      "ownPersonaggioDies": [
+        "",
+        "",
+        ""
+      ]
+    },
+    "cpuCount": 1,
+    "cpuConfigs": [],
+    "attackMode": "hunt_human",
+    "isActive": true,
+    "createdAt": "2026-03-24T10:26:40.079Z"
+  }
+]
