@@ -18,7 +18,7 @@ function handle402(err: unknown): boolean {
 import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates, dailyChallengeScores, pageTooltips } from "../shared/schema";
 import { jsonStorage, homePanelsStorage, newsTickerStorage, homeConfigStorage, rankiardTiersStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray, gt } from "drizzle-orm";
-import { CARD_DATA, DECK_BACK_IMAGES } from "../client/src/lib/cardData";
+import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from "../client/src/lib/cardData";
 import { authMiddleware, ADMIN_FALLBACK, JWT_SECRET } from "./auth";
 import { setPlayerOnline, rateLimit as redisRateLimit, isRedisConfigured, updateLeaderboard as redisUpdateLeaderboard, cacheGet, cacheSet } from "./redis";
 import { getOptimizedCardUrl, isCloudinaryConfigured, cloudinaryInstance } from "./cloudinary";
@@ -11895,6 +11895,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
           cards.push({
             id: cardId,
             deckType: deck,
+            originalName,
+            originalImageUrl: imageUrl,
+            name: mod?.name || null,
+            imageUrl: mod?.imageUrl || null,
+            pti: mod?.pti || null,
+            stars: mod?.stars || null,
+            effect: mod?.effect || null,
+            audioUrl: mod?.audioUrl || null,
+            attackLowAudioUrl: mod?.attackLowAudioUrl || null,
+            attackHighAudioUrl: mod?.attackHighAudioUrl || null,
+            youtubeUrl: mod?.youtubeUrl || null,
+            mosseDamageValue: mod?.mosseDamageValue || null,
+            mosseDamageEffect: mod?.mosseDamageEffect || null,
+            mosseCharacterOverrides: mod?.mosseCharacterOverrides || null,
+            mosseRestrictedFrom: mod?.mosseRestrictedFrom || null,
+            mosseRestrictedAgainst: mod?.mosseRestrictedAgainst || null,
+            mosseTargetingMode: mod?.mosseTargetingMode || null,
+            mosseTargetCount: mod?.mosseTargetCount || null,
+            mosseCanCounter: mod?.mosseCanCounter || false,
+            mosseCanBeCountered: mod?.mosseCanBeCountered || false,
+            evolvesInto: mod?.evolvesInto || null,
+            evolutionVariants: mod?.evolutionVariants || null,
+            transformsInto: mod?.transformsInto || null,
+            transformsFrom: mod?.transformsFrom || null,
+            cheatsInto: mod?.cheatsInto || null,
+            specialCategory: mod?.specialCategory || null,
+            evolvedMoves: mod?.evolvedMoves || null,
+            superAttacco: mod?.superAttacco || null,
+            isDeleted: mod?.isDeleted || false,
+            isModified: !!mod,
+            draftCost: (mod as any)?.draftCost ?? 0
+          });
+        });
+      }
+
+      // Append scenario cards as part of the bonus deck
+      if (!deckType || deckType === 'bonus') {
+        SCENARIO_CARDS.forEach((imageUrl: string, index: number) => {
+          const cardId = `scenario-${index}`;
+          const urlParts = imageUrl.split('/');
+          const filename = urlParts[urlParts.length - 1];
+          const originalName = decodeURIComponent(filename)
+            .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+            .replace(/[-_]/g, ' ')
+            .trim();
+          const mod = modMap.get(cardId);
+          cards.push({
+            id: cardId,
+            deckType: 'bonus',
             originalName,
             originalImageUrl: imageUrl,
             name: mod?.name || null,
