@@ -4752,6 +4752,7 @@ Rispondi SOLO in JSON:`;
           [/minkiard\s+n[\s._]*100/i, 'minkiard_n_100'],
           [/minkiard\s+n[\s._]*400/i, 'minkiard_n_400'],
           [/minkiard\s+n[\s._]*500/i, 'minkiard_n_500'],
+          [/^uovo$/i, 'uovo'],
           [/distruzione\s+totale/i, 'distruzione_totale'],
           [/vitello\s+d.?oro/i, 'vitello_d_oro'],
           [/^scee$/i, 'scee'],
@@ -6660,6 +6661,7 @@ Rispondi SOLO in JSON:`;
         [/minkiard\s+n[\s._]*100/i, 'minkiard_n_100'],
         [/minkiard\s+n[\s._]*400/i, 'minkiard_n_400'],
         [/minkiard\s+n[\s._]*500/i, 'minkiard_n_500'],
+        [/^uovo$/i, 'uovo'],
         [/distruzione\s+totale/i, 'distruzione_totale'],
         [/vitello\s+d.?oro/i, 'vitello_d_oro'],
         [/^scee$/i, 'scee'],
@@ -9685,72 +9687,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         emitState(); break;
       }
 
-      // ─── MINKIARD N. 300 (Auto Super Dado) ────────────────────────────────────
-      case 'minkiard_n300': {
-        const superDiceCards = [
-          { name: 'AGO DI PINO', image: 'https://i.ibb.co/Ld485J59/ago-di-pino.png', type: 'mosse' },
-          { name: 'UNIONE CLANDESTINA', image: 'https://i.postimg.cc/44YxzKww/UNIONE-CLANDESTINA.png', type: 'bonus' },
-          { name: 'BARATTO', image: 'https://i.postimg.cc/sgFmd7b6/baratto.png', type: 'bonus' },
-          { name: 'PORTALE SPECIALE', image: 'https://i.postimg.cc/3JbNsXRs/portale-speciale.png', type: 'bonus' },
-          { name: 'MINKIARDS N 200', image: 'https://i.postimg.cc/7hk0Tg7s/minkiards-n-200.png', type: 'bonus' },
-          { name: 'MACUMBA', image: 'https://i.postimg.cc/SNG7CtgW/macumba.png', type: 'bonus' }
-        ];
-        const pickedDiceCard = superDiceCards[Math.floor(Math.random() * superDiceCards.length)];
-        emitChat(`🎲 MINKIARD N. 300! ${playerName} lancia automaticamente il Super Dado... risultato: ${pickedDiceCard.name}!`);
-        if (io) {
-          io.to(gameId).emit('super-dice-rolled', { playerName, rolledCard: pickedDiceCard, timestamp: Date.now() });
-        }
-        try {
-          await this.placeSuperDiceCard(gameId, playerName, pickedDiceCard);
-          const stateAfter = this.getSanitizedGameState(gameId);
-          if (io) io.to(gameId).emit('game-state-update', stateAfter);
-        } catch (e) {
-          console.error(`[MINKIARD_N300] placeSuperDiceCard error:`, e);
-        }
-        break;
-      }
-
-      // ─── MINKIARDS N. 200 (Scelta carte da mazzo) ─────────────────────────────
-      case 'minkiard_n200': {
-        if (isCPU) {
-          // CPU: auto-pick best available card from any deck
-          const cpuPlayer = game.players[playerName];
-          if (!cpuPlayer) { emitChat(`❌ MINKIARDS N. 200: giocatore non trovato.`); break; }
-          const cpuDecks = [
-            { key: 'personaggiDeck', deck: (cpuPlayer as any).personaggiDeck || [] },
-            { key: 'mosseDeck', deck: (cpuPlayer as any).mosseDeck || [] },
-            { key: 'bonusDeck', deck: (cpuPlayer as any).bonusDeck || [] },
-          ];
-          let cpuPicked = false;
-          for (const { key, deck } of cpuDecks) {
-            if (deck.length > 0) {
-              const picked = deck.splice(0, 1)[0];
-              cpuPlayer.hand.push(picked);
-              emitChat(`🎴 MINKIARDS N. 200! ${playerName} pesca ${picked.name || picked.id} dal mazzo!`);
-              cpuPicked = true;
-              break;
-            }
-          }
-          if (!cpuPicked) emitChat(`🎴 MINKIARDS N. 200! Nessuna carta disponibile nei mazzi di ${playerName}.`);
-          emitState(); break;
-        }
-        // Human: show deck selection panel
-        const socketIdN200 = (game.players[playerName] as any)?.socketId;
-        if (io && socketIdN200) {
-          io.to(socketIdN200).emit('show-deck-selection', {
-            cardId: card.id,
-            cardName: card.name || 'MINKIARDS N. 200',
-            playerName,
-            effectDescription: 'Scegli da quale mazzo vuoi pescare una carta da aggiungere alla tua mano.',
-            excludeSpeciali: false
-          });
-          emitChat(`🎴 MINKIARDS N. 200! ${playerName} sta scegliendo un mazzo...`);
-        } else {
-          emitChat(`❌ MINKIARDS N. 200: impossibile mostrare il pannello di selezione.`);
-        }
-        break;
-      }
-
       // ─── BEVANDA DEL VERO CICLISTA ────────────────────────────────────────────
       case 'bevanda_ciclista': {
         if (!myChar) { emitChat(`⚠️ BEVANDA: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
@@ -10776,22 +10712,68 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         emitState(); break;
       }
 
-      // ─── MINKIARD N 300: +300 PTI al proprio personaggio ────────────────────
+      // ─── MINKIARD N. 300: attiva il Super Dado automaticamente ─────────────
       case 'minkiard_n_300': {
-        if (!myChar) { emitChat(`⚠️ MINKIARD N 300: ${playerName} non ha un personaggio in campo.`); break; }
-        myChar.pti = (myChar.pti || 0) + 300;
-        this.updateCardTextWithPTI(myChar);
-        emitChat(`💪 MINKIARD N 300! ${myChar.name || playerName} +300 PTI (PTI: ${myChar.pti})`);
-        emitState(); break;
+        const superDiceCards300 = [
+          { name: 'AGO DI PINO', image: 'https://i.ibb.co/Ld485J59/ago-di-pino.png', type: 'mosse' },
+          { name: 'UNIONE CLANDESTINA', image: 'https://i.postimg.cc/44YxzKww/UNIONE-CLANDESTINA.png', type: 'bonus' },
+          { name: 'BARATTO', image: 'https://i.postimg.cc/sgFmd7b6/baratto.png', type: 'bonus' },
+          { name: 'PORTALE SPECIALE', image: 'https://i.postimg.cc/3JbNsXRs/portale-speciale.png', type: 'bonus' },
+          { name: 'MINKIARDS N 200', image: 'https://i.postimg.cc/7hk0Tg7s/minkiards-n-200.png', type: 'bonus' },
+          { name: 'MACUMBA', image: 'https://i.postimg.cc/SNG7CtgW/macumba.png', type: 'bonus' }
+        ];
+        const pickedDiceCard300 = superDiceCards300[Math.floor(Math.random() * superDiceCards300.length)];
+        emitChat(`🎲 MINKIARD N. 300! ${playerName} lancia automaticamente il Super Dado... risultato: ${pickedDiceCard300.name}!`);
+        if (io) {
+          io.to(gameId).emit('super-dice-rolled', { playerName, rolledCard: pickedDiceCard300, timestamp: Date.now() });
+        }
+        try {
+          await this.placeSuperDiceCard(gameId, playerName, pickedDiceCard300);
+          const stateAfter300 = this.getSanitizedGameState(gameId);
+          if (io) io.to(gameId).emit('game-state-update', stateAfter300);
+        } catch (e) {
+          console.error(`[MINKIARD_N_300] placeSuperDiceCard error:`, e);
+        }
+        break;
       }
 
-      // ─── MINKIARDS N 200: +200 PTI al proprio personaggio ───────────────────
+      // ─── MINKIARDS N. 200 (Scelta carte da mazzo) ───────────────────────────
       case 'minkiards_n_200': {
-        if (!myChar) { emitChat(`⚠️ MINKIARDS N 200: ${playerName} non ha un personaggio in campo.`); break; }
-        myChar.pti = (myChar.pti || 0) + 200;
-        this.updateCardTextWithPTI(myChar);
-        emitChat(`💪 MINKIARDS N 200! ${myChar.name || playerName} +200 PTI (PTI: ${myChar.pti})`);
-        emitState(); break;
+        if (isCPU) {
+          const cpuPlayerN200 = game.players[playerName];
+          if (!cpuPlayerN200) { emitChat(`❌ MINKIARDS N. 200: giocatore non trovato.`); break; }
+          const cpuDecksN200 = [
+            { key: 'personaggiDeck', deck: (cpuPlayerN200 as any).personaggiDeck || [] },
+            { key: 'mosseDeck', deck: (cpuPlayerN200 as any).mosseDeck || [] },
+            { key: 'bonusDeck', deck: (cpuPlayerN200 as any).bonusDeck || [] },
+          ];
+          let cpuPickedN200 = false;
+          for (const { deck } of cpuDecksN200) {
+            if (deck.length > 0) {
+              const picked = deck.splice(0, 1)[0];
+              cpuPlayerN200.hand.push(picked);
+              emitChat(`🎴 MINKIARDS N. 200! ${playerName} pesca ${picked.name || picked.id} dal mazzo!`);
+              cpuPickedN200 = true;
+              break;
+            }
+          }
+          if (!cpuPickedN200) emitChat(`🎴 MINKIARDS N. 200! Nessuna carta disponibile nei mazzi di ${playerName}.`);
+          emitState(); break;
+        }
+        const socketIdN200b = (game.players[playerName] as any)?.socketId;
+        if (io && socketIdN200b) {
+          io.to(socketIdN200b).emit('show-deck-selection', {
+            cardId: card.id,
+            cardName: card.name || 'MINKIARDS N. 200',
+            playerName,
+            effectDescription: 'Scegli da quale mazzo vuoi pescare una carta da aggiungere alla tua mano.',
+            excludeSpeciali: false
+          });
+          emitChat(`🎴 MINKIARDS N. 200! ${playerName} sta scegliendo un mazzo...`);
+        } else {
+          emitChat(`❌ MINKIARDS N. 200: impossibile mostrare il pannello di selezione.`);
+        }
+        break;
       }
 
       // ─── 5 GGGGG: danno AoE da 50 PTI a tutti gli avversari ─────────────────
@@ -10926,12 +10908,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const redirectTarget = folvPari ? sorted[0] : sorted[sorted.length - 1];
         (myChar as any).reflectNextDamageTo = redirectTarget.owner;
         emitChat(`💨 FOLATA DI VENTA! Dado: ${folvDie} (${folvPari ? 'PARI → personaggio con meno PTI' : 'DISPARI → personaggio con più PTI'})! Il danno è reindirizzato su ${redirectTarget.name || redirectTarget.owner}!`);
-        emitState(); break;
-      }
-
-      // ─── DIFESA VIGLIACCA: NO EFFECT ─────────────────────────────────────────
-      case 'difesa_vigliacca': {
-        emitChat(`🐔 DIFESA VIGLIACCA attivata! ${playerName} si difende vigliaccamente... (nessun effetto concreto)`);
         emitState(); break;
       }
 
