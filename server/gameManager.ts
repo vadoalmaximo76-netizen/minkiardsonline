@@ -4933,6 +4933,7 @@ Rispondi SOLO in JSON:`;
           [/lega\s+ganza\s+effetto/i, 'lega_ganza_effetto'],
           [/^scambio$/i, 'scambio'],
           [/portale\s+speciale/i, 'portale_speciale'],
+          [/sorriso\s+amaro\s+di\s+bob\s+dylan|bob\s+dylan/i, 'bob_dylan'],
         ];
         for (const [pattern, key] of NAME_INJECT_MAP) {
           if (pattern.test(cardNameLower)) {
@@ -4953,8 +4954,18 @@ Rispondi SOLO in JSON:`;
       }
       // ─────────────────────────────────────────────────────────────────────────
 
-      if (!effectText && card.type === 'bonus') {
-        console.log(`⚠️ BONUS card "${cardNameLower}" (id=${card.id}) has no effect configured in wizard — no effect will fire`);
+      if (!effectText && !textContent && card.type === 'bonus') {
+        const warnMsg = `⚠️ BONUS card "${card.name || cardNameLower}" (id=${card.id}) has no effect configured and no name-based fallback found — no effect will fire`;
+        console.log(warnMsg);
+        const ioWarn = (global as any).io;
+        if (ioWarn) {
+          ioWarn.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-bonus-no-effect`,
+            playerName: 'Sistema',
+            message: `⚠️ La carta bonus "${card.name || cardNameLower}" non ha un effetto configurato e non verrà eseguita nessuna azione.`,
+            timestamp: Date.now()
+          });
+        }
       }
       const combinedEffect = effectText || textContent;
       const hasEffect = this.cardHasCustomEffect(effectText, textContent);
@@ -6842,6 +6853,7 @@ Rispondi SOLO in JSON:`;
         [/lega\s+ganza\s+effetto/i, 'lega_ganza_effetto'],
         [/^scambio$/i, 'scambio'],
         [/portale\s+speciale/i, 'portale_speciale'],
+        [/sorriso\s+amaro\s+di\s+bob\s+dylan|bob\s+dylan/i, 'bob_dylan'],
       ];
       for (const [pattern, effectKey] of nameBasedEffects) {
         if (pattern.test(cardDisplayName)) {
@@ -6909,7 +6921,10 @@ Rispondi SOLO in JSON:`;
     
     // ============ BOB DYLAN / IL SORRISO AMARO DI BOB DYLAN (bonus-69) ============
     // "DA UN PANNELLO A COMPARSA, SCEGLI: 'VUOI FARE IL PATTO CON QUELLO DI GIÙ?'"
-    if (/pannello a comparsa.*scegli.*patto.*giu|patto con quello di gi[uù]/i.test(card.effect)) {
+    // Note: when card name matches, the nameBasedEffects block above already handles this via
+    // executeNamedBonusEffect('bob_dylan'). This block remains as fallback for cards whose
+    // effect text is populated but the name didn't match.
+    if (!(card as any).effectAlreadyApplied && /pannello a comparsa.*scegli.*patto.*giu|patto con quello di gi[uù]/i.test(card.effect)) {
       const ioBD = (global as any).io;
       const isCPU = this.isPlayerCPU(gameId, playerName);
       const activeChar = this.getPlayerActiveCharacter(game, playerName);
@@ -11939,6 +11954,46 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         this.updateCardTextWithPTI(myChar);
         emitChat(`🚴 LA BEVANDA DEL VERO CICLISTA! ${myChar.name || playerName} +200 PTI -1 stella! (PTI: ${myChar.pti}, Stelle: ${myChar.stars})`);
         emitState(); break;
+      }
+
+      // ─── BOB DYLAN / IL SORRISO AMARO DI BOB DYLAN: patto con quello di giù ─
+      case 'bob_dylan': {
+        const ioBD = io;
+        if (isCPU) {
+          if (myChar) {
+            myChar.stars = 0;
+            myChar.pti = (myChar.pti || 0) + 10000;
+            this.updateCardTextWithPTI(myChar);
+          }
+          emitChat(`😈 ${playerName} (CPU) ha fatto il PATTO CON QUELLO DI GIÙ! ${myChar?.name || 'Il personaggio'} va a 0 stelle ma guadagna +10000 PTI!`);
+          emitState();
+          break;
+        }
+        const game2 = this.games.get(gameId);
+        if (!game2) break;
+        const playerData2 = (game2.players as any)[playerName];
+        const socketId2 = playerData2?.socketId;
+        const bobDylanOptions = [
+          { value: 'SI', label: 'SÌ - 0 stelle ma +10000 PTI', description: 'Il tuo personaggio perde tutte le stelle ma guadagna 10000 PTI' },
+          { value: 'NO', label: 'NO - Resta tutto invariato', description: 'Nessun effetto' }
+        ];
+        if (ioBD) {
+          const choiceIdBD = `bob-dylan-${Date.now()}`;
+          (game2 as any).pendingBobDylanChoice = { choiceId: choiceIdBD, playerName, cardId: card.id };
+          if (this.emitChoicePanelOrAutoResolve(gameId, playerName, socketId2, {
+            choiceId: choiceIdBD,
+            title: 'IL PATTO CON QUELLO DI GIÙ',
+            question: 'Vuoi fare il patto con quello di giù?',
+            options: bobDylanOptions,
+            playerName,
+            cardName: card.name || 'IL SORRISO AMARO DI BOB DYLAN',
+            timestamp: Date.now()
+          }, bobDylanOptions, 'pendingBobDylanChoice', ioBD)) {
+            break;
+          }
+          emitChat(`🎸 ${playerName} sta considerando il patto con quello di giù...`);
+        }
+        break;
       }
 
       default:
