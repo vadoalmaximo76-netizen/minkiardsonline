@@ -4796,6 +4796,95 @@ Rispondi SOLO in JSON:`;
           [/faccio\s+quello\s+che\s+voglio/i, 'faccio_quello_che_voglio'],
           [/una\s+tempesta\s+baby/i, 'una_tempesta_baby'],
           [/un\s+posto\s+galattico/i, 'un_posto_galattico'],
+          [/^galassia$/i, 'galassia'],
+          [/azz\s+tuost\s+sant\s+rocc/i, 'azz_tuost_sant_rocc'],
+          [/^ccezionale$/i, 'ccezionale'],
+          [/^gangnam$/i, 'gangnam'],
+          [/fatto\s+come\s+una\s+pigna/i, 'fatto_come_una_pigna'],
+          [/^buscopan$/i, 'buscopan'],
+          [/minkiard\s+n[\s._]*300/i, 'minkiard_n_300'],
+          [/minkiards\s+n[\s._]*200/i, 'minkiards_n_200'],
+          [/^5\s+ggggg$/i, '5_ggggg'],
+          [/^gasata$/i, 'gasata'],
+          [/^comunismo$/i, 'comunismo'],
+          [/^caladibbotto$/i, 'caladibbotto'],
+          [/fagiolo\s+di\s+balzar/i, 'fagiolo_di_balzar'],
+          [/alta\s+salva/i, 'alta_salva'],
+          [/contro\s+skrazzkoom/i, 'contro_skrazzkoom'],
+          [/^barriera$/i, 'barriera'],
+          [/dammi\s+un\s+altro\s+giorno/i, 'dammi_un_altro_giorno'],
+          [/folata\s+di\s+venta/i, 'folata_di_venta'],
+          [/difesa\s+vigliacca/i, 'difesa_vigliacca'],
+          [/internet\s+explorer/i, 'internet_explorer'],
+          [/disinnesca\s+bomba/i, 'disinnesca_bomba'],
+          [/con\s+il\s+mio\s+voto/i, 'con_il_mio_voto'],
+          [/sfere\s+del\s+drago/i, 'sfere_del_drago'],
+          [/visct\s+la\s+mal\s+parata/i, 'visct_la_mal_parata'],
+          [/^sbirciata$/i, 'sbirciata'],
+          [/^scambio$/i, 'scambio'],
+          [/^clonazione$/i, 'clonazione'],
+          [/^crisalide$/i, 'crisalide'],
+          [/^trasformazione$/i, 'trasformazione'],
+          [/^io\s+sembro$/i, 'io_sembro'],
+          [/^chocoroak$/i, 'chocoroak'],
+          [/inverti\s+giro/i, 'inverti_giro'],
+          [/ho\s+stato\s+io/i, 'ho_stato_io'],
+          [/^coevoluzione$/i, 'coevoluzione'],
+          [/m\s+di\s+majin\s+bu/i, 'm_di_majin_bu'],
+          [/^crossover$/i, 'crossover'],
+          [/^fusione$/i, 'fusione'],
+          [/capi\s+devo\s+and\s+alla\s+vigna/i, 'capi_devo_and_alla_vigna'],
+          [/capi\s+io\s+mi\s+mozzarellino\s+qua/i, 'capi_io_mi_mozzarellino_qua'],
+          [/portale\s+speciale/i, 'portale_speciale'],
+          [/^apocalisse$/i, 'apocalisse'],
+          [/gioco\s+d.?\s*azzardo/i, 'gioco_d_azzardo'],
+          [/dado\s+del\s+giudizio/i, 'il_dado_del_giudizio'],
+          [/^macumba$/i, 'macumba'],
+          [/modalit.?\s*tuzza/i, 'modalita_tuzza'],
+          [/lega\s+sayan/i, 'lega_sayan'],
+          [/lega\s+simpson/i, 'lega_simpson'],
+          [/lega\s+griffin/i, 'lega_griffin'],
+          [/lega\s+olimpo/i, 'lega_olimpo'],
+          [/lega\s+ganza/i, 'lega_ganza'],
+          [/lega\s+camera\s+caf/i, 'lega_camera_caf'],
+          [/evoluzione\s+arcobaleno/i, 'evoluzione_arcobaleno'],
+          [/^evoluzione\s+blu$/i, 'evoluzione_blu'],
+          [/^evoluzione\s+giallo$/i, 'evoluzione_giallo'],
+          [/^evoluzione\s+rossa$/i, 'evoluzione_rossa'],
+          [/^evoluzione\s+verde$/i, 'evoluzione_verde'],
+          [/^ameeco$/i, 'ameeco'],
+          [/^assicurazione$/i, 'assicurazione'],
+          [/attacco\s+multiplo/i, 'attacco_multiplo'],
+          [/attacco\s+simultaneo/i, 'attacco_simultaneo'],
+          [/bolla\s+di\s+sapone/i, 'bolla_di_sapone'],
+          [/unione\s+clandestina/i, 'unione_clandestina'],
+          [/^taroccata$/i, 'taroccata'],
+          [/agglomera\s+leghe/i, 'agglomera_leghe'],
+          [/ah\s+ah\s+primo\s+nel\s+rankiard/i, 'ah_ah_primo_nel_rankiard'],
+          [/modalit.?\s*art\s*attack/i, 'modalit_art_attack'],
+          [/^conversione$/i, 'conversione'],
+          [/bambola\s+voodoo/i, 'bambola_voodoo'],
+          [/^boomerang$/i, 'boomerang'],
+          [/tabula\s+rasa/i, 'tabula_rasa'],
+          [/^terremoto$/i, 'terremoto'],
+          [/macchina\s+del\s+tempo/i, 'macchina_del_tempo'],
+          [/^staku$/i, 'staku'],
+          [/occhio\s+del\s+fotografo/i, 'occhio_del_fotografo'],
+          [/^playback$/i, 'playback'],
+          [/^divertente$/i, 'divertente'],
+          [/^dittatura$/i, 'dittatura'],
+          [/^divisione$/i, 'divisione'],
+          [/modalit.?\s*zombie/i, 'modalita_zombie'],
+          [/^cipolla$/i, 'cipolla'],
+          [/e\s+nn\s+t\s+mitt\s+sscuorn/i, 'e_nn_t_mitt_sscuorn'],
+          [/e\s+rispondi\s+pure/i, 'e_rispondi_pure'],
+          [/e\s+tagg\s+trattat/i, 'e_tagg_trattat'],
+          [/^eredit[aà]?$/i, 'eredita'],
+          [/bevanda\s+del\s+vero\s+ciclista/i, 'la_bevanda_del_vero_ciclista'],
+          [/soft\s+control/i, 'soft_control'],
+          [/lega\s+ganza\s+effetto/i, 'lega_ganza_effetto'],
+          [/^scambio$/i, 'scambio'],
+          [/portale\s+speciale/i, 'portale_speciale'],
         ];
         for (const [pattern, key] of NAME_INJECT_MAP) {
           if (pattern.test(cardNameLower)) {
@@ -6615,6 +6704,95 @@ Rispondi SOLO in JSON:`;
         [/faccio\s+quello\s+che\s+voglio/i, 'faccio_quello_che_voglio'],
         [/una\s+tempesta\s+baby/i, 'una_tempesta_baby'],
         [/un\s+posto\s+galattico/i, 'un_posto_galattico'],
+        [/^galassia$/i, 'galassia'],
+        [/azz\s+tuost\s+sant\s+rocc/i, 'azz_tuost_sant_rocc'],
+        [/^ccezionale$/i, 'ccezionale'],
+        [/^gangnam$/i, 'gangnam'],
+        [/fatto\s+come\s+una\s+pigna/i, 'fatto_come_una_pigna'],
+        [/^buscopan$/i, 'buscopan'],
+        [/minkiard\s+n[\s._]*300/i, 'minkiard_n_300'],
+        [/minkiards\s+n[\s._]*200/i, 'minkiards_n_200'],
+        [/^5\s+ggggg$/i, '5_ggggg'],
+        [/^gasata$/i, 'gasata'],
+        [/^comunismo$/i, 'comunismo'],
+        [/^caladibbotto$/i, 'caladibbotto'],
+        [/fagiolo\s+di\s+balzar/i, 'fagiolo_di_balzar'],
+        [/alta\s+salva/i, 'alta_salva'],
+        [/contro\s+skrazzkoom/i, 'contro_skrazzkoom'],
+        [/^barriera$/i, 'barriera'],
+        [/dammi\s+un\s+altro\s+giorno/i, 'dammi_un_altro_giorno'],
+        [/folata\s+di\s+venta/i, 'folata_di_venta'],
+        [/difesa\s+vigliacca/i, 'difesa_vigliacca'],
+        [/internet\s+explorer/i, 'internet_explorer'],
+        [/disinnesca\s+bomba/i, 'disinnesca_bomba'],
+        [/con\s+il\s+mio\s+voto/i, 'con_il_mio_voto'],
+        [/sfere\s+del\s+drago/i, 'sfere_del_drago'],
+        [/visct\s+la\s+mal\s+parata/i, 'visct_la_mal_parata'],
+        [/^sbirciata$/i, 'sbirciata'],
+        [/^scambio$/i, 'scambio'],
+        [/^clonazione$/i, 'clonazione'],
+        [/^crisalide$/i, 'crisalide'],
+        [/^trasformazione$/i, 'trasformazione'],
+        [/^io\s+sembro$/i, 'io_sembro'],
+        [/^chocoroak$/i, 'chocoroak'],
+        [/inverti\s+giro/i, 'inverti_giro'],
+        [/ho\s+stato\s+io/i, 'ho_stato_io'],
+        [/^coevoluzione$/i, 'coevoluzione'],
+        [/m\s+di\s+majin\s+bu/i, 'm_di_majin_bu'],
+        [/^crossover$/i, 'crossover'],
+        [/^fusione$/i, 'fusione'],
+        [/capi\s+devo\s+and\s+alla\s+vigna/i, 'capi_devo_and_alla_vigna'],
+        [/capi\s+io\s+mi\s+mozzarellino\s+qua/i, 'capi_io_mi_mozzarellino_qua'],
+        [/portale\s+speciale/i, 'portale_speciale'],
+        [/^apocalisse$/i, 'apocalisse'],
+        [/gioco\s+d.?\s*azzardo/i, 'gioco_d_azzardo'],
+        [/dado\s+del\s+giudizio/i, 'il_dado_del_giudizio'],
+        [/^macumba$/i, 'macumba'],
+        [/modalit.?\s*tuzza/i, 'modalita_tuzza'],
+        [/lega\s+sayan/i, 'lega_sayan'],
+        [/lega\s+simpson/i, 'lega_simpson'],
+        [/lega\s+griffin/i, 'lega_griffin'],
+        [/lega\s+olimpo/i, 'lega_olimpo'],
+        [/lega\s+ganza/i, 'lega_ganza'],
+        [/lega\s+camera\s+caf/i, 'lega_camera_caf'],
+        [/evoluzione\s+arcobaleno/i, 'evoluzione_arcobaleno'],
+        [/^evoluzione\s+blu$/i, 'evoluzione_blu'],
+        [/^evoluzione\s+giallo$/i, 'evoluzione_giallo'],
+        [/^evoluzione\s+rossa$/i, 'evoluzione_rossa'],
+        [/^evoluzione\s+verde$/i, 'evoluzione_verde'],
+        [/^ameeco$/i, 'ameeco'],
+        [/^assicurazione$/i, 'assicurazione'],
+        [/attacco\s+multiplo/i, 'attacco_multiplo'],
+        [/attacco\s+simultaneo/i, 'attacco_simultaneo'],
+        [/bolla\s+di\s+sapone/i, 'bolla_di_sapone'],
+        [/unione\s+clandestina/i, 'unione_clandestina'],
+        [/^taroccata$/i, 'taroccata'],
+        [/agglomera\s+leghe/i, 'agglomera_leghe'],
+        [/ah\s+ah\s+primo\s+nel\s+rankiard/i, 'ah_ah_primo_nel_rankiard'],
+        [/modalit.?\s*art\s*attack/i, 'modalit_art_attack'],
+        [/^conversione$/i, 'conversione'],
+        [/bambola\s+voodoo/i, 'bambola_voodoo'],
+        [/^boomerang$/i, 'boomerang'],
+        [/tabula\s+rasa/i, 'tabula_rasa'],
+        [/^terremoto$/i, 'terremoto'],
+        [/macchina\s+del\s+tempo/i, 'macchina_del_tempo'],
+        [/^staku$/i, 'staku'],
+        [/occhio\s+del\s+fotografo/i, 'occhio_del_fotografo'],
+        [/^playback$/i, 'playback'],
+        [/^divertente$/i, 'divertente'],
+        [/^dittatura$/i, 'dittatura'],
+        [/^divisione$/i, 'divisione'],
+        [/modalit.?\s*zombie/i, 'modalita_zombie'],
+        [/^cipolla$/i, 'cipolla'],
+        [/e\s+nn\s+t\s+mitt\s+sscuorn/i, 'e_nn_t_mitt_sscuorn'],
+        [/e\s+rispondi\s+pure/i, 'e_rispondi_pure'],
+        [/e\s+tagg\s+trattat/i, 'e_tagg_trattat'],
+        [/^eredit[aà]?$/i, 'eredita'],
+        [/bevanda\s+del\s+vero\s+ciclista/i, 'la_bevanda_del_vero_ciclista'],
+        [/soft\s+control/i, 'soft_control'],
+        [/lega\s+ganza\s+effetto/i, 'lega_ganza_effetto'],
+        [/^scambio$/i, 'scambio'],
+        [/portale\s+speciale/i, 'portale_speciale'],
       ];
       for (const [pattern, effectKey] of nameBasedEffects) {
         if (pattern.test(cardDisplayName)) {
@@ -10521,6 +10699,1184 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
       }
 
+      // ─── GALASSIA: +2 stelle a tutti i personaggi in campo ─────────────────
+      case 'galassia': {
+        let count = 0;
+        for (const fc of game.field) {
+          if (fc.type === 'personaggi' || fc.type === 'personaggi_speciali') {
+            if (fc.stars == null) fc.stars = 0;
+            fc.stars = Math.min(5, fc.stars + 2);
+            count++;
+          }
+        }
+        emitChat(`🌌 GALASSIA! Tutti i ${count} personaggi in campo guadagnano 2 stelle!`);
+        emitState(); break;
+      }
+
+      // ─── AZZ TUOST SANT ROCC: +15 PTI al proprio personaggio ────────────────
+      case 'azz_tuost_sant_rocc': {
+        if (!myChar) { emitChat(`⚠️ AZZ TUOST SANT ROCC: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.pti = (myChar.pti || 0) + 15;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`💪 AZZ TUOST SANT ROCC! ${myChar.name || playerName} +15 PTI (PTI: ${myChar.pti})`);
+        emitState(); break;
+      }
+
+      // ─── CCEZIONALE: +150 PTI al proprio personaggio ────────────────────────
+      case 'ccezionale': {
+        if (!myChar) { emitChat(`⚠️ CCEZIONALE: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.pti = (myChar.pti || 0) + 150;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🔥 CCEZIONALE! ${myChar.name || playerName} +150 PTI (PTI: ${myChar.pti})`);
+        emitState(); break;
+      }
+
+      // ─── GANGNAM: +10 PTI; se PSY +1 stella ─────────────────────────────────
+      case 'gangnam': {
+        if (!myChar) { emitChat(`⚠️ GANGNAM: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.pti = (myChar.pti || 0) + 10;
+        this.updateCardTextWithPTI(myChar);
+        const isPsy = /^psy$/i.test(myCharName);
+        if (isPsy) {
+          myChar.stars = (myChar.stars || 0) + 1;
+          emitChat(`🎵 GANGNAM STYLE! ${myChar.name || playerName} +10 PTI +1 stella (è PSY!)!`);
+        } else {
+          emitChat(`🎵 GANGNAM STYLE! ${myChar.name || playerName} +10 PTI (PTI: ${myChar.pti})`);
+        }
+        emitState(); break;
+      }
+
+      // ─── FATTO COME UNA PIGNA: +20 PTI; se SCREAM +200 PTI ─────────────────
+      case 'fatto_come_una_pigna': {
+        if (!myChar) { emitChat(`⚠️ FATTO COME UNA PIGNA: ${playerName} non ha un personaggio in campo.`); break; }
+        const isScream = /scream/i.test(myCharName);
+        const ptiPigna = isScream ? 200 : 20;
+        myChar.pti = (myChar.pti || 0) + ptiPigna;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🌲 FATTO COME UNA PIGNA! ${myChar.name || playerName} +${ptiPigna} PTI${isScream ? ' (SCREAM!)' : ''} (PTI: ${myChar.pti})`);
+        emitState(); break;
+      }
+
+      // ─── BUSCOPAN: +50 PTI poi muore dopo 5 turni ───────────────────────────
+      case 'buscopan': {
+        if (!myChar) { emitChat(`⚠️ BUSCOPAN: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.pti = (myChar.pti || 0) + 50;
+        this.updateCardTextWithPTI(myChar);
+        if (!game.timedEffects) game.timedEffects = [];
+        game.timedEffects.push({
+          id: `buscopan_${Date.now()}_${playerName}`, owner: playerName, turnsLeft: 5, recurring: false,
+          actions: [{ type: 'instant_death', target: 'self_char', value: 0, description: 'Buscopan: il personaggio muore' }],
+          description: `Buscopan: morte tra 5 turni`, cardId: card.id
+        } as any);
+        emitChat(`💊 BUSCOPAN! ${myChar.name || playerName} +50 PTI (PTI: ${myChar.pti}) — MORIRÀ tra 5 turni!`);
+        emitState(); break;
+      }
+
+      // ─── MINKIARD N 300: +300 PTI al proprio personaggio ────────────────────
+      case 'minkiard_n_300': {
+        if (!myChar) { emitChat(`⚠️ MINKIARD N 300: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.pti = (myChar.pti || 0) + 300;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`💪 MINKIARD N 300! ${myChar.name || playerName} +300 PTI (PTI: ${myChar.pti})`);
+        emitState(); break;
+      }
+
+      // ─── MINKIARDS N 200: +200 PTI al proprio personaggio ───────────────────
+      case 'minkiards_n_200': {
+        if (!myChar) { emitChat(`⚠️ MINKIARDS N 200: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.pti = (myChar.pti || 0) + 200;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`💪 MINKIARDS N 200! ${myChar.name || playerName} +200 PTI (PTI: ${myChar.pti})`);
+        emitState(); break;
+      }
+
+      // ─── 5 GGGGG: danno AoE da 50 PTI a tutti gli avversari ─────────────────
+      case '5_ggggg': {
+        const gggggEnemies = game.field.filter((c: Card) =>
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (gggggEnemies.length === 0) { emitChat(`⚡ 5 GGGGG! FA MALE! FA MALISSIMO! LE ONDE! Nessun avversario in campo.`); break; }
+        for (const ec of gggggEnemies) {
+          ec.pti = (ec.pti || 0) - 50;
+          this.updateCardTextWithPTI(ec);
+        }
+        emitChat(`⚡ 5 GGGGG! FA MALE! FA MALISSIMO! LE ONDE! Tutti gli avversari perdono 50 PTI!`);
+        emitState(); break;
+      }
+
+      // ─── GASATA: pannello per scegliere avversario; entrambi +500 PTI ────────
+      case 'gasata': {
+        if (!myChar) { emitChat(`⚠️ GASATA: ${playerName} non ha un personaggio in campo.`); break; }
+        const gasataEnemies = game.turnOrder.filter((p: string) => p !== playerName);
+        if (gasataEnemies.length === 0) { emitChat(`⚠️ GASATA: nessun avversario.`); break; }
+        if (isCPU || gasataEnemies.length === 1) {
+          const tgt = gasataEnemies[Math.floor(Math.random() * gasataEnemies.length)];
+          const tgtChar = this.getPlayerActiveCharacter(game, tgt);
+          myChar.pti = (myChar.pti || 0) + 500;
+          this.updateCardTextWithPTI(myChar);
+          if (tgtChar) { tgtChar.pti = (tgtChar.pti || 0) + 500; this.updateCardTextWithPTI(tgtChar); }
+          emitChat(`🥤 GASATA! ${myChar.name || playerName} e ${tgtChar?.name || tgt} guadagnano entrambi +500 PTI!`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `gasata-${Date.now()}`;
+          const gasataOpts = gasataEnemies.map((p: string) => {
+            const ec = this.getPlayerActiveCharacter(game, p);
+            return { value: p, label: ec?.name || p, description: `PTI: ${ec?.pti ?? '?'}` };
+          });
+          (game as any).pendingGasata = { choiceId: cId, playerName, myCharId: myChar.id };
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '🥤 GASATA',
+            question: 'Scegli un avversario: entrambi guadagnate +500 PTI!',
+            options: gasataOpts, playerName, cardName: 'GASATA', timestamp: Date.now()
+          }, gasataOpts, 'pendingGasata', io);
+          emitChat(`🥤 GASATA! ${playerName} sceglie un avversario per condividere +500 PTI...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── COMUNISMO: tutti i personaggi assumono PTI e STELLE medie ───────────
+      case 'comunismo': {
+        const commChars = game.field.filter((c: Card) =>
+          c.type === 'personaggi' || c.type === 'personaggi_speciali'
+        );
+        if (commChars.length === 0) { emitChat(`🚩 COMUNISMO: nessun personaggio in campo.`); break; }
+        const avgPti = Math.round(commChars.reduce((s, c) => s + (c.pti || 0), 0) / commChars.length);
+        const avgStars = Math.round(commChars.reduce((s, c) => s + (c.stars || 0), 0) / commChars.length);
+        for (const c of commChars) { c.pti = avgPti; c.stars = avgStars; this.updateCardTextWithPTI(c); }
+        emitChat(`🚩 COMUNISMO! Tutti i personaggi ora hanno ${avgPti} PTI e ${avgStars} stelle (valori medi)!`);
+        emitState(); break;
+      }
+
+      // ─── CALADIBBOTTO: timedEffect ricorrente — se >2000 PTI → 100 PTI 1⭐ ─
+      case 'caladibbotto': {
+        if (!(game as any).caladibbotto) {
+          (game as any).caladibbotto = { active: true, activatedBy: playerName };
+          emitChat(`💥 CALADIBBOTTO! Da ora, ogni personaggio che supera 2000 PTI scende immediatamente a 100 PTI e 1 stella!`);
+          emitState();
+        } else {
+          emitChat(`💥 CALADIBBOTTO già attivo!`);
+        }
+        break;
+      }
+
+      // ─── FAGIOLO DI BALZAR: ripristina originalPti del proprio personaggio ──
+      case 'fagiolo_di_balzar': {
+        if (!myChar) { emitChat(`⚠️ FAGIOLO DI BALZAR: ${playerName} non ha un personaggio in campo.`); break; }
+        const origPti = (myChar as any).originalPti || (myChar as any).basePti || myChar.pti || 100;
+        myChar.pti = origPti;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🫘 FAGIOLO DI BALZAR! ${myChar.name || playerName} recupera i PTI originali: ${origPti} PTI!`);
+        emitState(); break;
+      }
+
+      // ─── ALTA SALVA: respinta condizionale se danno >200 ────────────────────
+      case 'alta_salva': {
+        if (!myChar) { emitChat(`⚠️ ALTA SALVA: ${playerName} non ha un personaggio in campo.`); break; }
+        (myChar as any).altaSalva = true;
+        emitChat(`🛡️ ALTA SALVA! ${myChar.name || playerName}: il prossimo attacco superiore a 200 PTI viene annullato completamente!`);
+        emitState(); break;
+      }
+
+      // ─── CONTRO SKRAZZKOOM: riflette il doppio del danno sull'attaccante ────
+      case 'contro_skrazzkoom': {
+        if (!myChar) { emitChat(`⚠️ CONTRO SKRAZZKOOM: ${playerName} non ha un personaggio in campo.`); break; }
+        (myChar as any).reflectDoubleNext = true;
+        emitChat(`⚡ CONTRO SKRAZZKOOM! ${myChar.name || playerName} riflette il doppio del prossimo danno sull'attaccante!`);
+        emitState(); break;
+      }
+
+      // ─── BARRIERA: 3 sagome da 50 PTI ciascuna ───────────────────────────────
+      case 'barriera': {
+        if (!myChar) { emitChat(`⚠️ BARRIERA: ${playerName} non ha un personaggio in campo.`); break; }
+        if (!(game as any).barrierShields) (game as any).barrierShields = {};
+        (game as any).barrierShields[playerName] = [
+          { pti: 50, id: `barrier_${Date.now()}_1` },
+          { pti: 50, id: `barrier_${Date.now()}_2` },
+          { pti: 50, id: `barrier_${Date.now()}_3` },
+        ];
+        emitChat(`🧱 BARRIERA! ${myChar.name || playerName} è protetto da 3 sagome (50 PTI ciascuna)! Si elimina una sagoma per attacco.`);
+        emitState(); break;
+      }
+
+      // ─── DAMMI UN ALTRO GIORNO: ritarda il danno di 1 turno ─────────────────
+      case 'dammi_un_altro_giorno': {
+        if (!myChar) { emitChat(`⚠️ DAMMI UN ALTRO GIORNO: ${playerName} non ha un personaggio in campo.`); break; }
+        (myChar as any).delayDamageByTurns = ((myChar as any).delayDamageByTurns || 0) + 1;
+        emitChat(`⏰ DAMMI UN ALTRO GIORNO! ${myChar.name || playerName}: il prossimo danno subito viene ritardato di 1 turno!`);
+        emitState(); break;
+      }
+
+      // ─── FOLATA DI VENTA: respinta con dado per bersaglio alternativo ────────
+      case 'folata_di_venta': {
+        if (!myChar) { emitChat(`⚠️ FOLATA DI VENTA: ${playerName} non ha un personaggio in campo.`); break; }
+        const folvEnemies = game.field.filter((c: Card) =>
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (folvEnemies.length === 0) { emitChat(`💨 FOLATA DI VENTA! Nessun avversario in campo.`); break; }
+        const folvDie = Math.floor(Math.random() * 6) + 1;
+        if (io) io.to(gameId).emit('dice-rolled', { result: folvDie, playerName });
+        const folvPari = folvDie % 2 === 0;
+        const sorted = [...folvEnemies].sort((a, b) => (a.pti || 0) - (b.pti || 0));
+        const redirectTarget = folvPari ? sorted[0] : sorted[sorted.length - 1];
+        (myChar as any).reflectNextDamageTo = redirectTarget.owner;
+        emitChat(`💨 FOLATA DI VENTA! Dado: ${folvDie} (${folvPari ? 'PARI → personaggio con meno PTI' : 'DISPARI → personaggio con più PTI'})! Il danno è reindirizzato su ${redirectTarget.name || redirectTarget.owner}!`);
+        emitState(); break;
+      }
+
+      // ─── DIFESA VIGLIACCA: NO EFFECT ─────────────────────────────────────────
+      case 'difesa_vigliacca': {
+        emitChat(`🐔 DIFESA VIGLIACCA attivata! ${playerName} si difende vigliaccamente... (nessun effetto concreto)`);
+        emitState(); break;
+      }
+
+      // ─── INTERNET EXPLORER: ritarda danno di 3 turni ─────────────────────────
+      case 'internet_explorer': {
+        if (!myChar) { emitChat(`⚠️ INTERNET EXPLORER: ${playerName} non ha un personaggio in campo.`); break; }
+        (myChar as any).delayDamageByTurns = ((myChar as any).delayDamageByTurns || 0) + 3;
+        emitChat(`🌐 INTERNET EXPLORER! ${myChar.name || playerName}: il prossimo danno subito viene ritardato di 3 turni (molto lentamente)!`);
+        emitState(); break;
+      }
+
+      // ─── DISINNESCA BOMBA: rimuove effetti a tempo negativi ──────────────────
+      case 'disinnesca_bomba': {
+        if (!game.timedEffects) game.timedEffects = [];
+        const before = game.timedEffects.length;
+        game.timedEffects = (game.timedEffects as any[]).filter((e: any) =>
+          !(e.owner === playerName && /morte|death|danno|damage|instant_death|veleno|poison/i.test(e.description || ''))
+        );
+        const removed = before - game.timedEffects.length;
+        emitChat(`💣 DISINNESCA BOMBA! Rimossi ${removed} effetti negativi a tempo da ${playerName}!`);
+        emitState(); break;
+      }
+
+      // ─── CON IL MIO VOTO: intercetta il prossimo attacco tra avversari ──────
+      case 'con_il_mio_voto': {
+        if (!myChar) { emitChat(`⚠️ CON IL MIO VOTO: ${playerName} non ha un personaggio in campo.`); break; }
+        if (!(game as any).attackInterceptors) (game as any).attackInterceptors = [];
+        (game as any).attackInterceptors.push({ playerName, cardId: myChar.id, timestamp: Date.now() });
+        emitChat(`🗳️ CON IL MIO VOTO! ${playerName} può confermare o ribaltare il prossimo attacco tra avversari!`);
+        emitState(); break;
+      }
+
+      // ─── SFERE DEL DRAGO: pannello per scegliere carta dal cimitero ──────────
+      case 'sfere_del_drago': {
+        const graveCards = (game.graveyard || []).filter((c: Card) => c.owner === playerName);
+        if (graveCards.length === 0) { emitChat(`🔮 SFERE DEL DRAGO! Nessuna carta nel cimitero di ${playerName}.`); break; }
+        if (isCPU || graveCards.length === 1) {
+          const picked = graveCards[Math.floor(Math.random() * graveCards.length)];
+          game.graveyard = (game.graveyard || []).filter((c: Card) => c.id !== picked.id);
+          if (!game.players[playerName].hand) game.players[playerName].hand = [];
+          (game.players[playerName].hand as Card[]).push(picked);
+          emitChat(`🔮 SFERE DEL DRAGO! ${playerName} riporta in mano "${picked.name || picked.id}" dal cimitero!`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `sfere-drago-${Date.now()}`;
+          const sfereOpts = graveCards.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: c.type || '' }));
+          (game as any).pendingSfereDrago = { choiceId: cId, playerName };
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '🔮 SFERE DEL DRAGO',
+            question: 'Scegli una carta dal cimitero da riportare in mano:',
+            options: sfereOpts, playerName, cardName: 'SFERE DEL DRAGO', timestamp: Date.now()
+          }, sfereOpts, 'pendingSfereDrago', io);
+          emitChat(`🔮 SFERE DEL DRAGO! ${playerName} sceglie una carta dal cimitero...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── VISCT LA MAL PARATA: rimischia mano e ripesca ───────────────────────
+      case 'visct_la_mal_parata': {
+        const vmpHand = (game.players[playerName]?.hand || []) as Card[];
+        const vmpCount = vmpHand.length;
+        for (const c of vmpHand) { (game as any).deck = (game as any).deck || []; ((game as any).deck).push(c); }
+        game.players[playerName].hand = [];
+        for (let i = 0; i < vmpCount; i++) {
+          const deck = (game as any).deck as Card[];
+          if (!deck || deck.length === 0) break;
+          const idx = Math.floor(Math.random() * deck.length);
+          const [newCard] = deck.splice(idx, 1);
+          (game.players[playerName].hand as Card[]).push(newCard);
+        }
+        emitChat(`🃏 VISCT LA MAL PARATA! ${playerName} rimischia le ${vmpCount} carte in mano e ne pesca altrettante!`);
+        emitState(); break;
+      }
+
+      // ─── SBIRCIATA: guarda le carte in mano di un avversario (solo tu) ───────
+      case 'sbirciata': {
+        const sbirciEnemies = game.turnOrder.filter((p: string) => p !== playerName);
+        if (sbirciEnemies.length === 0) { emitChat(`👁️ SBIRCIATA: nessun avversario.`); break; }
+        const tgtSbircia = sbirciEnemies[Math.floor(Math.random() * sbirciEnemies.length)];
+        const tgtHand = (game.players[tgtSbircia]?.hand || []) as Card[];
+        const psId = (game.players[playerName] as any)?.socketId;
+        if (io && psId) {
+          io.to(psId).emit('sbirciata-reveal', { revealedPlayer: tgtSbircia, cards: tgtHand, playerName });
+        }
+        emitChat(`👁️ SBIRCIATA! ${playerName} sbircia le carte di ${tgtSbircia} (${tgtHand.length} carte)!`);
+        break;
+      }
+
+      // ─── SCAMBIO: scambia una carta a caso tra due giocatori ─────────────────
+      case 'scambio': {
+        const scambioEnemies = game.turnOrder.filter((p: string) => p !== playerName);
+        if (scambioEnemies.length === 0) { emitChat(`🔄 SCAMBIO: nessun avversario.`); break; }
+        const scambioTgt = scambioEnemies[Math.floor(Math.random() * scambioEnemies.length)];
+        const myHand = (game.players[playerName]?.hand || []) as Card[];
+        const theirHand = (game.players[scambioTgt]?.hand || []) as Card[];
+        if (myHand.length === 0 || theirHand.length === 0) { emitChat(`🔄 SCAMBIO: mano vuota, impossibile scambiare.`); break; }
+        const myIdx = Math.floor(Math.random() * myHand.length);
+        const theirIdx = Math.floor(Math.random() * theirHand.length);
+        const [myCard] = myHand.splice(myIdx, 1);
+        const [theirCard] = theirHand.splice(theirIdx, 1);
+        myCard.owner = scambioTgt; theirCard.owner = playerName;
+        theirHand.push(theirCard); myHand.push(myCard);
+        emitChat(`🔄 SCAMBIO! ${playerName} e ${scambioTgt} si scambiano una carta a caso!`);
+        emitState(); break;
+      }
+
+      // ─── CLONAZIONE: duplica il proprio personaggio ───────────────────────────
+      case 'clonazione': {
+        if (!myChar) { emitChat(`⚠️ CLONAZIONE: ${playerName} non ha un personaggio in campo.`); break; }
+        const cloneCard: Card = {
+          ...JSON.parse(JSON.stringify(myChar)),
+          id: `${myChar.id}-clone-${Date.now()}`,
+          owner: playerName,
+        };
+        game.field.push(cloneCard);
+        emitChat(`🧬 CLONAZIONE! ${myChar.name || playerName} si duplica! Il clone è in campo con ${cloneCard.pti} PTI e ${cloneCard.stars} stelle!`);
+        emitState(); break;
+      }
+
+      // ─── CRISALIDE: blocca 3 turni poi trasforma ─────────────────────────────
+      case 'crisalide': {
+        if (!myChar) { emitChat(`⚠️ CRISALIDE: ${playerName} non ha un personaggio in campo.`); break; }
+        if (!game.skipTurnPlayers) game.skipTurnPlayers = [];
+        for (let i = 0; i < 3; i++) game.skipTurnPlayers.push(playerName);
+        if (!game.timedEffects) game.timedEffects = [];
+        game.timedEffects.push({
+          id: `crisalide_${Date.now()}_${playerName}`, owner: playerName, turnsLeft: 3, recurring: false,
+          actions: [{ type: 'transformation', target: 'self_char', value: 1, description: 'Crisalide: evoluzione!' }],
+          description: `Crisalide: tra 3 turni si trasforma`, cardId: card.id
+        } as any);
+        emitChat(`🦋 CRISALIDE! ${myChar.name || playerName} è bloccato per 3 turni e poi si evolverà!`);
+        emitState(); break;
+      }
+
+      // ─── TRASFORMAZIONE: trasforma il proprio personaggio ────────────────────
+      case 'trasformazione': {
+        if (!myChar) { emitChat(`⚠️ TRASFORMAZIONE: ${playerName} non ha un personaggio in campo.`); break; }
+        this.handleEvolutionTransformation(game, gameId, playerName, 'transformation', myChar.id);
+        emitState(); break;
+      }
+
+      // ─── IO SEMBRO: il personaggio si tarocca nella versione dell'avversario ─
+      case 'io_sembro': {
+        if (!myChar) { emitChat(`⚠️ IO SEMBRO: ${playerName} non ha un personaggio in campo.`); break; }
+        const ioSembroEnemies = game.field.filter((c: Card) =>
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (ioSembroEnemies.length === 0) { emitChat(`⚠️ IO SEMBRO: nessun avversario in campo.`); break; }
+        const ioSembroTarget = ioSembroEnemies[Math.floor(Math.random() * ioSembroEnemies.length)];
+        const isBelloFigo = /bello\s+figo/i.test(ioSembroTarget.name || '');
+        emitChat(`🎭 IO SEMBRO! ${myChar.name || playerName} si tarocca come ${ioSembroTarget.name || ioSembroTarget.id}${isBelloFigo ? ' (versione vera di Bello Figo!)' : ''}!`);
+        this.handleEvolutionTransformation(game, gameId, playerName, 'taroccata', myChar.id);
+        emitState(); break;
+      }
+
+      // ─── CHOCOROAK: taroccata condizionale ───────────────────────────────────
+      case 'chocoroak': {
+        if (!myChar) { emitChat(`⚠️ CHOCOROAK: ${playerName} non ha un personaggio in campo.`); break; }
+        const chocNames = /evil\s+fake|il\s+pelux|goghi|gidi|the\s+roak|john\s+cena|silver\s+silvio/i;
+        if (chocNames.test(myCharName)) {
+          this.handleEvolutionTransformation(game, gameId, playerName, 'taroccata', myChar.id);
+          emitChat(`🃏 CHOCOROAK! ${myChar.name || playerName} si tarocca!`);
+        } else {
+          emitChat(`🃏 CHOCOROAK: ${myChar.name || playerName} non è uno dei personaggi compatibili — nessun effetto.`);
+        }
+        emitState(); break;
+      }
+
+      // ─── INVERTI GIRO: inverte l'ordine dei turni ────────────────────────────
+      case 'inverti_giro': {
+        if (!game.turnOrder || game.turnOrder.length < 2) { emitChat(`🔀 INVERTI GIRO: non ci sono abbastanza giocatori.`); break; }
+        const currentTurn = game.turnOrder[0];
+        game.turnOrder = [...game.turnOrder].reverse();
+        if (game.turnOrder[0] !== currentTurn) {
+          const idx = game.turnOrder.indexOf(currentTurn);
+          if (idx > 0) {
+            game.turnOrder = [...game.turnOrder.slice(idx), ...game.turnOrder.slice(0, idx)];
+          }
+        }
+        emitChat(`🔀 INVERTI GIRO! L'ordine dei turni è stato invertito!`);
+        emitState(); break;
+      }
+
+      // ─── HO STATO IO: chi uccide resta bloccato 2 turni ─────────────────────
+      case 'ho_stato_io': {
+        const isZody = /zody/i.test(myCharName);
+        (game as any).hoStatoIo = { active: true, blockTurns: isZody ? 4 : 2, activatedBy: playerName };
+        emitChat(`🙈 HO STATO IO! Da ora, chi elimina un personaggio resta bloccato per ${isZody ? '4 (ZODY!)' : '2'} turni!`);
+        emitState(); break;
+      }
+
+      // ─── COEVOLUZIONE: flag globale – ogni modifica PTI/stelle si applica a tutti
+      case 'coevoluzione': {
+        (game as any).coevoluzione = { active: true, owner: playerName };
+        emitChat(`🌱 COEVOLUZIONE! Da ora, ogni bonus o mossa che modifica PTI/stelle di ${playerName} ha effetto su TUTTI i personaggi in campo!`);
+        emitState(); break;
+      }
+
+      // ─── M DI MAJIN BU: pannello per assumere il governo del turno avversario
+      case 'm_di_majin_bu': {
+        const majinEnemies = game.turnOrder.filter((p: string) => p !== playerName);
+        if (majinEnemies.length === 0) { emitChat(`👹 M DI MAJIN BU: nessun avversario.`); break; }
+        if (isCPU || majinEnemies.length === 1) {
+          const tgt = majinEnemies[Math.floor(Math.random() * majinEnemies.length)];
+          const types = ['personaggi', 'mosse', 'bonus'];
+          const forced = types[Math.floor(Math.random() * types.length)];
+          (game as any).majinBuControl = { controller: playerName, target: tgt, forcedType: forced };
+          emitChat(`👹 M DI MAJIN BU! ${playerName} assume il governo del prossimo turno di ${tgt} — dovrà giocare una carta tipo: ${forced}!`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `majin-bu-${Date.now()}`;
+          const majinOpts = majinEnemies.map((p: string) => {
+            const ec = this.getPlayerActiveCharacter(game, p);
+            return { value: p, label: p, description: ec?.name || 'Nessun personaggio' };
+          });
+          (game as any).pendingMajinBu = { choiceId: cId, playerName };
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '👹 M DI MAJIN BU',
+            question: 'Scegli l\'avversario di cui controllare il prossimo turno:',
+            options: majinOpts, playerName, cardName: 'M DI MAJIN BU', timestamp: Date.now()
+          }, majinOpts, 'pendingMajinBu', io);
+          emitChat(`👹 M DI MAJIN BU! ${playerName} sceglie chi controllare...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── CROSSOVER: ruba un personaggio avversario nel proprio campo ─────────
+      case 'crossover': {
+        const crossoverEnemies = game.field.filter((c: Card) =>
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (crossoverEnemies.length === 0) { emitChat(`🔀 CROSSOVER: nessun personaggio avversario in campo.`); break; }
+        if (isCPU || crossoverEnemies.length === 1) {
+          const stolen = crossoverEnemies[Math.floor(Math.random() * crossoverEnemies.length)];
+          const oldOwner = stolen.owner;
+          stolen.owner = playerName;
+          emitChat(`🔀 CROSSOVER! ${playerName} ruba ${stolen.name || stolen.id} da ${oldOwner}! È ora nel campo di ${playerName}!`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `crossover-${Date.now()}`;
+          const crossOpts = crossoverEnemies.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` }));
+          (game as any).pendingCrossover = { choiceId: cId, playerName };
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '🔀 CROSSOVER',
+            question: 'Scegli il personaggio avversario da rubare:',
+            options: crossOpts, playerName, cardName: 'CROSSOVER', timestamp: Date.now()
+          }, crossOpts, 'pendingCrossover', io);
+          emitChat(`🔀 CROSSOVER! ${playerName} sceglie quale personaggio rubare...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── FUSIONE: attiva la UI di fusione ────────────────────────────────────
+      case 'fusione': {
+        const fusioneCandidates = game.field.filter((c: Card) =>
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (fusioneCandidates.length < 2) { emitChat(`⚗️ FUSIONE: servono almeno 2 personaggi in campo.`); break; }
+        if (io) {
+          const psId = (game.players[playerName] as any)?.socketId;
+          if (psId) io.to(psId).emit('fusione-prompt', { cardId: card.id, playerName, candidates: fusioneCandidates });
+        }
+        emitChat(`⚗️ FUSIONE! ${playerName} attiva la funzione di fusione tra i personaggi!`);
+        emitState(); break;
+      }
+
+      // ─── CAPI DEVO AND ALLA VIGNA: carte tornano in mano, bloccato 3 turni ──
+      case 'capi_devo_and_alla_vigna': {
+        const capiMyChars = game.field.filter((c: Card) => c.owner === playerName);
+        for (const c of capiMyChars) {
+          game.field = game.field.filter((fc: Card) => fc.id !== c.id);
+          if (!game.players[playerName].hand) game.players[playerName].hand = [];
+          (game.players[playerName].hand as Card[]).push(c);
+        }
+        if (!game.skipTurnPlayers) game.skipTurnPlayers = [];
+        for (let i = 0; i < 3; i++) game.skipTurnPlayers.push(playerName);
+        emitChat(`🍇 CAPI DEVO AND ALLA VIGNA! Le carte di ${playerName} tornano in mano e non può giocare per 3 turni!`);
+        emitState(); break;
+      }
+
+      // ─── CAPI IO MI MOZZARELLINO QUA: fissa posizione del personaggio ────────
+      case 'capi_io_mi_mozzarellino_qua': {
+        if (!myChar) { emitChat(`⚠️ CAPI IO MI MOZZARELLINO QUA: ${playerName} non ha un personaggio in campo.`); break; }
+        (myChar as any).positionLocked = true;
+        emitChat(`🧀 CAPI IO MI MOZZARELLINO QUA! ${myChar.name || playerName} è bloccato nella sua posizione, non può essere spostato!`);
+        emitState(); break;
+      }
+
+      // ─── PORTALE SPECIALE: pesca una carta speciale dal mazzo ────────────────
+      case 'portale_speciale': {
+        const psSpecDeck = ((game as any).deck || []) as Card[];
+        const specialIdx = psSpecDeck.findIndex((c: Card) => c.type === 'personaggi_speciali' || c.rarity === 'leggendaria');
+        if (specialIdx >= 0) {
+          const [specCard] = psSpecDeck.splice(specialIdx, 1);
+          if (!game.players[playerName].hand) game.players[playerName].hand = [];
+          (game.players[playerName].hand as Card[]).push(specCard);
+          emitChat(`🌀 PORTALE SPECIALE! ${playerName} pesca una carta speciale: "${specCard.name || specCard.id}"!`);
+        } else {
+          emitChat(`🌀 PORTALE SPECIALE! ${playerName} apre un portale... ma non ci sono carte speciali nel mazzo.`);
+        }
+        emitState(); break;
+      }
+
+      // ─── APOCALISSE: dado 1-6 su personaggio avversario scelto ──────────────
+      case 'apocalisse': {
+        const apoEnemies = game.turnOrder.filter((p: string) => p !== playerName);
+        if (apoEnemies.length === 0) { emitChat(`☄️ APOCALISSE: nessun avversario.`); break; }
+        const apoDie = Math.floor(Math.random() * 6) + 1;
+        if (io) io.to(gameId).emit('dice-rolled', { result: apoDie, playerName });
+        const apoTarget = apoEnemies[Math.floor(Math.random() * apoEnemies.length)];
+        const apoChar = this.getPlayerActiveCharacter(game, apoTarget);
+        let apoMsg = '';
+        if (apoChar) {
+          switch (apoDie) {
+            case 1: this.processEliminationAfterDeath(gameId, apoTarget, io, 'APOCALISSE'); apoMsg = `${apoChar.name} MUORE!`; break;
+            case 2: apoChar.pti = Math.floor((apoChar.pti || 0) / 2); this.updateCardTextWithPTI(apoChar); apoMsg = `${apoChar.name} dimezza PTI → ${apoChar.pti}`; break;
+            case 3: apoChar.stars = 0; apoMsg = `${apoChar.name} va a 0 stelle!`; break;
+            case 4: apoChar.stars = Math.floor((apoChar.stars || 0) / 2); apoMsg = `${apoChar.name} dimezza stelle → ${apoChar.stars}`; break;
+            case 5: apoChar.pti = (apoChar.pti || 0) - 100; apoChar.stars = Math.max(0, (apoChar.stars || 0) - 1); this.updateCardTextWithPTI(apoChar); apoMsg = `${apoChar.name} -100 PTI -1 stella`; break;
+            case 6: apoMsg = `Nessun effetto! (6)`; break;
+          }
+        } else { apoMsg = `${apoTarget} non ha personaggi in campo.`; }
+        emitChat(`☄️ APOCALISSE! Dado: ${apoDie} → ${apoMsg}`);
+        emitState(); break;
+      }
+
+      // ─── GIOCO D'AZZARDO: dado 1-6 su tutti ──────────────────────────────────
+      case 'gioco_d_azzardo': {
+        const gamblingDie = Math.floor(Math.random() * 6) + 1;
+        if (io) io.to(gameId).emit('dice-rolled', { result: gamblingDie, playerName });
+        const gamblingChars = game.field.filter((c: Card) =>
+          c.type === 'personaggi' || c.type === 'personaggi_speciali'
+        );
+        if (gamblingDie <= 2) {
+          for (const c of gamblingChars) {
+            const owner = c.owner!;
+            this.processEliminationAfterDeath(gameId, owner, io, 'GIOCO_D_AZZARDO');
+          }
+          emitChat(`🎰 GIOCO D'AZZARDO! Dado: ${gamblingDie} (1-2) → TUTTI i personaggi muoiono!`);
+        } else if (gamblingDie <= 4) {
+          for (const c of gamblingChars) { c.pti = Math.floor((c.pti || 0) / 2); this.updateCardTextWithPTI(c); }
+          emitChat(`🎰 GIOCO D'AZZARDO! Dado: ${gamblingDie} (3-4) → Tutti perdono metà PTI!`);
+        } else {
+          emitChat(`🎰 GIOCO D'AZZARDO! Dado: ${gamblingDie} (5-6) → Nessun effetto!`);
+        }
+        emitState(); break;
+      }
+
+      // ─── IL DADO DEL GIUDIZIO: pari=trasforma, dispari=tarocca ──────────────
+      case 'il_dado_del_giudizio': {
+        if (!myChar) { emitChat(`⚠️ IL DADO DEL GIUDIZIO: ${playerName} non ha un personaggio in campo.`); break; }
+        const giudizioDie = Math.floor(Math.random() * 6) + 1;
+        if (io) io.to(gameId).emit('dice-rolled', { result: giudizioDie, playerName });
+        if (giudizioDie % 2 === 0) {
+          this.handleEvolutionTransformation(game, gameId, playerName, 'transformation', myChar.id);
+          emitChat(`⚖️ IL DADO DEL GIUDIZIO! Dado: ${giudizioDie} (PARI) → ${myChar.name || playerName} si TRASFORMA!`);
+        } else {
+          this.handleEvolutionTransformation(game, gameId, playerName, 'taroccata', myChar.id);
+          emitChat(`⚖️ IL DADO DEL GIUDIZIO! Dado: ${giudizioDie} (DISPARI) → ${myChar.name || playerName} si TAROCCA!`);
+        }
+        emitState(); break;
+      }
+
+      // ─── MACUMBA: dado 1-6 su personaggio avversario scelto ─────────────────
+      case 'macumba': {
+        const macumbaEnemies = game.turnOrder.filter((p: string) => p !== playerName);
+        if (macumbaEnemies.length === 0) { emitChat(`🔮 MACUMBA: nessun avversario.`); break; }
+        const macumbaDie = Math.floor(Math.random() * 6) + 1;
+        if (io) io.to(gameId).emit('dice-rolled', { result: macumbaDie, playerName });
+        const macumbaTarget = macumbaEnemies[Math.floor(Math.random() * macumbaEnemies.length)];
+        const macumbaChar = this.getPlayerActiveCharacter(game, macumbaTarget);
+        let macumbaMsg = '';
+        if (macumbaChar) {
+          switch (macumbaDie) {
+            case 1:
+              if (!game.timedEffects) game.timedEffects = [];
+              game.timedEffects.push({ id: `macumba_death_${Date.now()}`, owner: macumbaTarget, turnsLeft: 1, actions: [{ type: 'instant_death', target: 'self_char', value: 0, description: 'Macumba: morte tra 1 turno' }], description: 'Macumba: morte tra 1 turno', cardId: card.id } as any);
+              macumbaMsg = `${macumbaChar.name} muore tra 1 turno!`; break;
+            case 2: macumbaChar.pti = (macumbaChar.pti || 0) - 100; macumbaChar.stars = Math.max(0, (macumbaChar.stars || 0) - 1); this.updateCardTextWithPTI(macumbaChar); macumbaMsg = `${macumbaChar.name} -100 PTI -1 stella`; break;
+            case 3: macumbaChar.stars = 0; macumbaMsg = `${macumbaChar.name} va a 0 stelle!`; break;
+            case 4: macumbaChar.stars = Math.floor((macumbaChar.stars || 0) / 2); macumbaMsg = `${macumbaChar.name} dimezza stelle → ${macumbaChar.stars}`; break;
+            case 5: macumbaChar.pti = (macumbaChar.pti || 0) - 100; this.updateCardTextWithPTI(macumbaChar); macumbaMsg = `${macumbaChar.name} -100 PTI`; break;
+            case 6: macumbaMsg = `Nessun effetto! (6)`; break;
+          }
+        } else { macumbaMsg = `${macumbaTarget} non ha personaggi in campo.`; }
+        emitChat(`🔮 MACUMBA! Dado: ${macumbaDie} → ${macumbaMsg}`);
+        emitState(); break;
+      }
+
+      // ─── MODALITÀ TUZZA: dado pari=+10000 PTI, dispari=0 ────────────────────
+      case 'modalita_tuzza': {
+        if (!myChar) { emitChat(`⚠️ MODALITÀ TUZZA: ${playerName} non ha un personaggio in campo.`); break; }
+        const tuzzaDie = Math.floor(Math.random() * 6) + 1;
+        if (io) io.to(gameId).emit('dice-rolled', { result: tuzzaDie, playerName });
+        if (tuzzaDie % 2 === 0) {
+          myChar.pti = (myChar.pti || 0) + 10000;
+          this.updateCardTextWithPTI(myChar);
+          emitChat(`🎯 MODALITÀ TUZZA! Dado: ${tuzzaDie} (PARI) → ${myChar.name || playerName} +10000 PTI! (PTI: ${myChar.pti})`);
+        } else {
+          emitChat(`🎯 MODALITÀ TUZZA! Dado: ${tuzzaDie} (DISPARI) → Nessun effetto!`);
+        }
+        emitState(); break;
+      }
+
+      // ─── LEGHE (summon team) ─────────────────────────────────────────────────
+      case 'lega_sayan': {
+        const sayanNames = /goku|vegeta|gohan|trunks|piccolo|broly|sayan/i;
+        const sayanAllies = game.turnOrder.filter((p: string) => {
+          if (p === playerName) return false;
+          const chars = [...(game.players[p]?.hand || [])].filter((c: Card) => (c.type === 'personaggi' || c.type === 'personaggi_speciali') && sayanNames.test(c.name || ''));
+          if (chars.length > 0) {
+            for (const c of chars) { game.field.push({ ...c, owner: playerName }); game.players[p].hand = (game.players[p].hand as Card[]).filter((hc: Card) => hc.id !== c.id); }
+            return true;
+          }
+          return false;
+        });
+        const sayanField = game.field.filter((c: Card) => c.owner === playerName && sayanNames.test(c.name || '') && c.id !== myChar?.id);
+        emitChat(`⭐ LEGA SAYAN! ${playerName} raduna i Sayan! ${sayanField.length + (myChar && sayanNames.test(myCharName) ? 1 : 0)} Sayan in campo!`);
+        emitState(); break;
+      }
+
+      case 'lega_simpson': {
+        const simpsonNames = /homer|bart|milhouse|lisa|marge|simpson/i;
+        const simpField = game.field.filter((c: Card) => c.owner !== playerName && simpsonNames.test(c.name || ''));
+        for (const c of simpField) c.owner = playerName;
+        emitChat(`🍩 LEGA SIMPSON! ${playerName} raduna i Simpson in campo!`);
+        emitState(); break;
+      }
+
+      case 'lega_griffin': {
+        const griffinNames = /peter|brian|stewie|meg|chris|lois|griffin/i;
+        const griffField = game.field.filter((c: Card) => c.owner !== playerName && griffinNames.test(c.name || ''));
+        for (const c of griffField) c.owner = playerName;
+        emitChat(`🐩 LEGA GRIFFIN! ${playerName} raduna i Griffin in campo!`);
+        emitState(); break;
+      }
+
+      case 'lega_olimpo': {
+        const olimpoNames = /pollon|zeus|poseidone|apollo|atena|ares|olimpo/i;
+        const olimpoField = game.field.filter((c: Card) => c.owner !== playerName && olimpoNames.test(c.name || ''));
+        for (const c of olimpoField) c.owner = playerName;
+        emitChat(`🏛️ LEGA OLIMPO! ${playerName} raduna gli dei dell'Olimpo in campo!`);
+        emitState(); break;
+      }
+
+      case 'lega_ganza': {
+        const ganzaNames = /gigione|cacca|one\s+direction|michele\s+tel[oò]|psy|justin\s+biberon/i;
+        const ganzaField = game.field.filter((c: Card) => c.owner !== playerName && ganzaNames.test(c.name || ''));
+        for (const c of ganzaField) c.owner = playerName;
+        emitChat(`🎤 LEGA GANZA! ${playerName} raduna i personaggi ganza in campo!`);
+        emitState(); break;
+      }
+
+      // ─── LEGA GANZA EFFETTO: handler generico per lega – somma PTI e stelle ──
+      case 'lega_ganza_effetto': {
+        const legaGanzaChars = game.field.filter((c: Card) =>
+          c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (legaGanzaChars.length > 1) {
+          const totPti = legaGanzaChars.reduce((s, c) => s + (c.pti || 0), 0);
+          const totStars = legaGanzaChars.reduce((s, c) => s + (c.stars || 0), 0);
+          const champion = legaGanzaChars[0];
+          for (const c of legaGanzaChars.slice(1)) {
+            game.field = game.field.filter((fc: Card) => fc.id !== c.id);
+          }
+          champion.pti = totPti; champion.stars = totStars;
+          this.updateCardTextWithPTI(champion);
+          emitChat(`🎤 LEGA GANZA EFFETTO! I personaggi di ${playerName} si fondono in ${champion.name || playerName} (${totPti} PTI, ${totStars} stelle)!`);
+        } else {
+          if (myChar) { myChar.pti = (myChar.pti || 0) + 100; this.updateCardTextWithPTI(myChar); }
+          emitChat(`🎤 LEGA GANZA EFFETTO! ${myChar?.name || playerName} guadagna +100 PTI bonus.`);
+        }
+        emitState(); break;
+      }
+
+      case 'lega_camera_caf': {
+        const cafNames = /luca\s+nervi|paolo\s+bitta|andrea|silvano|gheller|de\s+marinis/i;
+        const cafField = game.field.filter((c: Card) => c.owner !== playerName && cafNames.test(c.name || ''));
+        for (const c of cafField) c.owner = playerName;
+        emitChat(`📸 LEGA CAMERA CAF! ${playerName} raduna i Camera CAF in campo!`);
+        emitState(); break;
+      }
+
+      // ─── EVOLUZIONI COLORATE ─────────────────────────────────────────────────
+      case 'evoluzione_arcobaleno': {
+        if (!myChar) { emitChat(`⚠️ EVOLUZIONE ARCOBALENO: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.pti = (myChar.pti || 0) + 200;
+        myChar.stars = Math.min(5, (myChar.stars || 0) + 2);
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🌈 EVOLUZIONE ARCOBALENO! ${myChar.name || playerName} +200 PTI +2 stelle! (PTI: ${myChar.pti}, Stelle: ${myChar.stars})`);
+        emitState(); break;
+      }
+
+      case 'evoluzione_blu': {
+        if (!myChar) { emitChat(`⚠️ EVOLUZIONE BLU: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.pti = (myChar.pti || 0) + 150;
+        myChar.stars = Math.min(5, (myChar.stars || 0) + 1);
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🔵 EVOLUZIONE BLU! ${myChar.name || playerName} +150 PTI +1 stella! (PTI: ${myChar.pti}, Stelle: ${myChar.stars})`);
+        emitState(); break;
+      }
+
+      case 'evoluzione_giallo': {
+        if (!myChar) { emitChat(`⚠️ EVOLUZIONE GIALLO: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.pti = (myChar.pti || 0) + 150;
+        myChar.stars = Math.min(5, (myChar.stars || 0) + 1);
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🟡 EVOLUZIONE GIALLO! ${myChar.name || playerName} +150 PTI +1 stella! (PTI: ${myChar.pti}, Stelle: ${myChar.stars})`);
+        emitState(); break;
+      }
+
+      case 'evoluzione_rossa': {
+        if (!myChar) { emitChat(`⚠️ EVOLUZIONE ROSSA: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.pti = (myChar.pti || 0) + 150;
+        myChar.stars = Math.min(5, (myChar.stars || 0) + 1);
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🔴 EVOLUZIONE ROSSA! ${myChar.name || playerName} +150 PTI +1 stella! (PTI: ${myChar.pti}, Stelle: ${myChar.stars})`);
+        emitState(); break;
+      }
+
+      case 'evoluzione_verde': {
+        if (!myChar) { emitChat(`⚠️ EVOLUZIONE VERDE: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.pti = (myChar.pti || 0) + 150;
+        myChar.stars = Math.min(5, (myChar.stars || 0) + 1);
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🟢 EVOLUZIONE VERDE! ${myChar.name || playerName} +150 PTI +1 stella! (PTI: ${myChar.pti}, Stelle: ${myChar.stars})`);
+        emitState(); break;
+      }
+
+      // ─── AMEECO: fusione + clone, +500 PTI ───────────────────────────────────
+      case 'ameeco': {
+        if (!myChar) { emitChat(`⚠️ AMEECO: ${playerName} non ha un personaggio in campo.`); break; }
+        const ameecoEnemies = game.field.filter((c: Card) =>
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (ameecoEnemies.length === 0) { emitChat(`⚠️ AMEECO: nessun personaggio avversario in campo.`); break; }
+        if (isCPU || ameecoEnemies.length === 1) {
+          const enemy = ameecoEnemies[Math.floor(Math.random() * ameecoEnemies.length)];
+          const oldOwner = enemy.owner!;
+          const fusedPti = (myChar.pti || 0) + (enemy.pti || 0) + 500;
+          const fusedStars = (myChar.stars || 0) + (enemy.stars || 0);
+          myChar.pti = fusedPti; myChar.stars = fusedStars;
+          this.updateCardTextWithPTI(myChar);
+          const cloneForEnemy: Card = { ...JSON.parse(JSON.stringify(myChar)), id: `${myChar.id}-ameeco-clone-${Date.now()}`, owner: oldOwner };
+          game.field = game.field.filter((c: Card) => c.id !== enemy.id);
+          game.field.push(cloneForEnemy);
+          emitChat(`🤝 AMEECO! ${myChar.name || playerName} assorbe ${enemy.name || oldOwner} (+${fusedPti} PTI, ${fusedStars} stelle) e il clone va a ${oldOwner}!`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `ameeco-${Date.now()}`;
+          const ameecoOpts = ameecoEnemies.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` }));
+          (game as any).pendingAmeeco = { choiceId: cId, playerName, myCharId: myChar.id };
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '🤝 AMEECO',
+            question: 'Scegli il personaggio avversario con cui fonderti (+500 PTI, clone per entrambi):',
+            options: ameecoOpts, playerName, cardName: 'AMEECO', timestamp: Date.now()
+          }, ameecoOpts, 'pendingAmeeco', io);
+          emitChat(`🤝 AMEECO! ${playerName} sceglie con chi fondersi...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── ASSICURAZIONE: se PTI <= 0 non muore, li recupera ───────────────────
+      case 'assicurazione': {
+        if (!myChar) { emitChat(`⚠️ ASSICURAZIONE: ${playerName} non ha un personaggio in campo.`); break; }
+        const insuredPti = Math.min(myChar.pti || 100, 500);
+        (myChar as any).assicurazione = { insuredPti };
+        emitChat(`📋 ASSICURAZIONE! ${myChar.name || playerName} è assicurato per ${insuredPti} PTI: se scende a 0 li recupera automaticamente!`);
+        emitState(); break;
+      }
+
+      // ─── ATTACCO MULTIPLO: la prossima mossa colpisce 2 avversari ───────────
+      case 'attacco_multiplo': {
+        if (!game.players[playerName]) break;
+        (game as any).attaccoMultiplo = (game as any).attaccoMultiplo || {};
+        (game as any).attaccoMultiplo[playerName] = ((game as any).attaccoMultiplo[playerName] || 0) + 1;
+        emitChat(`⚔️ ATTACCO MULTIPLO! ${playerName} può attaccare 2 avversari contemporaneamente con la prossima mossa!`);
+        emitState(); break;
+      }
+
+      // ─── ATTACCO SIMULTANEO: tutti gli altri giocatori attaccano un bersaglio
+      case 'attacco_simultaneo': {
+        const asimEnemies = game.turnOrder.filter((p: string) => p !== playerName);
+        if (asimEnemies.length === 0) { emitChat(`⚡ ATTACCO SIMULTANEO: nessun avversario.`); break; }
+        const asimTarget = asimEnemies[Math.floor(Math.random() * asimEnemies.length)];
+        const asimTargetChar = this.getPlayerActiveCharacter(game, asimTarget);
+        if (asimTargetChar) {
+          const allOtherAttackers = game.turnOrder.filter((p: string) => p !== playerName && p !== asimTarget);
+          for (const attacker of allOtherAttackers) {
+            const attackerChar = this.getPlayerActiveCharacter(game, attacker);
+            if (attackerChar) {
+              const dmg = Math.max(10, Math.floor((attackerChar.pti || 10) * 0.1));
+              asimTargetChar.pti = (asimTargetChar.pti || 0) - dmg;
+              this.updateCardTextWithPTI(asimTargetChar);
+            }
+          }
+          emitChat(`⚡ ATTACCO SIMULTANEO! Tutti attaccano ${asimTargetChar.name || asimTarget}! (PTI: ${asimTargetChar.pti})`);
+        } else {
+          emitChat(`⚡ ATTACCO SIMULTANEO! ${asimTarget} non ha personaggi in campo.`);
+        }
+        emitState(); break;
+      }
+
+      // ─── BOLLA DI SAPONE: avversario scelto non può giocare per 1 turno ──────
+      case 'bolla_di_sapone': {
+        const bollaEnemies = game.turnOrder.filter((p: string) => p !== playerName);
+        if (bollaEnemies.length === 0) { emitChat(`🫧 BOLLA DI SAPONE: nessun avversario.`); break; }
+        if (isCPU || bollaEnemies.length === 1) {
+          const tgt = bollaEnemies[Math.floor(Math.random() * bollaEnemies.length)];
+          if (!(game as any).cardPlayBlock) (game as any).cardPlayBlock = {};
+          (game as any).cardPlayBlock[tgt] = ((game as any).cardPlayBlock[tgt] || 0) + 1;
+          emitChat(`🫧 BOLLA DI SAPONE! ${tgt} non può giocare carte per 1 turno!`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `bolla-${Date.now()}`;
+          const bollaOpts = bollaEnemies.map((p: string) => {
+            const ec = this.getPlayerActiveCharacter(game, p);
+            return { value: p, label: p, description: ec?.name || 'Nessun personaggio' };
+          });
+          (game as any).pendingBolla = { choiceId: cId, playerName };
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '🫧 BOLLA DI SAPONE',
+            question: 'Scegli l\'avversario da bloccare per 1 turno:',
+            options: bollaOpts, playerName, cardName: 'BOLLA DI SAPONE', timestamp: Date.now()
+          }, bollaOpts, 'pendingBolla', io);
+          emitChat(`🫧 BOLLA DI SAPONE! ${playerName} sceglie chi bloccare...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── UNIONE CLANDESTINA: si fonde con un personaggio avversario ──────────
+      case 'unione_clandestina': {
+        if (!myChar) { emitChat(`⚠️ UNIONE CLANDESTINA: ${playerName} non ha un personaggio in campo.`); break; }
+        const uniEnemies = game.field.filter((c: Card) =>
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (uniEnemies.length === 0) { emitChat(`⚠️ UNIONE CLANDESTINA: nessun personaggio avversario.`); break; }
+        if (isCPU || uniEnemies.length === 1) {
+          const enemy = uniEnemies[Math.floor(Math.random() * uniEnemies.length)];
+          myChar.pti = (myChar.pti || 0) + (enemy.pti || 0);
+          myChar.stars = (myChar.stars || 0) + (enemy.stars || 0);
+          this.updateCardTextWithPTI(myChar);
+          game.field = game.field.filter((c: Card) => c.id !== enemy.id);
+          emitChat(`💞 UNIONE CLANDESTINA! ${myChar.name || playerName} si fonde con ${enemy.name || enemy.id}! (PTI: ${myChar.pti}, Stelle: ${myChar.stars})`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `unione-clandestina-${Date.now()}`;
+          const uniOpts = uniEnemies.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` }));
+          (game as any).pendingUniClandestina = { choiceId: cId, playerName, myCharId: myChar.id };
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '💞 UNIONE CLANDESTINA',
+            question: 'Scegli il personaggio avversario con cui fonderti (diventa tuo):',
+            options: uniOpts, playerName, cardName: 'UNIONE CLANDESTINA', timestamp: Date.now()
+          }, uniOpts, 'pendingUniClandestina', io);
+          emitChat(`💞 UNIONE CLANDESTINA! ${playerName} sceglie con chi fondersi...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── TAROCCATA: un personaggio avversario si tarocca ─────────────────────
+      case 'taroccata': {
+        const taroccataEnemies = game.turnOrder.filter((p: string) => p !== playerName);
+        if (taroccataEnemies.length === 0) { emitChat(`🃏 TAROCCATA: nessun avversario.`); break; }
+        if (isCPU || taroccataEnemies.length === 1) {
+          const tgt = taroccataEnemies[Math.floor(Math.random() * taroccataEnemies.length)];
+          this.handleEvolutionTransformation(game, gameId, tgt, 'taroccata');
+          emitChat(`🃏 TAROCCATA! ${playerName} fa taroccate ${tgt}!`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `taroccata-${Date.now()}`;
+          const tarOpts = taroccataEnemies.map((p: string) => {
+            const ec = this.getPlayerActiveCharacter(game, p);
+            return { value: p, label: p, description: ec?.name || 'Nessun personaggio' };
+          });
+          (game as any).pendingTaroccata = { choiceId: cId, playerName };
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '🃏 TAROCCATA',
+            question: 'Scegli l\'avversario che deve taroccate:',
+            options: tarOpts, playerName, cardName: 'TAROCCATA', timestamp: Date.now()
+          }, tarOpts, 'pendingTaroccata', io);
+          emitChat(`🃏 TAROCCATA! ${playerName} sceglie chi far taroccate...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── AGGLOMERA LEGHE: fonde i personaggi dello stesso gruppo ─────────────
+      case 'agglomera_leghe': {
+        if (!myChar) { emitChat(`⚠️ AGGLOMERA LEGHE: ${playerName} non ha un personaggio in campo.`); break; }
+        const myCharsAgg = game.field.filter((c: Card) =>
+          c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.id !== myChar.id
+        );
+        if (myCharsAgg.length === 0) { emitChat(`🏆 AGGLOMERA LEGHE: ${myChar.name || playerName} è l'unico in campo.`); break; }
+        for (const c of myCharsAgg) {
+          myChar.pti = (myChar.pti || 0) + (c.pti || 0);
+          myChar.stars = (myChar.stars || 0) + (c.stars || 0);
+          game.field = game.field.filter((fc: Card) => fc.id !== c.id);
+        }
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🏆 AGGLOMERA LEGHE! ${myChar.name || playerName} assorbe ${myCharsAgg.length} personaggi! (PTI: ${myChar.pti}, Stelle: ${myChar.stars})`);
+        emitState(); break;
+      }
+
+      // ─── AH AH PRIMO NEL RANKIARD: dado → trasforma il personaggio alla posizione N
+      case 'ah_ah_primo_nel_rankiard': {
+        const rankiardPlayers = [...game.turnOrder];
+        if (rankiardPlayers.length === 0) { emitChat(`🎲 AH AH PRIMO NEL RANKIARD: nessun giocatore.`); break; }
+        const rankiardDie = Math.floor(Math.random() * rankiardPlayers.length) + 1;
+        if (io) io.to(gameId).emit('dice-rolled', { result: rankiardDie, playerName });
+        const rankiardTarget = rankiardPlayers[rankiardDie - 1] || rankiardPlayers[rankiardPlayers.length - 1];
+        this.handleEvolutionTransformation(game, gameId, rankiardTarget, 'transformation');
+        emitChat(`🎲 AH AH PRIMO NEL RANKIARD! Dado: ${rankiardDie} → il personaggio di ${rankiardTarget} si TRASFORMA!`);
+        emitState(); break;
+      }
+
+      // ─── MODALITÀ ART ATTACK: sostituisce con Giovanni Muciaccia ─────────────
+      case 'modalit_art_attack': {
+        if (!myChar) { emitChat(`⚠️ MODALITÀ ART ATTACK: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.name = 'Giovanni Muciaccia';
+        myChar.pti = (myChar.pti || 0) + 50;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🎨 MODALITÀ ART ATTACK! ${playerName} sostituisce il personaggio con Giovanni Muciaccia! (+50 PTI)`);
+        emitState(); break;
+      }
+
+      // ─── CONVERSIONE: aggiunge i PTI dell'ultimo danno subito ────────────────
+      case 'conversione': {
+        if (!myChar) { emitChat(`⚠️ CONVERSIONE: ${playerName} non ha un personaggio in campo.`); break; }
+        const lastDmg = (myChar as any).lastDamageReceived || 0;
+        if (lastDmg > 0) {
+          myChar.pti = (myChar.pti || 0) + lastDmg;
+          this.updateCardTextWithPTI(myChar);
+          emitChat(`♻️ CONVERSIONE! ${myChar.name || playerName} converte l'ultimo danno subito (${lastDmg} PTI) in PTI propri! (PTI: ${myChar.pti})`);
+        } else {
+          emitChat(`♻️ CONVERSIONE: nessun danno registrato per ${myChar.name || playerName}.`);
+        }
+        emitState(); break;
+      }
+
+      // ─── BAMBOLA VOODOO: riflette danno per 3 turni ──────────────────────────
+      case 'bambola_voodoo': {
+        if (!myChar) { emitChat(`⚠️ BAMBOLA VOODOO: ${playerName} non ha un personaggio in campo.`); break; }
+        if (!(game as any).voodoo) (game as any).voodoo = {};
+        (game as any).voodoo[playerName] = { turnsLeft: 3, reflect: true };
+        emitChat(`🪆 BAMBOLA VOODOO! ${myChar.name || playerName}: per 3 turni, ogni danno subito si riflette anche sull'attaccante!`);
+        emitState(); break;
+      }
+
+      // ─── BOOMERANG: prossimo danno riflesso sull'attaccante ──────────────────
+      case 'boomerang': {
+        if (!myChar) { emitChat(`⚠️ BOOMERANG: ${playerName} non ha un personaggio in campo.`); break; }
+        (myChar as any).boomerangNext = true;
+        emitChat(`🪃 BOOMERANG! ${myChar.name || playerName}: il prossimo danno subito sarà riflesso sull'attaccante!`);
+        emitState(); break;
+      }
+
+      // ─── TABULA RASA: azzera PTI di un avversario a 1 ────────────────────────
+      case 'tabula_rasa': {
+        const tabulaEnemies = game.field.filter((c: Card) =>
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (tabulaEnemies.length === 0) { emitChat(`🪶 TABULA RASA: nessun personaggio avversario in campo.`); break; }
+        if (isCPU || tabulaEnemies.length === 1) {
+          const tgt = tabulaEnemies[Math.floor(Math.random() * tabulaEnemies.length)];
+          tgt.pti = 1; this.updateCardTextWithPTI(tgt);
+          emitChat(`🪶 TABULA RASA! ${tgt.name || tgt.id} (${tgt.owner}) va a 1 PTI!`);
+          emitState();
+        } else {
+          const psId = (game.players[playerName] as any)?.socketId;
+          const cId = `tabula-rasa-${Date.now()}`;
+          const tabulaOpts = tabulaEnemies.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` }));
+          (game as any).pendingTabulaRasa = { choiceId: cId, playerName };
+          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
+            choiceId: cId, title: '🪶 TABULA RASA',
+            question: 'Scegli il personaggio avversario da azzerare a 1 PTI:',
+            options: tabulaOpts, playerName, cardName: 'TABULA RASA', timestamp: Date.now()
+          }, tabulaOpts, 'pendingTabulaRasa', io);
+          emitChat(`🪶 TABULA RASA! ${playerName} sceglie chi azzerare...`);
+          emitState();
+        }
+        break;
+      }
+
+      // ─── TERREMOTO: 100 PTI di danno a tutti i personaggi in campo ───────────
+      case 'terremoto': {
+        const terremotoChars = game.field.filter((c: Card) =>
+          c.type === 'personaggi' || c.type === 'personaggi_speciali'
+        );
+        for (const c of terremotoChars) { c.pti = (c.pti || 0) - 100; this.updateCardTextWithPTI(c); }
+        emitChat(`🌍 TERREMOTO! Tutti i personaggi in campo perdono 100 PTI! (Colpiti: ${terremotoChars.length})`);
+        emitState(); break;
+      }
+
+      // ─── MACCHINA DEL TEMPO: ripristina PTI originali ────────────────────────
+      case 'macchina_del_tempo': {
+        if (!myChar) { emitChat(`⚠️ MACCHINA DEL TEMPO: ${playerName} non ha un personaggio in campo.`); break; }
+        const origPtiMacchina = (myChar as any).originalPti || (myChar as any).basePti || myChar.pti || 100;
+        myChar.pti = origPtiMacchina;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`⏱️ MACCHINA DEL TEMPO! ${myChar.name || playerName} torna ai PTI originali: ${origPtiMacchina} PTI!`);
+        emitState(); break;
+      }
+
+      // ─── STAKU: +100 PTI e auto-attacca il prossimo turno ───────────────────
+      case 'staku': {
+        if (!myChar) { emitChat(`⚠️ STAKU: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.pti = (myChar.pti || 0) + 100;
+        this.updateCardTextWithPTI(myChar);
+        (game as any).autoAttack = (game as any).autoAttack || {};
+        (game as any).autoAttack[playerName] = true;
+        emitChat(`⚡ STAKU! ${myChar.name || playerName} +100 PTI (PTI: ${myChar.pti}) — attaccherà automaticamente il prossimo turno!`);
+        emitState(); break;
+      }
+
+      // ─── OCCHIO DEL FOTOGRAFO: rivela le carte di tutti ──────────────────────
+      case 'occhio_del_fotografo': {
+        const allHands: Record<string, Card[]> = {};
+        for (const p of game.turnOrder) {
+          if (p !== playerName) allHands[p] = (game.players[p]?.hand || []) as Card[];
+        }
+        if (io) io.to(gameId).emit('occhio-fotografo-reveal', { revealedBy: playerName, allHands });
+        emitChat(`📸 OCCHIO DEL FOTOGRAFO! ${playerName} rivela le carte in mano di tutti gli avversari!`);
+        break;
+      }
+
+      // ─── PLAYBACK: rigioca l'ultima mossa utilizzata ─────────────────────────
+      case 'playback': {
+        const lastEffect = (game as any).lastCardEffect;
+        if (lastEffect) {
+          emitChat(`⏪ PLAYBACK! ${playerName} ripete l'ultima carta giocata: "${lastEffect}"!`);
+          await this.executeNamedBonusEffect(gameId, lastEffect, card, playerName);
+        } else {
+          emitChat(`⏪ PLAYBACK: nessuna carta precedente registrata.`);
+        }
+        break;
+      }
+
+      // ─── DIVERTENTE: +50 PTI a tutti i personaggi in campo ──────────────────
+      case 'divertente': {
+        const divertChars = game.field.filter((c: Card) =>
+          c.type === 'personaggi' || c.type === 'personaggi_speciali'
+        );
+        for (const c of divertChars) { c.pti = (c.pti || 0) + 50; this.updateCardTextWithPTI(c); }
+        emitChat(`😄 DIVERTENTE! Tutti i personaggi in campo guadagnano +50 PTI! (Colpiti: ${divertChars.length})`);
+        emitState(); break;
+      }
+
+      // ─── DITTATURA: il giocatore corrente gioca due turni di fila ───────────
+      case 'dittatura': {
+        (game as any).extraTurn = (game as any).extraTurn || {};
+        (game as any).extraTurn[playerName] = ((game as any).extraTurn[playerName] || 0) + 1;
+        emitChat(`👑 DITTATURA! ${playerName} giocherà un turno extra!`);
+        emitState(); break;
+      }
+
+      // ─── DIVISIONE: divide i PTI del personaggio più forte tra gli avversari ─
+      case 'divisione': {
+        const allCharsDiv = game.field.filter((c: Card) =>
+          c.type === 'personaggi' || c.type === 'personaggi_speciali'
+        );
+        if (allCharsDiv.length < 2) { emitChat(`⚡ DIVISIONE: non ci sono abbastanza personaggi.`); break; }
+        const strongest = allCharsDiv.reduce((max, c) => (c.pti || 0) > (max.pti || 0) ? c : max, allCharsDiv[0]);
+        const others = allCharsDiv.filter((c: Card) => c.id !== strongest.id && c.owner !== strongest.owner);
+        if (others.length === 0) { emitChat(`⚡ DIVISIONE: nessun avversario del personaggio più forte.`); break; }
+        const share = Math.floor((strongest.pti || 0) / (others.length + 1));
+        for (const c of others) { c.pti = (c.pti || 0) + share; this.updateCardTextWithPTI(c); }
+        strongest.pti = share; this.updateCardTextWithPTI(strongest);
+        emitChat(`⚡ DIVISIONE! I PTI di ${strongest.name || strongest.id} (${strongest.owner}) vengono divisi tra ${others.length} avversari (${share} PTI ciascuno)!`);
+        emitState(); break;
+      }
+
+      // ─── MODALITÀ ZOMBIE: il personaggio non può morire per 2 turni ─────────
+      case 'modalita_zombie': {
+        if (!myChar) { emitChat(`⚠️ MODALITÀ ZOMBIE: ${playerName} non ha un personaggio in campo.`); break; }
+        (myChar as any).zombieMode = 2;
+        emitChat(`🧟 MODALITÀ ZOMBIE! ${myChar.name || playerName} non può morire per 2 turni (neanche se PTI <= 0)!`);
+        emitState(); break;
+      }
+
+      // ─── CIPOLLA: se la prossima mossa è "Kebab", danno raddoppiato ──────────
+      case 'cipolla': {
+        (game as any).cipolla = (game as any).cipolla || {};
+        (game as any).cipolla[playerName] = true;
+        emitChat(`🧅 CIPOLLA! Se ${playerName} usa "Kebab" come prossima mossa, il danno sarà raddoppiato!`);
+        emitState(); break;
+      }
+
+      // ─── EFFETTI NAPOLETANI (+30 PTI) ────────────────────────────────────────
+      case 'e_nn_t_mitt_sscuorn': {
+        if (!myChar) { emitChat(`⚠️ E NN T MITT SSCUORN: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.pti = (myChar.pti || 0) + 30;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🤌 E NN T MITT SSCUORN! ${myChar.name || playerName} +30 PTI (PTI: ${myChar.pti})`);
+        emitState(); break;
+      }
+
+      case 'e_rispondi_pure': {
+        if (!myChar) { emitChat(`⚠️ E RISPONDI PURE: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.pti = (myChar.pti || 0) + 30;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🗣️ E RISPONDI PURE! ${myChar.name || playerName} +30 PTI (PTI: ${myChar.pti})`);
+        emitState(); break;
+      }
+
+      case 'e_tagg_trattat': {
+        if (!myChar) { emitChat(`⚠️ E TAGG TRATTAT: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.pti = (myChar.pti || 0) + 30;
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`👋 E TAGG TRATTAT! ${myChar.name || playerName} +30 PTI (PTI: ${myChar.pti})`);
+        emitState(); break;
+      }
+
+      // ─── EREDITÀ: riceve i PTI del personaggio precedentemente eliminato ──────
+      case 'eredita': {
+        if (!myChar) { emitChat(`⚠️ EREDITÀ: ${playerName} non ha un personaggio in campo.`); break; }
+        const lastDead = (game as any).lastDeadCharPti?.[playerName] || 0;
+        if (lastDead > 0) {
+          myChar.pti = (myChar.pti || 0) + lastDead;
+          this.updateCardTextWithPTI(myChar);
+          emitChat(`💰 EREDITÀ! ${myChar.name || playerName} eredita ${lastDead} PTI dal personaggio precedente! (PTI: ${myChar.pti})`);
+        } else {
+          emitChat(`💰 EREDITÀ: nessun personaggio eliminato in precedenza da ${playerName}.`);
+        }
+        emitState(); break;
+      }
+
+      // ─── LA BEVANDA DEL VERO CICLISTA: +200 PTI -1 stella ───────────────────
+      case 'la_bevanda_del_vero_ciclista': {
+        if (!myChar) { emitChat(`⚠️ LA BEVANDA DEL VERO CICLISTA: ${playerName} non ha un personaggio in campo.`); break; }
+        myChar.pti = (myChar.pti || 0) + 200;
+        myChar.stars = Math.max(0, (myChar.stars || 0) - 1);
+        this.updateCardTextWithPTI(myChar);
+        emitChat(`🚴 LA BEVANDA DEL VERO CICLISTA! ${myChar.name || playerName} +200 PTI -1 stella! (PTI: ${myChar.pti}, Stelle: ${myChar.stars})`);
+        emitState(); break;
+      }
+
       default:
         console.log(`⚠️ [NAMED-BONUS] Unknown effect: ${effectName}`);
     }
@@ -10815,7 +12171,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
 
       case 'modify_stars':
-        if (action.target && action.target !== 'all') {
+        if (action.target === 'all') {
+          const modStarsValue = action.value || 0;
+          for (const fc of game.field) {
+            if (fc.type === 'personaggi' || fc.type === 'personaggi_speciali') {
+              if (fc.stars == null) fc.stars = 0;
+              fc.stars = Math.max(0, Math.min(5, fc.stars + modStarsValue));
+              console.log(`⭐ modify_stars all: ${fc.name || fc.id} now has ${fc.stars} stelle`);
+            }
+          }
+        } else if (action.target) {
           const targetCard = game.field.find(c => c.id === action.target);
           if (targetCard && targetCard.stars != null) {
             targetCard.stars = action.value || 0;
@@ -18940,6 +20305,98 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return { success: true, insuranceTriggered: true };
     }
 
+    // MODALITA ZOMBIE: character cannot die for N turns
+    if (cardToCheck && (cardToCheck as any).zombieMode && (cardToCheck as any).zombieMode > 0) {
+      const turnsLeft = (cardToCheck as any).zombieMode - 1;
+      (cardToCheck as any).zombieMode = turnsLeft;
+      cardToCheck.pti = 1;
+      this.updateCardTextWithPTI(cardToCheck);
+      const cardNameZM = cardToCheck.name || this.getCardNameFromUrl(cardToCheck.frontImage || '');
+      const ioZM = (global as any).io;
+      if (ioZM) {
+        ioZM.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-zombie-mode`,
+          playerName: 'Sistema',
+          message: `🧟 MODALITÀ ZOMBIE! ${cardNameZM} non può morire (${turnsLeft} turni rimanenti)! PTI riportato a 1.`,
+          timestamp: Date.now()
+        });
+      }
+      return { success: true, insuranceTriggered: true };
+    }
+
+    // ALTA SALVA: absorb next lethal hit, then clear flag
+    if (cardToCheck && (cardToCheck as any).altaSalva) {
+      delete (cardToCheck as any).altaSalva;
+      cardToCheck.pti = 1;
+      this.updateCardTextWithPTI(cardToCheck);
+      const cardNameAS = cardToCheck.name || this.getCardNameFromUrl(cardToCheck.frontImage || '');
+      const ioAS = (global as any).io;
+      if (ioAS) {
+        ioAS.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-alta-salva`,
+          playerName: 'Sistema',
+          message: `🛡️ ALTA SALVA! ${cardNameAS} assorbe il colpo mortale e rimane in campo con 1 PTI!`,
+          timestamp: Date.now()
+        });
+      }
+      return { success: true, insuranceTriggered: true };
+    }
+
+    // BOOMERANG NEXT: reflect lethal damage back to attacker
+    if (cardToCheck && (cardToCheck as any).boomerangNext) {
+      delete (cardToCheck as any).boomerangNext;
+      cardToCheck.pti = 1;
+      this.updateCardTextWithPTI(cardToCheck);
+      const cardNameBN = cardToCheck.name || this.getCardNameFromUrl(cardToCheck.frontImage || '');
+      const ioBoomerang = (global as any).io;
+      if (attacker && ioBoomerang) {
+        const attackerChar = this.getPlayerActiveCharacter(game, attacker);
+        if (attackerChar && (attackerChar.pti ?? 0) > 0) {
+          const reflectedDmg = Math.max(1, Math.floor((attackerChar.pti ?? 0) * 0.3));
+          attackerChar.pti = Math.max(1, (attackerChar.pti ?? 0) - reflectedDmg);
+          this.updateCardTextWithPTI(attackerChar);
+          ioBoomerang.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-boomerang-next`,
+            playerName: 'Sistema',
+            message: `🪃 BOOMERANG! ${cardNameBN} riflette il danno mortale! ${attacker} perde ${reflectedDmg} PTI! ${cardNameBN} sopravvive con 1 PTI.`,
+            timestamp: Date.now()
+          });
+        } else {
+          ioBoomerang.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-boomerang-next-noreflect`,
+            playerName: 'Sistema',
+            message: `🪃 BOOMERANG! ${cardNameBN} sopravvive con 1 PTI.`,
+            timestamp: Date.now()
+          });
+        }
+      }
+      return { success: true, insuranceTriggered: true };
+    }
+
+    // REFLECT DOUBLE NEXT: reflect AND double the lethal damage back to attacker
+    if (cardToCheck && (cardToCheck as any).reflectDoubleNext) {
+      delete (cardToCheck as any).reflectDoubleNext;
+      cardToCheck.pti = 1;
+      this.updateCardTextWithPTI(cardToCheck);
+      const cardNameRDN = cardToCheck.name || this.getCardNameFromUrl(cardToCheck.frontImage || '');
+      const ioRDN = (global as any).io;
+      if (attacker && ioRDN) {
+        const attackerCharRDN = this.getPlayerActiveCharacter(game, attacker);
+        if (attackerCharRDN && (attackerCharRDN.pti ?? 0) > 0) {
+          const reflectedDmgRDN = Math.max(1, Math.floor((attackerCharRDN.pti ?? 0) * 0.5));
+          attackerCharRDN.pti = Math.max(1, (attackerCharRDN.pti ?? 0) - reflectedDmgRDN);
+          this.updateCardTextWithPTI(attackerCharRDN);
+          ioRDN.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-reflect-double`,
+            playerName: 'Sistema',
+            message: `🔁 RIFLETTI E RADDOPPIA! ${cardNameRDN} riflette il danno raddoppiato! ${attacker} perde ${reflectedDmgRDN} PTI! ${cardNameRDN} sopravvive con 1 PTI.`,
+            timestamp: Date.now()
+          });
+        }
+      }
+      return { success: true, insuranceTriggered: true };
+    }
+
     // BRIAN / RETURN ON DEATH: Check if card should return to hand instead of graveyard
     if (cardToCheck && (cardToCheck as any).returnToHandOnDeath) {
       const cardOwner = cardToCheck.owner || playerName;
@@ -20254,6 +21711,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     console.log(`🔄 Processing BARATTO swap between ${playerName} and ${targetPlayer}`);
 
+    // POSITION LOCKED: if either player's character is positionLocked, block the swap
+    const p1Char = this.getPlayerActiveCharacter(game, playerName);
+    const p2Char = this.getPlayerActiveCharacter(game, targetPlayer);
+    if ((p1Char as any)?.positionLocked) {
+      if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-poslock`, playerName: 'Sistema', message: `🔒 POSIZIONE BLOCCATA! Il personaggio di ${playerName} è bloccato e non può essere scambiato!`, timestamp: Date.now() });
+      return { success: false, message: 'Personaggio bloccato: impossibile scambiare' };
+    }
+    if ((p2Char as any)?.positionLocked) {
+      if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-poslock2`, playerName: 'Sistema', message: `🔒 POSIZIONE BLOCCATA! Il personaggio di ${targetPlayer} è bloccato e non può essere scambiato!`, timestamp: Date.now() });
+      return { success: false, message: 'Personaggio bloccato: impossibile scambiare' };
+    }
+
     const player1Data = game.players[playerName];
     const player2Data = game.players[targetPlayer];
 
@@ -20704,6 +22173,151 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-bd-no`, playerName: 'Sistema', message: `🎸 ${playerName} rifiuta il patto con quello di giù.`, timestamp: Date.now() });
       }
       if (io) io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      return true;
+    }
+
+    // ── GASATA ────────────────────────────────────────────────────────────────
+    const pendingGasata = (game as any).pendingGasata;
+    if (pendingGasata && pendingGasata.choiceId === choiceId && pendingGasata.playerName === playerName) {
+      delete (game as any).pendingGasata;
+      const myCharGasata = game.field.find((c: Card) => c.id === pendingGasata.myCharId);
+      const tgtCharGasata = this.getPlayerActiveCharacter(game, value);
+      if (myCharGasata) { myCharGasata.pti = (myCharGasata.pti || 0) + 500; this.updateCardTextWithPTI(myCharGasata); }
+      if (tgtCharGasata) { tgtCharGasata.pti = (tgtCharGasata.pti || 0) + 500; this.updateCardTextWithPTI(tgtCharGasata); }
+      if (io) {
+        io.to(gameId).emit('chat-message', { id: `${Date.now()}-gasata`, playerName: 'Sistema', message: `🥤 GASATA! ${myCharGasata?.name || playerName} e ${tgtCharGasata?.name || value} guadagnano entrambi +500 PTI!`, timestamp: Date.now() });
+        io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      }
+      return true;
+    }
+
+    // ── SFERE DEL DRAGO ───────────────────────────────────────────────────────
+    const pendingSfereDrago = (game as any).pendingSfereDrago;
+    if (pendingSfereDrago && pendingSfereDrago.choiceId === choiceId && pendingSfereDrago.playerName === playerName) {
+      delete (game as any).pendingSfereDrago;
+      const graveIdx = (game.graveyard || []).findIndex((c: Card) => c.id === value);
+      if (graveIdx !== -1) {
+        const picked = game.graveyard.splice(graveIdx, 1)[0];
+        if (!game.players[playerName].hand) game.players[playerName].hand = [];
+        (game.players[playerName].hand as Card[]).push(picked);
+        if (io) {
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-sfere-drago`, playerName: 'Sistema', message: `🔮 SFERE DEL DRAGO! ${playerName} riporta in mano "${picked.name || picked.id}" dal cimitero!`, timestamp: Date.now() });
+          io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+        }
+      }
+      return true;
+    }
+
+    // ── M DI MAJIN BU ─────────────────────────────────────────────────────────
+    const pendingMajinBu = (game as any).pendingMajinBu;
+    if (pendingMajinBu && pendingMajinBu.choiceId === choiceId && pendingMajinBu.playerName === playerName) {
+      delete (game as any).pendingMajinBu;
+      const types = ['personaggi', 'mosse', 'bonus'];
+      const forced = types[Math.floor(Math.random() * types.length)];
+      (game as any).majinBuControl = { controller: playerName, target: value, forcedType: forced };
+      if (io) {
+        io.to(gameId).emit('chat-message', { id: `${Date.now()}-majin-bu`, playerName: 'Sistema', message: `👹 M DI MAJIN BU! ${playerName} assume il governo del prossimo turno di ${value} — dovrà giocare una carta tipo: ${forced}!`, timestamp: Date.now() });
+        io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      }
+      return true;
+    }
+
+    // ── CROSSOVER ─────────────────────────────────────────────────────────────
+    const pendingCrossover = (game as any).pendingCrossover;
+    if (pendingCrossover && pendingCrossover.choiceId === choiceId && pendingCrossover.playerName === playerName) {
+      delete (game as any).pendingCrossover;
+      const stolenCross = game.field.find((c: Card) => c.id === value);
+      if (stolenCross) {
+        const oldOwnerCross = stolenCross.owner;
+        stolenCross.owner = playerName;
+        if (io) {
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-crossover`, playerName: 'Sistema', message: `🔀 CROSSOVER! ${playerName} ruba ${stolenCross.name || stolenCross.id} da ${oldOwnerCross}!`, timestamp: Date.now() });
+          io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+        }
+      }
+      return true;
+    }
+
+    // ── AMEECO ────────────────────────────────────────────────────────────────
+    const pendingAmeeco = (game as any).pendingAmeeco;
+    if (pendingAmeeco && pendingAmeeco.choiceId === choiceId && pendingAmeeco.playerName === playerName) {
+      delete (game as any).pendingAmeeco;
+      const myCharAmeeco = game.field.find((c: Card) => c.id === pendingAmeeco.myCharId);
+      const enemyAmeeco = game.field.find((c: Card) => c.id === value);
+      if (myCharAmeeco && enemyAmeeco) {
+        const oldOwnerAmeeco = enemyAmeeco.owner!;
+        const fusedPti = (myCharAmeeco.pti || 0) + (enemyAmeeco.pti || 0) + 500;
+        const fusedStars = (myCharAmeeco.stars || 0) + (enemyAmeeco.stars || 0);
+        myCharAmeeco.pti = fusedPti; myCharAmeeco.stars = fusedStars;
+        this.updateCardTextWithPTI(myCharAmeeco);
+        const cloneAmeeco: Card = { ...JSON.parse(JSON.stringify(myCharAmeeco)), id: `${myCharAmeeco.id}-ameeco-clone-${Date.now()}`, owner: oldOwnerAmeeco };
+        game.field = game.field.filter((c: Card) => c.id !== enemyAmeeco.id);
+        game.field.push(cloneAmeeco);
+        if (io) {
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-ameeco`, playerName: 'Sistema', message: `🤝 AMEECO! ${myCharAmeeco.name || playerName} assorbe ${enemyAmeeco.name || oldOwnerAmeeco} (${fusedPti} PTI, ${fusedStars} stelle) e il clone va a ${oldOwnerAmeeco}!`, timestamp: Date.now() });
+          io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+        }
+      }
+      return true;
+    }
+
+    // ── BOLLA DI SAPONE ───────────────────────────────────────────────────────
+    const pendingBolla = (game as any).pendingBolla;
+    if (pendingBolla && pendingBolla.choiceId === choiceId && pendingBolla.playerName === playerName) {
+      delete (game as any).pendingBolla;
+      if (!(game as any).cardPlayBlock) (game as any).cardPlayBlock = {};
+      (game as any).cardPlayBlock[value] = ((game as any).cardPlayBlock[value] || 0) + 1;
+      if (io) {
+        io.to(gameId).emit('chat-message', { id: `${Date.now()}-bolla`, playerName: 'Sistema', message: `🫧 BOLLA DI SAPONE! ${value} non può giocare carte per 1 turno!`, timestamp: Date.now() });
+        io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      }
+      return true;
+    }
+
+    // ── UNIONE CLANDESTINA ────────────────────────────────────────────────────
+    const pendingUniClandestina = (game as any).pendingUniClandestina;
+    if (pendingUniClandestina && pendingUniClandestina.choiceId === choiceId && pendingUniClandestina.playerName === playerName) {
+      delete (game as any).pendingUniClandestina;
+      const myCharUni = game.field.find((c: Card) => c.id === pendingUniClandestina.myCharId);
+      const enemyUni = game.field.find((c: Card) => c.id === value);
+      if (myCharUni && enemyUni) {
+        myCharUni.pti = (myCharUni.pti || 0) + (enemyUni.pti || 0);
+        myCharUni.stars = (myCharUni.stars || 0) + (enemyUni.stars || 0);
+        this.updateCardTextWithPTI(myCharUni);
+        game.field = game.field.filter((c: Card) => c.id !== enemyUni.id);
+        if (io) {
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-uni-clandestina`, playerName: 'Sistema', message: `💞 UNIONE CLANDESTINA! ${myCharUni.name || playerName} si fonde con ${enemyUni.name || enemyUni.id}! (PTI: ${myCharUni.pti}, Stelle: ${myCharUni.stars})`, timestamp: Date.now() });
+          io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+        }
+      }
+      return true;
+    }
+
+    // ── TAROCCATA ─────────────────────────────────────────────────────────────
+    const pendingTaroccata = (game as any).pendingTaroccata;
+    if (pendingTaroccata && pendingTaroccata.choiceId === choiceId && pendingTaroccata.playerName === playerName) {
+      delete (game as any).pendingTaroccata;
+      this.handleEvolutionTransformation(game, gameId, value, 'taroccata');
+      if (io) {
+        io.to(gameId).emit('chat-message', { id: `${Date.now()}-taroccata`, playerName: 'Sistema', message: `🃏 TAROCCATA! ${playerName} fa taroccate ${value}!`, timestamp: Date.now() });
+        io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      }
+      return true;
+    }
+
+    // ── TABULA RASA ───────────────────────────────────────────────────────────
+    const pendingTabulaRasa = (game as any).pendingTabulaRasa;
+    if (pendingTabulaRasa && pendingTabulaRasa.choiceId === choiceId && pendingTabulaRasa.playerName === playerName) {
+      delete (game as any).pendingTabulaRasa;
+      const tabulaTarget = game.field.find((c: Card) => c.id === value);
+      if (tabulaTarget) {
+        tabulaTarget.pti = 1;
+        this.updateCardTextWithPTI(tabulaTarget);
+        if (io) {
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-tabula-rasa`, playerName: 'Sistema', message: `🪶 TABULA RASA! ${tabulaTarget.name || value} (${tabulaTarget.owner}) va a 1 PTI!`, timestamp: Date.now() });
+          io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+        }
+      }
       return true;
     }
 

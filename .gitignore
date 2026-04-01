@@ -6,3 +6,4 @@ vite.config.ts.*
 *.tar.gzserver/data/cardModifications.json
 server/data/cardModifications.json
 server/data/cardModifications.json
+server/data/cardModifications.json
