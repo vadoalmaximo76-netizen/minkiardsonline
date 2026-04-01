@@ -95,7 +95,7 @@ export function ActivityFeed() {
               <h2 className="text-orange-400 font-bold uppercase text-xs tracking-wider">Evento Palestra</h2>
             </div>
             <p className="font-semibold">Sfida Palestra disponibile</p>
-            <p className="text-white/60 text-sm mt-1">Sconfiggi il capopalestra per ottenere il badge</p>
+            <p className="text-white/60 text-sm mt-1">Sconfiggi il Boss per ottenere il badge</p>
           </button>
 
           {/* Card STORICO */}

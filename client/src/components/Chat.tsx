@@ -158,7 +158,7 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="text-base">⚔️</span>
                 <span className="font-black text-xs" style={{ color: '#f59e0b' }}>{msg.playerName}</span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded ml-1" style={{ background: 'rgba(245,158,11,0.2)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.5)' }}>CAPOPALESTRA</span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded ml-1" style={{ background: 'rgba(245,158,11,0.2)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.5)' }}>BOSS</span>
               </div>
               <span className="text-yellow-100 font-medium">{msg.message}</span>
             </div>
