@@ -6,7 +6,7 @@ import OpenAI from "openai";
 import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
-import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable, switchToFallback, getFallbackDb, getPrimaryDb } from "./db";
+import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable, switchToFallback, getFallbackDb, getPrimaryDb, isUsingFallback } from "./db";
 
 function handle402(err: unknown): boolean {
   const msg = (err as any)?.message ?? '';
@@ -35,15 +35,49 @@ const jwtSecret = JWT_SECRET;
 // connection (bypasses the Drizzle/neon HTTP quota wrapper) and upserts them
 // into the target DB (defaults to current active DB) preserving original IDs.
 // Returns the number of rows synced, or throws on failure.
+
+interface ExternalGymLeaderRow {
+  id: number;
+  order_index: number;
+  name: string;
+  gym_name: string;
+  description: string | null;
+  specialty: string | null;
+  leader_image_url: string | null;
+  badge_image_url: string | null;
+  background_image_url: string | null;
+  cpu_level: string;
+  deck_bias: unknown;
+  custom_deck: unknown;
+  lives_count: number;
+  player_starting_deck: unknown;
+  starter_deck_options: unknown;
+  reward_credits: number;
+  reward_description: string | null;
+  youtube_music_url: string | null;
+  leader_messages: unknown;
+  cpu_count: number;
+  cpu_configs: unknown;
+  attack_mode: string;
+  is_active: boolean;
+  created_at: Date;
+}
+
 async function syncGymLeadersFromExternalDb(targetDb?: typeof db): Promise<number> {
   const extUrl = process.env.EXTERNAL_DATABASE_URL;
   if (!extUrl) throw new Error('EXTERNAL_DATABASE_URL non configurato');
 
   const pgModule = await import('pg');
-  const PgClient = (pgModule.default as any)?.Client ?? (pgModule as any).Client;
-  const client = new PgClient({ connectionString: extUrl, connectionTimeoutMillis: 10000 });
+  // Support both ESM default export and CommonJS named export patterns
+  const PgClientCtor: new (opts: { connectionString: string; connectionTimeoutMillis: number }) => {
+    connect(): Promise<void>;
+    query(text: string): Promise<{ rows: ExternalGymLeaderRow[] }>;
+    end(): Promise<void>;
+  } = (pgModule as { default?: { Client?: unknown }; Client?: unknown }).default?.Client as never
+    ?? (pgModule as { Client?: unknown }).Client as never;
+  const client = new PgClientCtor({ connectionString: extUrl, connectionTimeoutMillis: 10000 });
   await client.connect();
-  let rows: any[];
+  let rows: ExternalGymLeaderRow[];
   try {
     const res = await client.query('SELECT * FROM gym_leaders ORDER BY order_index');
     rows = res.rows;
@@ -1338,12 +1372,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Current DB has leaders. Ensure fallback DB (Replit) is also populated so that
         // if Neon goes over quota again the fallback can serve gym leaders too.
         const fallbackDb = getFallbackDb();
-        if (fallbackDb && fallbackDb !== (db as any)) {
+        if (fallbackDb && !isUsingFallback()) {
           try {
             const fallbackCount = await fallbackDb.select({ id: gymLeaders.id }).from(gymLeaders);
             if (fallbackCount.length === 0 && process.env.EXTERNAL_DATABASE_URL) {
               console.log('🔄 [startup] DB fallback (Replit) senza gym leader — sync da DB esterno...');
-              const synced = await syncGymLeadersFromExternalDb(fallbackDb as any);
+              const synced = await syncGymLeadersFromExternalDb(fallbackDb as typeof db);
               if (synced > 0) {
                 console.log(`✅ [startup] Sincronizzati ${synced} gym leader da DB esterno → DB fallback (Replit)`);
               }
