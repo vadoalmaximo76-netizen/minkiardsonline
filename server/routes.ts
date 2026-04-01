@@ -23,7 +23,7 @@ import { authMiddleware, ADMIN_FALLBACK, JWT_SECRET } from "./auth";
 import { setPlayerOnline, rateLimit as redisRateLimit, isRedisConfigured, updateLeaderboard as redisUpdateLeaderboard, cacheGet, cacheSet } from "./redis";
 import { getOptimizedCardUrl, isCloudinaryConfigured, cloudinaryInstance } from "./cloudinary";
 import { captureError } from "./sentry";
-import { emitSync, fullSync, getSyncStatus } from "./dbSync";
+import { emitSync, fullSync, getSyncStatus, forceSync, getForceSyncStatus } from "./dbSync";
 import { generateHelpMessage, buildHelpContext, emitHelpMessage } from "./helpCoach";
 
 const helpCooldowns = new Map<string, number>();
@@ -11909,6 +11909,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, ...getSyncStatus() });
     } catch (error) {
       res.status(500).json({ success: false, error: 'Errore stato sincronizzazione' });
+    }
+  });
+
+  // Force sync: Neon → Replit DB + JSON (with overwrite) — production → dev
+  app.post('/api/admin/force-sync-from-neon', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = req.user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Admin only' });
+      }
+      const currentStatus = getForceSyncStatus();
+      if (currentStatus.inProgress) {
+        return res.status(409).json({ success: false, error: 'Sincronizzazione forzata già in corso', status: currentStatus });
+      }
+      forceSync().then(result => {
+        console.log('[/api/admin/force-sync-from-neon] Completed:', result?.tablesOk.length, 'tables ok');
+      }).catch(err => {
+        console.warn('[/api/admin/force-sync-from-neon] Error:', err.message);
+      });
+      res.json({ success: true, message: 'Sincronizzazione forzata avviata. Usa /api/admin/force-sync-from-neon/status per monitorare.' });
+    } catch (error) {
+      console.error('[force-sync-from-neon] Error:', error);
+      res.status(500).json({ success: false, error: 'Errore avvio sincronizzazione forzata' });
+    }
+  });
+
+  // Status of the last (or current) force sync
+  app.get('/api/admin/force-sync-from-neon/status', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = req.user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Admin only' });
+      }
+      res.json({ success: true, ...getForceSyncStatus() });
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'Errore stato sincronizzazione forzata' });
     }
   });
 

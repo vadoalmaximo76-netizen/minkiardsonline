@@ -208,6 +208,11 @@ export const jsonStorage = {
     getAll(): CustomCard[] {
       return readJsonFile<CustomCard>('customCards');
     },
+
+    replaceAll(data: CustomCard[]): void {
+      writeJsonFile('customCards', data);
+      console.log(`[JSON] Replaced all custom cards: ${data.length} entries`);
+    },
     
     getByDeckType(deckType: string): CustomCard[] {
       return this.getAll().filter(card => card.deckType === deckType);
@@ -256,6 +261,11 @@ export const jsonStorage = {
   cardModifications: {
     getAll(): CardModification[] {
       return readJsonFile<CardModification>('cardModifications');
+    },
+
+    replaceAll(data: CardModification[]): void {
+      writeJsonFile('cardModifications', data);
+      console.log(`[JSON] Replaced all card modifications: ${data.length} entries`);
     },
     
     getByOriginalCardId(originalCardId: string): CardModification | undefined {
@@ -360,6 +370,11 @@ export const jsonStorage = {
   cardSkins: {
     getAll(): CardSkin[] {
       return readJsonFile<CardSkin>('cardSkins');
+    },
+
+    replaceAll(data: CardSkin[]): void {
+      writeJsonFile('cardSkins', data);
+      console.log(`[JSON] Replaced all card skins: ${data.length} entries`);
     },
     
     getAvailable(): CardSkin[] {
@@ -467,6 +482,11 @@ export const jsonStorage = {
     getAll(): Achievement[] {
       return readJsonFile<Achievement>('achievements');
     },
+
+    replaceAll(data: Achievement[]): void {
+      writeJsonFile('achievements', data);
+      console.log(`[JSON] Replaced all achievements: ${data.length} entries`);
+    },
     
     getByCode(code: string): Achievement | undefined {
       return this.getAll().find(a => a.code === code);
@@ -519,6 +539,11 @@ export const jsonStorage = {
   missionTemplates: {
     getAll(): MissionTemplate[] {
       return readJsonFile<MissionTemplate>('missionTemplates');
+    },
+
+    replaceAll(data: MissionTemplate[]): void {
+      writeJsonFile('missionTemplates', data);
+      console.log(`[JSON] Replaced all mission templates: ${data.length} entries`);
     },
     
     getByCode(code: string): MissionTemplate | undefined {
@@ -575,6 +600,11 @@ export const jsonStorage = {
   tutorialSteps: {
     getAll(): TutorialStep[] {
       return readJsonFile<TutorialStep>('tutorialSteps');
+    },
+
+    replaceAll(data: TutorialStep[]): void {
+      writeJsonFile('tutorialSteps', data);
+      console.log(`[JSON] Replaced all tutorial steps: ${data.length} entries`);
     },
     
     getActive(): TutorialStep[] {

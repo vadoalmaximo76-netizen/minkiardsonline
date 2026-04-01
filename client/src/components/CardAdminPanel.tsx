@@ -5,7 +5,7 @@ import { OcrReviewPanel } from './OcrReviewPanel';
 import { DraftCostEditorPanel } from './DraftCostEditorPanel';
 import { AdminGymPanel } from './AdminGymPanel';
 import { Button } from './ui/button';
-import { Info, Eye, Coins, Check, X, Zap, ListOrdered, Menu, Shield, Database, RefreshCw } from 'lucide-react';
+import { Info, Eye, Coins, Check, X, Zap, ListOrdered, Menu, Shield, Database, RefreshCw, CloudDownload } from 'lucide-react';
 
 interface CardAdminPanelProps {
   onBack: () => void;
@@ -167,6 +167,10 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
   const [syncRunning, setSyncRunning] = useState(false);
   const [syncResult, setSyncResult] = useState<any | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [showForceSyncDialog, setShowForceSyncDialog] = useState(false);
+  const [forceSyncRunning, setForceSyncRunning] = useState(false);
+  const [forceSyncResult, setForceSyncResult] = useState<any | null>(null);
+  const [forceSyncError, setForceSyncError] = useState<string | null>(null);
   const authToken = localStorage.getItem('authToken');
 
   useEffect(() => {
@@ -213,6 +217,38 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
     }
   };
 
+  const runForceSync = async () => {
+    setForceSyncRunning(true);
+    setForceSyncResult(null);
+    setForceSyncError(null);
+    try {
+      const res = await fetch('/api/admin/force-sync-from-neon', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const poll = async () => {
+          const r2 = await fetch('/api/admin/force-sync-from-neon/status', { headers: { Authorization: `Bearer ${authToken}` } });
+          const d2 = await r2.json();
+          if (d2.inProgress) {
+            setTimeout(poll, 2000);
+          } else {
+            setForceSyncResult(d2.lastResult);
+            setForceSyncRunning(false);
+          }
+        };
+        setTimeout(poll, 2000);
+      } else {
+        setForceSyncError(data.error || 'Errore sconosciuto');
+        setForceSyncRunning(false);
+      }
+    } catch (e: any) {
+      setForceSyncError(e.message || 'Errore di rete');
+      setForceSyncRunning(false);
+    }
+  };
+
   const runAutoCost = async () => {
     setAutoCostRunning(true);
     setAutoCostResult(null);
@@ -250,6 +286,7 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
           <div className="absolute top-full right-0 mt-1 w-52 bg-gray-800 border border-white/15 rounded-xl shadow-2xl overflow-hidden">
             {[
               { label: 'Sincronizza DB', icon: <Database size={14} />, color: 'text-green-300', onClick: () => { setShowSyncDialog(true); setSyncResult(null); setSyncError(null); setShowMenu(false); } },
+              { label: 'Aggiorna da Produzione', icon: <CloudDownload size={14} />, color: 'text-cyan-300', onClick: () => { setShowForceSyncDialog(true); setForceSyncResult(null); setForceSyncError(null); setShowMenu(false); } },
               { label: 'Palestre', icon: <Shield size={14} />, color: 'text-yellow-300', onClick: () => { setShowGymPanel(true); setShowMenu(false); } },
               { label: 'Editor Costi Draft', icon: <ListOrdered size={14} />, color: 'text-indigo-300', onClick: () => { setShowDraftCostEditor(true); setShowMenu(false); } },
               { label: 'Costi Draft Auto', icon: <Zap size={14} />, color: 'text-orange-300', onClick: () => { setShowAutoCostDialog(true); setAutoCostResult(null); setAutoCostError(null); setShowMenu(false); } },
@@ -372,6 +409,72 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
                   >
                     Chiudi
                   </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* AGGIORNA DA PRODUZIONE DIALOG */}
+      {showForceSyncDialog && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[200]" onClick={() => { if (!forceSyncRunning) setShowForceSyncDialog(false); }}>
+          <div className="bg-gray-900 border border-cyan-500/30 rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-4">
+              <CloudDownload className="w-5 h-5 text-cyan-400" />
+              <h3 className="text-lg font-bold text-white">Aggiorna da Produzione</h3>
+            </div>
+            {!forceSyncResult ? (
+              <>
+                <p className="text-white/70 text-sm mb-4">
+                  Sovrascrive i dati locali con quelli del database <span className="text-cyan-300 font-semibold">Neon (produzione)</span>:
+                </p>
+                <ul className="text-white/60 text-sm mb-4 space-y-1.5">
+                  <li className="flex items-center gap-2">• <span className="text-orange-300">card_modifications</span> — modifiche alle carte esistenti</li>
+                  <li className="flex items-center gap-2">• <span className="text-orange-300">custom_cards</span> — carte custom create in produzione</li>
+                  <li className="flex items-center gap-2">• <span className="text-orange-300">card_skins</span> — skin delle carte</li>
+                  <li className="flex items-center gap-2">• <span className="text-orange-300">achievements, missions</span> — traguardi e missioni</li>
+                  <li className="flex items-center gap-2">• <span className="text-orange-300">personaggi, tutorial</span> — dati di configurazione</li>
+                </ul>
+                <p className="text-amber-400/80 text-xs mb-4 border border-amber-500/30 rounded-lg px-3 py-2">
+                  ⚠️ Questa operazione <strong>sovrascrive</strong> i dati esistenti (onConflictDoUpdate). I dati locali modificati in sviluppo verranno rimpiazzati con quelli della produzione.
+                </p>
+                {forceSyncError && (
+                  <div className="bg-red-900/50 text-red-300 text-sm rounded px-3 py-2 mb-3">{forceSyncError}</div>
+                )}
+                <div className="flex gap-3 justify-end">
+                  <Button variant="outline" size="sm" onClick={() => setShowForceSyncDialog(false)} className="border-white/20 text-white/70" disabled={forceSyncRunning}>
+                    Annulla
+                  </Button>
+                  <Button size="sm" onClick={runForceSync} disabled={forceSyncRunning} className="bg-cyan-700 hover:bg-cyan-600 text-white">
+                    {forceSyncRunning ? <><RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Aggiornamento...</> : 'Aggiorna da Produzione'}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="bg-cyan-900/40 border border-cyan-500/30 rounded-xl p-4 mb-4">
+                  <div className="text-cyan-300 font-bold text-base mb-2 flex items-center gap-2">
+                    <Check className="w-4 h-4" /> Aggiornamento completato!
+                  </div>
+                  <div className="text-white text-sm mb-1">
+                    <span className="font-semibold text-cyan-300">{forceSyncResult.tablesOk?.length ?? '—'}</span> tabelle ok,{' '}
+                    <span className="text-red-300">{forceSyncResult.tablesFailed?.length ?? 0}</span> errori
+                  </div>
+                  <div className="text-white/60 text-xs mt-2 space-y-0.5">
+                    {forceSyncResult.tablesUpdated && Object.entries(forceSyncResult.tablesUpdated).map(([table, count]) => (
+                      <div key={table}>• {table}: <span className="text-cyan-300">{count as number} righe</span></div>
+                    ))}
+                    <div className="mt-1">→ Replit DB: <span className="text-blue-300">{forceSyncResult.totalRowsUpserted ?? 0} righe</span></div>
+                    <div>→ JSON: <span className="text-yellow-300">{forceSyncResult.totalJsonUpdated ?? 0} righe</span></div>
+                    <div>⏱ Durata: {forceSyncResult.durationMs ? `${(forceSyncResult.durationMs / 1000).toFixed(1)}s` : '—'}</div>
+                    {forceSyncResult.errors?.length > 0 && (
+                      <div className="text-red-300 mt-1">Errori: {forceSyncResult.errors.slice(0, 3).join('; ')}</div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button size="sm" onClick={() => setShowForceSyncDialog(false)} className="bg-gray-600 hover:bg-gray-500 text-white">Chiudi</Button>
                 </div>
               </>
             )}

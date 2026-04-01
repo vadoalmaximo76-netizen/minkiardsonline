@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/neon-http';
 import { neon } from '@neondatabase/serverless';
 import * as schema from '../shared/schema';
-import { eq } from 'drizzle-orm';
+import { eq, notInArray, sql } from 'drizzle-orm';
 import { jsonStorage } from './jsonStorage';
 import { EventEmitter } from 'events';
 
@@ -626,6 +626,335 @@ export function stopPeriodicSync() {
     _periodicSyncTimer = null;
   }
 }
+
+// ── Force Sync: Neon → Replit DB + JSON (with OVERWRITE) ────────────────────
+
+interface ForceSyncStatus {
+  inProgress: boolean;
+  lastRun: Date | null;
+  lastResult: {
+    tablesUpdated: Record<string, number>;
+    tablesOk: string[];
+    tablesFailed: string[];
+    totalRowsUpserted: number;
+    totalJsonUpdated: number;
+    errors: string[];
+    durationMs: number;
+  } | null;
+}
+
+const _forceSyncStatus: ForceSyncStatus = {
+  inProgress: false,
+  lastRun: null,
+  lastResult: null,
+};
+
+export function getForceSyncStatus(): ForceSyncStatus {
+  return { ..._forceSyncStatus };
+}
+
+// Admin-configurable tables for force-sync (no transactional/match data)
+const FORCE_SYNC_TABLES = [
+  'card_modifications',
+  'custom_cards',
+  'card_skins',
+  'achievements',
+  'mission_templates',
+  'personaggi',
+  'tutorial_steps',
+];
+
+// Per-table upsert configuration: maps table key → unique conflict target column
+// Used to build correct onConflictDoUpdate calls for each table.
+const TABLE_CONFLICT_TARGETS: Record<string, string> = {
+  card_modifications: 'originalCardId',
+  tutorial_steps: 'stepId',
+  achievements: 'code',
+  mission_templates: 'code',
+  personaggi: 'name',
+  custom_cards: 'id',
+  card_skins: 'id',
+};
+
+// Build the `set` object for onConflictDoUpdate using sql`excluded."col"` references.
+// Using `excluded` ensures each conflicting row is updated with its OWN inserted values,
+// not the first row's values (which would corrupt multi-row chunk upserts).
+function buildExcludedSet(tableSchema: any, sampleRow: any, conflictKey: string): Record<string, any> {
+  const set: Record<string, any> = {};
+  for (const k of Object.keys(sampleRow)) {
+    if (k === 'id' || k === conflictKey) continue;
+    if (tableSchema[k] === undefined) continue;
+    // Reference the column from the excluded pseudo-table (the proposed inserted row)
+    const colName = tableSchema[k].name ?? k;
+    set[k] = sql.raw(`excluded."${colName}"`);
+  }
+  return set;
+}
+
+interface UpsertOverwriteResult { upserted: number; rowErrors: string[]; }
+
+// True overwrite for Replit DB: onConflictDoUpdate keyed by correct unique constraint.
+// Uses sql`excluded.col` references so each conflicting row updates from its own values.
+// Returns { upserted, rowErrors } so callers can surface row-level failures explicitly.
+async function upsertTableOverwrite(destDb: ExtDbType, tableKey: string, rows: any[]): Promise<UpsertOverwriteResult> {
+  const tableSchema = tableMap[tableKey];
+  if (!tableSchema || rows.length === 0) return { upserted: 0, rowErrors: [] };
+  const conflictKey = TABLE_CONFLICT_TARGETS[tableKey] || 'id';
+
+  const missingCols = new Set<string>();
+  let upserted = 0;
+  const rowErrors: string[] = [];
+
+  // Per-row upsert: safest form — each row gets its own onConflictDoUpdate with excluded refs
+  const upsertRow = async (row: any): Promise<boolean> => {
+    const cleaned = missingCols.size > 0
+      ? Object.fromEntries(Object.entries(row).filter(([k]) => !missingCols.has(k)))
+      : row;
+    try {
+      const setObj = buildExcludedSet(tableSchema, cleaned, conflictKey);
+      if (Object.keys(setObj).length === 0) {
+        await destDb.insert(tableSchema).values(cleaned).onConflictDoNothing();
+      } else {
+        await destDb.insert(tableSchema).values(cleaned).onConflictDoUpdate({
+          target: tableSchema[conflictKey],
+          set: setObj,
+        });
+      }
+      return true;
+    } catch (err: any) {
+      const missing = extractMissingColumn(err);
+      if (missing) {
+        missingCols.add(missing);
+        return upsertRow(row); // retry with column stripped
+      }
+      const key = row[conflictKey] ?? row.id ?? '?';
+      rowErrors.push(`${tableKey}[${key}]: ${err.message}`);
+      return false;
+    }
+  };
+
+  for (const row of rows) {
+    if (await upsertRow(row)) upserted++;
+  }
+  if (missingCols.size > 0) {
+    console.log(`  ℹ️ [ForceSync] ${tableKey}: stripped unknown columns [${[...missingCols].join(', ')}]`);
+  }
+  return { upserted, rowErrors };
+}
+
+interface StaleDeleteResult { deleted: number; error?: string; }
+
+// Delete rows from destDb whose conflict-key value is NOT in the Neon source set.
+// Uses the same per-table unique key as the upsert (originalCardId, code, name, id)
+// to avoid misidentifying rows as stale based on possibly-divergent numeric IDs.
+// Returns { deleted, error } so callers can surface failures accurately.
+async function deleteStaleRows(destDb: ExtDbType, tableKey: string, neonConflictValues: any[]): Promise<StaleDeleteResult> {
+  const tableSchema = tableMap[tableKey];
+  if (!tableSchema) return { deleted: 0 };
+  const conflictKey = TABLE_CONFLICT_TARGETS[tableKey] || 'id';
+  const conflictCol = tableSchema[conflictKey];
+  if (!conflictCol) return { deleted: 0 };
+  try {
+    if (neonConflictValues.length === 0) {
+      // Neon table is empty — delete everything in Replit DB for this table
+      const deleted = await destDb.delete(tableSchema).returning();
+      return { deleted: deleted?.length ?? 0 };
+    }
+    const deleted = await destDb.delete(tableSchema)
+      .where(notInArray(conflictCol, neonConflictValues))
+      .returning();
+    return { deleted: deleted?.length ?? 0 };
+  } catch (err: any) {
+    return { deleted: 0, error: `${tableKey} → delete stale: ${err.message}` };
+  }
+}
+
+// Overwrite rows from Neon into destination Replit DB:
+// 1. Upsert all Neon rows using correct per-table conflict targets
+// 2. Delete any local rows whose conflict-key value is absent in Neon
+// Returns { upserted, rowErrors, deleteError } so callers can surface all failures.
+async function upsertChunkedOverwrite(destDb: ExtDbType, tableKey: string, rows: any[]): Promise<{ upserted: number; rowErrors: string[]; deleteError?: string }> {
+  const conflictKey = TABLE_CONFLICT_TARGETS[tableKey] || 'id';
+  // Collect Neon's authoritative conflict-key values for stale-row deletion
+  const neonConflictValues = rows.map(r => r[conflictKey]).filter(v => v != null);
+
+  // Upsert existing/new rows
+  let upserted = 0;
+  let rowErrors: string[] = [];
+  if (rows.length > 0) {
+    const result = await upsertTableOverwrite(destDb, tableKey, rows.map(r => cleanData(r)));
+    upserted = result.upserted;
+    rowErrors = result.rowErrors;
+  }
+
+  // Delete stale rows (also handles empty-table case: delete everything)
+  const staleResult = await deleteStaleRows(destDb, tableKey, neonConflictValues);
+
+  return { upserted, rowErrors, deleteError: staleResult.error };
+}
+
+interface JsonSyncResult { count: number; ok: boolean; error?: string; }
+
+// Force-sync JSON files with FULL REPLACEMENT: authoritative Neon data replaces
+// all local JSON data (including removals of rows deleted from production).
+// Returns { count, ok, error } so callers can surface JSON failures accurately.
+function forceSyncTableToJson(tableKey: string, rows: any[]): JsonSyncResult {
+  try {
+    if (tableKey === 'card_modifications') {
+      // card_modifications JSON uses auto-increment local IDs, not Neon IDs.
+      // Build the canonical set from Neon rows, preserving originalCardId uniqueness.
+      const seen = new Set<string>();
+      const normalized = rows
+        .filter(r => r.originalCardId)
+        .filter(r => { if (seen.has(r.originalCardId)) return false; seen.add(r.originalCardId); return true; })
+        .map((row, idx) => {
+          const { id: _dbId, ...rest } = cleanData(row);
+          return { ...rest, id: idx + 1, modifiedAt: rest.modifiedAt || new Date().toISOString() };
+        });
+      jsonStorage.cardModifications.replaceAll(normalized);
+      return { count: normalized.length, ok: true };
+    } else if (tableKey === 'custom_cards') {
+      const normalized = rows.map(r => cleanData(r));
+      jsonStorage.customCards.replaceAll(normalized);
+      return { count: normalized.length, ok: true };
+    } else if (tableKey === 'card_skins') {
+      const normalized = rows.map(r => cleanData(r));
+      jsonStorage.cardSkins.replaceAll(normalized);
+      return { count: normalized.length, ok: true };
+    } else if (tableKey === 'personaggi') {
+      // setAll replaces the entire personaggiCache
+      const normalized = rows.map(r => cleanData(r));
+      jsonStorage.personaggiCache.setAll(normalized);
+      return { count: normalized.length, ok: true };
+    } else if (tableKey === 'achievements') {
+      const normalized = rows.map(r => cleanData(r));
+      jsonStorage.achievements.replaceAll(normalized);
+      return { count: normalized.length, ok: true };
+    } else if (tableKey === 'mission_templates') {
+      const normalized = rows.map(r => cleanData(r));
+      jsonStorage.missionTemplates.replaceAll(normalized);
+      return { count: normalized.length, ok: true };
+    } else if (tableKey === 'tutorial_steps') {
+      const normalized = rows.map(r => cleanData(r));
+      jsonStorage.tutorialSteps.replaceAll(normalized);
+      return { count: normalized.length, ok: true };
+    }
+  } catch (err: any) {
+    const msg = `${tableKey} → JSON: ${err.message}`;
+    console.warn(`[ForceSync] JSON full-replace failed for ${tableKey}:`, err.message);
+    return { count: 0, ok: false, error: msg };
+  }
+  return { count: 0, ok: true };
+}
+
+/**
+ * Force sync: reads ALL rows from Neon for admin-config tables and OVERWRITES
+ * both Replit DB (onConflictDoUpdate) and JSON files.
+ * This ensures dev environment reflects production changes.
+ */
+export async function forceSync(): Promise<ForceSyncStatus['lastResult']> {
+  if (_forceSyncStatus.inProgress) {
+    console.log('[ForceSync] Already in progress, skipping');
+    return _forceSyncStatus.lastResult;
+  }
+
+  const neonUrl = process.env.EXTERNAL_DATABASE_URL;
+  const replitUrl = process.env.DATABASE_URL;
+
+  if (!neonUrl) {
+    const err = { tablesUpdated: {}, tablesOk: [], tablesFailed: [], totalRowsUpserted: 0, totalJsonUpdated: 0, errors: ['EXTERNAL_DATABASE_URL not set'], durationMs: 0 };
+    _forceSyncStatus.lastResult = err;
+    return err;
+  }
+
+  _forceSyncStatus.inProgress = true;
+  const startTime = Date.now();
+  console.log('🔄 [ForceSync] Starting force Neon → Replit DB + JSON overwrite sync...');
+
+  let neonDb: ExtDbType | null = null;
+  let replitDb: ExtDbType | null = null;
+  const tablesOk: string[] = [];
+  const tablesFailed: string[] = [];
+  const errors: string[] = [];
+  const tablesUpdated: Record<string, number> = {};
+  let totalRowsUpserted = 0;
+  let totalJsonUpdated = 0;
+
+  try {
+    neonDb = drizzle(neon(sanitizeDbUrl(neonUrl)), { schema });
+    if (replitUrl && replitUrl !== neonUrl) {
+      replitDb = drizzle(neon(sanitizeDbUrl(replitUrl)), { schema });
+    }
+  } catch (err: any) {
+    errors.push('Connection error: ' + err.message);
+    _forceSyncStatus.inProgress = false;
+    const result = { tablesUpdated, tablesOk, tablesFailed, totalRowsUpserted, totalJsonUpdated, errors, durationMs: Date.now() - startTime };
+    _forceSyncStatus.lastResult = result;
+    _forceSyncStatus.lastRun = new Date();
+    return result;
+  }
+
+  for (const tableKey of FORCE_SYNC_TABLES) {
+    const tableSchema = tableMap[tableKey];
+    if (!tableSchema) continue;
+    try {
+      const rows: any[] = await neonDb.select().from(tableSchema);
+      let upserted = 0;
+
+      // Sync to Replit DB with overwrite (always called — handles empty-table deletion too)
+      let replitOk = true;
+      if (replitDb) {
+        try {
+          const replitResult = await upsertChunkedOverwrite(replitDb, tableKey, rows);
+          upserted = replitResult.upserted;
+          totalRowsUpserted += upserted;
+          if (replitResult.rowErrors.length > 0) {
+            errors.push(...replitResult.rowErrors);
+            replitOk = false; // row-level failures — partial overwrite
+          }
+          if (replitResult.deleteError) {
+            errors.push(replitResult.deleteError);
+            replitOk = false; // stale deletion failed — overwrite guarantee not met
+          }
+        } catch (err: any) {
+          replitOk = false;
+          errors.push(`${tableKey} → Replit: ${err.message}`);
+        }
+      }
+
+      // Sync to JSON with overwrite
+      const jsonResult = forceSyncTableToJson(tableKey, rows);
+      totalJsonUpdated += jsonResult.count;
+      if (!jsonResult.ok && jsonResult.error) {
+        errors.push(jsonResult.error);
+      }
+
+      tablesUpdated[tableKey] = rows.length;
+      const tableOk = replitOk && jsonResult.ok;
+      if (tableOk) {
+        tablesOk.push(tableKey);
+      } else {
+        tablesFailed.push(tableKey);
+      }
+      console.log(`  ${tableOk ? '✅' : '⚠️'} [ForceSync] ${tableKey}: ${rows.length} rows (→Replit: ${upserted}, →JSON: ${jsonResult.count})`);
+    } catch (err: any) {
+      tablesFailed.push(tableKey);
+      errors.push(`${tableKey}: ${err.message}`);
+      console.warn(`  ❌ [ForceSync] ${tableKey} failed:`, err.message);
+    }
+  }
+
+  const durationMs = Date.now() - startTime;
+  const result = { tablesUpdated, tablesOk, tablesFailed, totalRowsUpserted, totalJsonUpdated, errors, durationMs };
+  _forceSyncStatus.lastResult = result;
+  _forceSyncStatus.lastRun = new Date();
+  _forceSyncStatus.inProgress = false;
+
+  console.log(`✅ [ForceSync] Done in ${durationMs}ms — ${tablesOk.length} tables ok, ${tablesFailed.length} failed, ${totalRowsUpserted} rows → Replit, ${totalJsonUpdated} rows → JSON`);
+  return result;
+}
+
+// ── Startup sync + periodic background sync ──────────────────────────────────
 
 // Run initial sync after a short delay so server starts up first
 setTimeout(() => {
