@@ -1611,6 +1611,16 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     setEditingExistingCard(card.id);
   };
 
+  const handleClose = () => {
+    if (pendingChanges.size > 0) {
+      const confirm = window.confirm(
+        `Hai ${pendingChanges.size} modifica${pendingChanges.size > 1 ? 'he' : ''} in attesa non salvate nel pannello "Salva tutti".\nChiudendo perderai queste modifiche.\nVuoi continuare?`
+      );
+      if (!confirm) return;
+    }
+    onClose();
+  };
+
   const handleSaveExistingEdit = async (card: ExistingCard) => {
     const formData = { ...existingEditForm };
     setIsSavingCard(true);
@@ -1801,7 +1811,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           )}
         </div>
         <Button
-          onClick={onClose}
+          onClick={handleClose}
           className="bg-red-600 hover:bg-red-700 text-white p-2"
           size="sm"
         >
