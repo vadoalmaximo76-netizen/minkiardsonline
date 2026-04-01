@@ -30,6 +30,7 @@ interface PageTooltipDisplayProps {
 }
 
 const VISITED_KEY = 'minkiards_page_tooltips_seen';
+const SESSION_VISITED_KEY = 'minkiards_page_tooltips_seen_session';
 
 function getSeenKey(userId: number | undefined, tooltipId: number): string {
   return `${userId ?? 'guest'}_${tooltipId}`;
@@ -42,10 +43,23 @@ function loadSeen(): Set<string> {
   } catch { return new Set(); }
 }
 
-function markSeen(key: string): void {
-  const seen = loadSeen();
-  seen.add(key);
-  localStorage.setItem(VISITED_KEY, JSON.stringify([...seen]));
+function loadSessionSeen(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem(SESSION_VISITED_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch { return new Set(); }
+}
+
+function markSeen(key: string, mode: 'always' | 'first_visit'): void {
+  if (mode === 'first_visit') {
+    const seen = loadSeen();
+    seen.add(key);
+    localStorage.setItem(VISITED_KEY, JSON.stringify([...seen]));
+  } else {
+    const seen = loadSessionSeen();
+    seen.add(key);
+    sessionStorage.setItem(SESSION_VISITED_KEY, JSON.stringify([...seen]));
+  }
 }
 
 const SIZE_CLASS: Record<string, string> = {
@@ -74,9 +88,9 @@ function TooltipCard({
   const dismiss = useCallback(() => {
     setVisible(false);
     const key = getSeenKey(userId, tooltip.id);
-    markSeen(key);
+    markSeen(key, tooltip.showMode);
     setTimeout(onDismiss, 350);
-  }, [onDismiss, userId, tooltip.id]);
+  }, [onDismiss, userId, tooltip.id, tooltip.showMode]);
 
   const isSlide = tooltip.isSlide && Array.isArray(tooltip.slides) && tooltip.slides.length > 0;
   const slides: SlideData[] = isSlide
@@ -206,13 +220,15 @@ export const PageTooltipDisplay: React.FC<PageTooltipDisplayProps> = ({ currentR
         if (cancelled) return;
         if (data.success && Array.isArray(data.tooltips)) {
           const seen = loadSeen();
+          const sessionSeen = loadSessionSeen();
           const visible = data.tooltips.filter((t: PageTooltip) => {
             if (!t.isActive) return false;
+            const key = getSeenKey(userId, t.id);
             if (t.showMode === 'first_visit') {
-              const key = getSeenKey(userId, t.id);
               return !seen.has(key);
             }
-            return true;
+            // 'always' — show once per session (resets on page reload)
+            return !sessionSeen.has(key);
           });
           setTooltips(visible);
           setDismissed(new Set());

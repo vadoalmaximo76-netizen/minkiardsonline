@@ -1403,19 +1403,10 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                   onMouseLeave={() => { setHoveredLeaderId(null); setTooltipPos(null); }}
                   onTouchStart={(e) => {
                     if (!isLocked) {
-                      const tooltipAlreadySeen = !!localStorage.getItem('gymMapTooltipSeen');
-                      if (tooltipAlreadySeen) {
-                        // Tooltip already seen once — skip it, go directly to challenge
-                        e.preventDefault();
-                        handleChallengeLeader(leader);
-                      } else {
-                        // First time ever: show tooltip and mark as seen
-                        const t = e.touches[0];
-                        setHoveredLeaderId(leader.id);
-                        setTooltipPos({ x: t.clientX, y: t.clientY });
-                        localStorage.setItem('gymMapTooltipSeen', '1');
-                        setTimeout(() => { setHoveredLeaderId(null); setTooltipPos(null); }, 2500);
-                      }
+                      const t = e.touches[0];
+                      setHoveredLeaderId(leader.id);
+                      setTooltipPos({ x: t.clientX, y: t.clientY });
+                      setTimeout(() => { setHoveredLeaderId(null); setTooltipPos(null); }, 2500);
                     }
                   }}
                 >

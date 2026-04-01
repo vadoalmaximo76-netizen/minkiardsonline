@@ -47,7 +47,7 @@ const defaultForm = (): PageTooltipForm => ({
   imagePosition: 'top',
   isSlide: false,
   slides: [{ title: '', body: '', imageUrl: '' }],
-  showMode: 'always',
+  showMode: 'first_visit',
   isActive: true,
   priority: 0,
 });
