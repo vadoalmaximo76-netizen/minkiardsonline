@@ -34383,6 +34383,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // This ensures effects work even if the JSON is accidentally overwritten.
     if (!mosseEffect) {
       if (mosseName.includes('FRUSHTALLA')) mosseEffect = 'send_enemy_to_deck';
+      else if (mosseName.includes('BOMBA') && mosseName.includes('DETONATORE')) mosseEffect = 'place_bomb';
+      else if (mosseName.includes('DEGLI') && mosseName.includes('UMAN')) mosseEffect = 'zero_stars';
+      else if (mosseName.includes('LELLELLELEL')) mosseEffect = 'lellelelle_chaos';
+      else if (mosseName.includes('MINI') && mosseName.includes('CICCIOLO')) mosseEffect = 'dice_split';
+      else if (mosseName.includes('CAZZOTTO') && mosseName.includes('TESTA')) mosseEffect = 'no_kill_bonus';
+      else if (mosseName.includes('PIOGGIA') && mosseName.includes('AGHI')) mosseEffect = 'death_on_dice_fail';
+      else if (mosseName.includes('SVEGLIA') && mosseName.includes('PALESTIN')) mosseEffect = 'delayed_damage';
+      else if (mosseName.includes('MA') && mosseName.includes('CHE') && mosseName.includes('HANNO FATTO')) mosseEffect = 'delayed_best_mosse';
+      else if (mosseName === 'RISSA') mosseEffect = 'flat_5_chain_mosse';
+      else if (mosseName.includes('ASSORBIMENTO')) mosseEffect = 'drain_on_attack';
+      else if (mosseName.includes('FREGATURA')) mosseEffect = 'drain_on_attack';
     }
     
     if (mosseEffect) {

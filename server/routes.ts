@@ -7846,7 +7846,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // CONTRATTAZIONE CLANDESTINA: Interactive negotiation — intercept before normal attack flow
-        if (mosseEffect === 'contrattazione_clandestina') {
+        // Name-based fallback: detect by card image URL name if effect was not loaded from JSON
+        const mosseCardFrontUrl = (mosseCard?.frontImage || '').split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase() || '';
+        if (mosseEffect === 'contrattazione_clandestina' || (!mosseEffect && mosseCardFrontUrl.includes('CONTRATTAZIONE'))) {
           const contrattazione = gameManager.startContrattazione(gameId, attackerName, targetOwner, targetCardId, mosseCardId);
           if (contrattazione) {
             // Move MOSSE card to graveyard so the card is visible
