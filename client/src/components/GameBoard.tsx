@@ -337,7 +337,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [cpuThinkingPlayer, setCpuThinkingPlayer] = useState<string | null>(null);
   const [helpBanner, setHelpBanner] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
   const [comicBanner, setComicBanner] = useState<{ visible: boolean; text: string; owner: string }>({ visible: false, text: '', owner: '' });
-  const [cardEffectBanner, setCardEffectBanner] = useState<{ playerName: string; cardName: string; cardImage: string; effectName: string; effectText: string; emoji: string } | null>(null);
+  const [cardEffectBanner, setCardEffectBanner] = useState<{ playerName: string; cardName: string; cardImage: string; effectName: string; effectText: string; emoji: string; ts: number } | null>(null);
   const cardEffectBannerTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [graveyardSelectionModal, setGraveyardSelectionModal] = useState<{
     visible: boolean;
@@ -1324,7 +1324,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
     const handleCardEffectBanner = (data: { playerName: string; cardName: string; cardImage: string; effectName: string; effectText: string; emoji: string }) => {
       if (cardEffectBannerTimerRef.current) clearTimeout(cardEffectBannerTimerRef.current);
-      setCardEffectBanner(data);
+      setCardEffectBanner({ ...data, ts: Date.now() });
       cardEffectBannerTimerRef.current = setTimeout(() => setCardEffectBanner(null), 3500);
     };
     socket.on('card-effect-banner', handleCardEffectBanner);
@@ -2664,6 +2664,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('defense:result', handleDefenseResult);
       socket.off('bonus-effect-applied', handleEffectApplied);
       if (rewardsTimeoutId) clearTimeout(rewardsTimeoutId);
+      if (cardEffectBannerTimerRef.current) clearTimeout(cardEffectBannerTimerRef.current);
     };
   }, []);
 
@@ -5733,7 +5734,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         <AnimatePresence>
           {cardEffectBanner && (
             <motion.div
-              key={`card-effect-banner-${cardEffectBanner.effectName}-${cardEffectBanner.playerName}`}
+              key={`card-effect-banner-${cardEffectBanner.effectName}-${cardEffectBanner.playerName}-${cardEffectBanner.ts}`}
               initial={{ opacity: 0, y: -50, scale: 0.88 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -30, scale: 0.92 }}
