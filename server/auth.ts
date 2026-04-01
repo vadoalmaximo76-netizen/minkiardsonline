@@ -126,6 +126,7 @@ export function registerAuthRoutes(app: Express) {
               email: newUser.email,
               avatar: newUser.avatar,
               puntiRankiard: newUser.puntiRankiard,
+              isAdmin: newUser.isAdmin ?? false,
             }
           });
         } catch (insertError) {
@@ -171,6 +172,7 @@ export function registerAuthRoutes(app: Express) {
           email: newUser.email,
           avatar: newUser.avatar,
           puntiRankiard: newUser.puntiRankiard,
+          isAdmin: (newUser as any).isAdmin ?? false,
         }
       });
     } catch (error) {
@@ -232,6 +234,7 @@ export function registerAuthRoutes(app: Express) {
                           email: legacyUser.email,
                           avatar: legacyUser.avatar,
                           puntiRankiard: legacyUser.puntiRankiard,
+                          isAdmin: legacyUser.isAdmin ?? false,
                         }
                       });
                     }
@@ -274,6 +277,7 @@ export function registerAuthRoutes(app: Express) {
                         email: jsonUser.email,
                         avatar: jsonUser.avatar,
                         puntiRankiard: jsonUser.puntiRankiard,
+                        isAdmin: jsonUser.isAdmin ?? false,
                       }
                     });
                   }
@@ -316,6 +320,7 @@ export function registerAuthRoutes(app: Express) {
               email: user.email,
               avatar: user.avatar,
               puntiRankiard: user.puntiRankiard,
+              isAdmin: user.isAdmin ?? false,
             }
           });
         } catch (dbError) {
@@ -336,7 +341,7 @@ export function registerAuthRoutes(app: Express) {
                   const token = generateToken(retryUser.id, retryUser.email);
                   return res.json({
                     success: true, token,
-                    user: { id: retryUser.id, username: retryUser.username, email: retryUser.email, avatar: retryUser.avatar, puntiRankiard: retryUser.puntiRankiard }
+                    user: { id: retryUser.id, username: retryUser.username, email: retryUser.email, avatar: retryUser.avatar, puntiRankiard: retryUser.puntiRankiard, isAdmin: retryUser.isAdmin ?? false }
                   });
                 }
                 // User not found in fallback DB — fall through to ADMIN_FALLBACK / 503
@@ -359,6 +364,7 @@ export function registerAuthRoutes(app: Express) {
                   email: ADMIN_FALLBACK.email,
                   avatar: ADMIN_FALLBACK.avatar,
                   puntiRankiard: ADMIN_FALLBACK.puntiRankiard,
+                  isAdmin: true,
                 },
                 fallbackMode: true
               });
@@ -381,6 +387,7 @@ export function registerAuthRoutes(app: Express) {
                 email: ADMIN_FALLBACK.email,
                 avatar: ADMIN_FALLBACK.avatar,
                 puntiRankiard: ADMIN_FALLBACK.puntiRankiard,
+                isAdmin: true,
               },
               fallbackMode: true
             });
@@ -413,6 +420,7 @@ export function registerAuthRoutes(app: Express) {
             email: user.email,
             avatar: user.avatar,
             puntiRankiard: user.puntiRankiard,
+            isAdmin: (user as any).isAdmin ?? false,
           }
         });
       }
@@ -544,6 +552,7 @@ export function registerAuthRoutes(app: Express) {
             email: user.email,
             avatar: user.avatar,
             puntiRankiard: user.puntiRankiard,
+            isAdmin: user.isAdmin ?? false,
           }
         });
       } else {
@@ -591,6 +600,7 @@ export function registerAuthRoutes(app: Express) {
             email: user.email,
             avatar: user.avatar,
             puntiRankiard: user.puntiRankiard,
+            isAdmin: (user as any).isAdmin ?? false,
           }
         });
       }
