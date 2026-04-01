@@ -144,8 +144,11 @@ When a player creates or joins a room (before the game starts), a full-screen "S
 # External Dependencies
 
 ## Database
-- **Neon Database**: PostgreSQL-compatible serverless database.
-- **Drizzle ORM**: Type-safe database toolkit.
+- **Replit PostgreSQL** (`DATABASE_URL`): DB primario — tutti i dati risiede qui. Non soggetto a quote di trasferimento dati.
+- **Neon Database** (`EXTERNAL_DATABASE_URL`): DB secondario — dual-write target + fallback di emergenza. Può andare in quota senza impatto sul gioco.
+- **Priorità**: DATABASE_URL (Replit) > EXTERNAL_DATABASE_URL (Neon). Il dual-write proxy in `server/db.ts` scrive su entrambi in automatico.
+- **Migrazione completata** (01/04/2026): tutti i dati da Neon → Replit migrati (2697+ righe, 50 tabelle). `cardModifications.json` esportato da `card_modifications` Neon (280 voci).
+- **Drizzle ORM**: Type-safe database toolkit. `drizzle.config.ts` ora usa `DATABASE_URL` come default.
 
 ## Real-time Communication
 - **Socket.IO**: WebSocket library for real-time communication.

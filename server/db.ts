@@ -41,45 +41,46 @@ function tryConnect(url: string, label: string): DbType | null {
 }
 
 // ── Initialise connections ──────────────────────────────────────────────────
-if (process.env.EXTERNAL_DATABASE_URL) {
-  console.log('📡 Using EXTERNAL_DATABASE_URL as primary...');
-  const extDb = tryConnect(process.env.EXTERNAL_DATABASE_URL, 'EXTERNAL_DATABASE_URL (primary)');
-  if (extDb) {
-    _db = extDb;
-    _originalPrimaryDb = extDb;
-    _isDatabaseAvailable = true;
-    _activeDbSource = 'EXTERNAL_DATABASE_URL (primary)';
-
-    if (process.env.DATABASE_URL && process.env.DATABASE_URL !== process.env.EXTERNAL_DATABASE_URL) {
-      console.log('📦 Connecting to DATABASE_URL as secondary (dual-write + fallback)...');
-      const legDb = tryConnect(process.env.DATABASE_URL, 'DATABASE_URL (secondary/fallback)');
-      if (legDb) {
-        _legacyDb = legDb;
-        _fallbackDb = legDb;
-        _isLegacyDbAvailable = true;
-        console.log('🔁 Dual-write enabled: writes go to BOTH primary and secondary DB');
-      }
-    }
-  } else {
-    if (process.env.DATABASE_URL) {
-      console.log('🔄 Trying fallback: DATABASE_URL...');
-      const fallbackDb = tryConnect(process.env.DATABASE_URL, 'DATABASE_URL (fallback)');
-      if (fallbackDb) {
-        _db = fallbackDb;
-        _fallbackDb = fallbackDb;
-        _isDatabaseAvailable = true;
-        _activeDbSource = 'DATABASE_URL (fallback)';
-        _usingFallback = true;
-      }
-    }
-  }
-} else if (process.env.DATABASE_URL) {
-  const replDb = tryConnect(process.env.DATABASE_URL, 'DATABASE_URL (Replit)');
+// DATABASE_URL (Replit) è il DB PRIMARIO.
+// EXTERNAL_DATABASE_URL (Neon) è il DB SECONDARIO (dual-write + fallback di emergenza).
+if (process.env.DATABASE_URL) {
+  console.log('📦 Using DATABASE_URL (Replit) as primary...');
+  const replDb = tryConnect(process.env.DATABASE_URL, 'DATABASE_URL/Replit (primary)');
   if (replDb) {
     _db = replDb;
     _originalPrimaryDb = replDb;
     _isDatabaseAvailable = true;
-    _activeDbSource = 'DATABASE_URL (Replit)';
+    _activeDbSource = 'DATABASE_URL/Replit (primary)';
+
+    if (process.env.EXTERNAL_DATABASE_URL && process.env.EXTERNAL_DATABASE_URL !== process.env.DATABASE_URL) {
+      console.log('📡 Connecting to EXTERNAL_DATABASE_URL (Neon) as secondary (dual-write)...');
+      const extDb = tryConnect(process.env.EXTERNAL_DATABASE_URL, 'EXTERNAL_DATABASE_URL/Neon (secondary)');
+      if (extDb) {
+        _legacyDb = extDb;
+        _fallbackDb = extDb;
+        _isLegacyDbAvailable = true;
+        console.log('🔁 Dual-write enabled: writes go to BOTH Replit (primary) and Neon (secondary)');
+      }
+    }
+  } else if (process.env.EXTERNAL_DATABASE_URL) {
+    console.log('🔄 Replit DB non disponibile, fallback a EXTERNAL_DATABASE_URL (Neon)...');
+    const extDb = tryConnect(process.env.EXTERNAL_DATABASE_URL, 'EXTERNAL_DATABASE_URL/Neon (fallback)');
+    if (extDb) {
+      _db = extDb;
+      _fallbackDb = extDb;
+      _isDatabaseAvailable = true;
+      _activeDbSource = 'EXTERNAL_DATABASE_URL/Neon (fallback)';
+      _usingFallback = true;
+    }
+  }
+} else if (process.env.EXTERNAL_DATABASE_URL) {
+  console.log('📡 Using EXTERNAL_DATABASE_URL (Neon) as primary (DATABASE_URL not set)...');
+  const extDb = tryConnect(process.env.EXTERNAL_DATABASE_URL, 'EXTERNAL_DATABASE_URL/Neon (primary)');
+  if (extDb) {
+    _db = extDb;
+    _originalPrimaryDb = extDb;
+    _isDatabaseAvailable = true;
+    _activeDbSource = 'EXTERNAL_DATABASE_URL/Neon (primary)';
   }
 } else {
   console.warn('⚠️ No database URL found. Running in offline mode (no database).');
@@ -102,12 +103,12 @@ export function switchToFallback(): boolean {
   if (now < _switchCooldownUntil) return false;
   _switchCooldownUntil = now + 5000; // prevent rapid repeated switches
 
-  console.warn('⚠️ [DB] Switching from primary DB to fallback DATABASE_URL due to quota/error!');
+  console.warn('⚠️ [DB] Switching from primary DB (Replit) to fallback (Neon) due to error!');
   _db = _fallbackDb;
   _usingFallback = true;
   _isDatabaseAvailable = true;
-  _activeDbSource = 'DATABASE_URL (auto-fallback)';
-  console.log('✅ [DB] Now using fallback DATABASE_URL (Replit)');
+  _activeDbSource = 'EXTERNAL_DATABASE_URL/Neon (auto-fallback)';
+  console.log('✅ [DB] Now using fallback: EXTERNAL_DATABASE_URL/Neon');
   return true;
 }
 

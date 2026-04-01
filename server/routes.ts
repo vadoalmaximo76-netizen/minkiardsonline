@@ -1368,25 +1368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.warn(`⚠️ [startup] Sync gym leaders da DB esterno fallito: ${syncErr?.message?.slice(0, 200)}`);
           console.warn('⚠️ [startup] La Story Mode mostrerà "Nessuno stage disponibile". Aggiungili dal pannello admin o usa /api/admin/sync-gym-leaders quando Neon è disponibile.');
         }
-      } else {
-        // Current DB has leaders. Ensure fallback DB (Replit) is also populated so that
-        // if Neon goes over quota again the fallback can serve gym leaders too.
-        const fallbackDb = getFallbackDb();
-        if (fallbackDb && !isUsingFallback()) {
-          try {
-            const fallbackCount = await fallbackDb.select({ id: gymLeaders.id }).from(gymLeaders);
-            if (fallbackCount.length === 0 && process.env.EXTERNAL_DATABASE_URL) {
-              console.log('🔄 [startup] DB fallback (Replit) senza gym leader — sync da DB esterno...');
-              const synced = await syncGymLeadersFromExternalDb(fallbackDb as typeof db);
-              if (synced > 0) {
-                console.log(`✅ [startup] Sincronizzati ${synced} gym leader da DB esterno → DB fallback (Replit)`);
-              }
-            }
-          } catch (fbSyncErr: any) {
-            console.warn(`⚠️ [startup] Sync gym leaders verso DB fallback fallito: ${fbSyncErr?.message?.slice(0, 150)}`);
-          }
-        }
-      }
+      } // DB primario (Replit) ha già i leader — nessun sync necessario
       if (inactiveLeaders > 0 && activeLeaders === 0) {
         // Tutti i leader sono disattivati: li attiviamo automaticamente
         const inactiveIds = allLeadersCount.filter(l => l.isActive === false).map(l => l.id);
