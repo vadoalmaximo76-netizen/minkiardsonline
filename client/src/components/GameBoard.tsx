@@ -389,6 +389,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     cardName: string;
     opponents: string[];
   }>({ visible: false, cardId: '', cardName: '', opponents: [] });
+  const [scambioPlayerPanel, setScambioPlayerPanel] = useState<{
+    visible: boolean;
+    cardId: string;
+    cardName: string;
+    opponents: string[];
+  }>({ visible: false, cardId: '', cardName: '', opponents: [] });
   const [diceControlPanel, setDiceControlPanel] = useState<{
     visible: boolean;
     rollingPlayer: string;
@@ -1701,6 +1707,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('show-blocco-player-selection', handleShowBloccoPlayerSelection);
 
+    const handleShowScambioPlayerSelection = (data: { cardId: string; cardName: string; playerName: string; opponents: string[] }) => {
+      console.log('🔄 Show scambio player selection:', data);
+      if (data.playerName === playerName) {
+        setScambioPlayerPanel({
+          visible: true,
+          cardId: data.cardId,
+          cardName: data.cardName,
+          opponents: data.opponents,
+        });
+      }
+    };
+    socket.on('show-scambio-player-selection', handleShowScambioPlayerSelection);
+
     // DICE CONTROL: Handle dice control panel for choosing dice result
     const handleShowDiceControlPanel = (data: { rollingPlayer: string; controllingPlayer: string; controllingCardId: string; controllingCardName: string; pendingId?: string; targetCharName?: string }) => {
       console.log('🎲 Show dice control panel:', data);
@@ -2634,6 +2653,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('fantafinanza-prompt', handleFantafinanzaPrompt);
       socket.off('show-swap-selection', handleShowSwapSelection);
       socket.off('show-blocco-player-selection', handleShowBloccoPlayerSelection);
+      socket.off('show-scambio-player-selection', handleShowScambioPlayerSelection);
       socket.off('show-dice-control-panel', handleShowDiceControlPanel);
       socket.off('show-target-selection', handleShowTargetSelection);
       socket.off('show-custom-target-selection', handleShowCustomTargetSelection);
@@ -3896,6 +3916,51 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 onClick={() => {
                   socket.emit('blocco-player-cancel', { cardId: bloccoPlayerPanel.cardId });
                   setBloccoPlayerPanel({ visible: false, cardId: '', cardName: '', opponents: [] });
+                }}
+                className="bg-gray-600 hover:bg-gray-500 text-white px-6 py-2"
+              >
+                Annulla
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SCAMBIO PANEL - Choose opponent to swap field characters with */}
+      {scambioPlayerPanel.visible && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-purple-900 to-blue-800 rounded-lg p-6 w-full max-w-md mx-4 border-4 border-purple-400 shadow-[0_0_30px_rgba(168,85,247,0.5)]">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                🔄 {scambioPlayerPanel.cardName.toUpperCase()}
+              </h2>
+              <p className="text-purple-100 text-sm mb-4" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                I personaggi in campo verranno scambiati con l'avversario scelto!
+              </p>
+              <p className="text-purple-200 font-bold">Scegli con chi scambiare:</p>
+            </div>
+            <div className="space-y-3 mb-4">
+              {scambioPlayerPanel.opponents.map((opponent: string) => (
+                <Button
+                  key={opponent}
+                  onClick={() => {
+                    socket.emit('scambio-player-confirm', {
+                      cardId: scambioPlayerPanel.cardId,
+                      targetPlayer: opponent,
+                    });
+                    setScambioPlayerPanel({ visible: false, cardId: '', cardName: '', opponents: [] });
+                  }}
+                  className="w-full bg-purple-600 hover:bg-purple-500 text-white py-4 text-lg font-bold"
+                >
+                  🎮 {opponent}
+                </Button>
+              ))}
+            </div>
+            <div className="text-center">
+              <Button
+                onClick={() => {
+                  socket.emit('scambio-player-cancel', { cardId: scambioPlayerPanel.cardId });
+                  setScambioPlayerPanel({ visible: false, cardId: '', cardName: '', opponents: [] });
                 }}
                 className="bg-gray-600 hover:bg-gray-500 text-white px-6 py-2"
               >

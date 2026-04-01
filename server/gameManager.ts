@@ -4948,7 +4948,6 @@ Rispondi SOLO in JSON:`;
           [/bevanda\s+del\s+vero\s+ciclista/i, 'la_bevanda_del_vero_ciclista'],
           [/soft\s+control/i, 'soft_control'],
           [/lega\s+ganza\s+effetto/i, 'lega_ganza_effetto'],
-          [/^scambio$/i, 'scambio'],
           [/portale\s+speciale/i, 'portale_speciale'],
           [/sorriso\s+amaro\s+di\s+bob\s+dylan|bob\s+dylan/i, 'bob_dylan'],
         ];
@@ -6868,7 +6867,6 @@ Rispondi SOLO in JSON:`;
         [/bevanda\s+del\s+vero\s+ciclista/i, 'la_bevanda_del_vero_ciclista'],
         [/soft\s+control/i, 'soft_control'],
         [/lega\s+ganza\s+effetto/i, 'lega_ganza_effetto'],
-        [/^scambio$/i, 'scambio'],
         [/portale\s+speciale/i, 'portale_speciale'],
         [/sorriso\s+amaro\s+di\s+bob\s+dylan|bob\s+dylan/i, 'bob_dylan'],
       ];
@@ -11169,22 +11167,44 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
       }
 
-      // ─── SCAMBIO: scambia una carta a caso tra due giocatori ─────────────────
+      // ─── SCAMBIO: scambia i personaggi in campo tra due giocatori ────────────
       case 'scambio': {
         const scambioEnemies = game.turnOrder.filter((p: string) => p !== playerName);
         if (scambioEnemies.length === 0) { emitChat(`🔄 SCAMBIO: nessun avversario.`); break; }
-        const scambioTgt = scambioEnemies[Math.floor(Math.random() * scambioEnemies.length)];
-        const myHand = (game.players[playerName]?.hand || []) as Card[];
-        const theirHand = (game.players[scambioTgt]?.hand || []) as Card[];
-        if (myHand.length === 0 || theirHand.length === 0) { emitChat(`🔄 SCAMBIO: mano vuota, impossibile scambiare.`); break; }
-        const myIdx = Math.floor(Math.random() * myHand.length);
-        const theirIdx = Math.floor(Math.random() * theirHand.length);
-        const [myCard] = myHand.splice(myIdx, 1);
-        const [theirCard] = theirHand.splice(theirIdx, 1);
-        myCard.owner = scambioTgt; theirCard.owner = playerName;
-        theirHand.push(theirCard); myHand.push(myCard);
-        emitChat(`🔄 SCAMBIO! ${playerName} e ${scambioTgt} si scambiano una carta a caso!`);
-        emitState(); break;
+
+        const executeScambio = (target: string) => {
+          const myField = game.field.filter((c: Card) =>
+            c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          const theirField = game.field.filter((c: Card) =>
+            c.owner === target && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          if (myField.length === 0 && theirField.length === 0) {
+            emitChat(`🔄 SCAMBIO: nessun personaggio in campo da scambiare!`);
+            return;
+          }
+          myField.forEach((c: Card) => { c.owner = target; });
+          theirField.forEach((c: Card) => { c.owner = playerName; });
+          emitChat(`🔄 SCAMBIO! ${playerName} e ${target} si scambiano i personaggi in campo!`);
+          emitState();
+        };
+
+        if (isCPU) {
+          const cpuTarget = scambioEnemies[Math.floor(Math.random() * scambioEnemies.length)];
+          executeScambio(cpuTarget);
+        } else {
+          (game as any).pendingScambioEffect = { cardId: card.id, playerName };
+          if (io) {
+            io.to(gameId).emit('show-scambio-player-selection', {
+              cardId: card.id,
+              cardName: card.name || 'SCAMBIO',
+              playerName,
+              opponents: scambioEnemies,
+            });
+            emitChat(`🔄 SCAMBIO! ${playerName} deve scegliere con chi scambiare i personaggi in campo!`);
+          }
+        }
+        break;
       }
 
       // ─── CLONAZIONE: duplica il proprio personaggio ───────────────────────────

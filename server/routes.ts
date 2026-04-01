@@ -3993,6 +3993,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // ─── SCAMBIO: confirm target selection (human only) ──────────────────────
+    socket.on('scambio-player-confirm', ({ cardId, targetPlayer }: { cardId: string; targetPlayer: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+
+      const actingPlayer = gameManager.getPlayerNameFromSocket(socket.id);
+      if (!actingPlayer) {
+        console.warn(`⚠️ scambio-player-confirm: cannot resolve player for socket ${socket.id}`);
+        return;
+      }
+
+      const pending = (game as any).pendingScambioEffect;
+      if (!pending || pending.playerName !== actingPlayer || pending.cardId !== cardId) {
+        console.warn(`⚠️ scambio-player-confirm: no matching pending effect for ${actingPlayer} (cardId=${cardId})`);
+        return;
+      }
+
+      const validTarget = game.turnOrder.includes(targetPlayer) && targetPlayer !== actingPlayer;
+      if (!validTarget) {
+        console.warn(`⚠️ scambio-player-confirm: invalid target "${targetPlayer}" for game ${gameId}`);
+        return;
+      }
+
+      delete (game as any).pendingScambioEffect;
+
+      // Swap all personaggi in campo between the two players
+      const myField = game.field.filter((c: any) =>
+        c.owner === actingPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      const theirField = game.field.filter((c: any) =>
+        c.owner === targetPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+
+      if (myField.length === 0 && theirField.length === 0) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-scambio-empty`,
+          playerName: 'Sistema',
+          message: `🔄 SCAMBIO: nessun personaggio in campo da scambiare!`,
+          timestamp: Date.now(),
+        });
+      } else {
+        myField.forEach((c: any) => { c.owner = targetPlayer; });
+        theirField.forEach((c: any) => { c.owner = actingPlayer; });
+        console.log(`🔄 SCAMBIO: ${actingPlayer} ↔ ${targetPlayer} | scambiati ${myField.length} + ${theirField.length} personaggi in campo`);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-scambio-confirm`,
+          playerName: 'Sistema',
+          message: `🔄 SCAMBIO! ${actingPlayer} e ${targetPlayer} si scambiano i personaggi in campo!`,
+          timestamp: Date.now(),
+        });
+      }
+
+      const gs = gameManager.getSanitizedGameState(gameId);
+      emitImmediateGameState(io, gameId, gs);
+    });
+
+    socket.on('scambio-player-cancel', ({ cardId }: { cardId: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+      const actingPlayer = gameManager.getPlayerNameFromSocket(socket.id);
+      const pending = (game as any).pendingScambioEffect;
+      if (pending && pending.playerName === actingPlayer && pending.cardId === cardId) {
+        delete (game as any).pendingScambioEffect;
+        console.log(`🔄 SCAMBIO cancel: ${actingPlayer} ha annullato la selezione`);
+      }
+    });
+
     // ============ TANGRAM INTERACTIVE ASSIGNMENT ============
 
     socket.on('tangram-apply-assignments', ({ assignments }: { assignments: { [charId: string]: string } }) => {
