@@ -9219,12 +9219,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       case 'wd40': {
         const isGoghi = /goghi/i.test(myCharName);
         const removedCount = (game.timedEffects || []).length;
+        const hadScenario = !!game.activeScenario;
+        const scenarioName = game.activeScenario?.name;
         game.timedEffects = [];
         for (const c of game.field) {
           delete (c as any).poisonPerTurn; delete (c as any).stunnedTurns; delete (c as any).stealth; delete (c as any).stealthTurnsLeft;
         }
-        if (isGoghi) emitChat(`🔧 WD-40 (GOGHI)! ${removedCount} effetti interrotti — Goghi può decidere su quale personaggio mantenere l'effetto (interfaccia in sviluppo).`);
-        else emitChat(`🔧 WD-40! ${removedCount} effetti attivi interrotti!`);
+        if (hadScenario) this.deactivateScenario(gameId, 'manual');
+        const scenarioPart = hadScenario ? ` + scenario "${scenarioName}" annullato` : '';
+        if (isGoghi) emitChat(`🔧 WD-40 (GOGHI)! ${removedCount} effetti interrotti${scenarioPart} — Goghi può decidere su quale personaggio mantenere l'effetto (interfaccia in sviluppo).`);
+        else emitChat(`🔧 WD-40! ${removedCount} effetti attivi interrotti${scenarioPart}!`);
         emitState(); break;
       }
 
@@ -11697,8 +11701,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         emitState(); break;
       }
 
-      // ─── TABULA RASA: azzera PTI di un avversario a 1 ────────────────────────
+      // ─── TABULA RASA: azzera PTI di un avversario a 1 + annulla bonus attivi ─
       case 'tabula_rasa': {
+        // Annulla lo scenario attivo
+        const tabulaHadScenario = !!game.activeScenario;
+        const tabulaScenarioName = game.activeScenario?.name;
+        if (tabulaHadScenario) this.deactivateScenario(gameId, 'manual');
+        // Rimuove timedEffects originati da carte bonus o scenario
+        const tabulaEffectsBefore = (game.timedEffects || []).length;
+        game.timedEffects = (game.timedEffects || []).filter((e: any) =>
+          !e.cardId?.startsWith('bonus-') && !e.cardId?.startsWith('scenario-')
+        );
+        const tabulaEffectsRemoved = tabulaEffectsBefore - (game.timedEffects || []).length;
+        if (tabulaHadScenario || tabulaEffectsRemoved > 0) {
+          const parts: string[] = [];
+          if (tabulaHadScenario) parts.push(`scenario "${tabulaScenarioName}" annullato`);
+          if (tabulaEffectsRemoved > 0) parts.push(`${tabulaEffectsRemoved} effetti bonus rimossi`);
+          emitChat(`🪶 TABULA RASA — Reset bonus: ${parts.join(', ')}!`);
+        }
         const tabulaEnemies = game.field.filter((c: Card) =>
           c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
         );
