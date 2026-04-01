@@ -34377,6 +34377,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     let forceInstantDeath = false;
     let additionalStarsToRemove = 0;
     let effectMessage = '';
+
+    // Name-based effect fallback: if mosseDamageEffect was lost from JSON storage,
+    // detect the card by name (from image URL) and restore the correct effect.
+    // This ensures effects work even if the JSON is accidentally overwritten.
+    if (!mosseEffect) {
+      if (mosseName.includes('FRUSHTALLA')) mosseEffect = 'send_enemy_to_deck';
+    }
     
     if (mosseEffect) {
       switch (mosseEffect) {
