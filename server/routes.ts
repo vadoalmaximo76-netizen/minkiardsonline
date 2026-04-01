@@ -13433,7 +13433,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
   // GET /api/story-mode/deck - get player's accumulated story deck
   app.get('/api/story-mode/deck', authMiddleware, async (req, res) => {
     try {
-      if (!isDatabaseAvailable()) return res.json({ success: true, cardIds: [] });
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
       const user = (req as any).user;
       if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
       const rows = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, user.userId)).limit(1);

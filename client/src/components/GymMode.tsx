@@ -222,6 +222,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [gameId, setGameIdLocal] = useState<string | null>(null);
   const [justWon, setJustWon] = useState(false);
   const [storyDeckIds, setStoryDeckIds] = useState<string[]>([]);
+  const [deckFetchStatus, setDeckFetchStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [cardPickLoading, setCardPickLoading] = useState(false);
   const [battleYoutubeVideoId, setBattleYoutubeVideoId] = useState<string | null>(null);
   const [musicActive, setMusicActive] = useState(false);
@@ -282,13 +283,21 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
 
   const fetchStoryDeck = useCallback(async () => {
     if (!authToken) return;
+    setDeckFetchStatus('loading');
     try {
       const res = await fetch('/api/story-mode/deck', {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       const data = await res.json();
-      if (data.success) setStoryDeckIds(data.cardIds || []);
-    } catch {}
+      if (data.success) {
+        setStoryDeckIds(data.cardIds || []);
+        setDeckFetchStatus('success');
+      } else {
+        setDeckFetchStatus('error');
+      }
+    } catch {
+      setDeckFetchStatus('error');
+    }
   }, [authToken]);
 
   const fetchUserCredits = useCallback(async () => {
@@ -313,6 +322,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   useEffect(() => {
     if (loading) return;
     if (phase !== 'map') return;
+    if (deckFetchStatus !== 'success') return;
     if (storyDeckIds.length > 0) return;
     if (leaders.length === 0) return;
     const firstLeader = [...leaders].sort((a, b) => a.orderIndex - b.orderIndex)[0];
@@ -323,7 +333,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     ) {
       setPhase('deck-select');
     }
-  }, [loading, leaders, storyDeckIds, phase]);
+  }, [loading, leaders, storyDeckIds, phase, deckFetchStatus]);
 
   useEffect(() => {
     selectedLeaderRef.current = selectedLeader;
