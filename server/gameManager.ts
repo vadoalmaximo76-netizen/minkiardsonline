@@ -11701,47 +11701,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         emitState(); break;
       }
 
-      // ─── TABULA RASA: azzera PTI di un avversario a 1 + annulla bonus attivi ─
+      // ─── TABULA RASA: annulla tutti gli effetti bonus attivi + scenario ───────
       case 'tabula_rasa': {
-        // Annulla lo scenario attivo
         const tabulaHadScenario = !!game.activeScenario;
         const tabulaScenarioName = game.activeScenario?.name;
         if (tabulaHadScenario) this.deactivateScenario(gameId, 'manual');
-        // Rimuove timedEffects originati da carte bonus o scenario
         const tabulaEffectsBefore = (game.timedEffects || []).length;
         game.timedEffects = (game.timedEffects || []).filter((e: any) =>
           !e.cardId?.startsWith('bonus-') && !e.cardId?.startsWith('scenario-')
         );
         const tabulaEffectsRemoved = tabulaEffectsBefore - (game.timedEffects || []).length;
-        if (tabulaHadScenario || tabulaEffectsRemoved > 0) {
-          const parts: string[] = [];
-          if (tabulaHadScenario) parts.push(`scenario "${tabulaScenarioName}" annullato`);
-          if (tabulaEffectsRemoved > 0) parts.push(`${tabulaEffectsRemoved} effetti bonus rimossi`);
-          emitChat(`🪶 TABULA RASA — Reset bonus: ${parts.join(', ')}!`);
-        }
-        const tabulaEnemies = game.field.filter((c: Card) =>
-          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-        );
-        if (tabulaEnemies.length === 0) { emitChat(`🪶 TABULA RASA: nessun personaggio avversario in campo.`); break; }
-        if (isCPU || tabulaEnemies.length === 1) {
-          const tgt = tabulaEnemies[Math.floor(Math.random() * tabulaEnemies.length)];
-          tgt.pti = 1; this.updateCardTextWithPTI(tgt);
-          emitChat(`🪶 TABULA RASA! ${tgt.name || tgt.id} (${tgt.owner}) va a 1 PTI!`);
-          emitState();
-        } else {
-          const psId = (game.players[playerName] as any)?.socketId;
-          const cId = `tabula-rasa-${Date.now()}`;
-          const tabulaOpts = tabulaEnemies.map((c: Card) => ({ value: c.id, label: c.name || c.id, description: `PTI: ${c.pti ?? '?'} | ${c.owner}` }));
-          (game as any).pendingTabulaRasa = { choiceId: cId, playerName };
-          this.emitChoicePanelOrAutoResolve(gameId, playerName, psId, {
-            choiceId: cId, title: '🪶 TABULA RASA',
-            question: 'Scegli il personaggio avversario da azzerare a 1 PTI:',
-            options: tabulaOpts, playerName, cardName: 'TABULA RASA', timestamp: Date.now()
-          }, tabulaOpts, 'pendingTabulaRasa', io);
-          emitChat(`🪶 TABULA RASA! ${playerName} sceglie chi azzerare...`);
-          emitState();
-        }
-        break;
+        const parts: string[] = [];
+        if (tabulaHadScenario) parts.push(`scenario "${tabulaScenarioName}" annullato`);
+        if (tabulaEffectsRemoved > 0) parts.push(`${tabulaEffectsRemoved} effetti bonus rimossi`);
+        emitChat(`🪶 TABULA RASA! ${parts.length > 0 ? parts.join(', ') : 'Nessun effetto bonus attivo da rimuovere'}.`);
+        emitState(); break;
       }
 
       // ─── TERREMOTO: 100 PTI di danno a tutti i personaggi in campo ───────────
