@@ -25681,7 +25681,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // Initialize turns counter
       if (game.activeScenario) game.activeScenario.vediNapoliTurnsLeft = 5;
       // Transform all napoletani in campo
-      const NAPOLETANI = ['napoletano', 'ciro-pizzaiolo', 'o-pappon', 'tony-tammaro', 'cannavacciuolo', 'gigione', 'djidji-d-alessio', 'gigi-d-alessio', 'saverio', 'zi-vcienz', 'zio-vincenzo', 'sciallcuan', 'pasquale', 'mazzamauriegl'];
+      const NAPOLETANI = ['napoletano', 'ciro-pizzaiolo', 'o-pappon', 'tony-tammaro', 'cannavacciuolo', 'gigione', 'djidji-d-alessio', 'gigi-d-alessio', 'bud-spencer', 'fedesimo', 'golden-freezer', 'jo-donatello', 'lotain', 'vu-cumpr'];
       const fieldNapoletani = game.field.filter(c =>
         (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
         NAPOLETANI.some(slug => (c.frontImage || '').toLowerCase().includes(slug))
@@ -25985,7 +25985,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (scenario.name === 'VEDI NAPOLI E POI MUORI') {
       if (scenario.vediNapoliTurnsLeft === undefined) scenario.vediNapoliTurnsLeft = 5;
       scenario.vediNapoliTurnsLeft--;
-      const NAPOLETANI = ['napoletano', 'ciro-pizzaiolo', 'o-pappon', 'tony-tammaro', 'cannavacciuolo', 'gigione', 'djidji-d-alessio', 'gigi-d-alessio', 'saverio', 'zi-vcienz', 'zio-vincenzo', 'sciallcuan', 'pasquale', 'mazzamauriegl'];
+      const NAPOLETANI = ['napoletano', 'ciro-pizzaiolo', 'o-pappon', 'tony-tammaro', 'cannavacciuolo', 'gigione', 'djidji-d-alessio', 'gigi-d-alessio', 'bud-spencer', 'fedesimo', 'golden-freezer', 'jo-donatello', 'lotain', 'vu-cumpr'];
       const fieldChars = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
       const napoletaniInCampo = fieldChars.filter(c =>
         NAPOLETANI.some(slug => (c.frontImage || '').toLowerCase().includes(slug))
@@ -26122,7 +26122,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // CALDO INFERNALE: increment turn counters for field chars; halve PTI for those > 3 turns
     if (scenario.name === 'CALDO INFERNALE') {
       if (!scenario.caldoInfernaleCharTurns) scenario.caldoInfernaleCharTurns = {};
-      const HEAT_RESISTANT = ['apollo', 'carmine', 'mancazione', 'god-zilla', 'neeno-phrasseeka', 'neeno-phrassika', 'pippo-raudo', 'ernesto', 'cicchetti'];
+      const HEAT_RESISTANT = ['apollo', 'carmine', 'mancazione', 'god-zilla', 'neeno-phrasseeka', 'neeno-phrassika', 'pippo-raudo', 'ernesto', 'cicchetti', 'avvoltoio', 'bambola-del-demonio', 'bullox', 'cinghiale-inferocito', 'evil-fake', 'mago-letterius', 'mohamed-kebabbaro-di-fiducia'];
       const fieldChars = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
       for (const char of fieldChars) {
         scenario.caldoInfernaleCharTurns[char.id] = (scenario.caldoInfernaleCharTurns[char.id] || 0) + 1;
@@ -26195,7 +26195,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // MONDO SOMMERSO: delay damage by 1 turn
     if (scenario.name === 'MONDO SOMMERSO') {
       if (!scenario.mondoSommersoDelayedDamages) scenario.mondoSommersoDelayedDamages = [];
-      const WATER_CHARS = ['parassita', 'pingu', 'sciallcuan', 'zi-vcienz', 'zio-vincenzo'];
+      const WATER_CHARS = ['parassita', 'pingu', 'sciallcuan', 'aragosta-irachena', 'opossum-con-la-rabbia', 'pontius-pilatus', 'poseidone', 'procione-insatanato'];
       const attackerChar = this.getPlayerActiveCharacter(game, attackerName);
       const isWaterChar = attackerChar && WATER_CHARS.some(slug => (attackerChar.frontImage || '').toLowerCase().includes(slug));
       const finalDamage = isWaterChar ? damageValue * 2 : damageValue;
@@ -26219,7 +26219,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     // CALDO INFERNALE: heat-resistant chars double attack damage
     if (scenario.name === 'CALDO INFERNALE') {
-      const HEAT_RESISTANT = ['apollo', 'carmine', 'mancazione', 'god-zilla', 'neeno-phrasseeka', 'neeno-phrassika', 'pippo-raudo', 'ernesto', 'cicchetti'];
+      const HEAT_RESISTANT = ['apollo', 'carmine', 'mancazione', 'god-zilla', 'neeno-phrasseeka', 'neeno-phrassika', 'pippo-raudo', 'ernesto', 'cicchetti', 'avvoltoio', 'bambola-del-demonio', 'bullox', 'cinghiale-inferocito', 'evil-fake', 'mago-letterius', 'mohamed-kebabbaro-di-fiducia'];
       const attackerChar = this.getPlayerActiveCharacter(game, attackerName);
       const isHeatResistant = attackerChar && HEAT_RESISTANT.some(slug => (attackerChar.frontImage || '').toLowerCase().includes(slug));
       if (isHeatResistant) {
@@ -26237,7 +26237,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     // GUERRA: black chars double move damage
     if (scenario.name === 'GUERRA') {
-      const BLACK_CHARS = ['kulungu', 'nero-che-beve-la-soda', 'obama', 'real-gee', 'shorty', 'napoletano', 'bello-figo-gu'];
+      const BLACK_CHARS = ['kulungu', 'nero-che-beve-la-soda', 'obama', 'real-gee', 'shorty', 'napoletano', 'bello-figo-gu', 'neymar-jr', 'tizio-jamaicano'];
       const attackerChar = this.getPlayerActiveCharacter(game, attackerName);
       const isBlackChar = attackerChar && BLACK_CHARS.some(slug => (attackerChar.frontImage || '').toLowerCase().includes(slug));
       if (isBlackChar) {
