@@ -1497,6 +1497,7 @@ export class GameManager {
                 if (deckType === 'personaggi' && card.pti != null) {
                   const stars = card.stars ?? 1;
                   (card as any).originalPti = card.pti;
+                  (card as any).originalStars = stars;
                   card.text = `PTI: ${card.pti} | Stelle: ${stars} | PTI originali: ${card.pti}`;
                 }
                 return card;
@@ -1548,6 +1549,7 @@ export class GameManager {
                 if (card.pti != null) {
                   const stars = card.stars ?? 1;
                   card.originalPti = card.pti;
+                  (card as any).originalStars = stars;
                   card.text = `PTI: ${card.pti} | Stelle: ${stars} | PTI originali: ${card.pti}`;
                 }
               }
@@ -3886,18 +3888,11 @@ Rispondi SOLO in JSON:`;
       const personalDecks = game.playerDraftDecks[playerName];
       deck = personalDecks[deckType as 'personaggi' | 'mosse' | 'bonus'] || [];
       
-      // AUTO-REFILL: If CPU personal deck is empty, refill from shared deck
-      // This happens when all personal cards have been played/drawn and not yet returned
-      if (deck.length === 0 && game.players[playerName].isCPU && game.decks[deckType]?.length > 0) {
-        console.log(`🔄 CPU ${playerName}: Personal ${deckType} deck empty - refilling from shared deck`);
-        const sharedDeck = game.decks[deckType];
-        // Take up to 5 cards from shared deck to refill personal deck
-        const refillCount = Math.min(5, sharedDeck.length);
-        for (let i = 0; i < refillCount; i++) {
-          const card = sharedDeck.pop()!;
-          deck.push(card);
-        }
-        console.log(`🔄 CPU ${playerName}: Refilled personal ${deckType} deck with ${refillCount} cards`);
+      // NOTE: In gym/draft/story mode each player has their own personal deck.
+      // DO NOT auto-refill from the shared deck — it would give the CPU cards
+      // belonging to the human player, corrupting story/gym game state.
+      if (deck.length === 0 && game.players[playerName].isCPU) {
+        console.log(`🔄 CPU ${playerName}: Personal ${deckType} deck empty in gym/draft mode — no refill from shared deck`);
       }
     } else if (game.isGymMode && game.playerDraftDecks && !game.players[playerName]?.isCPU && deckType !== 'personaggi_speciali') {
       // DEFENSIVE: Human player in gym mode has no personal deck entry — do NOT fall back to shared deck
@@ -9378,8 +9373,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
         );
         if (myDead.length === 0) { emitChat(`🔬 FRANKENSTEIN! Nessun personaggio morto da fondere.`); break; }
-        const totalPtiF = myDead.reduce((s: number, c: Card) => s + (c.pti || 0), 0);
-        const totalStarsF = myDead.reduce((s: number, c: Card) => s + (c.stars || 0), 0);
+        const totalPtiF = myDead.reduce((s: number, c: Card) => s + ((c as any).originalPti ?? c.pti ?? 0), 0);
+        const totalStarsF = myDead.reduce((s: number, c: Card) => s + ((c as any).originalStars ?? c.stars ?? 0), 0);
         game.graveyard = (game.graveyard || []).filter((c: Card) => !myDead.includes(c));
         const currentChar = this.getPlayerActiveCharacter(game, playerName);
         if (currentChar) {
@@ -19924,6 +19919,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       if (card.draftBaseId && card.pti != null) {
         const stars = card.stars ?? 1;
         card.originalPti = card.originalPti ?? card.pti;
+        card.originalStars = card.originalStars ?? stars;
         card.text = `PTI: ${card.pti} | Stelle: ${stars} | PTI originali: ${card.originalPti}`;
         card.stars = stars;
         console.log(`✅ Draft card ${card.id} (${card.draftBaseId}) preserving growth stats: pti=${card.pti}, stars=${stars}`);
@@ -19944,6 +19940,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const stars = card.stars;
         card.text = `PTI: ${pti} | Stelle: ${stars} | PTI originali: ${pti}`;
         card.originalPti = pti;
+        card.originalStars = card.originalStars ?? stars;
         console.log(`✅ Permanent card ${card.id} keeping assigned stats: pti=${pti}, stars=${stars}, name=${card.name}`);
         return;
       }
@@ -19958,6 +19955,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         card.text = `PTI: ${pti} | Stelle: ${stars} | PTI originali: ${pti}`;
         card.pti = pti;
         card.originalPti = pti;
+        card.originalStars = card.originalStars ?? stars;
         card.stars = stars;
         card.name = mod.name || card.name || cardName;
         if (mod.effect && !card.effect) {
@@ -19976,16 +19974,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         card.text = `PTI: ${pti} | Stelle: ${stars} | PTI originali: ${pti}`;
         card.pti = pti;
         card.originalPti = pti;
+        card.originalStars = card.originalStars ?? stars;
         card.stars = stars;
         card.name = card.name || cardName;
       } else {
         if (card.pti != null && card.stars != null) {
           card.text = `PTI: ${card.pti} | Stelle: ${card.stars} | PTI originali: ${card.pti}`;
           card.originalPti = card.pti;
+          card.originalStars = card.originalStars ?? card.stars;
         } else {
           card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
           card.pti = 1000;
           card.originalPti = 1000;
+          card.originalStars = card.originalStars ?? 1;
           card.stars = 1;
         }
         card.name = card.name || cardName;
@@ -19994,10 +19995,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       if (card.pti != null && card.stars != null) {
         card.text = `PTI: ${card.pti} | Stelle: ${card.stars} | PTI originali: ${card.pti}`;
         card.originalPti = card.pti;
+        card.originalStars = card.originalStars ?? card.stars;
       } else {
         card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
         card.pti = 1000;
         card.originalPti = 1000;
+        card.originalStars = card.originalStars ?? 1;
         card.stars = 1;
       }
     }
@@ -33613,7 +33616,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       // Extract current stars from card notes
       const starsMatch = currentNotes.match(/[Ss]telle:\s*(-?\d+)/i);
-      let currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
+      let currentStars = starsMatch ? parseInt(starsMatch[1]) : (targetCard.stars ?? 0);
       
       // Calculate new stars after theft
       const starsToSteal = Math.min(damageValue, Math.max(0, currentStars));
