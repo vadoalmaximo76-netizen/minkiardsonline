@@ -12099,10 +12099,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             timestamp: Date.now()
           });
           console.log(`🎯 Custom effect: Awaiting target selection for ${action.value} heal`);
-        } else if (action.target === 'self' || action.target === 'allies') {
+        } else if (action.target === 'self' || action.target === 'self_char' || action.target === 'allies') {
           if (healTarget) {
             const oldPti = healTarget.pti || 0;
             healTarget.pti = oldPti + (action.value || 0);
+            this.updateCardTextWithPTI(healTarget);
             console.log(`💚 Custom effect: ${healTarget.name || healTarget.id} healed ${action.value}, ${oldPti} → ${healTarget.pti} PTI`);
           } else {
             console.log(`💚 HEAL: No active character found on field for ${playerName}!`);
@@ -12117,6 +12118,38 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
         }
         break;
+
+      case 'instant_death': {
+        const deathTarget = action.target === 'self_char' || action.target === 'self'
+          ? this.getPlayerActiveCharacter(game, playerName)
+          : null;
+        if (deathTarget) {
+          console.log(`☠️ INSTANT_DEATH: killing ${deathTarget.name || deathTarget.id} (owner: ${playerName})`);
+          const io = (global as any).io;
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-instant-death-${deathTarget.id}`,
+              playerName: 'Sistema',
+              message: `☠️ ${action.description || 'Effetto ritardato'}: ${deathTarget.name || playerName} è eliminato!`,
+              timestamp: Date.now()
+            });
+          }
+          await this.sendCardToGraveyard(gameId, deathTarget.id, playerName, action.description || 'timed_death');
+        } else {
+          console.log(`☠️ INSTANT_DEATH: no active character found for ${playerName}`);
+        }
+        break;
+      }
+
+      case 'remove_stealth': {
+        const stealthTarget = this.getPlayerActiveCharacter(game, playerName);
+        if (stealthTarget) {
+          delete (stealthTarget as any).stealth;
+          delete (stealthTarget as any).stealthTurnsLeft;
+          console.log(`🛡️ REMOVE_STEALTH: removed stealth from ${stealthTarget.name || stealthTarget.id}`);
+        }
+        break;
+      }
 
       case 'draw':
         // Make player draw cards
