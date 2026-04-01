@@ -432,20 +432,9 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
       } catch {}
     }
 
-    if (authToken && currentDeckIds.length === 0 && leader.playerStartingDeck && leader.playerStartingDeck.length > 0) {
-      try {
-        const res = await fetch('/api/story-mode/deck/initialize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-          body: JSON.stringify({ gymLeaderId: leader.id }),
-        });
-        const data = await res.json();
-        if (data.success && data.cardIds) {
-          currentDeckIds = data.cardIds;
-          setStoryDeckIds(data.cardIds);
-        }
-      } catch {}
-    }
+    // Legacy playerStartingDeck fallback is intentionally removed.
+    // When starterDeckOptions is configured, the deck-select phase handles initialization.
+    // When neither is configured, the deck stays empty until the user wins and picks cards.
 
     setPendingBattle({ leader, deckIds: currentDeckIds });
   }, [authToken]);

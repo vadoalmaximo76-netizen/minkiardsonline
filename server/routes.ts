@@ -1218,6 +1218,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const gameManager = new GameManager();
 
+  // One-shot migration: clear legacy playerStartingDeck for gym leaders that have starterDeckOptions configured
+  if (isDatabaseAvailable()) {
+    try {
+      const allLeaders = await db.select().from(gymLeaders);
+      for (const leader of allLeaders) {
+        const opts = leader.starterDeckOptions as any[];
+        const hasConfiguredOptions = Array.isArray(opts) && opts.some((o: any) => Array.isArray(o?.cardIds) && o.cardIds.length > 0);
+        const legacyDeck = leader.playerStartingDeck as string[];
+        if (hasConfiguredOptions && Array.isArray(legacyDeck) && legacyDeck.length > 0) {
+          await db.update(gymLeaders).set({ playerStartingDeck: [] }).where(eq(gymLeaders.id, leader.id));
+          console.log(`🧹 [startup] Cleared legacy playerStartingDeck for gym leader "${leader.name}" (id=${leader.id}) — starterDeckOptions is configured`);
+        }
+      }
+    } catch (migErr) {
+      console.error('⚠️ [startup] Error clearing legacy playerStartingDeck:', migErr);
+    }
+  }
+
   // Load active games from database on server startup, then begin periodic autosave
   gameManager.loadActiveGamesFromDB().then(async () => {
     console.log('🎮 Active games loaded from database');
@@ -12971,7 +12989,13 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         deckBias: deckBias || { personaggi: 1.0, mosse: 1.0, bonus: 1.0 },
         customDeck: Array.isArray(customDeck) ? customDeck : [],
         livesCount: livesCount ?? 3,
-        playerStartingDeck: Array.isArray(playerStartingDeck) ? playerStartingDeck : [],
+        // Auto-clear legacy playerStartingDeck when starterDeckOptions is configured with cards
+        playerStartingDeck: (() => {
+          const opts = Array.isArray(starterDeckOptions) ? starterDeckOptions : [];
+          const hasConfiguredOptions = opts.some((o: any) => Array.isArray(o?.cardIds) && o.cardIds.length > 0);
+          if (hasConfiguredOptions) return [];
+          return Array.isArray(playerStartingDeck) ? playerStartingDeck : [];
+        })(),
         starterDeckOptions: Array.isArray(starterDeckOptions) ? starterDeckOptions : [],
         rewardCredits: rewardCredits ?? 50,
         rewardDescription: rewardDescription || null,
@@ -13010,7 +13034,13 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         deckBias: deckBias || { personaggi: 1.0, mosse: 1.0, bonus: 1.0 },
         customDeck: Array.isArray(customDeck) ? customDeck : [],
         livesCount: livesCount ?? 3,
-        playerStartingDeck: Array.isArray(playerStartingDeck) ? playerStartingDeck : [],
+        // Auto-clear legacy playerStartingDeck when starterDeckOptions is configured with cards
+        playerStartingDeck: (() => {
+          const opts = Array.isArray(starterDeckOptions) ? starterDeckOptions : [];
+          const hasConfiguredOptions = opts.some((o: any) => Array.isArray(o?.cardIds) && o.cardIds.length > 0);
+          if (hasConfiguredOptions) return [];
+          return Array.isArray(playerStartingDeck) ? playerStartingDeck : [];
+        })(),
         starterDeckOptions: Array.isArray(starterDeckOptions) ? starterDeckOptions : [],
         rewardCredits: rewardCredits ?? 50,
         rewardDescription: rewardDescription || null,
@@ -13422,17 +13452,18 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         const [gym] = await db.select().from(gymLeaders).where(eq(gymLeaders.id, parseInt(gymLeaderId)));
         if (gym) {
           let startingCards: string[] = [];
-          // Try starterDeckOptions first (new system)
           const opts = gym.starterDeckOptions as any[];
-          if (Array.isArray(opts) && opts.length > 0 && typeof optionIndex === 'number') {
+          const hasStarterOptions = Array.isArray(opts) && opts.length > 0;
+          if (hasStarterOptions && typeof optionIndex === 'number') {
             const chosen = opts[optionIndex];
             if (chosen && Array.isArray(chosen.cardIds) && chosen.cardIds.length > 0) {
               startingCards = chosen.cardIds;
             }
-          }
-          // Fallback to legacy playerStartingDeck
-          if (startingCards.length === 0 && Array.isArray(gym.playerStartingDeck) && (gym.playerStartingDeck as string[]).length > 0) {
-            startingCards = gym.playerStartingDeck as string[];
+          } else if (!hasStarterOptions) {
+            // Only fall back to legacy playerStartingDeck when NO starterDeckOptions configured at all
+            if (Array.isArray(gym.playerStartingDeck) && (gym.playerStartingDeck as string[]).length > 0) {
+              startingCards = gym.playerStartingDeck as string[];
+            }
           }
           if (startingCards.length > 0) {
             if (rows.length === 0) {
