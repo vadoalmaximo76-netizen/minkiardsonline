@@ -23,7 +23,7 @@ import { authMiddleware, ADMIN_FALLBACK, JWT_SECRET } from "./auth";
 import { setPlayerOnline, rateLimit as redisRateLimit, isRedisConfigured, updateLeaderboard as redisUpdateLeaderboard, cacheGet, cacheSet } from "./redis";
 import { getOptimizedCardUrl, isCloudinaryConfigured, cloudinaryInstance } from "./cloudinary";
 import { captureError } from "./sentry";
-import { emitSync } from "./dbSync";
+import { emitSync, fullSync, getSyncStatus } from "./dbSync";
 import { generateHelpMessage, buildHelpContext, emitHelpMessage } from "./helpCoach";
 
 const helpCooldowns = new Map<string, number>();
@@ -11821,6 +11821,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('[sync-databases] Fatal error:', error);
       res.status(500).json({ success: false, error: 'Sync failed' });
+    }
+  });
+
+  // Full 3-way sync: Neon → Replit DB + JSON files
+  app.post('/api/admin/full-sync', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = req.user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Admin only' });
+      }
+      const currentStatus = getSyncStatus();
+      if (currentStatus.inProgress) {
+        return res.status(409).json({ success: false, error: 'Sincronizzazione già in corso', status: currentStatus });
+      }
+      // Start async — don't block the HTTP response
+      fullSync().then(result => {
+        console.log('[/api/admin/full-sync] Completed:', result?.tablesOk.length, 'tables ok');
+      }).catch(err => {
+        console.warn('[/api/admin/full-sync] Error:', err.message);
+      });
+      res.json({ success: true, message: 'Sincronizzazione avviata in background. Usa /api/admin/full-sync/status per monitorare i progressi.' });
+    } catch (error) {
+      console.error('[full-sync] Error:', error);
+      res.status(500).json({ success: false, error: 'Errore avvio sincronizzazione' });
+    }
+  });
+
+  // Status of the last (or current) full sync
+  app.get('/api/admin/full-sync/status', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = req.user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Admin only' });
+      }
+      res.json({ success: true, ...getSyncStatus() });
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'Errore stato sincronizzazione' });
     }
   });
 

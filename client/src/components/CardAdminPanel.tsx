@@ -5,7 +5,7 @@ import { OcrReviewPanel } from './OcrReviewPanel';
 import { DraftCostEditorPanel } from './DraftCostEditorPanel';
 import { AdminGymPanel } from './AdminGymPanel';
 import { Button } from './ui/button';
-import { Info, Eye, Coins, Check, X, Zap, ListOrdered, Menu, Shield } from 'lucide-react';
+import { Info, Eye, Coins, Check, X, Zap, ListOrdered, Menu, Shield, Database, RefreshCw } from 'lucide-react';
 
 interface CardAdminPanelProps {
   onBack: () => void;
@@ -163,6 +163,10 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
   const [autoCostRunning, setAutoCostRunning] = useState(false);
   const [autoCostResult, setAutoCostResult] = useState<AutoCostResult | null>(null);
   const [autoCostError, setAutoCostError] = useState<string | null>(null);
+  const [showSyncDialog, setShowSyncDialog] = useState(false);
+  const [syncRunning, setSyncRunning] = useState(false);
+  const [syncResult, setSyncResult] = useState<any | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const authToken = localStorage.getItem('authToken');
 
   useEffect(() => {
@@ -174,6 +178,40 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
     if (showMenu) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMenu]);
+
+  const runFullSync = async () => {
+    setSyncRunning(true);
+    setSyncResult(null);
+    setSyncError(null);
+    try {
+      const res = await fetch('/api/admin/full-sync', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSyncResult(data);
+        // Poll for completion
+        const poll = async () => {
+          const r2 = await fetch('/api/admin/full-sync/status', { headers: { Authorization: `Bearer ${authToken}` } });
+          const d2 = await r2.json();
+          if (d2.inProgress) {
+            setTimeout(poll, 2000);
+          } else {
+            setSyncResult(d2.lastResult);
+            setSyncRunning(false);
+          }
+        };
+        setTimeout(poll, 2000);
+      } else {
+        setSyncError(data.error || 'Errore sconosciuto');
+        setSyncRunning(false);
+      }
+    } catch (e: any) {
+      setSyncError(e.message || 'Errore di rete');
+      setSyncRunning(false);
+    }
+  };
 
   const runAutoCost = async () => {
     setAutoCostRunning(true);
@@ -211,6 +249,7 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
         {showMenu && (
           <div className="absolute top-full right-0 mt-1 w-52 bg-gray-800 border border-white/15 rounded-xl shadow-2xl overflow-hidden">
             {[
+              { label: 'Sincronizza DB', icon: <Database size={14} />, color: 'text-green-300', onClick: () => { setShowSyncDialog(true); setSyncResult(null); setSyncError(null); setShowMenu(false); } },
               { label: 'Palestre', icon: <Shield size={14} />, color: 'text-yellow-300', onClick: () => { setShowGymPanel(true); setShowMenu(false); } },
               { label: 'Editor Costi Draft', icon: <ListOrdered size={14} />, color: 'text-indigo-300', onClick: () => { setShowDraftCostEditor(true); setShowMenu(false); } },
               { label: 'Costi Draft Auto', icon: <Zap size={14} />, color: 'text-orange-300', onClick: () => { setShowAutoCostDialog(true); setAutoCostResult(null); setAutoCostError(null); setShowMenu(false); } },
@@ -333,6 +372,66 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
                   >
                     Chiudi
                   </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* SINCRONIZZA DB DIALOG */}
+      {showSyncDialog && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[200]" onClick={() => { if (!syncRunning) setShowSyncDialog(false); }}>
+          <div className="bg-gray-900 border border-green-500/30 rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-4">
+              <Database className="w-5 h-5 text-green-400" />
+              <h3 className="text-lg font-bold text-white">Sincronizzazione Database</h3>
+            </div>
+            {!syncResult ? (
+              <>
+                <p className="text-white/70 text-sm mb-4">
+                  Copia tutti i dati da <span className="text-green-300 font-semibold">Neon (primario)</span> verso:
+                </p>
+                <ul className="text-white/60 text-sm mb-4 space-y-1.5">
+                  <li className="flex items-center gap-2">• <span className="text-blue-300">Replit DB</span> — backup automatico in caso di quota esaurita</li>
+                  <li className="flex items-center gap-2">• <span className="text-yellow-300">File JSON</span> — terzo livello di fallback offline</li>
+                </ul>
+                <p className="text-white/40 text-xs mb-4">
+                  Il processo è non distruttivo (onConflictDoNothing) e si ripete automaticamente ogni 30 minuti.
+                </p>
+                {syncError && (
+                  <div className="bg-red-900/50 text-red-300 text-sm rounded px-3 py-2 mb-3">{syncError}</div>
+                )}
+                <div className="flex gap-3 justify-end">
+                  <Button variant="outline" size="sm" onClick={() => setShowSyncDialog(false)} className="border-white/20 text-white/70" disabled={syncRunning}>
+                    Annulla
+                  </Button>
+                  <Button size="sm" onClick={runFullSync} disabled={syncRunning} className="bg-green-700 hover:bg-green-600 text-white">
+                    {syncRunning ? <><RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Sincronizzazione...</> : 'Avvia Sync'}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="bg-green-900/40 border border-green-500/30 rounded-xl p-4 mb-4">
+                  <div className="text-green-300 font-bold text-base mb-2 flex items-center gap-2">
+                    <Check className="w-4 h-4" /> Sincronizzazione completata!
+                  </div>
+                  <div className="text-white text-sm mb-1">
+                    <span className="font-semibold text-green-300">{syncResult.tablesOk?.length ?? '—'}</span> tabelle ok,{' '}
+                    <span className="text-red-300">{syncResult.tablesFailed?.length ?? 0}</span> errori
+                  </div>
+                  <div className="text-white/60 text-xs mt-2 space-y-0.5">
+                    <div>→ Replit DB: <span className="text-blue-300">{syncResult.rowsCopiedToReplit ?? 0} righe</span></div>
+                    <div>→ JSON: <span className="text-yellow-300">{syncResult.rowsCopiedToJson ?? 0} righe</span></div>
+                    <div>⏱ Durata: {syncResult.durationMs ? `${(syncResult.durationMs / 1000).toFixed(1)}s` : '—'}</div>
+                    {syncResult.errors?.length > 0 && (
+                      <div className="text-red-300 mt-1">Errori: {syncResult.errors.slice(0,3).join('; ')}</div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button size="sm" onClick={() => setShowSyncDialog(false)} className="bg-gray-600 hover:bg-gray-500 text-white">Chiudi</Button>
                 </div>
               </>
             )}

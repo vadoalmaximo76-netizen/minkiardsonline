@@ -76,5 +76,18 @@
     "resetPasswordExpires": null,
     "id": 6,
     "createdAt": "2026-03-26T10:05:51.254Z"
+  },
+  {
+    "username": "Fake",
+    "email": "lucaforte94@gmail.com",
+    "password": "$2b$10$4R4J2.VnPvNimCWku.dRsOroTKbPGgRYACPomupXrBEdqgM5MYpvC",
+    "googleId": null,
+    "avatar": "wizard",
+    "puntiRankiard": 1749,
+    "isAdmin": true,
+    "resetPasswordToken": null,
+    "resetPasswordExpires": null,
+    "id": 7,
+    "createdAt": "2026-04-01T07:38:19.341Z"
   }
 ]
