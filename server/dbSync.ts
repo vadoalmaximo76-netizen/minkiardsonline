@@ -409,12 +409,13 @@ function bulkSyncTableToJson(tableKey: string, rows: any[]) {
   let count = 0;
   try {
     if (tableKey === 'card_modifications') {
+      // JSON is authoritative for card_modifications — only add new entries, never overwrite existing ones
+      const existing = jsonStorage.cardModifications.getAll();
+      const existingIds = new Set(existing.map((m: any) => m.originalCardId));
       for (const row of rows) {
-        if (row.originalCardId) {
-          // Omit DB `id` so JSON storage preserves its own auto-increment IDs
+        if (row.originalCardId && !existingIds.has(row.originalCardId)) {
           const { id: _dbId, ...rowWithoutId } = cleanData(row);
-          jsonStorage.cardModifications.upsert(row.originalCardId, rowWithoutId);
-          count++;
+          try { jsonStorage.cardModifications.upsert(row.originalCardId, rowWithoutId); count++; } catch (_e) {}
         }
       }
     } else if (tableKey === 'custom_cards') {
@@ -847,10 +848,35 @@ function forceSyncTableToJson(tableKey: string, rows: any[]): JsonSyncResult {
   return { count: 0, ok: true };
 }
 
+// Helper: read rows from JSON storage for a given table key.
+// The JSON files are always the authoritative source since the admin panel writes
+// to JSON first. This avoids pulling stale data from EXTERNAL_DATABASE_URL.
+function getJsonRowsForTable(tableKey: string): any[] {
+  try {
+    switch (tableKey) {
+      case 'card_modifications': return jsonStorage.cardModifications.getAll();
+      case 'custom_cards': return jsonStorage.customCards.getAll();
+      case 'card_skins': return jsonStorage.cardSkins.getAll();
+      case 'achievements': return jsonStorage.achievements.getAll();
+      case 'mission_templates': return jsonStorage.missionTemplates.getAll();
+      case 'personaggi': return jsonStorage.personaggiCache.getAll();
+      case 'tutorial_steps': return jsonStorage.tutorialSteps.getAll();
+      default: return [];
+    }
+  } catch (err: any) {
+    console.warn(`[ForceSync] JSON read failed for ${tableKey}:`, err.message);
+    return [];
+  }
+}
+
 /**
- * Force sync: reads ALL rows from Neon for admin-config tables and OVERWRITES
- * both Replit DB (onConflictDoUpdate) and JSON files.
- * This ensures dev environment reflects production changes.
+ * Force sync: reads ALL rows from LOCAL JSON files (authoritative source, always
+ * updated by the admin panel) and PUSHES them to BOTH databases (EXTERNAL_DATABASE_URL
+ * and DATABASE_URL). The JSON is NOT overwritten since it IS the source.
+ *
+ * IMPORTANT: This direction (JSON → DBs) prevents data loss caused by pulling
+ * stale data from EXTERNAL_DATABASE_URL when that DB has older card modifications
+ * than what was saved via the admin panel.
  */
 export async function forceSync(): Promise<ForceSyncStatus['lastResult']> {
   if (_forceSyncStatus.inProgress) {
@@ -858,31 +884,33 @@ export async function forceSync(): Promise<ForceSyncStatus['lastResult']> {
     return _forceSyncStatus.lastResult;
   }
 
-  const neonUrl = process.env.EXTERNAL_DATABASE_URL;
+  const externalUrl = process.env.EXTERNAL_DATABASE_URL;
   const replitUrl = process.env.DATABASE_URL;
 
-  if (!neonUrl) {
-    const err = { tablesUpdated: {}, tablesOk: [], tablesFailed: [], totalRowsUpserted: 0, totalJsonUpdated: 0, errors: ['EXTERNAL_DATABASE_URL not set'], durationMs: 0 };
+  if (!externalUrl && !replitUrl) {
+    const err = { tablesUpdated: {}, tablesOk: [], tablesFailed: [], totalRowsUpserted: 0, totalJsonUpdated: 0, errors: ['No database URL configured'], durationMs: 0 };
     _forceSyncStatus.lastResult = err;
     return err;
   }
 
   _forceSyncStatus.inProgress = true;
   const startTime = Date.now();
-  console.log('🔄 [ForceSync] Starting force Neon → Replit DB + JSON overwrite sync...');
+  console.log('🔄 [ForceSync] Starting force JSON → DB sync (JSON is source of truth)...');
 
-  let neonDb: ExtDbType | null = null;
+  let externalDb: ExtDbType | null = null;
   let replitDb: ExtDbType | null = null;
   const tablesOk: string[] = [];
   const tablesFailed: string[] = [];
   const errors: string[] = [];
   const tablesUpdated: Record<string, number> = {};
   let totalRowsUpserted = 0;
-  let totalJsonUpdated = 0;
+  const totalJsonUpdated = 0; // no longer writing JSON (reading from it)
 
   try {
-    neonDb = drizzle(neon(sanitizeDbUrl(neonUrl)), { schema });
-    if (replitUrl && replitUrl !== neonUrl) {
+    if (externalUrl) {
+      externalDb = drizzle(neon(sanitizeDbUrl(externalUrl)), { schema });
+    }
+    if (replitUrl && replitUrl !== externalUrl) {
       replitDb = drizzle(neon(sanitizeDbUrl(replitUrl)), { schema });
     }
   } catch (err: any) {
@@ -895,48 +923,59 @@ export async function forceSync(): Promise<ForceSyncStatus['lastResult']> {
   }
 
   for (const tableKey of FORCE_SYNC_TABLES) {
-    const tableSchema = tableMap[tableKey];
-    if (!tableSchema) continue;
     try {
-      const rows: any[] = await neonDb.select().from(tableSchema);
+      // Read from JSON (authoritative source)
+      const rows = getJsonRowsForTable(tableKey);
       let upserted = 0;
+      let tableOk = true;
 
-      // Sync to Replit DB with overwrite (always called — handles empty-table deletion too)
-      let replitOk = true;
-      if (replitDb) {
+      // Push to EXTERNAL_DATABASE_URL
+      if (externalDb) {
         try {
-          const replitResult = await upsertChunkedOverwrite(replitDb, tableKey, rows);
-          upserted = replitResult.upserted;
-          totalRowsUpserted += upserted;
-          if (replitResult.rowErrors.length > 0) {
-            errors.push(...replitResult.rowErrors);
-            replitOk = false; // row-level failures — partial overwrite
+          const extResult = await upsertChunkedOverwrite(externalDb, tableKey, rows);
+          upserted += extResult.upserted;
+          totalRowsUpserted += extResult.upserted;
+          if (extResult.rowErrors.length > 0) {
+            errors.push(...extResult.rowErrors);
+            tableOk = false;
           }
-          if (replitResult.deleteError) {
-            errors.push(replitResult.deleteError);
-            replitOk = false; // stale deletion failed — overwrite guarantee not met
+          if (extResult.deleteError) {
+            errors.push(extResult.deleteError);
+            tableOk = false;
           }
         } catch (err: any) {
-          replitOk = false;
-          errors.push(`${tableKey} → Replit: ${err.message}`);
+          tableOk = false;
+          errors.push(`${tableKey} → ExternalDB: ${err.message}`);
         }
       }
 
-      // Sync to JSON with overwrite
-      const jsonResult = forceSyncTableToJson(tableKey, rows);
-      totalJsonUpdated += jsonResult.count;
-      if (!jsonResult.ok && jsonResult.error) {
-        errors.push(jsonResult.error);
+      // Push to DATABASE_URL (secondary)
+      if (replitDb) {
+        try {
+          const replitResult = await upsertChunkedOverwrite(replitDb, tableKey, rows);
+          upserted += replitResult.upserted;
+          totalRowsUpserted += replitResult.upserted;
+          if (replitResult.rowErrors.length > 0) {
+            errors.push(...replitResult.rowErrors);
+            tableOk = false;
+          }
+          if (replitResult.deleteError) {
+            errors.push(replitResult.deleteError);
+            tableOk = false;
+          }
+        } catch (err: any) {
+          tableOk = false;
+          errors.push(`${tableKey} → ReplitDB: ${err.message}`);
+        }
       }
 
       tablesUpdated[tableKey] = rows.length;
-      const tableOk = replitOk && jsonResult.ok;
       if (tableOk) {
         tablesOk.push(tableKey);
       } else {
         tablesFailed.push(tableKey);
       }
-      console.log(`  ${tableOk ? '✅' : '⚠️'} [ForceSync] ${tableKey}: ${rows.length} rows (→Replit: ${upserted}, →JSON: ${jsonResult.count})`);
+      console.log(`  ${tableOk ? '✅' : '⚠️'} [ForceSync] ${tableKey}: ${rows.length} rows from JSON → ${upserted} upserted to DB(s)`);
     } catch (err: any) {
       tablesFailed.push(tableKey);
       errors.push(`${tableKey}: ${err.message}`);
@@ -950,7 +989,7 @@ export async function forceSync(): Promise<ForceSyncStatus['lastResult']> {
   _forceSyncStatus.lastRun = new Date();
   _forceSyncStatus.inProgress = false;
 
-  console.log(`✅ [ForceSync] Done in ${durationMs}ms — ${tablesOk.length} tables ok, ${tablesFailed.length} failed, ${totalRowsUpserted} rows → Replit, ${totalJsonUpdated} rows → JSON`);
+  console.log(`✅ [ForceSync] Done in ${durationMs}ms — ${tablesOk.length} tables ok, ${tablesFailed.length} failed, ${totalRowsUpserted} rows pushed to DB(s)`);
   return result;
 }
 
