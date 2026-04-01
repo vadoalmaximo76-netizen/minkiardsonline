@@ -415,7 +415,9 @@ function bulkSyncTableToJson(tableKey: string, rows: any[]) {
       for (const row of rows) {
         if (row.originalCardId && !existingIds.has(row.originalCardId)) {
           const { id: _dbId, ...rowWithoutId } = cleanData(row);
-          try { jsonStorage.cardModifications.upsert(row.originalCardId, rowWithoutId); count++; } catch (_e) {}
+          try { jsonStorage.cardModifications.upsert(row.originalCardId, rowWithoutId); count++; } catch (e: any) {
+            console.warn(`[BulkSync] card_modifications upsert failed for ${row.originalCardId}:`, e.message);
+          }
         }
       }
     } else if (tableKey === 'custom_cards') {

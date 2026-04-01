@@ -2923,8 +2923,17 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           /dopo\s+\d+\s+turni/i.test(cardEffect) ||
           /tra\s+\d+\s+turni/i.test(cardEffect)
         );
+        // hasDamageValue: true if card has a numeric damage value OR a named effect that requires
+        // a mosse-attack submission (e.g. gamble_death, drain_on_attack, contrattazione_clandestina).
+        // Effect-only cards (mosseDamageValue=null, mosseDamageEffect set) must NOT be skipped —
+        // their effect is processed server-side via the mosse-attack route, not by playCard() alone.
+        // Defensive fallback: also detect via effect text (morte/gamble keywords) so effect-only
+        // cards still proceed even if mosseDamageEffect was accidentally lost from JSON.
+        const hasEffectOnlyKeyword = /morte\s+del\s+personaggio|gamble.*morte|morte.*gamble|scommessa.*morte/i.test(cardEffect)
+          || /drain|assorbe.*pti|contrattaz/i.test(cardEffect);
         const hasDamageValue = (cardToPlay.mosseDamageValue !== null && cardToPlay.mosseDamageValue !== undefined && cardToPlay.mosseDamageValue > 0)
-          || (cardToPlay.mosseDamageEffect !== null && cardToPlay.mosseDamageEffect !== undefined && cardToPlay.mosseDamageEffect !== '');
+          || (cardToPlay.mosseDamageEffect !== null && cardToPlay.mosseDamageEffect !== undefined && cardToPlay.mosseDamageEffect !== '')
+          || hasEffectOnlyKeyword;
         
         if (hasCustomEffect && !hasDamageValue) {
           console.log(`🎯 CPU ${this.playerName}: MOSSE card has custom effect (no damage value) - effect already processed, skipping regular attack`);
