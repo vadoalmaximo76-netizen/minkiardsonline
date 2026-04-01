@@ -5490,73 +5490,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // ── OCCHIO DEL FOTOGRAFO ─────────────────────────────────────────────────
-      // Phase 1: choose opponent to spy on → reveal full hand + offer steal.
-      // Phase 2: choose card to steal (or skip).
+      // Player chose a card type to spy (value = 'personaggi' | 'mosse' | 'bonus').
+      // Reveals one card of that type from each opponent's hand — no stealing.
       const pendingFotografo = (game as any).pendingFotografo;
       if (pendingFotografo && pendingFotografo.choiceId === choiceId && pendingFotografo.playerName === socketPlayerName) {
-        if (pendingFotografo.phase === 'steal') {
-          // Phase 2: player chose a card to steal (value = card ID or 'skip')
-          delete (game as any).pendingFotografo;
-          if (value && value !== 'skip') {
-            const spiedOpp = pendingFotografo.spiedOpponent;
-            const oppHand = game.players[spiedOpp]?.hand || [];
-            const stealIdx = oppHand.findIndex((c: any) => c.id === value);
-            if (stealIdx >= 0) {
-              const stolenCard = oppHand.splice(stealIdx, 1)[0];
-              stolenCard.owner = socketPlayerName;
-              (game.players[socketPlayerName].hand || []).push(stolenCard);
-              io.to(gameId).emit('chat-message', {
-                id: `${Date.now()}-fotografo-steal`,
-                playerName: 'Sistema',
-                message: `📸 OCCHIO DEL FOTOGRAFO! ${socketPlayerName} ha rubato una carta dalla mano di ${spiedOpp}!`,
-                timestamp: Date.now()
-              });
-            }
-          } else {
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-fotografo-skip`,
-              playerName: 'Sistema',
-              message: `📸 ${socketPlayerName} ha spiato la mano avversaria ma non ha rubato nulla.`,
-              timestamp: Date.now()
-            });
-          }
-          io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
-          return;
-        }
-        // Phase 1: player chose which opponent to spy on (value = opponentName)
-        const spiedOpp = value;
-        if (spiedOpp && game.players[spiedOpp]) {
-          const spiedHand = game.players[spiedOpp].hand || [];
-          const playerSocketId = (game.players[socketPlayerName] as any)?.socketId;
-          if (playerSocketId) {
-            io.to(playerSocketId).emit('fotografo-reveal-hand', {
-              playerName: spiedOpp,
-              hand: spiedHand.map((c: any) => ({ id: c.id, name: c.name, frontImage: c.frontImage, type: c.type, effect: c.effect }))
-            });
-          }
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-fotografo-spy`,
-            playerName: 'Sistema',
-            message: `📸 OCCHIO DEL FOTOGRAFO! ${socketPlayerName} spia la mano di ${spiedOpp} (${spiedHand.length} carte)!`,
-            timestamp: Date.now()
-          });
-          const stealChoiceId = `fotografo-steal-${Date.now()}`;
-          (game as any).pendingFotografo = { choiceId: stealChoiceId, playerName: socketPlayerName, phase: 'steal', spiedOpponent: spiedOpp };
-          const stealOptions: any[] = spiedHand.map((c: any) => ({
-            value: c.id,
-            label: `🃏 ${c.name || c.type || 'Carta'}`
-          }));
-          stealOptions.push({ value: 'skip', label: '⏭️ Non rubare nulla' });
-          if (playerSocketId) {
-            io.to(playerSocketId).emit('show-choice-panel', {
-              choiceId: stealChoiceId,
-              title: '📸 FOTOGRAFO - Ruba una carta',
-              message: `Mano di ${spiedOpp} rivelata! Vuoi rubare una carta?`,
-              options: stealOptions,
-              timestamp: Date.now()
-            });
+        delete (game as any).pendingFotografo;
+        const chosenType = value; // 'personaggi' | 'mosse' | 'bonus'
+        const opponents = game.turnOrder.filter((p: string) => p !== socketPlayerName && !game.eliminatedPlayers.has(p));
+        const revealed: Record<string, any> = {};
+        for (const opp of opponents) {
+          const oppHand = (game.players[opp]?.hand || []) as any[];
+          const matching = oppHand.filter((c: any) => c.type === chosenType);
+          if (matching.length > 0) {
+            revealed[opp] = { id: matching[0].id, name: matching[0].name, frontImage: matching[0].frontImage, type: matching[0].type };
           }
         }
+        const playerSocketId = (game.players[socketPlayerName] as any)?.socketId;
+        if (playerSocketId) {
+          io.to(playerSocketId).emit('occhio-fotografo-reveal', { revealedBy: socketPlayerName, cardType: chosenType, revealed });
+        }
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-fotografo-reveal`,
+          playerName: 'Sistema',
+          message: `📸 OCCHIO DEL FOTOGRAFO! ${socketPlayerName} spia le carte di tipo "${chosenType}" nella mano degli avversari!`,
+          timestamp: Date.now()
+        });
         io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
         return;
       }
@@ -6240,46 +6198,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    // MEDICINA SOMMINISTRA - Cure VIRUS/INFLUENZA and eliminate PARASSITA
-    socket.on('somministra-medicina', async ({ cardId, playerName }) => {
-      const gameId = gameManager.getPlayerGameId(socket.id);
-      if (gameId) {
-        console.log(`💊 MEDICINA SOMMINISTRA: ${playerName} using MEDICINA ${cardId}`);
-        
-        const result = await gameManager.somministraMedicina(gameId, cardId, playerName);
-        
-        if (result.success) {
-          const gameState = gameManager.getSanitizedGameState(gameId);
-          emitThrottledGameState(io, gameId, gameState);
-          
-          // Build message about what was cured
-          const effects: string[] = [];
-          if (result.virusCleared > 0) effects.push(`${result.virusCleared} VIRUS`);
-          if (result.influenzaCleared > 0) effects.push(`${result.influenzaCleared} INFLUENZA`);
-          if (result.parassitaEliminated.length > 0) effects.push(`${result.parassitaEliminated.length} PARASSITA`);
-          
-          const effectMessage = effects.length > 0 
-            ? `Ha curato: ${effects.join(', ')}` 
-            : 'Nessun effetto da curare trovato';
-          
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-medicina`,
-            playerName: 'Sistema',
-            message: `💊 ${playerName} ha somministrato MEDICINA! ${effectMessage}`,
-            timestamp: Date.now()
-          });
-          
-          // Emit medicina effect for animation
-          io.to(gameId).emit('medicina-somministrata', {
-            playerName,
-            virusCleared: result.virusCleared,
-            influenzaCleared: result.influenzaCleared,
-            parassitaEliminated: result.parassitaEliminated
-          });
-        }
-      }
-    });
-
     socket.on('update-card-text', ({ cardId, text }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
@@ -6591,68 +6509,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`Add PR failed: ${result.message}`);
         }
-      }
-    });
-
-    // BAMBOLA VOODOO: Activate voodoo link between two characters
-    socket.on('voodoo:activate', ({ bonusCardId, card1Id, card2Id, activatedBy, gameId: clientGameId }) => {
-      const gameId = gameManager.getPlayerGameId(socket.id) || clientGameId;
-      if (!gameId) {
-        socket.emit('voodoo:error', { message: 'Game not found' });
-        return;
-      }
-      
-      console.log(`🔮 BAMBOLA VOODOO activation request: ${card1Id} <-> ${card2Id} by ${activatedBy}`);
-      
-      const result = gameManager.activateVoodooLink(gameId, bonusCardId, card1Id, card2Id, activatedBy);
-      
-      if (result.success) {
-        // Broadcast to all players
-        io.to(gameId).emit('chat-message', {
-          id: `${Date.now()}-voodoo-activate`,
-          playerName: 'Sistema',
-          message: result.message,
-          timestamp: Date.now()
-        });
-        
-        // Send updated game state with voodoo links
-        const gameState = gameManager.getSanitizedGameState(gameId);
-        emitThrottledGameState(io, gameId, gameState);
-        
-        console.log(`🔮 BAMBOLA VOODOO activated successfully`);
-      } else {
-        socket.emit('voodoo:error', { message: result.message });
-        console.log(`🔮 BAMBOLA VOODOO activation failed: ${result.message}`);
-      }
-    });
-    
-    // BAMBOLA VOODOO: Remove voodoo link
-    socket.on('voodoo:remove', ({ cardId, gameId: clientGameId }) => {
-      const gameId = gameManager.getPlayerGameId(socket.id) || clientGameId;
-      if (!gameId) {
-        socket.emit('voodoo:error', { message: 'Game not found' });
-        return;
-      }
-      
-      console.log(`🔮 BAMBOLA VOODOO removal request for card: ${cardId}`);
-      
-      const success = gameManager.removeVoodooLink(gameId, cardId);
-      
-      if (success) {
-        io.to(gameId).emit('chat-message', {
-          id: `${Date.now()}-voodoo-remove`,
-          playerName: 'Sistema',
-          message: '🔮 Collegamento BAMBOLA VOODOO rimosso!',
-          timestamp: Date.now()
-        });
-        
-        // Send updated game state
-        const gameState = gameManager.getSanitizedGameState(gameId);
-        emitThrottledGameState(io, gameId, gameState);
-        
-        console.log(`🔮 BAMBOLA VOODOO link removed successfully`);
-      } else {
-        socket.emit('voodoo:error', { message: 'No voodoo link found for this card' });
       }
     });
 

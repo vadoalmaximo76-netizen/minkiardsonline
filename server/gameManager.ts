@@ -9996,28 +9996,34 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const opponents = game.turnOrder.filter((p: string) => p !== playerName && !game.eliminatedPlayers.has(p));
         if (opponents.length === 0) { emitChat(`📸 OCCHIO DEL FOTOGRAFO: Nessun avversario in gioco.`); emitState(); break; }
         if (isCPU) {
-          // CPU: spy on random opponent, steal random card
-          const rndOpp = opponents[Math.floor(Math.random() * opponents.length)];
-          const oppHand = (game.players[rndOpp]?.hand || []);
-          if (oppHand.length > 0) {
-            const stolenIdx = Math.floor(Math.random() * oppHand.length);
-            const stolenCard = oppHand.splice(stolenIdx, 1)[0];
-            stolenCard.owner = playerName;
-            (game.players[playerName].hand || []).push(stolenCard);
-            emitChat(`📸 OCCHIO DEL FOTOGRAFO! ${playerName} spia la mano di ${rndOpp} e ruba una carta!`);
-          } else {
-            emitChat(`📸 OCCHIO DEL FOTOGRAFO! ${playerName} spia la mano di ${rndOpp}: è vuota!`);
+          // CPU: pick a random card type and reveal one card of that type from each opponent's hand
+          const cardTypes = ['personaggi', 'mosse', 'bonus'];
+          const chosenType = cardTypes[Math.floor(Math.random() * cardTypes.length)];
+          const revealed: Record<string, any> = {};
+          for (const opp of opponents) {
+            const oppHand = (game.players[opp]?.hand || []) as Card[];
+            const matching = oppHand.filter(c => c.type === chosenType);
+            if (matching.length > 0) {
+              revealed[opp] = matching[Math.floor(Math.random() * matching.length)];
+            }
           }
+          emitChat(`📸 OCCHIO DEL FOTOGRAFO! ${playerName} spia le carte di tipo "${chosenType}" nella mano degli avversari!`);
+          if (io) io.to(gameId).emit('occhio-fotografo-reveal', { revealedBy: playerName, cardType: chosenType, revealed });
           emitState(); break;
         }
+        // Human: ask which card type to spy
         const odFChoiceId = `fotografo-${Date.now()}`;
         const odFSocketId = (game.players[playerName] as any)?.socketId;
-        const fotografoOpts = opponents.map(p => ({ value: p, label: `👁️ Spia ${p}` }));
+        const fotografoOpts = [
+          { value: 'personaggi', label: '👤 Personaggio' },
+          { value: 'mosse', label: '⚔️ Mosse' },
+          { value: 'bonus', label: '⭐ Bonus' }
+        ];
         (game as any).pendingFotografo = { choiceId: odFChoiceId, playerName };
         this.emitChoicePanelOrAutoResolve(gameId, playerName, odFSocketId, {
           choiceId: odFChoiceId,
           title: '📸 OCCHIO DEL FOTOGRAFO',
-          message: 'Scegli quale avversario spiare. Vedrai la sua mano e potrai rubare una carta!',
+          message: 'Scegli che tipo di carta vuoi vedere nella mano di ogni avversario:',
           options: fotografoOpts,
           timestamp: Date.now()
         }, fotografoOpts, 'pendingFotografo', io);
@@ -11895,29 +11901,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         (game as any).pendingAutoAttack[playerName] = true;
         emitChat(`⚡ STAKU! ${myChar.name || playerName} +100 PTI (PTI: ${myChar.pti}) — al prossimo turno dovrà attaccare obbligatoriamente!`);
         emitState(); break;
-      }
-
-      // ─── OCCHIO DEL FOTOGRAFO: rivela le carte di tutti ──────────────────────
-      case 'occhio_del_fotografo': {
-        const allHands: Record<string, Card[]> = {};
-        for (const p of game.turnOrder) {
-          if (p !== playerName) allHands[p] = (game.players[p]?.hand || []) as Card[];
-        }
-        if (io) io.to(gameId).emit('occhio-fotografo-reveal', { revealedBy: playerName, allHands });
-        emitChat(`📸 OCCHIO DEL FOTOGRAFO! ${playerName} rivela le carte in mano di tutti gli avversari!`);
-        break;
-      }
-
-      // ─── PLAYBACK: rigioca l'ultima mossa utilizzata ─────────────────────────
-      case 'playback': {
-        const lastEffect = (game as any).lastCardEffect;
-        if (lastEffect) {
-          emitChat(`⏪ PLAYBACK! ${playerName} ripete l'ultima carta giocata: "${lastEffect}"!`);
-          await this.executeNamedBonusEffect(gameId, lastEffect, card, playerName);
-        } else {
-          emitChat(`⏪ PLAYBACK: nessuna carta precedente registrata.`);
-        }
-        break;
       }
 
       // ─── DIVERTENTE: +50 PTI a tutti i personaggi in campo ──────────────────
