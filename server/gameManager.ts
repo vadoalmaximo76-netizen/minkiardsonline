@@ -6882,6 +6882,30 @@ Rispondi SOLO in JSON:`;
       }
     }
 
+    // ============ CARD EFFECT BANNER for non-named/text-parsed effects ============
+    // Named effects are already covered by executeNamedBonusEffect above.
+    // This path handles effects not routed through that function (generic text parsing,
+    // personaggi special-case logic, mosse, etc.).
+    {
+      const io = (global as any).io;
+      if (io && !(card as any).effectAlreadyApplied) {
+        const cleanEffect = (card.effect || '')
+          .replace(/\[CUSTOM:[^\]]+\]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 100);
+        const emoji = this.deriveEffectEmoji(card.name || '', card.type);
+        io.to(gameId).emit('card-effect-banner', {
+          playerName,
+          cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+          cardImage: card.frontImage || '',
+          effectName: card.name || card.type || 'effect',
+          effectText: cleanEffect,
+          emoji,
+        });
+      }
+    }
+
     // ============ PTI DISTRIBUTION PATTERN (Giovanni Muciaccia) ============
     // When a personaggi_speciali card with PTI/stelle distribution effect is played directly
     if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && 
@@ -8613,12 +8637,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         .replace(/\s+/g, ' ')
         .trim()
         .slice(0, 100);
+      const emoji = this.deriveEffectEmoji(effectName, card.type);
       io.to(gameId).emit('card-effect-banner', {
         playerName,
         cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
         cardImage: card.frontImage || '',
         effectName,
         effectText: cleanEffect,
+        emoji,
       });
     }
 
@@ -17903,6 +17929,28 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
+  }
+
+  private deriveEffectEmoji(effectName: string, cardType?: string): string {
+    const n = effectName.toLowerCase();
+    if (/heal|cura|medicina|fiaschetta|spinaci|buscopan|nirdosh|stipendio/.test(n)) return '💊';
+    if (/scudo|barriera|difesa|immunita|immune|shield|assicurazione/.test(n)) return '🛡️';
+    if (/blocco|ibernazione|paralisi|block|freeze/.test(n)) return '🚫';
+    if (/steal|rusc|baratto|scambio|sbirciata|sbirci/.test(n)) return '🎴';
+    if (/stelle|star|stipendio|fagiolo|vitello|galassia|vento/.test(n)) return '⭐';
+    if (/doping|kainoken|carica|potenzia|superpower|attacco/.test(n)) return '⚔️';
+    if (/drain|vampiro|macumba|assorb/.test(n)) return '🧛';
+    if (/death|mort|harakiri|apocalisse|tabula|distruz/.test(n)) return '💀';
+    if (/replay|clone|sdoppia|extra|turno|time|tempo/.test(n)) return '🔄';
+    if (/evoluzione|evolution|evoluz/.test(n)) return '🦋';
+    if (/slot|dado|roulett|azzardo/.test(n)) return '🎲';
+    if (/troll|zombie|kamikaze|truzzo|m_mondo/.test(n)) return '🤡';
+    if (/tsunami|ciclone|uragano|tempesta|terremoto/.test(n)) return '🌊';
+    if (/lega|league|olimpo|sayan|simpson|griffin/.test(n)) return '🏆';
+    if (/minkiard_n/.test(n)) return '🃏';
+    if (cardType === 'mosse') return '👊';
+    if (cardType === 'personaggi' || cardType === 'personaggi_speciali') return '🧙';
+    return '✨';
   }
 
   private getCardNameFromCardId(cardId: string): string {

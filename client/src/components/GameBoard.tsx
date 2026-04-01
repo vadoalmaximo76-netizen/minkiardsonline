@@ -337,7 +337,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [cpuThinkingPlayer, setCpuThinkingPlayer] = useState<string | null>(null);
   const [helpBanner, setHelpBanner] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
   const [comicBanner, setComicBanner] = useState<{ visible: boolean; text: string; owner: string }>({ visible: false, text: '', owner: '' });
-  const [cardEffectBanner, setCardEffectBanner] = useState<{ playerName: string; cardName: string; cardImage: string; effectName: string; effectText: string } | null>(null);
+  const [cardEffectBanner, setCardEffectBanner] = useState<{ playerName: string; cardName: string; cardImage: string; effectName: string; effectText: string; emoji: string } | null>(null);
   const cardEffectBannerTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [graveyardSelectionModal, setGraveyardSelectionModal] = useState<{
     visible: boolean;
@@ -1322,7 +1322,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('comic-banner', handleComicBanner);
 
-    const handleCardEffectBanner = (data: { playerName: string; cardName: string; cardImage: string; effectName: string; effectText: string }) => {
+    const handleCardEffectBanner = (data: { playerName: string; cardName: string; cardImage: string; effectName: string; effectText: string; emoji: string }) => {
       if (cardEffectBannerTimerRef.current) clearTimeout(cardEffectBannerTimerRef.current);
       setCardEffectBanner(data);
       cardEffectBannerTimerRef.current = setTimeout(() => setCardEffectBanner(null), 3500);
@@ -5756,14 +5756,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                     className="w-10 h-14 object-cover rounded-lg border border-purple-400/40 flex-shrink-0 shadow-lg"
                   />
                 ) : (
-                  <span className="text-2xl flex-shrink-0">✨</span>
+                  <span className="text-2xl flex-shrink-0">{cardEffectBanner.emoji || '✨'}</span>
                 )}
                 <div className="flex flex-col min-w-0">
                   <span className="text-purple-200 font-black text-sm uppercase tracking-widest truncate leading-tight">
-                    {cardEffectBanner.cardName}
+                    {cardEffectBanner.emoji || '✨'} {cardEffectBanner.cardName}
                   </span>
                   <span className="text-purple-400 text-xs font-semibold">
-                    ✨ {cardEffectBanner.playerName}
+                    {cardEffectBanner.playerName}
                   </span>
                   {cardEffectBanner.effectText && (
                     <span className="text-purple-300/80 text-xs mt-0.5 leading-snug line-clamp-2">
