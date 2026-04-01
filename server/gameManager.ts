@@ -1268,6 +1268,9 @@ export class GameManager {
       playerStats: new Map<string, { cardsPlayed: number; mossePlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>()
     };
 
+    // Since scenarioCardsActive defaults to true, add scenario cards to bonus deck immediately
+    gameState.decks.bonus.push(...this.createScenarioCards());
+
     // Auto-shuffle all decks when starting a new game
     this.shuffleGameDecks(gameState);
     
@@ -3749,6 +3752,16 @@ Rispondi SOLO in JSON:`;
             // Last action
             lastAction: state.lastAction || undefined,
           };
+
+          // If scenarioCardsActive is true but no scenario cards are in the bonus deck
+          // (e.g. games saved before the auto-populate fix), add them now
+          if (gameState.scenarioCardsActive) {
+            const hasScenarioCards = gameState.decks.bonus.some((c: Card) => c.id.startsWith('scenario-'));
+            if (!hasScenarioCards) {
+              gameState.decks.bonus.push(...this.createScenarioCards());
+              console.log(`🎭 [Restore] Auto-added scenario cards to bonus deck for game ${savedGame.gameId}`);
+            }
+          }
 
           // Restore gym leader DB id
           if (state.gymLeaderId) {
@@ -27394,8 +27407,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       personaggi_speciali: this.createInitialDeck('personaggi_speciali')
     };
 
-    // Reset scenario cards to active (default)
+    // Reset scenario cards to active (default) and re-populate bonus deck with scenario cards
     game.scenarioCardsActive = true;
+    game.decks.bonus.push(...this.createScenarioCards());
 
     // Auto-shuffle all decks when resetting the game
     this.shuffleGameDecks(game);
