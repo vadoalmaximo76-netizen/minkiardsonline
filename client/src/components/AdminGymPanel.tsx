@@ -57,6 +57,7 @@ interface GymLeader {
   customDeck: string[];
   livesCount: number;
   playerStartingDeck: string[];
+  starterDeckOptions?: { name: string; imageUrl: string; glowColor: string; cardIds: string[] }[];
   rewardCredits: number;
   rewardDescription: string | null;
   youtubeMusicUrl: string | null;
@@ -92,6 +93,10 @@ const EMPTY_FORM = {
   customDeck: [] as string[],
   livesCount: 3,
   playerStartingDeck: [] as string[],
+  starterDeckOptions: [
+    { name: 'Scuderia Horsy', imageUrl: '', glowColor: '#38bdf8', cardIds: [] as string[] },
+    { name: 'Armata Bullox', imageUrl: '', glowColor: '#ef4444', cardIds: [] as string[] },
+  ],
   rewardCredits: 50,
   rewardDescription: '',
   youtubeMusicUrl: '',
@@ -275,6 +280,12 @@ export function AdminGymPanel({ onClose }: Props) {
       customDeck: Array.isArray(leader.customDeck) ? leader.customDeck : [],
       livesCount: leader.livesCount ?? 3,
       playerStartingDeck: Array.isArray(leader.playerStartingDeck) ? leader.playerStartingDeck : [],
+      starterDeckOptions: Array.isArray(leader.starterDeckOptions) && leader.starterDeckOptions.length > 0
+        ? leader.starterDeckOptions
+        : [
+            { name: 'Scuderia Horsy', imageUrl: '', glowColor: '#38bdf8', cardIds: [] as string[] },
+            { name: 'Armata Bullox', imageUrl: '', glowColor: '#ef4444', cardIds: [] as string[] },
+          ],
       rewardCredits: leader.rewardCredits,
       rewardDescription: leader.rewardDescription || '',
       youtubeMusicUrl: leader.youtubeMusicUrl || '',
@@ -379,6 +390,10 @@ export function AdminGymPanel({ onClose }: Props) {
   const getActiveDeck = (): string[] => {
     if (deckEditTarget === 'player') return form.playerStartingDeck;
     if (deckEditTarget === 'cpu-main') return form.customDeck;
+    if (deckEditTarget.startsWith('starter-')) {
+      const si = parseInt(deckEditTarget.replace('starter-', ''));
+      return form.starterDeckOptions?.[si]?.cardIds ?? [];
+    }
     const idx = parseInt(deckEditTarget.replace('cpu-extra-', ''));
     if (!isNaN(idx) && form.cpuConfigs[idx]) return form.cpuConfigs[idx].customDeck;
     return [];
@@ -389,6 +404,13 @@ export function AdminGymPanel({ onClose }: Props) {
       setForm(f => ({ ...f, playerStartingDeck: deck }));
     } else if (deckEditTarget === 'cpu-main') {
       setForm(f => ({ ...f, customDeck: deck }));
+    } else if (deckEditTarget.startsWith('starter-')) {
+      const si = parseInt(deckEditTarget.replace('starter-', ''));
+      setForm(f => {
+        const opts = [...(f.starterDeckOptions ?? [])];
+        if (opts[si]) opts[si] = { ...opts[si], cardIds: deck };
+        return { ...f, starterDeckOptions: opts };
+      });
     } else {
       const idx = parseInt(deckEditTarget.replace('cpu-extra-', ''));
       if (!isNaN(idx)) {
@@ -895,13 +917,17 @@ export function AdminGymPanel({ onClose }: Props) {
                           🤖 CPU #{idx + 2}
                         </button>
                       ))}
-                      <button
-                        type="button"
-                        onClick={() => setDeckEditTarget('player')}
-                        className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all ${deckEditTarget === 'player' ? 'bg-blue-600 text-white' : 'bg-white/10 text-white/50 hover:bg-white/20'}`}
-                      >
-                        👤 Iniziale
-                      </button>
+                      {(form.starterDeckOptions ?? []).map((opt, si) => (
+                        <button
+                          key={`starter-${si}`}
+                          type="button"
+                          onClick={() => setDeckEditTarget(`starter-${si}`)}
+                          className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all ${deckEditTarget === `starter-${si}` ? 'text-white' : 'bg-white/10 text-white/50 hover:bg-white/20'}`}
+                          style={deckEditTarget === `starter-${si}` ? { backgroundColor: opt.glowColor || '#38bdf8' } : {}}
+                        >
+                          🎴 {opt.name || `Mazzo ${si + 1}`}
+                        </button>
+                      ))}
                     </div>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ml-auto ${
                       activeDeck.length > 0 ? 'bg-yellow-600/30 text-yellow-300 border border-yellow-600/40' : 'bg-white/10 text-white/40'
@@ -910,11 +936,80 @@ export function AdminGymPanel({ onClose }: Props) {
                     </span>
                   </div>
 
-                  {deckEditTarget === 'player' && (
-                    <p className="text-blue-400/60 text-[11px] bg-blue-900/20 border border-blue-500/20 rounded-lg px-3 py-2 mb-3">
-                      💡 Il mazzo iniziale viene assegnato al giocatore alla prima partita dello Story Mode (solo se non ha ancora carte).
-                    </p>
-                  )}
+                  {deckEditTarget.startsWith('starter-') && (() => {
+                    const si = parseInt(deckEditTarget.replace('starter-', ''));
+                    const opt = form.starterDeckOptions?.[si];
+                    if (!opt) return null;
+                    const glow = opt.glowColor || '#38bdf8';
+                    return (
+                      <div className="mb-3 rounded-xl p-3 space-y-2" style={{ background: `${glow}12`, border: `1px solid ${glow}33` }}>
+                        <p className="text-xs font-bold mb-2" style={{ color: glow }}>🎴 Configurazione Mazzo Iniziale — {opt.name}</p>
+                        <div className="grid grid-cols-1 gap-2">
+                          <div>
+                            <label className="text-white/40 text-[10px] uppercase tracking-wider">Nome mazzo</label>
+                            <input
+                              type="text"
+                              value={opt.name}
+                              onChange={e => setForm(f => {
+                                const opts = [...(f.starterDeckOptions ?? [])];
+                                if (opts[si]) opts[si] = { ...opts[si], name: e.target.value };
+                                return { ...f, starterDeckOptions: opts };
+                              })}
+                              className="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white text-xs mt-0.5"
+                              placeholder="Es. Scuderia Horsy"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-white/40 text-[10px] uppercase tracking-wider">URL immagine personaggio</label>
+                            <input
+                              type="text"
+                              value={opt.imageUrl}
+                              onChange={e => setForm(f => {
+                                const opts = [...(f.starterDeckOptions ?? [])];
+                                if (opts[si]) opts[si] = { ...opts[si], imageUrl: e.target.value };
+                                return { ...f, starterDeckOptions: opts };
+                              })}
+                              className="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white text-xs mt-0.5"
+                              placeholder="https://... (immagine frontale personalizzata)"
+                            />
+                            {opt.imageUrl && (
+                              <img src={opt.imageUrl} alt="" className="mt-1 w-12 h-16 object-cover rounded-lg border border-white/20" onError={e => { (e.currentTarget.style.display = 'none'); }} />
+                            )}
+                          </div>
+                          <div>
+                            <label className="text-white/40 text-[10px] uppercase tracking-wider">Colore alone luminoso</label>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <input
+                                type="color"
+                                value={opt.glowColor || '#38bdf8'}
+                                onChange={e => setForm(f => {
+                                  const opts = [...(f.starterDeckOptions ?? [])];
+                                  if (opts[si]) opts[si] = { ...opts[si], glowColor: e.target.value };
+                                  return { ...f, starterDeckOptions: opts };
+                                })}
+                                className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent"
+                              />
+                              <input
+                                type="text"
+                                value={opt.glowColor || '#38bdf8'}
+                                onChange={e => setForm(f => {
+                                  const opts = [...(f.starterDeckOptions ?? [])];
+                                  if (opts[si]) opts[si] = { ...opts[si], glowColor: e.target.value };
+                                  return { ...f, starterDeckOptions: opts };
+                                })}
+                                className="flex-1 bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white text-xs"
+                                placeholder="#38bdf8"
+                              />
+                              <div className="w-6 h-6 rounded-full border border-white/20 flex-shrink-0" style={{ backgroundColor: opt.glowColor || '#38bdf8', boxShadow: `0 0 8px ${opt.glowColor || '#38bdf8'}` }} />
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-white/30 text-[10px] mt-1">
+                          💡 Seleziona le carte qui sotto per il mazzo iniziale di questa opzione. Mostrata al giocatore al primo accesso alla Story Mode.
+                        </p>
+                      </div>
+                    );
+                  })()}
 
                   {/* Bias sliders — solo CPU senza mazzo specifico */}
                   {deckEditTarget === 'cpu-main' && activeDeck.length === 0 && (

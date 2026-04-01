@@ -12909,7 +12909,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const user = (req as any).user;
       const isAdmin = await checkAdminAccess(user);
       if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
-      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive, cpuCount, cpuConfigs, attackMode } = req.body;
+      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, starterDeckOptions, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive, cpuCount, cpuConfigs, attackMode } = req.body;
       if (!name || !gymName) return res.status(400).json({ success: false, error: 'name e gymName obbligatori' });
       const [created] = await db.insert(gymLeaders).values({
         name, gymName,
@@ -12923,6 +12923,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         customDeck: Array.isArray(customDeck) ? customDeck : [],
         livesCount: livesCount ?? 3,
         playerStartingDeck: Array.isArray(playerStartingDeck) ? playerStartingDeck : [],
+        starterDeckOptions: Array.isArray(starterDeckOptions) ? starterDeckOptions : [],
         rewardCredits: rewardCredits ?? 50,
         rewardDescription: rewardDescription || null,
         youtubeMusicUrl: youtubeMusicUrl || null,
@@ -12948,7 +12949,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const isAdmin = await checkAdminAccess(user);
       if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
       const id = parseInt(req.params.id);
-      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive, cpuCount, cpuConfigs, attackMode } = req.body;
+      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, starterDeckOptions, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive, cpuCount, cpuConfigs, attackMode } = req.body;
       const [updated] = await db.update(gymLeaders).set({
         name, gymName,
         description: description || null,
@@ -12961,6 +12962,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         customDeck: Array.isArray(customDeck) ? customDeck : [],
         livesCount: livesCount ?? 3,
         playerStartingDeck: Array.isArray(playerStartingDeck) ? playerStartingDeck : [],
+        starterDeckOptions: Array.isArray(starterDeckOptions) ? starterDeckOptions : [],
         rewardCredits: rewardCredits ?? 50,
         rewardDescription: rewardDescription || null,
         youtubeMusicUrl: youtubeMusicUrl || null,
@@ -13356,27 +13358,41 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
     }
   });
 
-  // POST /api/story-mode/deck/initialize - initialize story deck with a gym leader's playerStartingDeck (if deck is empty)
+  // POST /api/story-mode/deck/initialize - initialize story deck with a starter deck option (if deck is empty)
   app.post('/api/story-mode/deck/initialize', authMiddleware, async (req, res) => {
     try {
       if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
       const user = (req as any).user;
       if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
-      const { gymLeaderId } = req.body;
+      const { gymLeaderId, optionIndex } = req.body;
       const rows = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, user.userId)).limit(1);
       if (rows.length > 0 && (rows[0].cardIds as string[]).length > 0) {
         return res.json({ success: true, cardIds: rows[0].cardIds, alreadyInitialized: true });
       }
       if (gymLeaderId) {
         const [gym] = await db.select().from(gymLeaders).where(eq(gymLeaders.id, parseInt(gymLeaderId)));
-        if (gym && Array.isArray(gym.playerStartingDeck) && (gym.playerStartingDeck as string[]).length > 0) {
-          const startingCards = gym.playerStartingDeck as string[];
-          if (rows.length === 0) {
-            await db.insert(userStoryDeck).values({ userId: user.userId, cardIds: startingCards });
-          } else {
-            await db.update(userStoryDeck).set({ cardIds: startingCards, updatedAt: new Date() }).where(eq(userStoryDeck.userId, user.userId));
+        if (gym) {
+          let startingCards: string[] = [];
+          // Try starterDeckOptions first (new system)
+          const opts = gym.starterDeckOptions as any[];
+          if (Array.isArray(opts) && opts.length > 0 && typeof optionIndex === 'number') {
+            const chosen = opts[optionIndex];
+            if (chosen && Array.isArray(chosen.cardIds) && chosen.cardIds.length > 0) {
+              startingCards = chosen.cardIds;
+            }
           }
-          return res.json({ success: true, cardIds: startingCards });
+          // Fallback to legacy playerStartingDeck
+          if (startingCards.length === 0 && Array.isArray(gym.playerStartingDeck) && (gym.playerStartingDeck as string[]).length > 0) {
+            startingCards = gym.playerStartingDeck as string[];
+          }
+          if (startingCards.length > 0) {
+            if (rows.length === 0) {
+              await db.insert(userStoryDeck).values({ userId: user.userId, cardIds: startingCards });
+            } else {
+              await db.update(userStoryDeck).set({ cardIds: startingCards, updatedAt: new Date() }).where(eq(userStoryDeck.userId, user.userId));
+            }
+            return res.json({ success: true, cardIds: startingCards });
+          }
         }
       }
       res.json({ success: true, cardIds: [] });

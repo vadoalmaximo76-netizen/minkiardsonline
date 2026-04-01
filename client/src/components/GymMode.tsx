@@ -6,6 +6,7 @@ import { useGameState } from '../lib/stores/useGameState';
 import { CARD_DATA } from '../lib/cardData';
 import { pauseHomeMusic, resumeHomeMusic } from './SpotifyPlayer';
 import { InjuredPersonaggiDisclaimer } from './InjuredPersonaggiDisclaimer';
+import { StarterDeckSelection, StarterDeckOption } from './StarterDeckSelection';
 
 interface CpuConfig {
   name: string;
@@ -30,6 +31,7 @@ interface GymLeader {
   customDeck: string[];
   livesCount: number;
   playerStartingDeck: string[];
+  starterDeckOptions?: StarterDeckOption[];
   rewardCredits: number;
   rewardDescription: string | null;
   youtubeMusicUrl: string | null;
@@ -50,7 +52,7 @@ interface GymModeProps {
   onClearPendingGymGame?: () => void;
 }
 
-type Phase = 'map' | 'intro' | 'battle' | 'victory' | 'defeat' | 'card-pick';
+type Phase = 'map' | 'deck-select' | 'intro' | 'battle' | 'victory' | 'defeat' | 'card-pick';
 
 type CardDataKey = keyof typeof CARD_DATA;
 
@@ -303,6 +305,22 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     fetchUserCredits();
     fetchCardEffects();
   }, [fetchLeaders, fetchStoryDeck, fetchUserCredits, fetchCardEffects]);
+
+  // Show deck selection screen when user has no story deck and first leader has starterDeckOptions
+  useEffect(() => {
+    if (loading) return;
+    if (phase !== 'map') return;
+    if (storyDeckIds.length > 0) return;
+    if (leaders.length === 0) return;
+    const firstLeader = [...leaders].sort((a, b) => a.orderIndex - b.orderIndex)[0];
+    if (
+      firstLeader &&
+      Array.isArray(firstLeader.starterDeckOptions) &&
+      firstLeader.starterDeckOptions.length > 0
+    ) {
+      setPhase('deck-select');
+    }
+  }, [loading, leaders, storyDeckIds, phase]);
 
   useEffect(() => {
     selectedLeaderRef.current = selectedLeader;
@@ -600,6 +618,24 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
 
   const currentLeader = leaders.find(l => getLeaderStatus(l) === 'available');
   const activeLeaders = leaders.filter(l => l.isActive).sort((a, b) => a.orderIndex - b.orderIndex);
+
+  // ── DECK SELECTION ────────────────────────────────────────────────────────
+  if (phase === 'deck-select') {
+    const firstLeader = [...leaders].sort((a, b) => a.orderIndex - b.orderIndex)[0];
+    const opts: StarterDeckOption[] = firstLeader?.starterDeckOptions || [];
+    return (
+      <StarterDeckSelection
+        options={opts}
+        playerName={playerName}
+        gymLeaderId={firstLeader?.id ?? 0}
+        authToken={authToken ?? ''}
+        onSelected={(cardIds) => {
+          setStoryDeckIds(cardIds);
+          setPhase('map');
+        }}
+      />
+    );
+  }
 
   // ── BATTLE ────────────────────────────────────────────────────────────────
   if (phase === 'battle' && gameId && selectedLeader) {

@@ -808,6 +808,7 @@ export const gymLeaders = pgTable("gym_leaders", {
   customDeck: jsonb("custom_deck").default([]),
   livesCount: integer("lives_count").notNull().default(3),
   playerStartingDeck: jsonb("player_starting_deck").default([]),
+  starterDeckOptions: jsonb("starter_deck_options").default([]),
   rewardCredits: integer("reward_credits").notNull().default(50),
   rewardDescription: text("reward_description"),
   youtubeMusicUrl: text("youtube_music_url"),
