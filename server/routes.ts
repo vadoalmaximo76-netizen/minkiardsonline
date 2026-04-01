@@ -15,7 +15,7 @@ function handle402(err: unknown): boolean {
   }
   return false;
 }
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates, dailyChallengeScores, pageTooltips } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, storyCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates, dailyChallengeScores, pageTooltips } from "../shared/schema";
 import { jsonStorage, homePanelsStorage, newsTickerStorage, homeConfigStorage, rankiardTiersStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray, gt } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from "../client/src/lib/cardData";
@@ -2169,7 +2169,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             if (deckIds.length > 0) {
               const resolvedDeck = await gameManager.resolveCardIdsToDecks(deckIds);
+              // Apply story character growth bonuses to personaggi cards
+              if (userId && isDatabaseAvailable()) {
+                try {
+                  const growthRows = await db.select().from(storyCharacterGrowth).where(eq(storyCharacterGrowth.userId, userId));
+                  const growthMap = new Map<string, { extraPti: number; extraStars: number }>();
+                  for (const row of growthRows) {
+                    growthMap.set(row.cardId, { extraPti: row.extraPti, extraStars: row.extraStars });
+                  }
+                  if (growthMap.size > 0) {
+                    for (const card of resolvedDeck.personaggi) {
+                      const baseId = card.draftBaseId;
+                      if (!baseId) continue;
+                      const growth = growthMap.get(baseId);
+                      if (!growth) continue;
+                      if (growth.extraPti > 0) card.pti = (card.pti ?? 0) + growth.extraPti;
+                      if (growth.extraStars > 0) card.stars = (card.stars ?? 1) + growth.extraStars;
+                      if (card.pti != null) {
+                        const stars = card.stars ?? 1;
+                        card.text = `PTI: ${card.pti} | Stelle: ${stars} | PTI originali: ${card.pti}`;
+                      }
+                      console.log(`🌿 Story growth applied to ${card.name || baseId}: +${growth.extraPti} PTI, +${growth.extraStars} stelle`);
+                    }
+                  }
+                } catch (growthErr) {
+                  console.error('Gym mode: error applying story growth:', growthErr);
+                }
+              }
               game.playerDraftDecks[playerName] = resolvedDeck;
+              // Initialize gym growth tracker for this player
+              if (!game.gymGrowthTracker) game.gymGrowthTracker = {};
+              game.gymGrowthTracker[playerName] = {};
               console.log(`🗂️ Gym mode: player ${playerName} deck set with ${resolvedDeck.personaggi.length}p/${resolvedDeck.mosse.length}m/${resolvedDeck.bonus.length}b cards`);
             } else {
               console.warn(`⚠️ Gym mode: no story deck available for player ${playerName} — will use shared deck`);

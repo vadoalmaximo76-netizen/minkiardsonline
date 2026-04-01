@@ -1,6 +1,6 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db, isDatabaseAvailable, switchToFallback, getFallbackDb } from './db';
-import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, tournamentParticipants, draftDecks, draftCharacterGrowth, draftTournaments, injuredPersonaggi, seasonalEvents, seasonalCards, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
+import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, tournamentParticipants, draftDecks, draftCharacterGrowth, storyCharacterGrowth, draftTournaments, injuredPersonaggi, seasonalEvents, seasonalCards, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
 import { eq, ilike, sql, and, gt, lte } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 import { trackGameEvent } from './missionsAndAchievements';
@@ -373,6 +373,7 @@ interface GameState {
   playerDeathModifiers: Map<string, number>; // Per-player death limit modifiers (+/- deaths)
   playerStats: Map<string, { cardsPlayed: number; mossePlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>; // Per-player game stats
   draftGrowthTracker?: Record<string, Record<string, { consecutiveTurns: number; maxConsecutiveTurns: number; killsThisMatch: number }>>; // Draft mode: per-player per-card growth tracking
+  gymGrowthTracker?: Record<string, Record<string, { consecutiveTurns: number; maxConsecutiveTurns: number; killsThisMatch: number }>>; // Story/Gym mode: per-player per-card growth tracking
   lastAction?: { type: string; playerName: string; cardName?: string; cardImageUrl?: string; cardDeckType?: string; targetPlayer?: string; damage?: number }; // Track last significant action for final blow replay
   turnTimeoutSeconds?: number; // Configurable turn timer (0 = disabled), defaults to 30
   requiresApproval?: boolean; // Whether new players need creator approval to join
@@ -2542,6 +2543,47 @@ Rispondi SOLO in JSON:`;
         if (ioGrowth && Object.keys(growthResults).length > 0) {
           ioGrowth.to(gameId).emit('draft-growth-update', { growthResults });
           console.log(`🌱 Draft growth results emitted for game ${gameId}`);
+        }
+      }
+
+      // Story/Gym mode: process and persist character growth
+      if (game.isGymMode && game.gymGrowthTracker && isDatabaseAvailable()) {
+        for (const [playerName, cardTrackers] of Object.entries(game.gymGrowthTracker)) {
+          const userId = game.playerUserIds.get(playerName);
+          if (!userId) continue;
+          for (const [baseCardId, stats] of Object.entries(cardTrackers)) {
+            let ptiGained = 0;
+            let starsGained = 0;
+            if (stats.maxConsecutiveTurns >= 3) ptiGained += 5;
+            if (stats.killsThisMatch >= 5) starsGained += 1;
+            if (ptiGained === 0 && starsGained === 0) continue;
+            try {
+              // Upsert growth row
+              const existing = await db.select().from(storyCharacterGrowth)
+                .where(and(eq(storyCharacterGrowth.userId, userId), eq(storyCharacterGrowth.cardId, baseCardId)))
+                .limit(1);
+              if (existing.length > 0) {
+                await db.update(storyCharacterGrowth)
+                  .set({
+                    extraPti: existing[0].extraPti + ptiGained,
+                    extraStars: existing[0].extraStars + starsGained,
+                    updatedAt: new Date(),
+                  })
+                  .where(and(eq(storyCharacterGrowth.userId, userId), eq(storyCharacterGrowth.cardId, baseCardId)));
+              } else {
+                await db.insert(storyCharacterGrowth).values({
+                  userId,
+                  cardId: baseCardId,
+                  extraPti: ptiGained,
+                  extraStars: starsGained,
+                  updatedAt: new Date(),
+                });
+              }
+              console.log(`🌿 Story growth saved: ${playerName} - ${baseCardId}: +${ptiGained} PTI, +${starsGained} stelle`);
+            } catch (err) {
+              console.error(`Failed to save story growth for ${playerName} - ${baseCardId}:`, err);
+            }
+          }
         }
       }
 
@@ -20845,6 +20887,26 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
       }
 
+      // Story/Gym mode: reset consecutive turns for the dying card, and credit the kill to the attacker's active personaggi
+      if (game.isGymMode && game.gymGrowthTracker) {
+        // Reset consecutive turns for the card that just died
+        if (card.draftBaseId && game.gymGrowthTracker[playerName]?.[card.draftBaseId]) {
+          game.gymGrowthTracker[playerName][card.draftBaseId].consecutiveTurns = 0;
+        }
+        // Credit kill to the attacker's current personaggi card on the field
+        if (attacker && attacker !== 'EFFETTO_CASUALE' && attacker !== 'MORTE_RITARDATA' && attacker !== 'SELF_DAMAGE' && (card.type === 'personaggi' || card.type === 'personaggi_speciali')) {
+          const attackerPersonaggi = game.field.find(c => c.type === 'personaggi' && c.owner === attacker && c.draftBaseId);
+          if (attackerPersonaggi?.draftBaseId) {
+            if (!game.gymGrowthTracker[attacker]) game.gymGrowthTracker[attacker] = {};
+            if (!game.gymGrowthTracker[attacker][attackerPersonaggi.draftBaseId]) {
+              game.gymGrowthTracker[attacker][attackerPersonaggi.draftBaseId] = { consecutiveTurns: 0, maxConsecutiveTurns: 0, killsThisMatch: 0 };
+            }
+            game.gymGrowthTracker[attacker][attackerPersonaggi.draftBaseId].killsThisMatch++;
+            console.log(`🌿 Story growth: ${attackerPersonaggi.name || attackerPersonaggi.draftBaseId} killed ${card.name || card.draftBaseId} (total: ${game.gymGrowthTracker[attacker][attackerPersonaggi.draftBaseId].killsThisMatch} kills this match)`);
+          }
+        }
+      }
+
       // Check if player should be eliminated (only if it's a personaggi card)
       // Use cardOwner so that master-triggered moves check the correct player's limit
       let eliminationCheck = false;
@@ -29758,6 +29820,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           });
         }
 
+        // Story/Gym mode: track consecutive turns for personaggi cards
+        if (gameState.isGymMode && gameState.gymGrowthTracker) {
+          gameState.field.forEach(card => {
+            if (card.type === 'personaggi' && card.owner === nextPlayer && card.draftBaseId) {
+              const tracker = gameState.gymGrowthTracker![nextPlayer];
+              if (tracker) {
+                if (!tracker[card.draftBaseId]) {
+                  tracker[card.draftBaseId] = { consecutiveTurns: 0, maxConsecutiveTurns: 0, killsThisMatch: 0 };
+                }
+                tracker[card.draftBaseId].consecutiveTurns++;
+                if (tracker[card.draftBaseId].consecutiveTurns > tracker[card.draftBaseId].maxConsecutiveTurns) {
+                  tracker[card.draftBaseId].maxConsecutiveTurns = tracker[card.draftBaseId].consecutiveTurns;
+                }
+              }
+            }
+          });
+        }
+
         // Check PTI thresholds for all characters on field
         if (gameState.ptiThresholds && gameState.ptiThresholds.length > 0) {
           for (const threshold of gameState.ptiThresholds) {
@@ -30046,6 +30126,23 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             if (card.type === 'personaggi' && card.owner === nextPlayer && card.draftBaseId) {
               if (!gameState.draftGrowthTracker![nextPlayer]) gameState.draftGrowthTracker![nextPlayer] = {};
               const tracker = gameState.draftGrowthTracker![nextPlayer];
+              if (!tracker[card.draftBaseId]) {
+                tracker[card.draftBaseId] = { consecutiveTurns: 0, maxConsecutiveTurns: 0, killsThisMatch: 0 };
+              }
+              tracker[card.draftBaseId].consecutiveTurns++;
+              if (tracker[card.draftBaseId].consecutiveTurns > tracker[card.draftBaseId].maxConsecutiveTurns) {
+                tracker[card.draftBaseId].maxConsecutiveTurns = tracker[card.draftBaseId].consecutiveTurns;
+              }
+            }
+          });
+        }
+
+        // Story/Gym mode: track consecutive turns for personaggi cards
+        if (gameState.isGymMode && gameState.gymGrowthTracker) {
+          gameState.field.forEach(card => {
+            if (card.type === 'personaggi' && card.owner === nextPlayer && card.draftBaseId) {
+              if (!gameState.gymGrowthTracker![nextPlayer]) gameState.gymGrowthTracker![nextPlayer] = {};
+              const tracker = gameState.gymGrowthTracker![nextPlayer];
               if (!tracker[card.draftBaseId]) {
                 tracker[card.draftBaseId] = { consecutiveTurns: 0, maxConsecutiveTurns: 0, killsThisMatch: 0 };
               }

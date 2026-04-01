@@ -710,11 +710,23 @@ export const draftCharacterGrowth = pgTable("draft_character_growth", {
   userCardGrowthIdx: uniqueIndex("draft_growth_user_card_idx").on(table.userId, table.cardId),
 }));
 
+export const storyCharacterGrowth = pgTable("story_character_growth", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  cardId: text("card_id").notNull(),
+  extraPti: integer("extra_pti").notNull().default(0),
+  extraStars: integer("extra_stars").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  storyGrowthUserCardIdx: uniqueIndex("story_growth_user_card_idx").on(table.userId, table.cardId),
+}));
+
 export const insertUserDraftCreditsSchema = createInsertSchema(userDraftCredits).omit({ id: true, updatedAt: true });
 export const insertDraftDeckSchema = createInsertSchema(draftDecks).omit({ id: true, savedAt: true });
 export const insertCreditPurchaseSchema = createInsertSchema(creditPurchases).omit({ id: true, createdAt: true, processedAt: true });
 export const insertDraftDeckPresetSchema = createInsertSchema(draftDeckPresets).omit({ id: true, createdAt: true });
 export type DraftCharacterGrowth = typeof draftCharacterGrowth.$inferSelect;
+export type StoryCharacterGrowth = typeof storyCharacterGrowth.$inferSelect;
 
 export type UserDraftCredits = typeof userDraftCredits.$inferSelect;
 export type DraftDeck = typeof draftDecks.$inferSelect;
