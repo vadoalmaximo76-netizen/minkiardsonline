@@ -9199,11 +9199,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── DETONATORE ─────────────────────────────────────────────────────────
       case 'detonatore': {
-        const bombCard = game.field.find((c: Card) => /bomba.?senza.?detonatore/i.test(c.name || ''))
-          || (game.graveyard || []).find((c: Card) => /bomba.?senza.?detonatore/i.test(c.name || ''));
+        const bombCard = game.field.find((c: Card) => /bomba.?senza.?detonatore/i.test(c.name || this.getCardNameFromUrl(c.frontImage || '')))
+          || (game.graveyard || []).find((c: Card) => /bomba.?senza.?detonatore/i.test(c.name || this.getCardNameFromUrl(c.frontImage || '')));
         if (bombCard) {
           const bombDmg = (bombCard as any).mosseDamageValue || bombCard.pti || 500;
-          for (const c of game.field) {
+          const fieldSnapshot = [...game.field];
+          for (const c of fieldSnapshot) {
             if (c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')) {
               c.pti = Math.max(0, (c.pti || 0) - bombDmg);
               this.updateCardTextWithPTI(c);
@@ -9212,6 +9213,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 if (dr.eliminationCheck) this.processEliminationAfterDeath(gameId, c.owner, io, 'DETONATORE_BOMBA');
               }
             }
+          }
+          const isOnField = game.field.some((c: Card) => c.id === bombCard.id);
+          if (isOnField) {
+            game.field = game.field.filter((c: Card) => c.id !== bombCard.id);
+            game.graveyard.push(bombCard);
           }
           emitChat(`💣 DETONATORE! BOMBA SENZA DETONATORE esplode — ${bombDmg} danni a tutti gli avversari!`);
         } else {
@@ -11103,13 +11109,36 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── DISINNESCA BOMBA: rimuove effetti a tempo negativi ──────────────────
       case 'disinnesca_bomba': {
+        const bombNames = ['SVEGLIA PALESTINESE', 'BOMBA SENZA DETONATORE', 'MINA VAGANTE'];
+        let removedCount = 0;
+
+        const bombsOnField = game.field.filter((c: Card) => {
+          const cardName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase();
+          return c.type === 'bonus' && bombNames.some(b => cardName.includes(b));
+        });
+        for (const bomb of bombsOnField) {
+          game.field = game.field.filter((c: Card) => c.id !== bomb.id);
+          game.graveyard.push(bomb);
+          removedCount++;
+        }
+
+        (game as any).activeBombs = [];
+
+        if ((game as any).delayedDamageEffects) {
+          (game as any).delayedDamageEffects = (game as any).delayedDamageEffects.filter((e: any) => {
+            const mosseName = (e.mosseName || '').toUpperCase();
+            return !bombNames.some(b => mosseName.includes(b));
+          });
+        }
+
         if (!game.timedEffects) game.timedEffects = [];
         const before = game.timedEffects.length;
         game.timedEffects = (game.timedEffects as any[]).filter((e: any) =>
-          !(e.owner === playerName && /morte|death|danno|damage|instant_death|veleno|poison/i.test(e.description || ''))
+          !(e.target === playerName && /morte|death|danno|damage|instant_death|veleno|poison/i.test(e.description || ''))
         );
-        const removed = before - game.timedEffects.length;
-        emitChat(`💣 DISINNESCA BOMBA! Rimossi ${removed} effetti negativi a tempo da ${playerName}!`);
+        removedCount += before - game.timedEffects.length;
+
+        emitChat(`💣 DISINNESCA BOMBA! Rimossi ${removedCount} bombe/effetti negativi da ${playerName}!`);
         emitState(); break;
       }
 
