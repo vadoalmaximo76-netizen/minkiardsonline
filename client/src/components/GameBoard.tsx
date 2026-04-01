@@ -5746,8 +5746,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 className="flex items-center gap-3 px-4 py-3 rounded-2xl border backdrop-blur-md shadow-2xl max-w-xs"
                 style={{
                   background: 'linear-gradient(135deg, rgba(15,5,35,0.96), rgba(45,10,80,0.93))',
-                  borderColor: 'rgba(167,139,250,0.55)',
-                  boxShadow: '0 0 28px rgba(139,92,246,0.45), 0 4px 24px rgba(0,0,0,0.6)',
+                  borderColor: 'rgba(212,175,55,0.6)',
+                  boxShadow: '0 0 28px rgba(139,92,246,0.4), 0 0 12px rgba(212,175,55,0.3), 0 4px 24px rgba(0,0,0,0.6)',
                 }}
               >
                 {cardEffectBanner.cardImage ? (
