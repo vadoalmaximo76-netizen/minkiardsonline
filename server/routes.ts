@@ -1218,10 +1218,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const gameManager = new GameManager();
 
-  // One-shot migration: clear legacy playerStartingDeck for gym leaders that have starterDeckOptions configured
+  // Idempotent data cleanup: clear legacy playerStartingDeck for gym leaders that have starterDeckOptions configured.
+  // Safe to run on every boot because the WHERE-equivalent condition `legacyDeck.length > 0` makes it a no-op
+  // once all leaders are already clean. After the first successful run, no rows will match and no writes occur.
   if (isDatabaseAvailable()) {
     try {
-      const allLeaders = await db.select().from(gymLeaders);
+      const allLeaders = await db.select({ id: gymLeaders.id, name: gymLeaders.name, playerStartingDeck: gymLeaders.playerStartingDeck, starterDeckOptions: gymLeaders.starterDeckOptions }).from(gymLeaders);
       for (const leader of allLeaders) {
         const opts = leader.starterDeckOptions as any[];
         const hasConfiguredOptions = Array.isArray(opts) && opts.some((o: any) => Array.isArray(o?.cardIds) && o.cardIds.length > 0);
