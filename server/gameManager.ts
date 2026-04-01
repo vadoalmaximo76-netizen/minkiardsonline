@@ -3882,7 +3882,13 @@ Rispondi SOLO in JSON:`;
 
     // ── MINKIARD N. 500: doubleDrawActive — draw an extra card of the same type ──
     if ((game.players[playerName] as any).doubleDrawActive) {
-      const extraDeck = game.decks[deckType];
+      // In gym/draft/daily mode, extra card must come from personal deck, not shared deck
+      let extraDeck: Card[];
+      if ((game.isGymMode || game.isDraftMode || game.isDailyChallenge) && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
+        extraDeck = game.playerDraftDecks[playerName][deckType as 'personaggi' | 'mosse' | 'bonus'] || [];
+      } else {
+        extraDeck = game.decks[deckType];
+      }
       if (extraDeck && extraDeck.length > 0) {
         const extraCard = extraDeck.pop()!;
         extraCard.owner = playerName;
@@ -3964,6 +3970,10 @@ Rispondi SOLO in JSON:`;
           console.log(`⚠️ Draft/Gym opening: personal ${deckType} deck empty for ${playerName}`);
           continue;
         }
+      } else if (game.isGymMode && game.playerDraftDecks && !game.players[playerName]?.isCPU && deckType !== 'personaggi_speciali') {
+        // DEFENSIVE: Human gym player has no personal deck entry — block shared deck fallback
+        console.warn(`⚠️ pickOpeningCards: Human ${playerName} has no personal deck entry in GymMode — skipping ${deckType}`);
+        continue;
       } else {
         deck = game.decks[deckType as keyof GameState['decks']];
       }
@@ -10400,47 +10410,94 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── Z AMMONTA ────────────────────────────────────────────────────────────
       case 'z_ammonta': {
-        // Return all field cards to the shared decks (by card type), clear field
-        const fieldCopyZA = [...game.field];
-        for (const c of fieldCopyZA) {
-          const sharedDeckType = (c.type === 'bonus' ? 'bonus' : c.type === 'mosse' ? 'mosse' : 'personaggi') as keyof typeof game.decks;
-          if (game.decks[sharedDeckType]) {
-            game.decks[sharedDeckType].push(c);
+        const isPersonalDeckMode = game.isGymMode || game.isDraftMode || game.isDailyChallenge;
+
+        if (isPersonalDeckMode && game.playerDraftDecks) {
+          // GYM/DRAFT/DAILY mode: return cards to each player's PERSONAL deck, never the shared deck
+          // Return field cards to the card owner's personal deck
+          for (const c of game.field) {
+            const cardOwner = c.owner || playerName;
+            const personal = game.playerDraftDecks[cardOwner];
+            if (personal) {
+              const dk = c.type === 'bonus' ? 'bonus' : c.type === 'mosse' ? 'mosse' : 'personaggi';
+              personal[dk].push(c);
+            }
           }
-        }
-        game.field = [];
-        // Return all hand cards to the shared decks and clear hands
-        for (const pName of game.turnOrder) {
-          const pData = game.players[pName];
-          if (!pData) continue;
-          for (const c of (pData.hand || [])) {
+          game.field = [];
+          // Return hand cards to each player's personal deck
+          for (const pName of game.turnOrder) {
+            const pData = game.players[pName];
+            if (!pData) continue;
+            const personal = game.playerDraftDecks[pName];
+            if (personal) {
+              for (const c of (pData.hand || [])) {
+                const dk = c.type === 'bonus' ? 'bonus' : c.type === 'mosse' ? 'mosse' : 'personaggi';
+                personal[dk].push(c);
+              }
+              pData.hand = [];
+              // Shuffle personal decks
+              for (const dk of ['personaggi', 'mosse', 'bonus'] as const) {
+                const d = personal[dk];
+                for (let i = d.length - 1; i > 0; i--) {
+                  const j = Math.floor(Math.random() * (i + 1));
+                  [d[i], d[j]] = [d[j], d[i]];
+                }
+              }
+              // Redeal 1 card per type from personal deck
+              for (const deckType of ['personaggi', 'mosse', 'bonus'] as const) {
+                const d = personal[deckType];
+                if (d && d.length > 0) {
+                  const drawn = d.pop()!;
+                  drawn.owner = pName;
+                  pData.hand.push(drawn);
+                }
+              }
+            }
+          }
+        } else {
+          // NORMAL MODE: use shared decks
+          // Return all field cards to the shared decks (by card type), clear field
+          const fieldCopyZA = [...game.field];
+          for (const c of fieldCopyZA) {
             const sharedDeckType = (c.type === 'bonus' ? 'bonus' : c.type === 'mosse' ? 'mosse' : 'personaggi') as keyof typeof game.decks;
             if (game.decks[sharedDeckType]) {
               game.decks[sharedDeckType].push(c);
             }
           }
-          pData.hand = [];
-        }
-        // Shuffle all shared decks
-        for (const deckType of ['bonus', 'mosse', 'personaggi'] as const) {
-          const d = game.decks[deckType];
-          if (d && d.length > 0) {
-            for (let i = d.length - 1; i > 0; i--) {
-              const j = Math.floor(Math.random() * (i + 1));
-              [d[i], d[j]] = [d[j], d[i]];
+          game.field = [];
+          // Return all hand cards to the shared decks and clear hands
+          for (const pName of game.turnOrder) {
+            const pData = game.players[pName];
+            if (!pData) continue;
+            for (const c of (pData.hand || [])) {
+              const sharedDeckType = (c.type === 'bonus' ? 'bonus' : c.type === 'mosse' ? 'mosse' : 'personaggi') as keyof typeof game.decks;
+              if (game.decks[sharedDeckType]) {
+                game.decks[sharedDeckType].push(c);
+              }
             }
+            pData.hand = [];
           }
-        }
-        // Give each player 1 card per type from the shared decks
-        for (const pName of game.turnOrder) {
-          const pData = game.players[pName];
-          if (!pData) continue;
-          for (const deckType of ['personaggi', 'mosse', 'bonus'] as const) {
+          // Shuffle all shared decks
+          for (const deckType of ['bonus', 'mosse', 'personaggi'] as const) {
             const d = game.decks[deckType];
             if (d && d.length > 0) {
-              const drawn = d.pop()!;
-              drawn.owner = pName;
-              pData.hand.push(drawn);
+              for (let i = d.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [d[i], d[j]] = [d[j], d[i]];
+              }
+            }
+          }
+          // Give each player 1 card per type from the shared decks
+          for (const pName of game.turnOrder) {
+            const pData = game.players[pName];
+            if (!pData) continue;
+            for (const deckType of ['personaggi', 'mosse', 'bonus'] as const) {
+              const d = game.decks[deckType];
+              if (d && d.length > 0) {
+                const drawn = d.pop()!;
+                drawn.owner = pName;
+                pData.hand.push(drawn);
+              }
             }
           }
         }

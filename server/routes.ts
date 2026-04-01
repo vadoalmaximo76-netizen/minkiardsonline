@@ -2153,6 +2153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             game.isGymMode = true;
             if (!game.playerDraftDecks) game.playerDraftDecks = {};
             let deckIds: string[] = Array.isArray(playerDeck) && playerDeck.length > 0 ? playerDeck : [];
+            console.log(`🗂️ Gym mode: client sent ${Array.isArray(playerDeck) ? playerDeck.length : 0} card IDs for ${playerName}. IDs: ${Array.isArray(playerDeck) ? JSON.stringify(playerDeck) : 'none'}`);
             // Fallback: if client sent no deck, load from the user's story deck in DB
             if (deckIds.length === 0 && userId && isDatabaseAvailable()) {
               try {
@@ -2160,7 +2161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   .where(eq(userStoryDeck.userId, userId)).limit(1);
                 if (storyRows.length > 0 && Array.isArray(storyRows[0].cardIds) && (storyRows[0].cardIds as string[]).length > 0) {
                   deckIds = storyRows[0].cardIds as string[];
-                  console.log(`🗂️ Gym mode: loaded story deck from DB for player ${playerName}: ${deckIds.length} cards`);
+                  console.log(`🗂️ Gym mode: loaded story deck from DB for player ${playerName}: ${deckIds.length} cards. IDs: ${JSON.stringify(deckIds)}`);
                 }
               } catch (dbErr) {
                 console.error('Gym mode: error loading story deck from DB:', dbErr);
