@@ -85,6 +85,7 @@
     "passport-google-oauth20": "^2.0.0",
     "passport-local": "^1.0.0",
     "pixi.js": "^8.8.1",
+    "postgres": "^3.4.8",
     "posthog-js": "^1.351.1",
     "postprocessing": "^6.36.0",
     "r3f-perf": "^7.2.3",

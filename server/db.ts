@@ -1,9 +1,11 @@
-import { drizzle } from 'drizzle-orm/neon-http';
+import { drizzle as drizzleNeon } from 'drizzle-orm/neon-http';
+import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
 import { neon } from '@neondatabase/serverless';
+import postgres from 'postgres';
 import { sql as drizzleSql } from 'drizzle-orm';
 import * as schema from '../shared/schema';
 
-type DbType = ReturnType<typeof drizzle<typeof schema>>;
+type DbType = ReturnType<typeof drizzleNeon<typeof schema>>;
 
 // Minimal shape we rely on from Drizzle builders in the dual-write proxy.
 // Drizzle builders are complex generic objects; we only need to inspect
@@ -27,13 +29,37 @@ function sanitizeDbUrl(url: string): string {
   return url.replace(/#/g, '%23');
 }
 
-function tryConnect(url: string, label: string): DbType | null {
+/**
+ * Connect using Neon serverless driver (for Replit/Neon DATABASE_URL).
+ */
+function tryConnectNeon(url: string, label: string): DbType | null {
   try {
     const sanitizedUrl = sanitizeDbUrl(url);
     const sql = neon(sanitizedUrl);
-    const db = drizzle(sql, { schema });
+    const db = drizzleNeon(sql, { schema });
     console.log(`✅ Database connection configured successfully (source: ${label})`);
-    return db;
+    return db as unknown as DbType;
+  } catch (error) {
+    console.warn(`⚠️ Database connection failed for ${label}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Connect using postgres.js driver (for Supabase / standard PostgreSQL EXTERNAL_DATABASE_URL).
+ */
+function tryConnectPostgres(url: string, label: string): DbType | null {
+  try {
+    const sanitizedUrl = sanitizeDbUrl(url);
+    const client = postgres(sanitizedUrl, {
+      max: 10,
+      idle_timeout: 20,
+      connect_timeout: 10,
+      ssl: 'require',
+    });
+    const db = drizzlePg(client, { schema });
+    console.log(`✅ Database connection configured successfully (source: ${label})`);
+    return db as unknown as DbType;
   } catch (error) {
     console.warn(`⚠️ Database connection failed for ${label}:`, error);
     return null;
@@ -41,11 +67,11 @@ function tryConnect(url: string, label: string): DbType | null {
 }
 
 // ── Initialise connections ──────────────────────────────────────────────────
-// DATABASE_URL (Replit) è il DB PRIMARIO.
-// EXTERNAL_DATABASE_URL (Neon) è il DB SECONDARIO (dual-write + fallback di emergenza).
+// DATABASE_URL (Replit/Neon) è il DB PRIMARIO.
+// EXTERNAL_DATABASE_URL (Supabase) è il DB SECONDARIO (dual-write + fallback di emergenza).
 if (process.env.DATABASE_URL) {
-  console.log('📦 Using DATABASE_URL (Replit) as primary...');
-  const replDb = tryConnect(process.env.DATABASE_URL, 'DATABASE_URL/Replit (primary)');
+  console.log('📦 Using DATABASE_URL (Replit/Neon) as primary...');
+  const replDb = tryConnectNeon(process.env.DATABASE_URL, 'DATABASE_URL/Replit (primary)');
   if (replDb) {
     _db = replDb;
     _originalPrimaryDb = replDb;
@@ -53,34 +79,34 @@ if (process.env.DATABASE_URL) {
     _activeDbSource = 'DATABASE_URL/Replit (primary)';
 
     if (process.env.EXTERNAL_DATABASE_URL && process.env.EXTERNAL_DATABASE_URL !== process.env.DATABASE_URL) {
-      console.log('📡 Connecting to EXTERNAL_DATABASE_URL (Neon) as secondary (dual-write)...');
-      const extDb = tryConnect(process.env.EXTERNAL_DATABASE_URL, 'EXTERNAL_DATABASE_URL/Neon (secondary)');
+      console.log('📡 Connecting to EXTERNAL_DATABASE_URL (Supabase) as secondary (dual-write)...');
+      const extDb = tryConnectPostgres(process.env.EXTERNAL_DATABASE_URL, 'EXTERNAL_DATABASE_URL/Supabase (secondary)');
       if (extDb) {
         _legacyDb = extDb;
         _fallbackDb = extDb;
         _isLegacyDbAvailable = true;
-        console.log('🔁 Dual-write enabled: writes go to BOTH Replit (primary) and Neon (secondary)');
+        console.log('🔁 Dual-write enabled: writes go to BOTH Replit/Neon (primary) and Supabase (secondary)');
       }
     }
   } else if (process.env.EXTERNAL_DATABASE_URL) {
-    console.log('🔄 Replit DB non disponibile, fallback a EXTERNAL_DATABASE_URL (Neon)...');
-    const extDb = tryConnect(process.env.EXTERNAL_DATABASE_URL, 'EXTERNAL_DATABASE_URL/Neon (fallback)');
+    console.log('🔄 Replit DB non disponibile, fallback a EXTERNAL_DATABASE_URL (Supabase)...');
+    const extDb = tryConnectPostgres(process.env.EXTERNAL_DATABASE_URL, 'EXTERNAL_DATABASE_URL/Supabase (fallback)');
     if (extDb) {
       _db = extDb;
       _fallbackDb = extDb;
       _isDatabaseAvailable = true;
-      _activeDbSource = 'EXTERNAL_DATABASE_URL/Neon (fallback)';
+      _activeDbSource = 'EXTERNAL_DATABASE_URL/Supabase (fallback)';
       _usingFallback = true;
     }
   }
 } else if (process.env.EXTERNAL_DATABASE_URL) {
-  console.log('📡 Using EXTERNAL_DATABASE_URL (Neon) as primary (DATABASE_URL not set)...');
-  const extDb = tryConnect(process.env.EXTERNAL_DATABASE_URL, 'EXTERNAL_DATABASE_URL/Neon (primary)');
+  console.log('📡 Using EXTERNAL_DATABASE_URL (Supabase) as primary (DATABASE_URL not set)...');
+  const extDb = tryConnectPostgres(process.env.EXTERNAL_DATABASE_URL, 'EXTERNAL_DATABASE_URL/Supabase (primary)');
   if (extDb) {
     _db = extDb;
     _originalPrimaryDb = extDb;
     _isDatabaseAvailable = true;
-    _activeDbSource = 'EXTERNAL_DATABASE_URL/Neon (primary)';
+    _activeDbSource = 'EXTERNAL_DATABASE_URL/Supabase (primary)';
   }
 } else {
   console.warn('⚠️ No database URL found. Running in offline mode (no database).');
@@ -103,12 +129,12 @@ export function switchToFallback(): boolean {
   if (now < _switchCooldownUntil) return false;
   _switchCooldownUntil = now + 5000; // prevent rapid repeated switches
 
-  console.warn('⚠️ [DB] Switching from primary DB (Replit) to fallback (Neon) due to error!');
+  console.warn('⚠️ [DB] Switching from primary DB (Replit/Neon) to fallback (Supabase) due to error!');
   _db = _fallbackDb;
   _usingFallback = true;
   _isDatabaseAvailable = true;
-  _activeDbSource = 'EXTERNAL_DATABASE_URL/Neon (auto-fallback)';
-  console.log('✅ [DB] Now using fallback: EXTERNAL_DATABASE_URL/Neon');
+  _activeDbSource = 'EXTERNAL_DATABASE_URL/Supabase (auto-fallback)';
+  console.log('✅ [DB] Now using fallback: EXTERNAL_DATABASE_URL/Supabase');
   return true;
 }
 
@@ -261,7 +287,7 @@ export function setDatabaseUnavailable(): void {
   console.warn('⚠️ Database marked as unavailable due to runtime error');
 }
 
-// Returns the raw fallback DB instance (always DATABASE_URL/Replit).
+// Returns the raw fallback DB instance (always EXTERNAL_DATABASE_URL/Supabase).
 export function getFallbackDb(): DbType | null {
   return _fallbackDb;
 }
@@ -285,10 +311,10 @@ export async function probeAndSwitchIfNeeded(): Promise<void> {
     console.log(`✅ [DB probe] Primary DB is reachable (source: ${_activeDbSource})`);
   } catch (err: unknown) {
     if (is402QuotaError(err)) {
-      console.warn('⚠️ [DB probe] Primary DB returned 402 quota error at startup — switching to fallback immediately');
+      console.warn('⚠️ [DB probe] Primary DB returned 402 quota error at startup — switching to fallback (Supabase) immediately');
       const switched = switchToFallback();
       if (switched) {
-        console.log('✅ [DB probe] Switched to fallback DB before first request');
+        console.log('✅ [DB probe] Switched to fallback DB (Supabase) before first request');
       } else {
         console.error('❌ [DB probe] Could not switch to fallback — no fallback DB configured!');
       }
