@@ -69,12 +69,15 @@ interface AuthUser {
   email: string | null;
   avatar: string | null;
   puntiRankiard?: number;
+  isAdmin?: boolean;
 }
 
 import { TooltipProvider } from "./components/ui/tooltip";
 import NotificationPromptBanner from "./components/NotificationPromptBanner";
 import { NotificationInbox } from "./components/NotificationInbox";
 import { BottomNav } from "./components/BottomNav";
+import { AdminPageTooltipFab } from "./components/AdminPageTooltipFab";
+import { PageTooltipDisplay } from "./components/PageTooltipDisplay";
 
 class GameErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
   constructor(props: { children: ReactNode }) {
@@ -1218,10 +1221,25 @@ function App() {
   );
   }; // end renderContent
 
+  const isAdmin = !!(authenticatedUser?.isAdmin);
+  const currentPageRoute = SECTION_PATHS[currentSection] ?? '/';
+
   return (
     <>
       <GamepadCursor onNavigate={(section) => navigateToRef.current?.(section)} />
       {renderContent()}
+      {authenticatedUser && (
+        <>
+          <PageTooltipDisplay
+            currentRoute={currentPageRoute}
+            userId={authenticatedUser.id}
+          />
+          <AdminPageTooltipFab
+            currentRoute={currentPageRoute}
+            isAdmin={isAdmin}
+          />
+        </>
+      )}
     </>
   );
 }

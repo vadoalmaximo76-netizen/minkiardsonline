@@ -237,7 +237,9 @@ function syncToJson(event: SyncEvent) {
       if (event.operation === 'insert' || event.operation === 'update') {
         const origId = event.data.originalCardId;
         if (origId) {
-          jsonStorage.cardModifications.upsert(origId, cleanData(event.data));
+          // Omit DB `id` so JSON storage preserves its own auto-increment IDs
+          const { id: _dbId, ...dataWithoutId } = cleanData(event.data);
+          jsonStorage.cardModifications.upsert(origId, dataWithoutId);
         }
       }
     },
@@ -409,7 +411,9 @@ function bulkSyncTableToJson(tableKey: string, rows: any[]) {
     if (tableKey === 'card_modifications') {
       for (const row of rows) {
         if (row.originalCardId) {
-          jsonStorage.cardModifications.upsert(row.originalCardId, cleanData(row));
+          // Omit DB `id` so JSON storage preserves its own auto-increment IDs
+          const { id: _dbId, ...rowWithoutId } = cleanData(row);
+          jsonStorage.cardModifications.upsert(row.originalCardId, rowWithoutId);
           count++;
         }
       }

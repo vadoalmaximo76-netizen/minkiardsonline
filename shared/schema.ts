@@ -874,3 +874,28 @@ export const dailyChallengeScores = pgTable("daily_challenge_scores", {
 export const insertDailyChallengeScoreSchema = createInsertSchema(dailyChallengeScores).omit({ id: true, createdAt: true });
 export type DailyChallengeScore = typeof dailyChallengeScores.$inferSelect;
 export type InsertDailyChallengeScore = z.infer<typeof insertDailyChallengeScoreSchema>;
+
+// ── Page Tooltips (admin-managed, per-page) ───────────────────────────────────
+export const pageTooltips = pgTable("page_tooltips", {
+  id: serial("id").primaryKey(),
+  pageRoute: text("page_route").notNull(), // e.g. "/home", "/draft", "/tornei"
+  title: text("title").notNull().default(""),
+  body: text("body").notNull().default(""),
+  bgColor: text("bg_color").notNull().default("#1e1b4b"),
+  textColor: text("text_color").notNull().default("#ffffff"),
+  size: text("size").notNull().default("medium"), // small | medium | large
+  imageUrl: text("image_url"),
+  imagePosition: text("image_position").default("top"), // top | bottom | left | right
+  isSlide: boolean("is_slide").notNull().default(false),
+  slides: jsonb("slides").default([]), // [{title, body, imageUrl}]
+  showMode: text("show_mode").notNull().default("always"), // always | first_visit
+  isActive: boolean("is_active").notNull().default(true),
+  priority: integer("priority").notNull().default(0),
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertPageTooltipSchema = createInsertSchema(pageTooltips).omit({ id: true, createdAt: true, updatedAt: true });
+export type PageTooltip = typeof pageTooltips.$inferSelect;
+export type InsertPageTooltip = z.infer<typeof insertPageTooltipSchema>;

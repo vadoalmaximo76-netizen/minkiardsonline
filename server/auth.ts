@@ -711,6 +711,7 @@ export function registerAuthRoutes(app: Express) {
               email: user.email,
               avatar: user.avatar,
               puntiRankiard: user.puntiRankiard,
+              isAdmin: user.isAdmin ?? false,
             },
             guestMode: false
           });
@@ -722,7 +723,7 @@ export function registerAuthRoutes(app: Express) {
                 const [user] = await tryFetchUser();
                 if (user) {
                   return res.json({
-                    user: { id: user.id, username: user.username, email: user.email, avatar: user.avatar, puntiRankiard: user.puntiRankiard },
+                    user: { id: user.id, username: user.username, email: user.email, avatar: user.avatar, puntiRankiard: user.puntiRankiard, isAdmin: user.isAdmin ?? false },
                     guestMode: false
                   });
                 }
@@ -746,6 +747,7 @@ export function registerAuthRoutes(app: Express) {
             email: user.email,
             avatar: user.avatar,
             puntiRankiard: user.puntiRankiard,
+            isAdmin: (user as { isAdmin?: boolean }).isAdmin ?? false,
           },
           guestMode: false
         });

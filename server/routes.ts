@@ -15,7 +15,7 @@ function handle402(err: unknown): boolean {
   }
   return false;
 }
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates, dailyChallengeScores } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates, dailyChallengeScores, pageTooltips } from "../shared/schema";
 import { jsonStorage, homePanelsStorage, newsTickerStorage, homeConfigStorage, rankiardTiersStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray, gt } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES } from "../client/src/lib/cardData";
@@ -19967,6 +19967,127 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
     } catch (error) {
       console.error('Error fetching bracket:', error);
       res.status(500).json({ error: 'Errore bracket torneo' });
+    }
+  });
+
+  // ─── PAGE TOOLTIPS ────────────────────────────────────────────────────────────
+
+  // GET /api/page-tooltips?route=... — public, for users
+  app.get('/api/page-tooltips', async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ success: true, tooltips: [] });
+      const { route } = req.query as { route?: string };
+      if (!route) return res.status(400).json({ error: 'route required' });
+      const tooltipsList = await db.select().from(pageTooltips)
+        .where(and(eq(pageTooltips.pageRoute, route), eq(pageTooltips.isActive, true)))
+        .orderBy(pageTooltips.priority, pageTooltips.createdAt);
+      res.json({ success: true, tooltips: tooltipsList });
+    } catch (error) {
+      console.error('Error fetching page tooltips:', error);
+      res.status(500).json({ error: 'Errore nel recupero tooltip' });
+    }
+  });
+
+  // GET /api/admin/page-tooltips — admin: all tooltips
+  app.get('/api/admin/page-tooltips', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ success: true, tooltips: [] });
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess(user);
+      if (!isAdmin) return res.status(403).json({ error: 'Admin required' });
+      const tooltipsList = await db.select().from(pageTooltips)
+        .orderBy(pageTooltips.pageRoute, pageTooltips.priority, pageTooltips.createdAt);
+      res.json({ success: true, tooltips: tooltipsList });
+    } catch (error) {
+      console.error('Error fetching admin page tooltips:', error);
+      res.status(500).json({ error: 'Errore nel recupero tooltip' });
+    }
+  });
+
+  // POST /api/admin/page-tooltips — admin: create
+  app.post('/api/admin/page-tooltips', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess(user);
+      if (!isAdmin) return res.status(403).json({ error: 'Admin required' });
+      const { pageRoute, title, body, bgColor, textColor, size, imageUrl, imagePosition, isSlide, slides, showMode, isActive, priority } = req.body;
+      if (!pageRoute) return res.status(400).json({ error: 'pageRoute è obbligatorio' });
+      if (!isSlide && (!title || !body)) return res.status(400).json({ error: 'title e body sono obbligatori per tooltip non-slide' });
+      if (isSlide && (!slides || !slides.length || !slides.some((s: { title?: string; body?: string }) => s.title || s.body))) {
+        return res.status(400).json({ error: 'Almeno uno step deve avere titolo o testo' });
+      }
+      const [created] = await db.insert(pageTooltips).values({
+        pageRoute,
+        title: title || '',
+        body: body || '',
+        bgColor: bgColor || '#1e1b4b',
+        textColor: textColor || '#ffffff',
+        size: size || 'medium',
+        imageUrl: imageUrl || null,
+        imagePosition: imagePosition || 'top',
+        isSlide: isSlide ?? false,
+        slides: slides || [],
+        showMode: showMode || 'always',
+        isActive: isActive ?? true,
+        priority: priority ?? 0,
+        createdBy: user.email || null,
+      }).returning();
+      res.status(201).json({ success: true, tooltip: created });
+    } catch (error) {
+      console.error('Error creating page tooltip:', error);
+      res.status(500).json({ error: 'Errore nella creazione tooltip' });
+    }
+  });
+
+  // PUT /api/admin/page-tooltips/:id — admin: update
+  app.put('/api/admin/page-tooltips/:id', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess(user);
+      if (!isAdmin) return res.status(403).json({ error: 'Admin required' });
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'ID non valido' });
+      const { pageRoute, title, body, bgColor, textColor, size, imageUrl, imagePosition, isSlide, slides, showMode, isActive, priority } = req.body;
+      const [updated] = await db.update(pageTooltips).set({
+        ...(pageRoute !== undefined && { pageRoute }),
+        ...(title !== undefined && { title }),
+        ...(body !== undefined && { body }),
+        ...(bgColor !== undefined && { bgColor }),
+        ...(textColor !== undefined && { textColor }),
+        ...(size !== undefined && { size }),
+        ...(imageUrl !== undefined && { imageUrl }),
+        ...(imagePosition !== undefined && { imagePosition }),
+        ...(isSlide !== undefined && { isSlide }),
+        ...(slides !== undefined && { slides }),
+        ...(showMode !== undefined && { showMode }),
+        ...(isActive !== undefined && { isActive }),
+        ...(priority !== undefined && { priority }),
+        updatedAt: new Date(),
+      }).where(eq(pageTooltips.id, id)).returning();
+      if (!updated) return res.status(404).json({ error: 'Tooltip non trovato' });
+      res.json({ success: true, tooltip: updated });
+    } catch (error) {
+      console.error('Error updating page tooltip:', error);
+      res.status(500).json({ error: 'Errore aggiornamento tooltip' });
+    }
+  });
+
+  // DELETE /api/admin/page-tooltips/:id — admin: delete
+  app.delete('/api/admin/page-tooltips/:id', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess(user);
+      if (!isAdmin) return res.status(403).json({ error: 'Admin required' });
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'ID non valido' });
+      await db.delete(pageTooltips).where(eq(pageTooltips.id, id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting page tooltip:', error);
+      res.status(500).json({ error: 'Errore eliminazione tooltip' });
     }
   });
 
