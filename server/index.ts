@@ -9,6 +9,7 @@ import { registerAuthRoutes } from "./auth";
 import { setupVite, serveStatic, log } from "./vite";
 import { initSentry } from "./sentry";
 import { isRedisConfigured, setPlayerOnline, getOnlinePlayerCount } from "./redis";
+import { probeAndSwitchIfNeeded } from "./db";
 import { isCloudinaryConfigured } from "./cloudinary";
 import { isFreesoundConfigured } from "./freesound";
 
@@ -84,6 +85,9 @@ app.use((req, res, next) => {
     if (process.env.NODE_ENV === 'production' && !process.env.OPENAI_API_KEY) {
       console.warn('WARNING: OPENAI_API_KEY is not set. Card analysis and CPU functionality will not work.');
     }
+
+    // Probe the primary DB at startup; switch to fallback before any request if quota exceeded
+    await probeAndSwitchIfNeeded();
 
     registerAuthRoutes(app);
 

@@ -1,5 +1,6 @@
 import { drizzle } from 'drizzle-orm/neon-http';
 import { neon } from '@neondatabase/serverless';
+import { sql as drizzleSql } from 'drizzle-orm';
 import * as schema from '../shared/schema';
 
 type DbType = ReturnType<typeof drizzle<typeof schema>>;
@@ -268,4 +269,31 @@ export function getFallbackDb(): DbType | null {
 // (_originalPrimaryDb is captured at init time; switchToFallback never changes it.)
 export function getPrimaryDb(): DbType | null {
   return _originalPrimaryDb;
+}
+
+// ── Startup probe ─────────────────────────────────────────────────────────────
+// Call this once at server boot (before accepting requests) to detect Neon 402
+// quota errors early and switch to the fallback DB before the first user request.
+export async function probeAndSwitchIfNeeded(): Promise<void> {
+  if (!_db || _usingFallback) {
+    console.log(`[DB probe] Skipped — already using fallback or no DB configured (source: ${_activeDbSource})`);
+    return;
+  }
+  try {
+    await _db.execute(drizzleSql`SELECT 1`);
+    console.log(`✅ [DB probe] Primary DB is reachable (source: ${_activeDbSource})`);
+  } catch (err: unknown) {
+    if (is402QuotaError(err)) {
+      console.warn('⚠️ [DB probe] Primary DB returned 402 quota error at startup — switching to fallback immediately');
+      const switched = switchToFallback();
+      if (switched) {
+        console.log('✅ [DB probe] Switched to fallback DB before first request');
+      } else {
+        console.error('❌ [DB probe] Could not switch to fallback — no fallback DB configured!');
+      }
+    } else {
+      const msg = (err as { message?: string }).message ?? String(err);
+      console.warn(`⚠️ [DB probe] Primary DB probe failed (non-quota error): ${msg.slice(0, 200)}`);
+    }
+  }
 }
