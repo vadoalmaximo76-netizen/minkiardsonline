@@ -29450,7 +29450,58 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
       }
       
-      gameState.timedEffects = gameState.timedEffects.filter(te => te.turnsRemaining > 0);
+      gameState.timedEffects = (gameState.timedEffects as any[]).filter(te => (te as any).owner !== undefined || te.turnsRemaining > 0);
+    }
+
+    // Process named-bonus timed effects (owner/turnsLeft format: nirdosh, doping, stipendio, buscopan, crisalide, macumba, scudo)
+    if (gameState.timedEffects && gameState.timedEffects.length > 0) {
+      const bonusEffectsToTrigger: any[] = [];
+      for (const te of gameState.timedEffects as any[]) {
+        if (te.owner === undefined) continue;
+        if (te.owner !== playerName) continue;
+        const isRecurring = !!(te as any).recurring;
+        if (!isRecurring) {
+          te.turnsLeft = (te.turnsLeft ?? 1) - 1;
+          console.log(`⏳ BONUS TIMED EFFECT: ${te.description || te.id} (owner: ${te.owner}) - ${te.turnsLeft} turni rimanenti`);
+        } else {
+          console.log(`⏳ BONUS TIMED EFFECT (recurring): ${te.description || te.id} (owner: ${te.owner})`);
+        }
+        if (isRecurring || te.turnsLeft <= 0) {
+          bonusEffectsToTrigger.push(te);
+        }
+      }
+      for (const te of bonusEffectsToTrigger) {
+        if (!te.recurring) {
+          console.log(`⏳💥 BONUS TIMED EFFECT TRIGGERED: ${te.description} (owner: ${te.owner})`);
+          const io = (global as any).io;
+          if (io) {
+            const actionDescs = (te.actions || []).map((a: any) => a.description).join(', ');
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-bonus-timed-trigger-${te.id}`,
+              playerName: 'Sistema',
+              message: `⏳💥 ${te.description || 'Effetto bonus'}: ${actionDescs}`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        for (const action of (te.actions || [])) {
+          try {
+            this.executeCustomEffectAction(gameId, action, te.owner, {} as any)
+              .catch((err: any) => console.error(`⏳ Async error executing bonus timed action ${action.type}:`, err));
+          } catch (err) {
+            console.error(`⏳ Error executing bonus timed action ${action.type}:`, err);
+          }
+        }
+      }
+      const io = (global as any).io;
+      if (bonusEffectsToTrigger.length > 0 && io) {
+        const updatedState = this.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', updatedState);
+      }
+      gameState.timedEffects = (gameState.timedEffects as any[]).filter(te => {
+        if (te.owner !== undefined && !te.recurring) return (te.turnsLeft ?? 0) > 0;
+        return true;
+      });
     }
 
     // Verify it's the current player's turn
@@ -30052,7 +30103,58 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
       }
       
-      gameState.timedEffects = gameState.timedEffects.filter(te => te.turnsRemaining > 0);
+      gameState.timedEffects = (gameState.timedEffects as any[]).filter(te => (te as any).owner !== undefined || te.turnsRemaining > 0);
+    }
+
+    // Process named-bonus timed effects (owner/turnsLeft format: nirdosh, doping, stipendio, buscopan, crisalide, macumba, scudo)
+    if (gameState.timedEffects && gameState.timedEffects.length > 0) {
+      const bonusEffectsToTrigger: any[] = [];
+      for (const te of gameState.timedEffects as any[]) {
+        if (te.owner === undefined) continue;
+        if (te.owner !== currentPlayerName) continue;
+        const isRecurring = !!(te as any).recurring;
+        if (!isRecurring) {
+          te.turnsLeft = (te.turnsLeft ?? 1) - 1;
+          console.log(`⏳ BONUS TIMED EFFECT (forceEnd): ${te.description || te.id} (owner: ${te.owner}) - ${te.turnsLeft} turni rimanenti`);
+        } else {
+          console.log(`⏳ BONUS TIMED EFFECT recurring (forceEnd): ${te.description || te.id} (owner: ${te.owner})`);
+        }
+        if (isRecurring || te.turnsLeft <= 0) {
+          bonusEffectsToTrigger.push(te);
+        }
+      }
+      for (const te of bonusEffectsToTrigger) {
+        if (!te.recurring) {
+          console.log(`⏳💥 BONUS TIMED EFFECT TRIGGERED (forceEnd): ${te.description} (owner: ${te.owner})`);
+          const io = (global as any).io;
+          if (io) {
+            const actionDescs = (te.actions || []).map((a: any) => a.description).join(', ');
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-bonus-timed-trigger-${te.id}`,
+              playerName: 'Sistema',
+              message: `⏳💥 ${te.description || 'Effetto bonus'}: ${actionDescs}`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        for (const action of (te.actions || [])) {
+          try {
+            this.executeCustomEffectAction(gameId, action, te.owner, {} as any)
+              .catch((err: any) => console.error(`⏳ Async error executing bonus timed action (forceEnd) ${action.type}:`, err));
+          } catch (err) {
+            console.error(`⏳ Error executing bonus timed action (forceEnd) ${action.type}:`, err);
+          }
+        }
+      }
+      const ioBonus = (global as any).io;
+      if (bonusEffectsToTrigger.length > 0 && ioBonus) {
+        const updatedState = this.getSanitizedGameState(gameId);
+        ioBonus.to(gameId).emit('game-state-update', updatedState);
+      }
+      gameState.timedEffects = (gameState.timedEffects as any[]).filter(te => {
+        if (te.owner !== undefined && !te.recurring) return (te.turnsLeft ?? 0) > 0;
+        return true;
+      });
     }
 
     // Reset usedCardsThisTurn and usedMosseOnBarrieraThisTurn for the current player when their turn ends
