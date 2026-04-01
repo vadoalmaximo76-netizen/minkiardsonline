@@ -256,12 +256,21 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
       const res = await fetch('/api/gym-leaders', {
         headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
       });
+      if (!res.ok) {
+        console.error(`[GymMode] fetchLeaders: HTTP ${res.status} ${res.statusText}`);
+        return;
+      }
       const data = await res.json();
       if (data.success) {
+        console.log(`[GymMode] fetchLeaders: ${data.gymLeaders?.length ?? 0} leader caricati, ${data.completedIds?.length ?? 0} completati`);
         setLeaders(data.gymLeaders || []);
         setCompletedIds(data.completedIds || []);
+      } else {
+        console.error('[GymMode] fetchLeaders: risposta non success:', data);
       }
-    } catch {}
+    } catch (err) {
+      console.error('[GymMode] fetchLeaders: errore di rete:', err);
+    }
     finally { setLoading(false); }
   }, [authToken]);
 
@@ -1381,11 +1390,17 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             <div className="w-10 h-10 border-2 border-white/20 border-t-yellow-400 rounded-full animate-spin mx-auto mb-4" />
             <p className="text-white/30 text-sm">Caricamento Story Mode…</p>
           </div>
-        ) : activeLeaders.length === 0 ? (
+        ) : leaders.length === 0 ? (
           <div className="text-center py-16">
             <Shield className="w-16 h-16 text-white/10 mx-auto mb-4" />
             <p className="text-white/30 text-sm">Nessuno stage disponibile</p>
-            <p className="text-white/20 text-xs mt-1">Gli stage verranno aggiunti presto</p>
+            <p className="text-white/20 text-xs mt-1">Gli stage Story Mode devono essere configurati da un amministratore</p>
+          </div>
+        ) : activeLeaders.length === 0 ? (
+          <div className="text-center py-16">
+            <Shield className="w-16 h-16 text-white/10 mx-auto mb-4" />
+            <p className="text-white/30 text-sm">Nessuno stage attivo</p>
+            <p className="text-white/20 text-xs mt-1">Tutti gli stage sono temporaneamente disabilitati</p>
           </div>
         ) : (
           <div style={{ position: 'relative', width: '100%', minHeight: GYM_PATH_TOP_PAD + activeLeaders.length * GYM_PATH_NODE_H + 32 }}>

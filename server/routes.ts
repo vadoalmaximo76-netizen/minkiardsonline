@@ -17,7 +17,7 @@ function handle402(err: unknown): boolean {
 }
 import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, storyCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates, dailyChallengeScores, pageTooltips } from "../shared/schema";
 import { jsonStorage, homePanelsStorage, newsTickerStorage, homeConfigStorage, rankiardTiersStorage } from "./jsonStorage";
-import { eq, ilike, and, desc, or, ne, sql, inArray, gt } from "drizzle-orm";
+import { eq, ilike, and, desc, or, ne, sql, inArray, gt, isNull } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from "../client/src/lib/cardData";
 import { authMiddleware, ADMIN_FALLBACK, JWT_SECRET } from "./auth";
 import { setPlayerOnline, rateLimit as redisRateLimit, isRedisConfigured, updateLeaderboard as redisUpdateLeaderboard, cacheGet, cacheSet } from "./redis";
@@ -1222,6 +1222,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Safe to run on every boot because the WHERE-equivalent condition `legacyDeck.length > 0` makes it a no-op
   // once all leaders are already clean. After the first successful run, no rows will match and no writes occur.
   if (isDatabaseAvailable()) {
+    try {
+      // Diagnosi gym leaders: logga il conteggio totale e quanti sono attivi all'avvio
+      const allLeadersCount = await db.select({ id: gymLeaders.id, isActive: gymLeaders.isActive }).from(gymLeaders);
+      const totalLeaders = allLeadersCount.length;
+      const activeLeaders = allLeadersCount.filter(l => l.isActive !== false).length;
+      const inactiveLeaders = allLeadersCount.filter(l => l.isActive === false).length;
+      console.log(`🏋️ [startup] gym_leaders: total=${totalLeaders}, active=${activeLeaders}, inactive=${inactiveLeaders}`);
+      if (totalLeaders === 0) {
+        console.warn('⚠️ [startup] Nessun gym leader trovato nel DB — la Story Mode mostrerà "Nessuno stage disponibile". Aggiungili tramite il pannello admin.');
+      } else if (inactiveLeaders > 0 && activeLeaders === 0) {
+        // Tutti i leader sono disattivati: li attiviamo automaticamente
+        const inactiveIds = allLeadersCount.filter(l => l.isActive === false).map(l => l.id);
+        await db.update(gymLeaders).set({ isActive: true }).where(inArray(gymLeaders.id, inactiveIds));
+        console.log(`🔧 [startup] Attivati ${inactiveLeaders} gym leader con is_active=false — Story Mode ora visibile.`);
+      } else if (inactiveLeaders > 0) {
+        console.warn(`⚠️ [startup] ${inactiveLeaders} gym leader hanno is_active=false e non sono visibili nella Story Mode.`);
+      }
+    } catch (diagErr) {
+      console.error('⚠️ [startup] Error checking gym leaders:', diagErr);
+    }
+
     try {
       const allLeaders = await db.select({ id: gymLeaders.id, name: gymLeaders.name, playerStartingDeck: gymLeaders.playerStartingDeck, starterDeckOptions: gymLeaders.starterDeckOptions }).from(gymLeaders);
       for (const leader of allLeaders) {
@@ -13116,7 +13137,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
       const user = (req as any).user;
       const list = await db.select().from(gymLeaders)
-        .where(eq(gymLeaders.isActive, true))
+        .where(or(eq(gymLeaders.isActive, true), isNull(gymLeaders.isActive)))
         .orderBy(gymLeaders.orderIndex);
       let completedIds: number[] = [];
       if (user?.userId) {
