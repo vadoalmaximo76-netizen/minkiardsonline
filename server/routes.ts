@@ -30,6 +30,98 @@ const helpCooldowns = new Map<string, number>();
 
 const jwtSecret = JWT_SECRET;
 
+// ── Gym Leader Sync Helper ────────────────────────────────────────────────────
+// Reads ALL gym leaders from EXTERNAL_DATABASE_URL (Neon) using a direct pg
+// connection (bypasses the Drizzle/neon HTTP quota wrapper) and upserts them
+// into the target DB (defaults to current active DB) preserving original IDs.
+// Returns the number of rows synced, or throws on failure.
+async function syncGymLeadersFromExternalDb(targetDb?: typeof db): Promise<number> {
+  const extUrl = process.env.EXTERNAL_DATABASE_URL;
+  if (!extUrl) throw new Error('EXTERNAL_DATABASE_URL non configurato');
+
+  const pgModule = await import('pg');
+  const PgClient = (pgModule.default as any)?.Client ?? (pgModule as any).Client;
+  const client = new PgClient({ connectionString: extUrl, connectionTimeoutMillis: 10000 });
+  await client.connect();
+  let rows: any[];
+  try {
+    const res = await client.query('SELECT * FROM gym_leaders ORDER BY order_index');
+    rows = res.rows;
+  } finally {
+    await client.end();
+  }
+
+  if (rows.length === 0) return 0;
+
+  const writeDb = targetDb ?? db;
+
+  for (const row of rows) {
+    await writeDb.execute(sql`
+      INSERT INTO gym_leaders
+        (id, order_index, name, gym_name, description, specialty,
+         leader_image_url, badge_image_url, background_image_url,
+         cpu_level, deck_bias, custom_deck, lives_count, player_starting_deck,
+         starter_deck_options, reward_credits, reward_description,
+         youtube_music_url, leader_messages, cpu_count, cpu_configs,
+         attack_mode, is_active, created_at)
+      VALUES (
+        ${row.id},
+        ${row.order_index ?? 1},
+        ${row.name},
+        ${row.gym_name},
+        ${row.description ?? null},
+        ${row.specialty ?? null},
+        ${row.leader_image_url ?? null},
+        ${row.badge_image_url ?? null},
+        ${row.background_image_url ?? null},
+        ${row.cpu_level ?? 'medium'},
+        ${JSON.stringify(row.deck_bias ?? { personaggi: 1.0, mosse: 1.0, bonus: 1.0 })}::jsonb,
+        ${JSON.stringify(row.custom_deck ?? [])}::jsonb,
+        ${row.lives_count ?? 3},
+        ${JSON.stringify(row.player_starting_deck ?? [])}::jsonb,
+        ${JSON.stringify(row.starter_deck_options ?? [])}::jsonb,
+        ${row.reward_credits ?? 50},
+        ${row.reward_description ?? null},
+        ${row.youtube_music_url ?? null},
+        ${JSON.stringify(row.leader_messages ?? {})}::jsonb,
+        ${row.cpu_count ?? 1},
+        ${JSON.stringify(row.cpu_configs ?? [])}::jsonb,
+        ${row.attack_mode ?? 'free_for_all'},
+        ${row.is_active ?? true},
+        ${row.created_at ?? new Date()}
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        order_index        = EXCLUDED.order_index,
+        name               = EXCLUDED.name,
+        gym_name           = EXCLUDED.gym_name,
+        description        = EXCLUDED.description,
+        specialty          = EXCLUDED.specialty,
+        leader_image_url   = EXCLUDED.leader_image_url,
+        badge_image_url    = EXCLUDED.badge_image_url,
+        background_image_url = EXCLUDED.background_image_url,
+        cpu_level          = EXCLUDED.cpu_level,
+        deck_bias          = EXCLUDED.deck_bias,
+        custom_deck        = EXCLUDED.custom_deck,
+        lives_count        = EXCLUDED.lives_count,
+        player_starting_deck = EXCLUDED.player_starting_deck,
+        starter_deck_options = EXCLUDED.starter_deck_options,
+        reward_credits     = EXCLUDED.reward_credits,
+        reward_description = EXCLUDED.reward_description,
+        youtube_music_url  = EXCLUDED.youtube_music_url,
+        leader_messages    = EXCLUDED.leader_messages,
+        cpu_count          = EXCLUDED.cpu_count,
+        cpu_configs        = EXCLUDED.cpu_configs,
+        attack_mode        = EXCLUDED.attack_mode,
+        is_active          = EXCLUDED.is_active
+    `);
+  }
+
+  // Advance the serial sequence past the highest imported ID so future INSERTs don't collide
+  await writeDb.execute(sql`SELECT setval('gym_leaders_id_seq', (SELECT COALESCE(MAX(id), 1) FROM gym_leaders))`);
+
+  return rows.length;
+}
+
 async function checkAdminAccess(user: { userId: number; email: string | null }): Promise<boolean> {
   if (user.userId === ADMIN_FALLBACK.id && user.email === ADMIN_FALLBACK.email) {
     return true;
@@ -1230,8 +1322,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const inactiveLeaders = allLeadersCount.filter(l => l.isActive === false).length;
       console.log(`🏋️ [startup] gym_leaders: total=${totalLeaders}, active=${activeLeaders}, inactive=${inactiveLeaders}`);
       if (totalLeaders === 0) {
-        console.warn('⚠️ [startup] Nessun gym leader trovato nel DB — la Story Mode mostrerà "Nessuno stage disponibile". Aggiungili tramite il pannello admin.');
-      } else if (inactiveLeaders > 0 && activeLeaders === 0) {
+        console.warn('⚠️ [startup] Nessun gym leader nel DB — tentativo sync automatico da DB esterno...');
+        try {
+          const synced = await syncGymLeadersFromExternalDb();
+          if (synced > 0) {
+            console.log(`✅ [startup] Sincronizzati ${synced} gym leader da DB esterno → DB locale`);
+          } else {
+            console.warn('⚠️ [startup] DB esterno raggiungibile ma gym_leaders vuota anche lì. Aggiungili dal pannello admin.');
+          }
+        } catch (syncErr: any) {
+          console.warn(`⚠️ [startup] Sync gym leaders da DB esterno fallito: ${syncErr?.message?.slice(0, 200)}`);
+          console.warn('⚠️ [startup] La Story Mode mostrerà "Nessuno stage disponibile". Aggiungili dal pannello admin o usa /api/admin/sync-gym-leaders quando Neon è disponibile.');
+        }
+      } else {
+        // Current DB has leaders. Ensure fallback DB (Replit) is also populated so that
+        // if Neon goes over quota again the fallback can serve gym leaders too.
+        const fallbackDb = getFallbackDb();
+        if (fallbackDb && fallbackDb !== (db as any)) {
+          try {
+            const fallbackCount = await fallbackDb.select({ id: gymLeaders.id }).from(gymLeaders);
+            if (fallbackCount.length === 0 && process.env.EXTERNAL_DATABASE_URL) {
+              console.log('🔄 [startup] DB fallback (Replit) senza gym leader — sync da DB esterno...');
+              const synced = await syncGymLeadersFromExternalDb(fallbackDb as any);
+              if (synced > 0) {
+                console.log(`✅ [startup] Sincronizzati ${synced} gym leader da DB esterno → DB fallback (Replit)`);
+              }
+            }
+          } catch (fbSyncErr: any) {
+            console.warn(`⚠️ [startup] Sync gym leaders verso DB fallback fallito: ${fbSyncErr?.message?.slice(0, 150)}`);
+          }
+        }
+      }
+      if (inactiveLeaders > 0 && activeLeaders === 0) {
         // Tutti i leader sono disattivati: li attiviamo automaticamente
         const inactiveIds = allLeadersCount.filter(l => l.isActive === false).map(l => l.id);
         await db.update(gymLeaders).set({ isActive: true }).where(inArray(gymLeaders.id, inactiveIds));
@@ -13128,6 +13250,21 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
     } catch (e) {
       console.error('Error deleting gym leader:', e);
       res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/admin/sync-gym-leaders - copy all gym leaders from EXTERNAL_DATABASE_URL → current DB
+  app.post('/api/admin/sync-gym-leaders', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess(user);
+      if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+      const synced = await syncGymLeadersFromExternalDb();
+      res.json({ success: true, synced, message: synced > 0 ? `Sincronizzati ${synced} gym leader dal DB esterno` : 'Nessun gym leader trovato nel DB esterno' });
+    } catch (e: any) {
+      console.error('Error syncing gym leaders:', e);
+      res.status(500).json({ success: false, error: e?.message ?? 'Errore sync' });
     }
   });
 
