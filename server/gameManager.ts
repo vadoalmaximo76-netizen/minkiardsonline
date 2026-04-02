@@ -8855,6 +8855,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       case 'modalit_fenomeno': {
         if (!myChar) { emitChat(`⚠️ MODALITÀ FENOMENO: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         myChar.stars = (myChar.stars || 0) + 2;
+        this.updateCardTextWithPTI(myChar);
         emitChat(`⭐⭐ MODALITÀ FENOMENO! ${myChar.name || playerName} +2 stelle! (Stelle: ${myChar.stars})`);
         emitState(); break;
       }
@@ -8862,6 +8863,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       case 'modalita_fighetto': {
         if (!myChar) { emitChat(`⚠️ MODALITÀ FIGHETTO: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         myChar.stars = (myChar.stars || 0) + 1;
+        this.updateCardTextWithPTI(myChar);
         emitChat(`💅 MODALITÀ FIGHETTO! ${myChar.name || playerName} +1 stella! (Stelle: ${myChar.stars})`);
         emitState(); break;
       }
