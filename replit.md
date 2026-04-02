@@ -49,6 +49,15 @@ Developed with React 18, TypeScript, Tailwind CSS, and Radix UI. State managemen
 ## Backend
 Built with Express.js and TypeScript, utilizing Socket.IO for real-time communication. A central GameManager class handles game logic and state.
 
+## Story Mode — 3D Open World Map (Task #109)
+The Story Mode map (`GymMode.tsx` phase `map`) has been replaced with an interactive 3D open world scene powered by React-Three-Fiber. Key architecture:
+- `client/src/components/StoryWorldMap.tsx` — new R3F component: terrain (grass texture), trees, gym leader arenas (cylinder + pillar + status sphere), walking player avatar (box character), isometric follow-camera, WASD/arrow-key movement, mobile joystick buttons.
+- `client/src/types/gym.ts` — shared `GymLeader` interface to avoid circular imports between `GymMode.tsx` and `StoryWorldMap.tsx`.
+- Arenas are placed at 12 pre-calculated fixed positions in world space. Player starts south (0, 0, 26), arenas spread outward in a path/spiral pattern.
+- Proximity detection (every 0.15s in useFrame): when player is within 9 units of an arena, the bottom HUD shows the leader's info card and action buttons (Sfida!/Rigioca/Riprendi).
+- All phases (intro, battle, victory, defeat, card-pick) are **unchanged** — only the `map` phase rendering was swapped.
+- Legacy 2D zigzag map code is preserved inside `{false && ...}` in GymMode.tsx for future reference.
+
 ## Real-time Communication
 Socket.IO enables real-time game events, optimizing network performance with techniques like server-side throttling, message compression, and optimistic UI updates.
 

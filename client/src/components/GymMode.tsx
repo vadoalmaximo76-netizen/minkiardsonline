@@ -8,40 +8,10 @@ import { CARD_DATA } from '../lib/cardData';
 import { pauseHomeMusic, resumeHomeMusic } from './SpotifyPlayer';
 import { InjuredPersonaggiDisclaimer } from './InjuredPersonaggiDisclaimer';
 import { StarterDeckSelection, StarterDeckOption } from './StarterDeckSelection';
+import { StoryWorldMap } from './StoryWorldMap';
+import { GymLeader } from '../types/gym';
 
-interface CpuConfig {
-  name: string;
-  imageUrl: string;
-  cpuLevel: string;
-  customDeck: string[];
-  leaderMessages: Record<string, string[]>;
-}
-
-interface GymLeader {
-  id: number;
-  orderIndex: number;
-  name: string;
-  gymName: string;
-  description: string | null;
-  specialty: string | null;
-  leaderImageUrl: string | null;
-  badgeImageUrl: string | null;
-  backgroundImageUrl: string | null;
-  cpuLevel: string;
-  deckBias: { personaggi: number; mosse: number; bonus: number };
-  customDeck: string[];
-  livesCount: number;
-  playerStartingDeck: string[];
-  starterDeckOptions?: StarterDeckOption[];
-  rewardCredits: number;
-  rewardDescription: string | null;
-  youtubeMusicUrl: string | null;
-  leaderMessages: Record<string, string[]> | null;
-  cpuCount: number;
-  cpuConfigs: CpuConfig[];
-  attackMode: 'free_for_all' | 'hunt_human';
-  isActive?: boolean;
-}
+export type { GymLeader };
 
 interface GymModeProps {
   playerName: string;
@@ -1418,8 +1388,21 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         </div>
       )}
 
-      {/* Stage path map */}
-      <style>{GYM_PATH_STYLES}</style>
+      {/* 3D World Map */}
+      <StoryWorldMap
+        leaders={activeLeaders}
+        completedIds={completedIds}
+        lostLeaderIds={lostLeaderIds}
+        currentLeader={currentLeader ?? null}
+        pendingGymGame={pendingGymGame}
+        loading={loading}
+        getLeaderStatus={getLeaderStatus}
+        onChallengeLeader={handleChallengeLeader}
+        onResumeGame={handleInternalResume}
+      />
+
+      {/* Legacy 2D map — kept as hidden fragment for future reference */}
+      {false && (
       <div ref={mapScrollRef} className="flex-1 overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
         {loading ? (
           <div className="text-center py-16">
@@ -1750,6 +1733,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           </div>
         )}
       </div>
+      )}
 
       {/* Boss Tooltip */}
       {hoveredLeaderId !== null && tooltipPos && (() => {
