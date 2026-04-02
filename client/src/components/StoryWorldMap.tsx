@@ -47,22 +47,22 @@ const KEY_MAP = [
 const PLAYER_SPEED = 9;
 const MAP_BOUND    = 42;
 
-/* Fixed arena positions for up to 12 leaders — spread across the full -42…+42 world.
-   Quadrant coverage: center + NE + SE + SW + NW + far edges.
-   Player spawns at [0, 26], so stage 1 is nearby; the rest fan out across all directions. */
+/* Percorso a zigzag da sud a nord: il giocatore parte a sud e il path serpeggia
+   destra-sinistra risalendo verso il nord, coprendo l'intera larghezza della mappa.
+   Player spawns at [0, 26], vicino allo Stage 1. */
 const ARENA_POSITIONS_BASE: [number, number][] = [
-  [  0,  12 ],   //  1 — centro-sud (vicino al punto di spawn del giocatore)
-  [ 28,  22 ],   //  2 — quadrante SE
-  [ 38,  -2 ],   //  3 — est estremo
-  [ 26, -28 ],   //  4 — NE
-  [  4, -38 ],   //  5 — nord estremo
-  [-24, -32 ],   //  6 — NW
-  [-38,  -8 ],   //  7 — ovest estremo (lato nord)
-  [-36,  22 ],   //  8 — ovest estremo (lato sud)
-  [-18,  36 ],   //  9 — SW estremo
-  [ 10,  38 ],   // 10 — sud estremo
-  [ 18,  -8 ],   // 11 — centro-NE
-  [-10,   4 ],   // 12 — centro-NW
+  [  0,  30 ],   //  1 — partenza centro-sud (vicino spawn)
+  [ 26,  20 ],   //  2 — curva a destra →
+  [ 36,   4 ],   //  3 — est estremo →
+  [ 24, -12 ],   //  4 — nord-est (piega verso nord)
+  [  6, -26 ],   //  5 — nord centro
+  [ -8, -36 ],   //  6 — nord estremo ←
+  [-22, -28 ],   //  7 — nord-ovest ←
+  [-35, -12 ],   //  8 — ovest estremo (piega verso sud)
+  [-34,   8 ],   //  9 — ovest-centro
+  [-20,  22 ],   // 10 — sud-ovest ←
+  [ -6,  36 ],   // 11 — sud estremo
+  [ 24,  36 ],   // 12 — sud-est (traguardo)
 ];
 
 function getArenaPosition(idx: number): [number, number] {
