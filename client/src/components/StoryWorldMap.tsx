@@ -611,8 +611,8 @@ export function StoryWorldMap({
     const rect = canvas.getBoundingClientRect();
     const { w, h } = sizeRef.current;
     return {
-      x: (clientX - rect.left - w / 2) / TILE + camRef.current.x,
-      z: (clientY - rect.top  - h / 2) / TILE + camRef.current.z,
+      x: (clientX - rect.left - w / 2) / TILE + playerRef.current.x,
+      z: (clientY - rect.top  - h / 2) / TILE + playerRef.current.z,
     };
   }, []);
 
@@ -694,15 +694,27 @@ export function StoryWorldMap({
 
   /* ── Main game loop ────────────────────────────────────── */
   useEffect(() => {
+    /* ── Sync canvas size immediately before first frame ── */
+    const container = containerRef.current;
+    const canvas0   = canvasRef.current;
+    if (container && canvas0) {
+      const { width, height } = container.getBoundingClientRect();
+      if (width > 0 && height > 0) {
+        sizeRef.current = { w: width, h: height };
+        canvas0.width   = width;
+        canvas0.height  = height;
+      }
+    }
+
     let raf = 0;
     let lastTime = performance.now();
 
-    /* --- world → screen ----------------------------------- */
+    /* --- world → screen: always centered on player -------- */
     const w2s = (wx: number, wz: number): [number, number] => {
       const { w, h } = sizeRef.current;
       return [
-        Math.round((wx - camRef.current.x) * TILE + w / 2),
-        Math.round((wz - camRef.current.z) * TILE + h / 2),
+        Math.round((wx - playerRef.current.x) * TILE + w / 2),
+        Math.round((wz - playerRef.current.z) * TILE + h / 2),
       ];
     };
 
@@ -1025,7 +1037,7 @@ export function StoryWorldMap({
       if (canvas.height !== h) canvas.height = h;
       ctx.clearRect(0, 0, w, h);
 
-      const camX = camRef.current.x, camZ = camRef.current.z;
+      const camX = playerRef.current.x, camZ = playerRef.current.z;
       ensurePatterns(ctx, camX, camZ);
 
       /* 1. Grass background */
@@ -1660,13 +1672,14 @@ export function StoryWorldMap({
       {isTouchDevice && (
         <div style={{
           position: 'absolute',
-          bottom: 18,
+          bottom: nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 112 : 18,
           left: 16,
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 52px)',
           gridTemplateRows: 'repeat(3, 52px)',
           gap: 4,
-          zIndex: 25,
+          zIndex: 32,
+          transition: 'bottom 0.22s ease',
         }}>
           {/* row 1: empty | up | empty */}
           <div />
