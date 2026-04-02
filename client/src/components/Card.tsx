@@ -905,10 +905,14 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           const handChars = (gameState?.players as any)?.[playerName]?.hand?.filter(
             (c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali'
           ) || [];
-          const firstHandChar = handChars[0];
-          const handStars = firstHandChar ? (parseStars(firstHandChar.text) ?? (firstHandChar.stars ?? 0)) : 0;
+          const bestHandChar = handChars.reduce((best: any, c: any) => {
+            const stars = c.stars ?? parseStars(c.text) ?? 0;
+            const bestStars = best ? (best.stars ?? parseStars(best.text) ?? 0) : -1;
+            return stars > bestStars ? c : best;
+          }, null);
+          const handStars = bestHandChar ? (bestHandChar.stars ?? parseStars(bestHandChar.text) ?? 0) : 0;
           totalStars = attackerStars + handStars;
-          console.log(`🪨 CATAPULTA INFERNALE: campo=${attackerStars} + mano(primo)=${handStars} = ${totalStars} stelle totali`);
+          console.log(`🪨 CATAPULTA INFERNALE: campo=${attackerStars} + mano(migliore)=${handStars} = ${totalStars} stelle totali`);
         }
         const suggestedDamage = mosseCardArg.mosseDamageValue * totalStars;
         setDamageValue(suggestedDamage.toString());

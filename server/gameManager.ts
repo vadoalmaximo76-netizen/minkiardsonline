@@ -17003,12 +17003,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
-    // CATAPULTA INFERNALE: server-side damage override (field char stars + first hand char stars)
+    // CATAPULTA INFERNALE: server-side damage override (field char stars + best hand char stars)
     if ((mosseCard.frontImage || '').includes('catapulta-infernale')) {
       const fieldStars = attackerCharacter ? (attackerCharacter.stars ?? this.extractStarsFromNote(attackerCharacter.text || '')) : 1;
       const handChars = (game.players[attackerName]?.hand || []).filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
-      const firstHandChar = handChars[0];
-      const handStars = firstHandChar ? (firstHandChar.stars ?? this.extractStarsFromNote(firstHandChar.text || '')) : 0;
+      const bestHandChar = handChars.reduce((best: Card | null, c: Card) => {
+        const stars = c.stars ?? this.extractStarsFromNote(c.text || '');
+        const bestStars = best ? (best.stars ?? this.extractStarsFromNote(best.text || '')) : -1;
+        return stars > bestStars ? c : best;
+      }, null);
+      const handStars = bestHandChar ? (bestHandChar.stars ?? this.extractStarsFromNote(bestHandChar.text || '')) : 0;
       const totalStars = fieldStars + handStars;
       const catapultaBase = (mosseCard as any).mosseDamageValue ?? 150;
       damageValue = catapultaBase * totalStars;
