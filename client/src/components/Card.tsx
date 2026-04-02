@@ -592,7 +592,9 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         
         // GAMBLE_DEATH fast-path: skip dialog, emit mosse-attack directly (no damage input needed)
         const mosseDmgEffect = (selectedMosseCard as any)?.mosseDamageEffect;
-        if (mosseDmgEffect === 'gamble_death') {
+        const mosseCardUrl = ((selectedMosseCard as any)?.frontImage || '').toLowerCase();
+        const isGambleDeath = mosseDmgEffect === 'gamble_death' || mosseCardUrl.includes('roulette-russa');
+        if (isGambleDeath) {
           console.log(`🎲 GAMBLE_DEATH: emitting mosse-attack directly for ${card.owner}`);
           if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); }
           if (selectedMosseCard?.id) cardRegistry.storePendingMosse(selectedMosseCard.id);
@@ -606,6 +608,30 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
             isHandTarget: false,
             isFurtoAttack: false,
             mosseEffect: 'gamble_death'
+          });
+          setSelectedMosseCard(null);
+          setSelectedMosseEffect(null);
+          setMosseHasPreset(false);
+          return;
+        }
+
+        // ACCHIAPPT CHESSA fast-path: skip dialog, attack with 0 damage (server handles mini-game)
+        const isAcchiappt = mosseCardUrl.includes('acchiappt-chessa');
+        if (isAcchiappt) {
+          console.log(`🎯 ACCHIAPPT CHESSA: emitting mosse-attack directly (mini-game handled server-side)`);
+          if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); }
+          if (selectedMosseCard?.id) cardRegistry.storePendingMosse(selectedMosseCard.id);
+          const presetDmg = (selectedMosseCard as any)?.mosseDamageValue || 100;
+          socket.emit('mosse-attack', {
+            mosseCardId: selectedMosseCard?.id,
+            targetCardId: card.id,
+            attackerName: playerName,
+            targetOwner: card.owner,
+            damageValue: presetDmg,
+            starsToRemove: 0,
+            isHandTarget: false,
+            isFurtoAttack: false,
+            mosseEffect: mosseDmgEffect || null
           });
           setSelectedMosseCard(null);
           setSelectedMosseEffect(null);

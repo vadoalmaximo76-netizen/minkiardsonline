@@ -17247,7 +17247,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
 
     // ROULETTE RUSSA (gamble_death): intercept before defense dialog — defender picks 1-6; die decides death
-    if (!isHandTarget && !isDuelAttack && mosseEffect === 'gamble_death') {
+    // Name-based fallback: detect by card URL even when mosseEffect is null (mosseDamageEffect not set in DB)
+    const isRouletteRussa = mosseEffect === 'gamble_death' || (mosseCard && (mosseCard.frontImage || '').toLowerCase().includes('roulette-russa'));
+    if (!isHandTarget && !isDuelAttack && isRouletteRussa) {
       const isDefenderCPU76 = this.isPlayerCPU(gameId, targetOwnerName);
       const io76 = (global as any).io;
 
@@ -34799,6 +34801,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       else if (mosseName.includes('MINI') && mosseName.includes('CICCIOLO')) mosseEffect = 'dice_split';
       else if (mosseName.includes('CAZZOTTO') && mosseName.includes('TESTA')) mosseEffect = 'no_kill_bonus';
       else if (mosseName.includes('PIOGGIA') && mosseName.includes('AGHI')) mosseEffect = 'death_on_dice_fail';
+      else if (mosseName.includes('ROULETTE') && mosseName.includes('RUSSA')) mosseEffect = 'gamble_death';
+      else if (mosseName.includes('ACCHIAPPT') && mosseName.includes('CHESSA')) mosseEffect = 'acchiappt_chessa_fallback';
       else if (mosseName.includes('SVEGLIA') && mosseName.includes('PALESTIN')) mosseEffect = 'delayed_damage';
       else if (mosseName.includes('MA') && mosseName.includes('CHE') && mosseName.includes('HANNO FATTO')) mosseEffect = 'delayed_best_mosse';
       else if (mosseName === 'RISSA') mosseEffect = 'flat_5_chain_mosse';
@@ -35288,9 +35292,28 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
 
         case 'gamble_death': {
-          // mosse-76 (Roulette Russa): fully handled upstream in executeMossaAttack — this is a no-op fallback
+          // mosse-76 (Roulette Russa): should be handled upstream in executeMossaAttack.
+          // If reached here (fallback), auto-resolve: random guess vs random dice.
+          if (!game) break;
           effectiveDamage = 0;
-          console.log(`🎲 ROULETTE_RUSSA: gamble_death reached processMosseDamage (should not happen — handled in executeMossaAttack)`);
+          const diceRoll76fb = Math.floor(Math.random() * 6) + 1;
+          const cpuGuess76fb = Math.floor(Math.random() * 6) + 1;
+          const saved76fb = diceRoll76fb === cpuGuess76fb;
+          if (io) io.to(gameId).emit('dice-rolled', { result: diceRoll76fb, playerName: attackerName });
+          if (saved76fb) {
+            effectMessage = `🎲 ROULETTE RUSSA: Dado = ${diceRoll76fb}. ✅ SALVATO! Il personaggio sopravvive!`;
+          } else {
+            forceInstantDeath = true;
+            effectMessage = `🎲 ROULETTE RUSSA: Dado = ${diceRoll76fb}. 💀 ELIMINATO!`;
+          }
+          console.log(`🎲 ROULETTE_RUSSA (fallback): roll=${diceRoll76fb} guess=${cpuGuess76fb} saved=${saved76fb}`);
+          break;
+        }
+
+        case 'acchiappt_chessa_fallback': {
+          // ACCHIAPPT CHESSA: should be handled upstream in executeMossaAttack.
+          // If reached here, apply normal damage (graceful degradation).
+          console.log(`🎯 ACCHIAPPT CHESSA: reached processMosseDamage fallback — applying normal damage`);
           break;
         }
 
