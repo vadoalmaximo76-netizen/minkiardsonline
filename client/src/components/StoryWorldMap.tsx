@@ -971,10 +971,9 @@ export function StoryWorldMap({
         walkRef.current += dt;
       }
 
-      /* ── Camera smooth follow ──────────────────────── */
-      const lerpF = 1 - Math.pow(0.08, dt);
-      camRef.current.x += (playerRef.current.x - camRef.current.x) * lerpF;
-      camRef.current.z += (playerRef.current.z - camRef.current.z) * lerpF;
+      /* ── Camera: player always centered ────────────── */
+      camRef.current.x = playerRef.current.x;
+      camRef.current.z = playerRef.current.z;
 
       /* ── Proximity checks (throttled) ──────────────── */
       proximityTimerRef.current += dt;
@@ -1657,21 +1656,34 @@ export function StoryWorldMap({
         </div>
       )}
 
-      {/* Mobile joystick */}
+      {/* Mobile d-pad (bottom-left, PlayStation cross layout) */}
       {isTouchDevice && (
         <div style={{
           position: 'absolute',
-          bottom: nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 140 : 14,
-          left: '50%', transform: 'translateX(-50%)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-          zIndex: 25, transition: 'bottom 0.2s ease',
+          bottom: 18,
+          left: 16,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 52px)',
+          gridTemplateRows: 'repeat(3, 52px)',
+          gap: 4,
+          zIndex: 25,
         }}>
+          {/* row 1: empty | up | empty */}
+          <div />
           <JoystickBtn label="▲" onStart={() => setJoy(0, -1)} onEnd={() => setJoy(0, 0)} />
-          <div style={{ display: 'flex', gap: 4 }}>
-            <JoystickBtn label="◀" onStart={() => setJoy(-1, 0)} onEnd={() => setJoy(0, 0)} />
-            <JoystickBtn label="▼" onStart={() => setJoy(0, 1)} onEnd={() => setJoy(0, 0)} />
-            <JoystickBtn label="▶" onStart={() => setJoy(1, 0)} onEnd={() => setJoy(0, 0)} />
-          </div>
+          <div />
+          {/* row 2: left | center (empty) | right */}
+          <JoystickBtn label="◀" onStart={() => setJoy(-1, 0)} onEnd={() => setJoy(0, 0)} />
+          <div style={{
+            borderRadius: 8,
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.1)',
+          }} />
+          <JoystickBtn label="▶" onStart={() => setJoy(1, 0)} onEnd={() => setJoy(0, 0)} />
+          {/* row 3: empty | down | empty */}
+          <div />
+          <JoystickBtn label="▼" onStart={() => setJoy(0, 1)} onEnd={() => setJoy(0, 0)} />
+          <div />
         </div>
       )}
     </div>
