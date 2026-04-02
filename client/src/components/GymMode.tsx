@@ -1444,6 +1444,42 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           onResumeGame={handleInternalResume}
           localities={localities}
           collectibles={collectibles}
+          userId={userId}
+          username={playerName}
+          authToken={authToken}
+          onStartPvp={(pvpGameId, opponentUsername, _yourDeck, _opponentDeck) => {
+            const syntheticLeader: GymLeader = {
+              id: -1,
+              orderIndex: 0,
+              name: opponentUsername,
+              gymName: `PvP vs ${opponentUsername}`,
+              description: 'Sfida PvP nella Story World',
+              specialty: null,
+              leaderImageUrl: null,
+              badgeImageUrl: null,
+              backgroundImageUrl: null,
+              cpuLevel: 'medium',
+              deckBias: { personaggi: 33, mosse: 33, bonus: 34 },
+              customDeck: [],
+              livesCount: 1,
+              playerStartingDeck: [],
+              rewardCredits: 30,
+              rewardDescription: 'Vittoria PvP',
+              youtubeMusicUrl: null,
+              leaderMessages: null,
+              cpuCount: 0,
+              cpuConfigs: [],
+              attackMode: 'free_for_all',
+            };
+            setSelectedLeader(syntheticLeader);
+            selectedLeaderRef.current = syntheticLeader;
+            setGameIdLocal(pvpGameId);
+            gameIdRef.current = pvpGameId;
+            setGameId(pvpGameId);
+            setPlayerName(playerName);
+            generateSessionId();
+            setPhase('battle');
+          }}
         />
       )}
 

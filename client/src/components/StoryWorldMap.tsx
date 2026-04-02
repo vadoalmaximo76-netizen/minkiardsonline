@@ -1,5 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { GymLeader } from '../types/gym';
+import { socket } from '../lib/socket';
 
 /* ── Interfaces (unchanged) ─────────────────────────────────── */
 export interface StoryLocality {
@@ -37,6 +38,19 @@ export interface StoryWorldMapProps {
   onResumeGame: (leader: GymLeader, gameId: string) => void;
   localities?: StoryLocality[];
   collectibles?: StoryCollectible[];
+  /* Multiplayer presence */
+  userId?: number;
+  username?: string;
+  authToken?: string | null;
+  onStartPvp?: (gameId: string, opponentUsername: string, yourDeck: number[], opponentDeck: number[], yourRole: 'challenger' | 'target') => void;
+}
+
+interface OtherPlayer {
+  userId: number;
+  username: string;
+  avatar: string | null;
+  x: number;
+  z: number;
 }
 
 /* ── World constants ─────────────────────────────────────────── */
@@ -519,6 +533,10 @@ export function StoryWorldMap({
   onResumeGame,
   localities = [],
   collectibles = [],
+  userId,
+  username,
+  authToken,
+  onStartPvp,
 }: StoryWorldMapProps) {
 
   /* ── Canvas + container refs ────────────────────────────── */
@@ -534,6 +552,10 @@ export function StoryWorldMap({
   const timeRef   = useRef(0);
   const walkRef   = useRef(0);
   const movingRef = useRef(false);
+
+  /* ── Multiplayer presence refs ──────────────────────────── */
+  const otherPlayersRef  = useRef<Map<number, OtherPlayer>>(new Map());
+  const moveEmitTimer    = useRef(0);
 
   /* ── Prop refs (stable for game loop) ──────────────────── */
   const leadersRef              = useRef(leaders);
@@ -561,6 +583,12 @@ export function StoryWorldMap({
   const [isCollecting,       setIsCollecting]       = useState(false);
   const [collectResult,      setCollectResult]      = useState<{ type: string; credits?: number; cardId?: string; subtype?: string } | null>(null);
   const [cardReveal,         setCardReveal]         = useState<StoryCollectible | null>(null);
+
+  /* ── Multiplayer state ──────────────────────────────────── */
+  const [proximityPlayer,   setProximityPlayer]   = useState<OtherPlayer | null>(null);
+  const [incomingChallenge, setIncomingChallenge] = useState<{ challengerUserId: number; challengerUsername: string; challengerAvatar: string | null } | null>(null);
+  const [pvpCreditsAlert,   setPvpCreditsAlert]   = useState<number | null>(null);
+  const [challengeSent,     setChallengeSent]     = useState(false);
 
   /* floating "+X crediti" canvas animations */
   const floatingTextsRef = useRef<{ text: string; x: number; z: number; color: string; startTime: number }[]>([]);
@@ -691,6 +719,73 @@ export function StoryWorldMap({
       }
     });
   }, [leaders]);
+
+  /* ── Multiplayer Socket Presence ───────────────────────── */
+  useEffect(() => {
+    if (!userId || !authToken) return;
+    const tok = authToken;
+
+    // Ensure socket is connected
+    if (!socket.connected) socket.connect();
+
+    // Join the story world
+    socket.emit('story-world:join', {
+      authToken: tok,
+      x: playerRef.current.x,
+      z: playerRef.current.z,
+    });
+
+    const handlePlayers = (players: OtherPlayer[]) => {
+      const m = new Map<number, OtherPlayer>();
+      players.forEach(p => m.set(p.userId, p));
+      otherPlayersRef.current = m;
+    };
+    const handleJoined = (p: OtherPlayer) => {
+      if (p.userId === userId) return;
+      otherPlayersRef.current.set(p.userId, p);
+    };
+    const handleMoved = ({ userId: uid, x, z }: { userId: number; x: number; z: number }) => {
+      const p = otherPlayersRef.current.get(uid);
+      if (p) { p.x = x; p.z = z; }
+    };
+    const handleLeft = ({ userId: uid }: { userId: number }) => {
+      otherPlayersRef.current.delete(uid);
+    };
+    const handleChallengeReceived = (data: { challengerUserId: number; challengerUsername: string; challengerAvatar: string | null }) => {
+      setIncomingChallenge(data);
+    };
+    const handleChallengeDeclined = () => {
+      setChallengeSent(false);
+    };
+    const handlePvpStart = (data: { gameId: string; yourRole: 'challenger' | 'target'; opponentUsername: string; opponentUserId: number; yourDeck: number[]; opponentDeck: number[] }) => {
+      onStartPvp?.(data.gameId, data.opponentUsername, data.yourDeck, data.opponentDeck, data.yourRole);
+    };
+    const handleCreditsEarned = ({ credits }: { credits: number }) => {
+      setPvpCreditsAlert(credits);
+      setTimeout(() => setPvpCreditsAlert(null), 4500);
+    };
+
+    socket.on('story-world:players',           handlePlayers);
+    socket.on('story-world:player-joined',     handleJoined);
+    socket.on('story-world:player-moved',      handleMoved);
+    socket.on('story-world:player-left',       handleLeft);
+    socket.on('story-world:challenge-received',handleChallengeReceived);
+    socket.on('story-world:challenge-declined',handleChallengeDeclined);
+    socket.on('story-world:pvp-start',         handlePvpStart);
+    socket.on('story-world:pvp-credits-earned',handleCreditsEarned);
+
+    return () => {
+      socket.emit('story-world:leave');
+      socket.off('story-world:players',           handlePlayers);
+      socket.off('story-world:player-joined',     handleJoined);
+      socket.off('story-world:player-moved',      handleMoved);
+      socket.off('story-world:player-left',       handleLeft);
+      socket.off('story-world:challenge-received',handleChallengeReceived);
+      socket.off('story-world:challenge-declined',handleChallengeDeclined);
+      socket.off('story-world:pvp-start',         handlePvpStart);
+      socket.off('story-world:pvp-credits-earned',handleCreditsEarned);
+    };
+  }, [userId, authToken, onStartPvp]);
 
   /* ── Main game loop ────────────────────────────────────── */
   useEffect(() => {
@@ -1025,6 +1120,24 @@ export function StoryWorldMap({
             setNearCollectible(nearC);
           }
         }
+
+        /* Other player proximity (for PvP challenge button) */
+        let closestOp: OtherPlayer | null = null;
+        let closestDist = 6;
+        otherPlayersRef.current.forEach(op => {
+          const d = Math.sqrt((px - op.x) ** 2 + (pz - op.z) ** 2);
+          if (d < closestDist) { closestDist = d; closestOp = op; }
+        });
+        setProximityPlayer(closestOp);
+      }
+
+      /* Throttled move emit (every ~100ms) */
+      if (userId && authToken) {
+        moveEmitTimer.current += dt;
+        if (moveEmitTimer.current >= 0.1) {
+          moveEmitTimer.current = 0;
+          socket.emit('story-world:move', { x: playerRef.current.x, z: playerRef.current.z });
+        }
       }
 
       /* ── Draw ──────────────────────────────────────── */
@@ -1305,6 +1418,38 @@ export function StoryWorldMap({
               ctx.strokeRect(wx - 4, by + bH * 0.04 - 4, 8, 6);
             });
           }
+        }});
+      });
+
+      /* other online players */
+      otherPlayersRef.current.forEach(op => {
+        sprites.push({ z: op.z, draw: () => {
+          const [osx, osy] = w2s(op.x, op.z);
+          const bW = 0.55 * TILE; const bH = 0.72 * TILE;
+          /* shadow */
+          ctx.fillStyle = 'rgba(0,0,0,0.18)';
+          ctx.beginPath(); ctx.ellipse(osx, osy + 4, bW * 0.55, 5, 0, 0, Math.PI * 2); ctx.fill();
+          /* body */
+          ctx.fillStyle = '#2563eb';
+          rrect(ctx, osx - bW / 2, osy - bH + 4, bW, bH, 4); ctx.fill();
+          /* legs */
+          const legW2 = bW * 0.35; const legH2 = bH * 0.28;
+          ctx.fillStyle = '#1d4ed8';
+          ctx.fillRect(osx - bW * 0.35, osy, legW2, legH2);
+          ctx.fillRect(osx + bW * 0.35 - legW2, osy, legW2, legH2);
+          /* head */
+          ctx.beginPath(); ctx.arc(osx, osy - bH + 4 - 0.28 * TILE * 0.4, 0.28 * TILE, 0, Math.PI * 2);
+          ctx.fillStyle = '#f4c07c'; ctx.fill();
+          /* username label */
+          ctx.save();
+          ctx.font = `bold ${Math.round(TILE * 0.55)}px sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+          const labelY = osy - bH - 0.28 * TILE * 1.6;
+          ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3;
+          ctx.strokeText(op.username, osx, labelY);
+          ctx.fillStyle = '#e0f2fe';
+          ctx.fillText(op.username, osx, labelY);
+          ctx.restore();
         }});
       });
 
@@ -1665,6 +1810,111 @@ export function StoryWorldMap({
           boxShadow: '0 4px 20px rgba(0,0,0,0.7)',
         }}>
           ✅ Carta aggiunta al mazzo Story Mode!
+        </div>
+      )}
+
+      {/* Nearby player interaction banner */}
+      {proximityPlayer && !nearLeader && !incomingChallenge && (
+        <div style={{
+          position: 'absolute', bottom: isTouchDevice ? 190 : 80, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(5,5,30,0.95)',
+          border: '2px solid rgba(59,130,246,0.7)',
+          borderRadius: 14, padding: '12px 22px', zIndex: 50,
+          display: 'flex', alignItems: 'center', gap: 14,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.7)',
+          whiteSpace: 'nowrap',
+        }}>
+          <div style={{ fontSize: 28 }}>⚔️</div>
+          <div>
+            <div style={{ color: '#93c5fd', fontWeight: 900, fontSize: 14 }}>{proximityPlayer.username}</div>
+            <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>Giocatore nelle vicinanze</div>
+          </div>
+          {!challengeSent ? (
+            <button
+              onClick={() => {
+                socket.emit('story-world:challenge', { targetUserId: proximityPlayer.userId });
+                setChallengeSent(true);
+                setTimeout(() => setChallengeSent(false), 12000);
+              }}
+              style={{
+                background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)',
+                border: 'none', borderRadius: 10, color: 'white', fontWeight: 900,
+                fontSize: 13, padding: '8px 16px', cursor: 'pointer',
+              }}
+            >
+              ⚡ Sfida PvP
+            </button>
+          ) : (
+            <div style={{ color: '#93c5fd', fontSize: 12, fontStyle: 'italic' }}>Sfida inviata…</div>
+          )}
+        </div>
+      )}
+
+      {/* Incoming PvP challenge banner */}
+      {incomingChallenge && (
+        <div style={{
+          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+          background: 'rgba(5,5,20,0.98)', borderRadius: 20, padding: '28px 32px',
+          border: '2px solid rgba(245,158,11,0.8)', zIndex: 90,
+          textAlign: 'center', boxShadow: '0 0 60px rgba(245,158,11,0.3)',
+          minWidth: 280,
+        }}>
+          <div style={{ fontSize: 36, marginBottom: 10 }}>⚔️</div>
+          <div style={{ color: '#fbbf24', fontWeight: 900, fontSize: 18, marginBottom: 4 }}>
+            Sfida PvP!
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginBottom: 18 }}>
+            <strong style={{ color: '#fde68a' }}>{incomingChallenge.challengerUsername}</strong> ti sfida!
+          </div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <button
+              onClick={() => {
+                socket.emit('story-world:challenge-response', {
+                  challengerUserId: incomingChallenge.challengerUserId,
+                  accepted: true,
+                });
+                setIncomingChallenge(null);
+              }}
+              style={{
+                background: 'linear-gradient(135deg,#f59e0b,#d97706)',
+                border: 'none', borderRadius: 10, color: 'white', fontWeight: 900,
+                fontSize: 14, padding: '10px 24px', cursor: 'pointer',
+              }}
+            >
+              ✅ Accetta
+            </button>
+            <button
+              onClick={() => {
+                socket.emit('story-world:challenge-response', {
+                  challengerUserId: incomingChallenge.challengerUserId,
+                  accepted: false,
+                });
+                setIncomingChallenge(null);
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: 10, color: 'rgba(255,255,255,0.7)', fontWeight: 700,
+                fontSize: 14, padding: '10px 24px', cursor: 'pointer',
+              }}
+            >
+              ✕ Rifiuta
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* PvP credits earned alert */}
+      {pvpCreditsAlert !== null && (
+        <div style={{
+          position: 'absolute', top: 60, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(5,5,20,0.95)',
+          border: '1.5px solid rgba(74,222,128,0.7)',
+          borderRadius: 12, padding: '10px 24px', zIndex: 60,
+          color: '#4ade80', fontWeight: 900, fontSize: 15, whiteSpace: 'nowrap',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.7)',
+        }}>
+          🏆 Vittoria PvP! +{pvpCreditsAlert} crediti
         </div>
       )}
 

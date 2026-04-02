@@ -1449,6 +1449,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Track which users are actively viewing a conversation (key: userId, value: conversationId)
   const watchingConversations = new Map<number, number>();
 
+  // ─── Story World Multiplayer Presence ────────────────────────────────────────
+  type StoryWorldPlayer = { socketId: string; userId: number; username: string; avatar: string | null; x: number; z: number };
+  const storyWorldPlayers = new Map<string, StoryWorldPlayer>(); // key: userId.toString()
+  type StoryPvpGame = { p1UserId: number; p2UserId: number; p1Name: string; p2Name: string; creditsClaimed: Set<number> };
+  const storyPvpGames = new Map<string, StoryPvpGame>(); // key: pvpGameId
+
+  async function awardStoryPvpCredits(gameId: string, winnerName: string) {
+    const pvp = storyPvpGames.get(gameId);
+    if (!pvp) return;
+    const winnerId = pvp.p1Name === winnerName ? pvp.p1UserId : pvp.p2Name === winnerName ? pvp.p2UserId : null;
+    if (!winnerId || pvp.creditsClaimed.has(winnerId)) return;
+    pvp.creditsClaimed.add(winnerId);
+    storyPvpGames.delete(gameId);
+    try {
+      if (!isDatabaseAvailable()) return;
+      const [existing] = await db.select().from(userDraftCredits).where(eq(userDraftCredits.userId, winnerId)).limit(1);
+      if (!existing) {
+        await db.insert(userDraftCredits).values({ userId: winnerId, freeCredits: 30, paidCredits: 0 });
+      } else {
+        await db.update(userDraftCredits).set({ freeCredits: existing.freeCredits + 30, updatedAt: new Date() }).where(eq(userDraftCredits.userId, winnerId));
+      }
+      const winnerSocket = storyWorldPlayers.get(winnerId.toString());
+      if (winnerSocket) io.to(winnerSocket.socketId).emit('story-world:pvp-credits-earned', { credits: 30 });
+      console.log(`🏆 Story PvP: 30 crediti assegnati a ${winnerName} (userId: ${winnerId})`);
+    } catch (e) { console.error('[story-pvp] award credits failed:', e); }
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
   io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
 
@@ -6174,6 +6202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (winner) {
         io.to(gameId).emit('game-victory', { winner });
         gameManager.completeMatch(gameId, winner);
+        awardStoryPvpCredits(gameId, winner).catch(() => {});
 
         // Daily challenge: track server-authoritative battle wins and cumulative stats
         const liveGame = gameManager.getGame(gameId);
@@ -10026,6 +10055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             io.to(gameId).emit('game-victory', { winner });
             // Award Rankiard points
             gameManager.completeMatch(gameId, winner);
+            awardStoryPvpCredits(gameId, winner).catch(() => {});
 
             // Daily challenge: track server-authoritative battle wins and cumulative stats
             const liveGame2 = gameManager.getGame(gameId);
@@ -10909,11 +10939,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (uid) watchingConversations.delete(uid);
     });
 
+    // ─── Story World Presence events ─────────────────────────────────────────
+    socket.on('story-world:join', async ({ authToken, x, z }: { authToken: string; x: number; z: number }) => {
+      try {
+        if (!authToken) return;
+        const decoded = jwt.verify(authToken, jwtSecret) as { userId: number; email: string };
+        if (!decoded?.userId) return;
+        const userId = decoded.userId;
+        let username = 'Giocatore';
+        let avatar: string | null = null;
+        if (isDatabaseAvailable()) {
+          const [u] = await db.select({ username: users.username, avatar: users.avatar }).from(users).where(eq(users.id, userId)).limit(1);
+          if (u) { username = u.username; avatar = u.avatar ?? null; }
+        }
+        (socket as any).data.storyUserId = userId;
+        storyWorldPlayers.set(userId.toString(), { socketId: socket.id, userId, username, avatar, x, z });
+        const others = Array.from(storyWorldPlayers.values()).filter(p => p.userId !== userId);
+        socket.emit('story-world:players', others);
+        socket.broadcast.emit('story-world:player-joined', { userId, username, avatar, x, z });
+        console.log(`🗺️ [story-world] ${username} (${userId}) joined world at (${x.toFixed(1)}, ${z.toFixed(1)})`);
+      } catch { /* invalid token */ }
+    });
+
+    socket.on('story-world:move', ({ x, z }: { x: number; z: number }) => {
+      const uid = (socket as any).data?.storyUserId as number | undefined;
+      if (!uid) return;
+      const p = storyWorldPlayers.get(uid.toString());
+      if (!p) return;
+      p.x = x; p.z = z;
+      socket.broadcast.emit('story-world:player-moved', { userId: uid, x, z });
+    });
+
+    socket.on('story-world:leave', () => {
+      const uid = (socket as any).data?.storyUserId as number | undefined;
+      if (!uid) return;
+      storyWorldPlayers.delete(uid.toString());
+      socket.broadcast.emit('story-world:player-left', { userId: uid });
+      (socket as any).data.storyUserId = undefined;
+    });
+
+    socket.on('story-world:challenge', async ({ targetUserId, authToken }: { targetUserId: number; authToken: string }) => {
+      try {
+        if (!authToken) return;
+        const decoded = jwt.verify(authToken, jwtSecret) as { userId: number; email: string };
+        if (!decoded?.userId) return;
+        const challengerId = decoded.userId;
+        const challenger = storyWorldPlayers.get(challengerId.toString());
+        const target = storyWorldPlayers.get(targetUserId.toString());
+        if (!challenger || !target) return;
+        io.to(target.socketId).emit('story-world:challenge-received', {
+          challengerUserId: challengerId,
+          challengerUsername: challenger.username,
+          challengerAvatar: challenger.avatar,
+        });
+        console.log(`⚔️ [story-world] ${challenger.username} ha sfidato ${target.username}`);
+      } catch { /* invalid token */ }
+    });
+
+    socket.on('story-world:challenge-response', async ({ challengerUserId, accepted, authToken }: { challengerUserId: number; accepted: boolean; authToken: string }) => {
+      const challenger = storyWorldPlayers.get(challengerUserId.toString());
+      if (!accepted) {
+        if (challenger) io.to(challenger.socketId).emit('story-world:challenge-declined', {});
+        return;
+      }
+      try {
+        if (!authToken) return;
+        const decoded = jwt.verify(authToken, jwtSecret) as { userId: number; email: string };
+        if (!decoded?.userId) return;
+        const targetId = decoded.userId;
+        const target = storyWorldPlayers.get(targetId.toString());
+        if (!challenger || !target) return;
+
+        let challengerCards: number[] = [];
+        let targetCards: number[] = [];
+        if (isDatabaseAvailable()) {
+          const [cd] = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, challengerUserId)).limit(1);
+          const [td] = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, targetId)).limit(1);
+          if (cd?.cardIds) challengerCards = cd.cardIds as number[];
+          if (td?.cardIds) targetCards = td.cardIds as number[];
+        }
+        const pvpGameId = `story-pvp-${Date.now()}-${Math.random().toString(36).substr(2, 8)}`;
+        storyPvpGames.set(pvpGameId, {
+          p1UserId: challengerUserId, p2UserId: targetId,
+          p1Name: challenger.username, p2Name: target.username,
+          creditsClaimed: new Set(),
+        });
+        io.to(challenger.socketId).emit('story-world:pvp-start', {
+          gameId: pvpGameId, yourRole: 'challenger',
+          opponentUsername: target.username, opponentUserId: targetId,
+          yourDeck: challengerCards, opponentDeck: targetCards,
+        });
+        io.to(target.socketId).emit('story-world:pvp-start', {
+          gameId: pvpGameId, yourRole: 'target',
+          opponentUsername: challenger.username, opponentUserId: challengerUserId,
+          yourDeck: targetCards, opponentDeck: challengerCards,
+        });
+        console.log(`⚔️ [story-world] PvP ${challenger.username} vs ${target.username} → gameId: ${pvpGameId}`);
+      } catch (e) { console.error('[story-pvp] challenge-response error:', e); }
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);
       // Clear watching state on disconnect
       const uid = (socket as any).data?.userId;
       if (uid) watchingConversations.delete(uid);
+      // Clean up story world presence on disconnect
+      const storyUid = (socket as any).data?.storyUserId as number | undefined;
+      if (storyUid) {
+        storyWorldPlayers.delete(storyUid.toString());
+        socket.broadcast.emit('story-world:player-left', { userId: storyUid });
+      }
       
       // Clean up spectators on disconnect
       if (socket.data.isSpectator && socket.data.gameId && socket.data.spectatorName) {
