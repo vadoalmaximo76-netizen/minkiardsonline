@@ -142,6 +142,17 @@ interface ArenaProps {
 function Arena({ leader, position, status, isCurrent, isNear, onChallenge }: ArenaProps) {
   const [hovered, setHovered] = useState(false);
   const clickable = status !== 'locked';
+  const sphereRef = useRef<THREE.Mesh>(null!);
+  const ringRef   = useRef<THREE.Mesh>(null!);
+  const pulseT    = useRef(0);
+
+  useFrame((_, delta) => {
+    if (status !== 'available') return;
+    pulseT.current += delta * 2.2;
+    const s = 1 + Math.sin(pulseT.current) * 0.18;
+    if (sphereRef.current) sphereRef.current.scale.setScalar(s);
+    if (ringRef.current)   ringRef.current.scale.setScalar(1 + Math.sin(pulseT.current) * 0.08);
+  });
 
   const platformColor = status === 'completed'
     ? '#166534' : status === 'available'
@@ -172,18 +183,18 @@ function Arena({ leader, position, status, isCurrent, isNear, onChallenge }: Are
         <cylinderGeometry args={[3.5, 3.5, 0.25, 20]} />
         <meshLambertMaterial color={hovered && clickable ? (status === 'completed' ? '#22c55e' : '#f59e0b') : platformColor} />
       </mesh>
-      {/* edge ring */}
-      <mesh position={[0, 0.25, 0]}>
+      {/* edge ring — pulses for available */}
+      <mesh ref={ringRef} position={[0, 0.25, 0]}>
         <torusGeometry args={[3.5, 0.12, 8, 24]} />
-        <meshLambertMaterial color={sphereColor} />
+        <meshLambertMaterial color={sphereColor} emissive={status === 'available' ? sphereColor : '#000000'} emissiveIntensity={status === 'available' ? 0.4 : 0} />
       </mesh>
       {/* pillar */}
       <mesh position={[0, 1.65, 0]} castShadow>
         <cylinderGeometry args={[0.38, 0.5, 3.0, 8]} />
         <meshLambertMaterial color={pillarColor} emissive={emissive} emissiveIntensity={0.3} />
       </mesh>
-      {/* status sphere */}
-      <mesh position={[0, 3.35, 0]}>
+      {/* status sphere — pulses for available */}
+      <mesh ref={sphereRef} position={[0, 3.35, 0]}>
         <sphereGeometry args={[0.55, 12, 12]} />
         <meshLambertMaterial color={sphereColor} emissive={sphereColor} emissiveIntensity={status === 'locked' ? 0 : 0.5} />
       </mesh>
@@ -572,17 +583,33 @@ export function StoryWorldMap({
         </Canvas>
       </KeyboardControls>
 
-      {/* ── Keyboard hint ── */}
+      {/* ── Persistent top-left HUD ── */}
+      <div style={{
+        position: 'absolute', top: 12, left: 12,
+        background: 'rgba(0,0,0,0.65)', border: '1px solid rgba(255,255,255,0.12)',
+        borderRadius: 10, padding: '6px 12px',
+        color: 'rgba(255,255,255,0.60)', fontSize: 11, fontWeight: 700,
+        pointerEvents: 'none', zIndex: 20,
+        display: 'flex', flexDirection: 'column', gap: 2,
+      }}>
+        <span>WASD / ↑↓←→ — muoviti</span>
+        <span style={{ color: 'rgba(251,191,36,0.75)' }}>
+          {nearLeader && nearStatus !== 'locked' && nearestDist <= 9
+            ? `Stage attivo: ${nearLeader.gymName}`
+            : 'Avvicinati ad uno Stage'}
+        </span>
+      </div>
+
+      {/* ── Fading intro hint (first 5 s) ── */}
       {showHint && (
         <div style={{
           position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)',
           background: 'rgba(0,0,0,0.72)', border: '1px solid rgba(255,255,255,0.15)',
           borderRadius: 12, padding: '6px 14px',
           color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 700,
-          pointerEvents: 'none', whiteSpace: 'nowrap',
-          zIndex: 20,
+          pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 20,
         }}>
-          WASD / ↑↓←→ per muoverti • Avvicinati agli Stage per sfidarli
+          Clicca su uno Stage o avvicinati per sfidarlo
         </div>
       )}
 
