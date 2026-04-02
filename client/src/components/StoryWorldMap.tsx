@@ -2093,7 +2093,7 @@ export function StoryWorldMap({
         const distLabel = Math.round(dist);
         return (
           <div style={{
-            position: 'absolute', bottom: 90, right: 16,
+            position: 'absolute', bottom: 90, left: 16,
             background: 'rgba(3,4,18,0.88)', border: '1.5px solid rgba(251,191,36,0.5)',
             borderRadius: 12, padding: '8px 12px', zIndex: 25,
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
@@ -2597,15 +2597,13 @@ export function StoryWorldMap({
         </div>
       )}
 
-      {/* Mobile d-pad (bottom-left in portrait, bottom-right in landscape) */}
+      {/* Mobile d-pad (bottom-left always) */}
       {isTouchDevice && (
         <div style={{
           position: 'absolute',
-          bottom: isMobileLandscape
-            ? 8
-            : (nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 130 : 18),
-          left: isMobileLandscape ? 'auto' : 16,
-          right: isMobileLandscape ? 8 : 'auto',
+          bottom: nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 130 : 18,
+          left: 16,
+          right: 'auto',
           display: 'grid',
           gridTemplateColumns: isMobileLandscape ? 'repeat(3, 44px)' : 'repeat(3, 64px)',
           gridTemplateRows: isMobileLandscape ? 'repeat(3, 44px)' : 'repeat(3, 64px)',
