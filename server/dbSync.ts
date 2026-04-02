@@ -11,7 +11,11 @@ let _extDb: ExtDbType | null = null;
 let _extDbAvailable = false;
 
 function sanitizeDbUrl(url: string): string {
-  return url.replace(/#/g, '%23');
+  // Encode special characters (including [ ] and #) in the password portion
+  return url.replace(/^(postgresql?:\/\/[^:]+:)([^@]+)(@.+)$/, (_full, pre, pass, post) => {
+    const encoded = encodeURIComponent(decodeURIComponent(pass.replace(/%(?![0-9A-Fa-f]{2})/g, '%25')));
+    return pre + encoded + post;
+  });
 }
 
 function initExtDb() {
@@ -1426,18 +1430,12 @@ export async function forceSync(): Promise<ForceSyncStatus['lastResult']> {
 
 // ── Startup sync + periodic background sync ──────────────────────────────────
 
-// Run initial sync after a short delay so server starts up first
-setTimeout(() => {
-  if (process.env.EXTERNAL_DATABASE_URL && process.env.DATABASE_URL) {
-    console.log('🚀 [BulkSync] Running startup sync (Neon → Replit DB + JSON)...');
-    fullSync()
-      .then(result => {
-        if (result) {
-          console.log(`🚀 [BulkSync] Startup sync complete: ${result.tablesOk.length} tables, ${result.rowsCopiedToReplit} rows → Replit, ${result.rowsCopiedToJson} rows → JSON`);
-          if (result.errors.length > 0) console.warn('  Errors:', result.errors);
-        }
-      })
-      .catch(err => console.warn('[BulkSync] Startup sync error:', err.message));
-    startPeriodicSync();
-  }
-}, 8000); // wait 8 seconds for server to be fully ready
+// BulkSync (Neon → Replit) disabled: Replit/Neon is now PRIMARY, Supabase is SECONDARY.
+// New writes go to both via dual-write proxy in db.ts.
+// Re-enable only if a reverse migration (Supabase → Replit) is needed.
+// setTimeout(() => {
+//   if (process.env.EXTERNAL_DATABASE_URL && process.env.DATABASE_URL) {
+//     fullSync().then(...).catch(...);
+//     startPeriodicSync();
+//   }
+// }, 8000);

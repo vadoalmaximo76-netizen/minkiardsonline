@@ -1,7 +1,8 @@
 import { drizzle as drizzleNeon } from 'drizzle-orm/neon-http';
-import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
+import { drizzle as drizzleNodePg } from 'drizzle-orm/node-postgres';
 import { neon } from '@neondatabase/serverless';
-import postgres from 'postgres';
+import pg from 'pg';
+const { Pool } = pg;
 import { sql as drizzleSql } from 'drizzle-orm';
 import * as schema from '../shared/schema';
 
@@ -26,7 +27,13 @@ let _legacyDb: DbType | null = null;
 let _isLegacyDbAvailable = false;
 
 function sanitizeDbUrl(url: string): string {
-  return url.replace(/#/g, '%23');
+  // Encode special characters in the password portion of the URL.
+  // Handles: # [ ] and other chars that break URL parsing.
+  return url.replace(/^(postgresql?:\/\/[^:]+:)([^@]+)(@.+)$/, (_full, pre, pass, post) => {
+    // Only encode if the password contains unencoded special chars
+    const encoded = encodeURIComponent(decodeURIComponent(pass.replace(/%(?![0-9A-Fa-f]{2})/g, '%25')));
+    return pre + encoded + post;
+  });
 }
 
 /**
@@ -46,18 +53,22 @@ function tryConnectNeon(url: string, label: string): DbType | null {
 }
 
 /**
- * Connect using postgres.js driver (for Supabase / standard PostgreSQL EXTERNAL_DATABASE_URL).
+ * Connect using node-postgres (pg) driver (for Supabase / standard PostgreSQL EXTERNAL_DATABASE_URL).
  */
 function tryConnectPostgres(url: string, label: string): DbType | null {
   try {
     const sanitizedUrl = sanitizeDbUrl(url);
-    const client = postgres(sanitizedUrl, {
-      max: 10,
-      idle_timeout: 20,
-      connect_timeout: 10,
-      ssl: 'require',
+    // Use Transaction Pooler (port 6543) to avoid Session Pooler pool_size limits.
+    // Transaction mode requires prepare:false (no prepared statements).
+    const txUrl = sanitizedUrl.replace(/:5432\//, ':6543/');
+    const pool = new Pool({
+      connectionString: txUrl,
+      max: 3,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+      ssl: { rejectUnauthorized: false },
     });
-    const db = drizzlePg(client, { schema });
+    const db = drizzleNodePg(pool, { schema });
     console.log(`✅ Database connection configured successfully (source: ${label})`);
     return db as unknown as DbType;
   } catch (error) {
