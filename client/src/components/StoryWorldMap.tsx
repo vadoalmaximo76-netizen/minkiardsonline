@@ -8,6 +8,7 @@ export interface StoryWorldMapProps {
   leaders: GymLeader[];
   completedIds: number[];
   lostLeaderIds: number[];
+  storyDeckIds?: number[];
   currentLeader: GymLeader | null;
   pendingGymGame?: { gameId: string; gymLeaderCpuName?: string; gymLeaderId?: number } | null;
   loading: boolean;
@@ -80,6 +81,19 @@ const TREE_DATA: { x: number; z: number; h: number; r: number }[] = [
   { x: 16, z: 28, h: 2.3, r: 0.85 },
 ];
 
+/* ── Sky ─────────────────────────────────────────────────────────── */
+function SkyDome() {
+  const tex = useTexture('/textures/sky.png');
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(4, 2);
+  return (
+    <mesh>
+      <sphereGeometry args={[200, 32, 16]} />
+      <meshBasicMaterial map={tex} side={THREE.BackSide} />
+    </mesh>
+  );
+}
+
 /* ── Ground ─────────────────────────────────────────────────────── */
 function Ground() {
   const tex = useTexture('/textures/grass.png');
@@ -122,9 +136,13 @@ interface ArenaProps {
   status: 'completed' | 'available' | 'locked';
   isCurrent: boolean;
   isNear: boolean;
+  onChallenge: (leader: GymLeader) => void;
 }
 
-function Arena({ leader, position, status, isCurrent, isNear }: ArenaProps) {
+function Arena({ leader, position, status, isCurrent, isNear, onChallenge }: ArenaProps) {
+  const [hovered, setHovered] = useState(false);
+  const clickable = status !== 'locked';
+
   const platformColor = status === 'completed'
     ? '#166534' : status === 'available'
     ? '#92400e' : '#1f2937';
@@ -136,12 +154,23 @@ function Arena({ leader, position, status, isCurrent, isNear }: ArenaProps) {
     ? '#fbbf24' : '#6b7280';
   const emissive = status === 'available' ? '#c05a00' : status === 'completed' ? '#052e16' : '#000000';
 
+  const handleClick = useCallback(() => {
+    if (clickable) onChallenge(leader);
+  }, [clickable, leader, onChallenge]);
+
   return (
     <group position={position}>
-      {/* platform */}
-      <mesh position={[0, 0.12, 0]} receiveShadow castShadow>
+      {/* platform — clickable for available/completed arenas */}
+      <mesh
+        position={[0, 0.12, 0]}
+        receiveShadow
+        castShadow
+        onClick={clickable ? handleClick : undefined}
+        onPointerOver={clickable ? () => setHovered(true) : undefined}
+        onPointerOut={clickable ? () => setHovered(false) : undefined}
+      >
         <cylinderGeometry args={[3.5, 3.5, 0.25, 20]} />
-        <meshLambertMaterial color={platformColor} />
+        <meshLambertMaterial color={hovered && clickable ? (status === 'completed' ? '#22c55e' : '#f59e0b') : platformColor} />
       </mesh>
       {/* edge ring */}
       <mesh position={[0, 0.25, 0]}>
@@ -328,6 +357,7 @@ interface WorldSceneProps {
   playerPosRef: React.RefObject<THREE.Group>;
   joystickRef: React.MutableRefObject<{ x: number; z: number }>;
   onNearestChange: (id: number | null, dist: number) => void;
+  onChallengeLeader: (leader: GymLeader) => void;
 }
 
 function WorldScene({
@@ -338,6 +368,7 @@ function WorldScene({
   playerPosRef,
   joystickRef,
   onNearestChange,
+  onChallengeLeader,
 }: WorldSceneProps) {
 
   const nearCheckRef = useRef(0);
@@ -376,9 +407,9 @@ function WorldScene({
       />
       <directionalLight position={[-20, 30, -20]} intensity={0.3} color="#c8e8ff" />
 
-      {/* Sky background */}
-      <color attach="background" args={['#a8d8f0']} />
-      <fog attach="fog" args={['#a8d8f0', 50, 110]} />
+      {/* Sky dome with texture */}
+      <SkyDome />
+      <fog attach="fog" args={['#a8d8f0', 55, 120]} />
 
       {/* Ground */}
       <Ground />
@@ -403,6 +434,7 @@ function WorldScene({
             status={status}
             isCurrent={isCurrent}
             isNear={isNear}
+            onChallenge={onChallengeLeader}
           />
         );
       })}
@@ -454,6 +486,7 @@ function JoystickBtn({ label, onStart, onEnd }: JoystickBtnProps) {
 export function StoryWorldMap({
   leaders,
   lostLeaderIds,
+  storyDeckIds: _storyDeckIds,
   currentLeader,
   pendingGymGame,
   loading,
@@ -534,6 +567,7 @@ export function StoryWorldMap({
             playerPosRef={playerPosRef}
             joystickRef={joystickRef}
             onNearestChange={handleNearestChange}
+            onChallengeLeader={onChallengeLeader}
           />
         </Canvas>
       </KeyboardControls>
