@@ -8160,6 +8160,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                   handOrigStars = hOrigCached?.stars || handCard.stars || 1;
                 }
               }
+              handOrigPti = Math.max(handOrigPti, handCard.pti || 0);
+              handOrigStars = Math.max(handOrigStars, handCard.stars || 1);
 
               let handComputedPti: number;
               let handComputedStars: number;
@@ -8232,6 +8234,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 handBaseStars = hCached?.stars || handCard.stars || 1;
               }
             }
+            handBasePti = Math.max(handBasePti, handCard.pti || 0);
+            handBaseStars = Math.max(handBaseStars, handCard.stars || 1);
             const originalPti = handBasePti;
             const originalStars = handBaseStars;
             
@@ -8300,6 +8304,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         baseStars = cachedData?.stars || activeChar.stars || 1;
       }
     }
+    basePti = Math.max(basePti, activeChar.pti || 0);
+    baseStars = Math.max(baseStars, activeChar.stars || 1);
     const originalPti = basePti;
     const originalStars = baseStars;
     console.log(`🔄 ${type}: ${oldName} - current PTI=${activeChar.pti}, original base PTI=${originalPti}, stars=${originalStars}`);
