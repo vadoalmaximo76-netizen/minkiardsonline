@@ -637,10 +637,13 @@ export function StoryWorldMap({
     const canvas = canvasRef.current;
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
-    const { w, h } = sizeRef.current;
+    const w = canvas.width  || rect.width;
+    const h = canvas.height || rect.height;
+    const scaleX = rect.width  > 0 ? w / rect.width  : 1;
+    const scaleY = rect.height > 0 ? h / rect.height : 1;
     return {
-      x: (clientX - rect.left - w / 2) / TILE + playerRef.current.x,
-      z: (clientY - rect.top  - h / 2) / TILE + playerRef.current.z,
+      x: ((clientX - rect.left) * scaleX - w / 2) / TILE + playerRef.current.x,
+      z: ((clientY - rect.top)  * scaleY - h / 2) / TILE + playerRef.current.z,
     };
   }, []);
 
@@ -806,7 +809,9 @@ export function StoryWorldMap({
 
     /* --- world → screen: always centered on player -------- */
     const w2s = (wx: number, wz: number): [number, number] => {
-      const { w, h } = sizeRef.current;
+      const cvs = canvasRef.current;
+      const w = cvs ? cvs.width : sizeRef.current.w;
+      const h = cvs ? cvs.height : sizeRef.current.h;
       return [
         Math.round((wx - playerRef.current.x) * TILE + w / 2),
         Math.round((wz - playerRef.current.z) * TILE + h / 2),
@@ -1145,9 +1150,16 @@ export function StoryWorldMap({
       if (!canvas) { raf = requestAnimationFrame(tick); return; }
       const ctx = canvas.getContext('2d');
       if (!ctx) { raf = requestAnimationFrame(tick); return; }
+
+      /* Always sync canvas buffer to container's actual CSS size */
+      const cw = canvas.offsetWidth  || containerRef.current?.offsetWidth  || sizeRef.current.w;
+      const ch = canvas.offsetHeight || containerRef.current?.offsetHeight || sizeRef.current.h;
+      if (cw > 0 && ch > 0) {
+        if (canvas.width  !== cw) canvas.width  = cw;
+        if (canvas.height !== ch) canvas.height = ch;
+        sizeRef.current = { w: cw, h: ch };
+      }
       const { w, h } = sizeRef.current;
-      if (canvas.width !== w) canvas.width = w;
-      if (canvas.height !== h) canvas.height = h;
       ctx.clearRect(0, 0, w, h);
 
       const camX = playerRef.current.x, camZ = playerRef.current.z;
@@ -1561,7 +1573,7 @@ export function StoryWorldMap({
         ref={canvasRef}
         onClick={handleCanvasClick}
         onMouseMove={handleCanvasMouseMove}
-        style={{ position: 'absolute', inset: 0, display: 'block', imageRendering: 'pixelated' }}
+        style={{ position: 'absolute', inset: 0, display: 'block', width: '100%', height: '100%', imageRendering: 'pixelated' }}
         tabIndex={0}
       />
 
