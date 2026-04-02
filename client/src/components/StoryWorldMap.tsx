@@ -7,7 +7,6 @@ import { GymLeader } from '../types/gym';
 export interface StoryWorldMapProps {
   leaders: GymLeader[];
   lostLeaderIds: number[];
-  storyDeckIds?: number[];
   currentLeader: GymLeader | null;
   pendingGymGame?: { gameId: string; gymLeaderCpuName?: string; gymLeaderId?: number } | null;
   loading: boolean;
@@ -320,29 +319,30 @@ function Player({ posRef, joystickRef }: PlayerProps) {
 
   return (
     <group ref={posRef} position={[0, 0, 26]}>
-      {/* body */}
-      <mesh position={[0, 0.85, 0]} castShadow>
-        <boxGeometry args={[0.7, 1.1, 0.5]} />
+      {/* capsule torso — cylinder with rounded ends */}
+      <mesh position={[0, 0.9, 0]} castShadow>
+        <cylinderGeometry args={[0.32, 0.32, 1.1, 12]} />
         <meshLambertMaterial color="#7c3aed" />
       </mesh>
-      {/* head */}
-      <mesh position={[0, 1.7, 0]} castShadow>
-        <boxGeometry args={[0.55, 0.55, 0.55]} />
-        <meshLambertMaterial color="#c4a882" />
+      {/* capsule top cap */}
+      <mesh position={[0, 1.45, 0]} castShadow>
+        <sphereGeometry args={[0.32, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshLambertMaterial color="#7c3aed" />
       </mesh>
-      {/* legs */}
-      <mesh position={[-0.18, 0.2, 0]} castShadow>
-        <boxGeometry args={[0.28, 0.42, 0.45]} />
-        <meshLambertMaterial color="#1e3a5f" />
+      {/* capsule bottom cap */}
+      <mesh position={[0, 0.35, 0]} castShadow>
+        <sphereGeometry args={[0.32, 12, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2]} />
+        <meshLambertMaterial color="#6d28d9" />
       </mesh>
-      <mesh position={[0.18, 0.2, 0]} castShadow>
-        <boxGeometry args={[0.28, 0.42, 0.45]} />
-        <meshLambertMaterial color="#1e3a5f" />
+      {/* head (sphere) */}
+      <mesh position={[0, 1.95, 0]} castShadow>
+        <sphereGeometry args={[0.3, 14, 10]} />
+        <meshLambertMaterial color="#e2c9a8" />
       </mesh>
       {/* player shadow disc */}
       <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.55, 12]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.25} />
+        <circleGeometry args={[0.48, 12]} />
+        <meshBasicMaterial color="#000000" transparent opacity={0.22} />
       </mesh>
     </group>
   );
@@ -505,7 +505,6 @@ function JoystickBtn({ label, onStart, onEnd }: JoystickBtnProps) {
 export function StoryWorldMap({
   leaders,
   lostLeaderIds,
-  storyDeckIds: _storyDeckIds,
   currentLeader,
   pendingGymGame,
   loading,
