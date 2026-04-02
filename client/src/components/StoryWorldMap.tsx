@@ -869,7 +869,7 @@ export function StoryWorldMap({
 
     /* --- Initialize leaf & firefly particles (once) -------- */
     if (leavesRef.current.length === 0 && TREE_DATA.length > 0) {
-      for (let pi = 0; pi < 45; pi++) {
+      for (let pi = 0; pi < 40; pi++) {
         const tree = TREE_DATA[pi % TREE_DATA.length];
         const ph = (pi * 0.618) * Math.PI * 2;
         leavesRef.current.push({
@@ -883,7 +883,7 @@ export function StoryWorldMap({
       }
     }
     if (firefliesRef.current.length === 0 && TREE_DATA.length > 0) {
-      for (let fi = 0; fi < 22; fi++) {
+      for (let fi = 0; fi < 20; fi++) {
         const treeIdx = (fi * 7) % TREE_DATA.length;
         const tree = TREE_DATA[treeIdx];
         firefliesRef.current.push({
@@ -906,6 +906,13 @@ export function StoryWorldMap({
         Math.round((wx - playerRef.current.x) * TILE + w / 2),
         Math.round((wz - playerRef.current.z) * TILE + h / 2),
       ];
+    };
+
+    /* --- shared sun direction helper ---------------------- */
+    const getSunVec = (time: number): [number, number] => {
+      const dp = (time / 300) % 1;
+      const angle = dp * Math.PI * 2 - Math.PI * 0.5;
+      return [Math.cos(angle), Math.sin(angle)];
     };
 
     /* --- ensure texture patterns -------------------------- */
@@ -947,16 +954,15 @@ export function StoryWorldMap({
     };
 
     /* --- draw helpers ------------------------------------- */
-    const drawTree = (ctx: CanvasRenderingContext2D, tree: typeof TREE_DATA[0]) => {
+    const drawTree = (ctx: CanvasRenderingContext2D, tree: typeof TREE_DATA[0], time: number) => {
       const [sx, sy] = w2s(tree.x, tree.z);
       const R = tree.r * TILE;
       /* directional shadow follows sun angle */
-      const dayP = (t / 300) % 1;
-      const sAngle = dayP * Math.PI * 2 - Math.PI * 0.5;
-      const shDX = Math.cos(sAngle) * R * 0.85;
-      const shDZ = Math.sin(sAngle) * R * 0.32;
+      const [sunX, sunZ] = getSunVec(time);
+      const shDX = sunX * R * 0.85;
+      const shDZ = sunZ * R * 0.32;
       ctx.beginPath();
-      ctx.ellipse(sx + shDX, sy + R * 0.18 + shDZ, R * 1.05, R * 0.36, sAngle * 0.25, 0, Math.PI * 2);
+      ctx.ellipse(sx + shDX, sy + R * 0.18 + shDZ, R * 1.05, R * 0.36, 0, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fill();
       /* tapered trunk */
       const tw = 0.24 * TILE; const th = R * 0.75;
@@ -1044,10 +1050,9 @@ export function StoryWorldMap({
       const bodyColor = status === 'locked' ? '#374151' : color;
 
       /* directional cast shadow */
-      const dayP2 = (time / 300) % 1;
-      const sAngle2 = dayP2 * Math.PI * 2 - Math.PI * 0.5;
-      const shDX2 = Math.cos(sAngle2) * bW * 0.32;
-      const shDY2 = Math.sin(sAngle2) * bH * 0.2;
+      const [sunX2, sunZ2] = getSunVec(time);
+      const shDX2 = sunX2 * bW * 0.32;
+      const shDY2 = sunZ2 * bH * 0.2;
       ctx.beginPath();
       ctx.ellipse(cx + shDX2 + 3, cy + bH * 0.35 + shDY2, bW * 0.46, bH * 0.17, 0.1, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill();
@@ -1257,8 +1262,9 @@ export function StoryWorldMap({
       const [sx, sy] = w2s(playerRef.current.x, playerRef.current.z);
       const bob = moving ? Math.sin(time * 8) * 1.5 : 0;
 
-      /* shadow */
-      ctx.beginPath(); ctx.ellipse(sx, sy + 8, 9, 4, 0, 0, Math.PI * 2);
+      /* directional shadow */
+      const [pSunX, pSunZ] = getSunVec(time);
+      ctx.beginPath(); ctx.ellipse(sx + pSunX * 7, sy + 7 + pSunZ * 3, 9, 3.5, 0, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fill();
 
       /* body */
@@ -1329,7 +1335,7 @@ export function StoryWorldMap({
         });
         /* circle collision: large boulders */
         BOULDER_DATA.forEach(b => {
-          if (b.sx <= 1.25) return;
+          if (b.sx <= 1.3) return;
           const br = b.sx * 0.82 + PR;
           const ddx = playerRef.current.x - b.x;
           const ddz = playerRef.current.z - b.z;
@@ -1530,9 +1536,9 @@ export function StoryWorldMap({
             ctx.lineWidth = 1.5; ctx.stroke();
           }
         }
-        /* rotating shimmers */
-        for (let si = 0; si < 3; si++) {
-          const sAngl = t * 0.5 + si * 2.094;
+        /* rotating shimmers (8 total) */
+        for (let si = 0; si < 8; si++) {
+          const sAngl = t * 0.5 + si * (Math.PI * 2 / 8);
           const sDist = sr * 0.35;
           const shX = wcx + Math.cos(sAngl) * sDist;
           const shY = wcy + Math.sin(sAngl) * sDist * 0.55;
@@ -1540,6 +1546,18 @@ export function StoryWorldMap({
           ctx.ellipse(shX, shY, sr * 0.2, sr * 0.07, sAngl + 0.5, 0, Math.PI * 2);
           ctx.fillStyle = `rgba(180,230,255,${0.22 + Math.sin(t * 2 + si) * 0.08})`; ctx.fill();
         }
+        /* caustics overlay */
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        for (let ci = 0; ci < 4; ci++) {
+          const cAngle = t * 0.35 + ci * (Math.PI / 2);
+          const cx2 = wcx + Math.cos(cAngle) * sr * 0.25;
+          const cy2 = wcy + Math.sin(cAngle) * sr * 0.18;
+          const cR = sr * (0.12 + Math.sin(t * 1.1 + ci) * 0.04);
+          ctx.beginPath(); ctx.arc(cx2, cy2, cR, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(100,200,255,${0.06 + Math.sin(t * 1.7 + ci) * 0.03})`; ctx.fill();
+        }
+        ctx.restore();
       });
 
       /* 4. Flower patches */
@@ -1574,10 +1592,16 @@ export function StoryWorldMap({
         ctx.fillStyle = '#2d7a2d'; ctx.fill();
       });
 
-      /* 7. Boulders */
+      /* 7. Boulders (with directional shadow) */
+      const [bSunX, bSunZ] = getSunVec(t);
       BOULDER_DATA.forEach((b, i) => {
         const [bx, by] = w2s(b.x, b.z);
         const br = b.sx * 0.82 * TILE;
+        /* directional cast shadow */
+        ctx.beginPath();
+        ctx.ellipse(bx + bSunX * br * 0.7, by + br * 0.25 + bSunZ * br * 0.28, br * 1.15, br * 0.42, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.20)'; ctx.fill();
+        /* boulder body */
         ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2);
         ctx.fillStyle = i % 3 === 0 ? '#8a8a8a' : i % 3 === 1 ? '#9a9080' : '#7a7878'; ctx.fill();
         ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1; ctx.stroke();
@@ -1660,7 +1684,7 @@ export function StoryWorldMap({
 
       /* trees */
       TREE_DATA.forEach(tree => {
-        sprites.push({ z: tree.z, draw: () => drawTree(ctx, tree) });
+        sprites.push({ z: tree.z, draw: () => drawTree(ctx, tree, t) });
       });
 
       /* localities */
