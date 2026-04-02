@@ -372,6 +372,7 @@ function CameraRig({ posRef }: { posRef: React.RefObject<THREE.Group> }) {
 /* ── World scene (inside Canvas) ───────────────────────────────── */
 interface WorldSceneProps {
   leaders: GymLeader[];
+  arenaPositions: [number, number][];
   getLeaderStatus: (leader: GymLeader) => 'completed' | 'available' | 'locked';
   currentLeader: GymLeader | null;
   nearestLeaderId: number | null;
@@ -383,6 +384,7 @@ interface WorldSceneProps {
 
 function WorldScene({
   leaders,
+  arenaPositions,
   getLeaderStatus,
   currentLeader,
   nearestLeaderId,
@@ -407,7 +409,7 @@ function WorldScene({
     let minId: number | null = null;
 
     leaders.forEach((l, idx) => {
-      const [ax, az] = getArenaPosition(idx);
+      const [ax, az] = arenaPositions[idx] ?? getArenaPosition(idx);
       const dist = Math.sqrt((px - ax) ** 2 + (pz - az) ** 2);
       if (dist < minDist) { minDist = dist; minId = l.id; }
     });
@@ -441,7 +443,7 @@ function WorldScene({
 
       {/* Arenas */}
       {leaders.map((leader, idx) => {
-        const [ax, az] = getArenaPosition(idx);
+        const [ax, az] = arenaPositions[idx] ?? getArenaPosition(idx);
         const status = getLeaderStatus(leader);
         const isNear = leader.id === nearestLeaderId;
         const isCurrent = leader.id === currentLeader?.id;
@@ -530,6 +532,18 @@ export function StoryWorldMap({
     [leaders, nearestLeaderId]
   );
 
+  /* Progress counts for HUD */
+  const completedCount = useMemo(
+    () => leaders.filter(l => getLeaderStatus(l) === 'completed').length,
+    [leaders, getLeaderStatus]
+  );
+
+  /* Pre-memoize world positions per leader (stable between renders) */
+  const arenaPositions = useMemo(
+    () => leaders.map((_, idx) => getArenaPosition(idx)),
+    [leaders]
+  );
+
   const handleNearestChange = useCallback((id: number | null, dist: number) => {
     setNearestLeaderId(id);
     setNearestDist(dist);
@@ -583,6 +597,7 @@ export function StoryWorldMap({
         >
           <WorldScene
             leaders={leaders}
+            arenaPositions={arenaPositions}
             getLeaderStatus={getLeaderStatus}
             currentLeader={currentLeader}
             nearestLeaderId={nearestLeaderId}
@@ -601,13 +616,16 @@ export function StoryWorldMap({
         borderRadius: 10, padding: '6px 12px',
         color: 'rgba(255,255,255,0.60)', fontSize: 11, fontWeight: 700,
         pointerEvents: 'none', zIndex: 20,
-        display: 'flex', flexDirection: 'column', gap: 2,
+        display: 'flex', flexDirection: 'column', gap: 3,
       }}>
-        <span>WASD / ↑↓←→ — muoviti</span>
-        <span style={{ color: 'rgba(251,191,36,0.75)' }}>
+        <span style={{ color: 'rgba(255,255,255,0.45)' }}>WASD / ↑↓←→ — muoviti</span>
+        <span style={{ color: '#4ade80', fontSize: 12 }}>
+          ✓ Stage completati: <strong>{completedCount}/{leaders.length}</strong>
+        </span>
+        <span style={{ color: 'rgba(251,191,36,0.85)' }}>
           {nearLeader && nearStatus !== 'locked' && nearestDist <= 9
-            ? `Stage attivo: ${nearLeader.gymName}`
-            : 'Avvicinati ad uno Stage'}
+            ? `⚡ Stage attivo: ${nearLeader.gymName}`
+            : '📍 Avvicinati ad uno Stage'}
         </span>
       </div>
 
