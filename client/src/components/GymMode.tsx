@@ -10,6 +10,7 @@ import { InjuredPersonaggiDisclaimer } from './InjuredPersonaggiDisclaimer';
 import { StarterDeckSelection, StarterDeckOption } from './StarterDeckSelection';
 import { StoryWorldMap, StoryLocality, StoryCollectible } from './StoryWorldMap';
 import { GymLeader } from '../types/gym';
+import { useIsLandscape } from '../hooks/use-is-landscape';
 
 export type { GymLeader };
 
@@ -159,6 +160,7 @@ function InfermeriaPanel({ authToken, userCredits, onCreditsUpdated, onClose }: 
   const [loading, setLoading] = React.useState(true);
   const [reviving, setReviving] = React.useState<Set<string>>(new Set());
   const [localCredits, setLocalCredits] = React.useState(userCredits);
+  const infermeriaLandscape = useIsLandscape();
 
   React.useEffect(() => { setLocalCredits(userCredits); }, [userCredits]);
 
@@ -202,7 +204,7 @@ function InfermeriaPanel({ authToken, userCredits, onCreditsUpdated, onClose }: 
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/70" onClick={onClose}>
       <div
         className="w-full max-w-lg bg-gray-950 border-t border-red-500/30 rounded-t-3xl shadow-2xl flex flex-col"
-        style={{ maxHeight: '80vh' }}
+        style={{ maxHeight: infermeriaLandscape ? '85vh' : '80vh' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -380,6 +382,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const expectedCpusRef = useRef(0);
   const cpusAddedRef = useRef(0);
   const mapScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const isLandscape = useIsLandscape();
 
   const { setGameId, setPlayerName, generateSessionId, clearSession: reset, setSelectedCard } = useGameState();
 
@@ -1381,24 +1385,53 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col" style={{ background: 'linear-gradient(180deg, #0a0515 0%, #05080f 50%, #0a0515 100%)' }}>
-      {/* Header */}
+      {/* Header — compact in landscape */}
       <div className="flex-shrink-0 border-b border-white/10" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)' }}>
-        <div className="flex items-center gap-3 px-4 py-3">
+        <div
+          className="flex items-center gap-3 px-4"
+          style={{ paddingTop: isLandscape ? 4 : 12, paddingBottom: isLandscape ? 4 : 12 }}
+        >
           <button
             onClick={onBack}
             className="p-2 text-white/50 hover:text-white transition-colors hover:bg-white/10 rounded-xl"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="flex-1">
-            <h1 className="text-white font-black text-lg leading-tight">Story Mode</h1>
-            <p className="text-white/40 text-xs">Affronta gli Stage e colleziona carte</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-white font-black leading-tight" style={{ fontSize: isLandscape ? 14 : 18 }}>Story Mode</h1>
+            {!isLandscape && (
+              <p className="text-white/40 text-xs">Affronta gli Stage e colleziona carte</p>
+            )}
           </div>
           {/* Progress */}
-          <div className="text-right">
+          <div className="text-right flex-shrink-0">
             <p className="text-white font-bold text-sm">{completedCount}/{totalCount}</p>
-            <p className="text-white/40 text-xs">Stage</p>
+            {!isLandscape && <p className="text-white/40 text-xs">Stage</p>}
           </div>
+          {/* Landscape: action buttons inline in header */}
+          {isLandscape && (
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                onClick={() => setShowDeckPanel(true)}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-900/40 border border-purple-500/30 text-purple-300 text-[10px] font-bold"
+              >
+                <BookOpen className="w-3 h-3" /> Mazzo
+              </button>
+              <button
+                onClick={() => setShowInfermeria(true)}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-950/40 border border-red-500/30 text-red-300 text-[10px] font-bold"
+              >
+                🩹
+              </button>
+              <button
+                onClick={() => setShowResetConfirm(true)}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-900/30 border border-red-500/30 text-red-400 text-[10px] font-bold"
+              >
+                ↺
+              </button>
+              <span className="text-yellow-300 text-[10px] font-bold flex-shrink-0">⭐ {userCredits.toLocaleString()}</span>
+            </div>
+          )}
           {/* View toggle */}
           <button
             onClick={() => {
@@ -1409,7 +1442,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             title={storyViewMode === '3d' ? 'Passa alla mappa classica 2D' : 'Passa alla mappa 3D'}
             style={{
               flexShrink: 0,
-              padding: '6px 10px',
+              padding: isLandscape ? '4px 8px' : '6px 10px',
               borderRadius: 10,
               border: '1px solid rgba(245,158,11,0.35)',
               background: 'rgba(245,158,11,0.12)',
@@ -1427,8 +1460,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             {storyViewMode === '3d' ? '🗺️ 2D' : '🌍 3D'}
           </button>
         </div>
-        {/* Progress bar */}
-        {totalCount > 0 && (
+        {/* Progress bar — hidden in landscape */}
+        {totalCount > 0 && !isLandscape && (
           <div className="px-4 pb-3">
             <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
               <div
@@ -1440,7 +1473,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         )}
       </div>
 
-      {/* Deck info bar */}
+      {/* Deck info bar — hidden in landscape (buttons moved to header) */}
+      {!isLandscape && (
       <div className="flex-shrink-0 px-4 py-2.5 flex items-center gap-3 border-b border-white/5" style={{ background: 'rgba(0,0,0,0.3)' }}>
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-yellow-600/20 border border-yellow-600/30 flex items-center justify-center">
@@ -1480,13 +1514,14 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           </div>
         </div>
       </div>
+      )}
 
       {/* Deck Panel Modal */}
       {showDeckPanel && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70" onClick={() => setShowDeckPanel(false)}>
           <div
             className="w-full max-w-lg bg-gray-950 border-t border-white/10 rounded-t-3xl shadow-2xl flex flex-col"
-            style={{ maxHeight: '80vh' }}
+            style={{ maxHeight: isLandscape ? '85vh' : '80vh' }}
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-white/10 flex-shrink-0">
@@ -1545,8 +1580,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         />
       )}
 
-      {/* ── Badge strip: medaglie tappe completate ── */}
-      {completedIds.length > 0 && (
+      {/* ── Badge strip: medaglie tappe completate — hidden in landscape ── */}
+      {completedIds.length > 0 && !isLandscape && (
         <div className="flex-shrink-0 border-b border-white/5" style={{ background: 'rgba(0,0,0,0.25)' }}>
           <div className="px-4 py-2.5 flex items-center gap-2">
             <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,158,11,0.6)', flexShrink: 0 }}>
@@ -1584,8 +1619,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         </div>
       )}
 
-      {/* Riprendi partita banner — shown only when the leader ID is unknown (fallback) */}
-      {pendingGymGame && !pendingGymGame.gymLeaderId && (
+      {/* Riprendi partita banner — shown only when the leader ID is unknown (fallback), hidden in landscape */}
+      {pendingGymGame && !pendingGymGame.gymLeaderId && !isLandscape && (
         <div className="flex-shrink-0 mx-4 mt-3 flex items-center gap-3 bg-orange-900/30 border border-orange-500/40 rounded-2xl px-4 py-3">
           <Swords className="w-5 h-5 text-orange-400 flex-shrink-0" />
           <div className="flex-1 min-w-0">
