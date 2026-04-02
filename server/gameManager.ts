@@ -21029,8 +21029,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         });
       }
 
-      // Injured Personaggi: record injury for human player who lost this character
-      if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.playerUserIds) {
+      // Injured Personaggi: record injury for human player who lost this character (Story/Gym Mode only)
+      if (game.isGymMode && (card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.playerUserIds) {
         const ownerUserId = game.playerUserIds.get(cardOwner);
         if (ownerUserId) {
           // Base card ID = draftBaseId (if set) or the card's own id (e.g. "personaggi-5")

@@ -137,6 +137,168 @@ const GYM_PATH_STYLES = `
 const GYM_NODE_PCT_RIGHT = 58;
 const GYM_NODE_PCT_LEFT  = 42;
 
+// ── Infermeria Panel ──────────────────────────────────────────────────────────
+const INFERMERIA_REVIVE_COST = 50;
+
+interface InfermeriaInjuredCard {
+  cardId: string;
+  name: string;
+  imageUrl: string | null;
+  gamesRemaining: number;
+}
+
+interface InfermeriaPanelProps {
+  authToken: string;
+  userCredits: number;
+  onCreditsUpdated: (newCredits: number) => void;
+  onClose: () => void;
+}
+
+function InfermeriaPanel({ authToken, userCredits, onCreditsUpdated, onClose }: InfermeriaPanelProps) {
+  const [injured, setInjured] = React.useState<InfermeriaInjuredCard[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [reviving, setReviving] = React.useState<Set<string>>(new Set());
+  const [localCredits, setLocalCredits] = React.useState(userCredits);
+
+  React.useEffect(() => { setLocalCredits(userCredits); }, [userCredits]);
+
+  React.useEffect(() => {
+    setLoading(true);
+    fetch('/api/injured-personaggi', { headers: { Authorization: `Bearer ${authToken}` } })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) setInjured(data.injured || []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [authToken]);
+
+  const handleRevive = async (cardId: string) => {
+    if (localCredits < INFERMERIA_REVIVE_COST) return;
+    setReviving(prev => new Set(prev).add(cardId));
+    try {
+      const res = await fetch('/api/revive-personaggio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ cardId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const newCreds = data.newCredits;
+        setLocalCredits(newCreds);
+        onCreditsUpdated(newCreds);
+        setInjured(prev => prev.filter(c => c.cardId !== cardId));
+      } else {
+        alert(data.error || 'Impossibile curare il personaggio');
+      }
+    } catch {
+      alert('Errore di rete');
+    } finally {
+      setReviving(prev => { const s = new Set(prev); s.delete(cardId); return s; });
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/70" onClick={onClose}>
+      <div
+        className="w-full max-w-lg bg-gray-950 border-t border-red-500/30 rounded-t-3xl shadow-2xl flex flex-col"
+        style={{ maxHeight: '80vh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🩹</span>
+            <div>
+              <h3 className="text-white font-black text-base">Infermeria</h3>
+              <p className="text-white/40 text-xs mt-0.5">Personaggi attualmente infortunati</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-yellow-400 font-bold text-sm">⭐ {localCredits}</span>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+            >
+              <X className="w-4 h-4 text-white/70" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-10 gap-3 text-white/50">
+              <div className="w-5 h-5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+              <span className="text-sm">Caricamento...</span>
+            </div>
+          ) : injured.length === 0 ? (
+            <div className="text-center py-10">
+              <div className="text-4xl mb-3">💪</div>
+              <p className="text-white/60 text-sm font-bold">Nessun personaggio infortunato</p>
+              <p className="text-white/30 text-xs mt-1">Tutti i tuoi personaggi sono in perfetta forma!</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {injured.map(card => {
+                const canRevive = localCredits >= INFERMERIA_REVIVE_COST;
+                const isReviving = reviving.has(card.cardId);
+                return (
+                  <div
+                    key={card.cardId}
+                    className="flex items-center gap-3 bg-black/40 rounded-xl p-3 border border-red-500/20"
+                  >
+                    <div className="w-12 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-800 border border-white/10 relative">
+                      {card.imageUrl ? (
+                        <img
+                          src={card.imageUrl}
+                          alt={card.name}
+                          className="w-full h-full object-cover grayscale opacity-60"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-2xl opacity-30">🃏</div>
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <span className="text-base">💀</span>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-semibold text-sm truncate">{card.name}</p>
+                      <p className="text-red-400 text-xs mt-0.5">⛔ Infortunato</p>
+                      <p className="text-white/35 text-[10px] mt-0.5">Indisponibile fino alla cura</p>
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      <button
+                        onClick={() => handleRevive(card.cardId)}
+                        disabled={!canRevive || isReviving}
+                        className={`px-3 py-2 rounded-lg text-xs font-bold transition-all
+                          ${canRevive && !isReviving
+                            ? 'bg-yellow-500 hover:bg-yellow-400 text-black cursor-pointer shadow-lg shadow-yellow-500/20'
+                            : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+                      >
+                        {isReviving ? (
+                          <span className="flex items-center gap-1">
+                            <span className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin inline-block" />
+                          </span>
+                        ) : (
+                          <>⭐ {INFERMERIA_REVIVE_COST} — Cura</>
+                        )}
+                      </button>
+                      {!canRevive && (
+                        <p className="text-red-500/70 text-[10px] mt-1">Rankiard insuff.</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GymPathSVG({ count }: { count: number }) {
   const totalH = GYM_PATH_TOP_PAD + count * GYM_PATH_NODE_H + 24;
   const pts = Array.from({ length: count }, (_, i) => ({
@@ -202,6 +364,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+  const [showInfermeria, setShowInfermeria] = useState(false);
   const [storyViewMode, setStoryViewMode] = useState<'3d' | '2d'>(() => {
     try { return (localStorage.getItem('storyViewMode') as '3d' | '2d') || '3d'; } catch { return '3d'; }
   });
@@ -651,6 +814,20 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
 
   const currentLeader = leaders.find(l => getLeaderStatus(l) === 'available');
   const activeLeaders = leaders.filter(l => l.isActive).sort((a, b) => a.orderIndex - b.orderIndex);
+
+  // ── INJURED DISCLAIMER — shown at root level regardless of current phase ───
+  if (pendingBattle) {
+    return (
+      <InjuredPersonaggiDisclaimer
+        authToken={authToken || ''}
+        relevantCardIds={pendingBattle.deckIds}
+        userCredits={userCredits}
+        onCreditsUpdated={(c) => setUserCredits(c)}
+        onConfirm={(filteredIds) => doStartBattle(pendingBattle.leader, filteredIds)}
+        onCancel={() => { setPendingBattle(null); setPhase('map'); setSelectedLeader(null); }}
+      />
+    );
+  }
 
   // ── GUEST WALL ────────────────────────────────────────────────────────────
   if (!authToken) {
@@ -1108,18 +1285,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             : 'linear-gradient(135deg, #0d0820 0%, #0a1a2e 100%)',
         }}
       >
-        {/* InjuredPersonaggiDisclaimer with actual battle start callback */}
-        {pendingBattle ? (
-          <InjuredPersonaggiDisclaimer
-            authToken={authToken || ''}
-            relevantCardIds={pendingBattle.deckIds}
-            userCredits={userCredits}
-            onCreditsUpdated={(c) => setUserCredits(c)}
-            onConfirm={(filteredIds) => doStartBattle(pendingBattle.leader, filteredIds)}
-            onCancel={() => { setPendingBattle(null); setPhase('map'); setSelectedLeader(null); }}
-          />
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 text-center gap-5">
+        <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 text-center gap-5">
             {/* Boss image */}
             {selectedLeader.leaderImageUrl ? (
               <div className="relative">
@@ -1204,7 +1370,6 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
               </button>
             </div>
           </div>
-        )}
       </div>
     );
   }
@@ -1293,6 +1458,12 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           <BookOpen className="w-3 h-3" /> Vedi mazzo
         </button>
         <button
+          onClick={() => setShowInfermeria(true)}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-950/40 border border-red-500/30 text-red-300 text-[10px] font-bold hover:bg-red-900/50 transition-colors"
+        >
+          🩹 Infermeria
+        </button>
+        <button
           onClick={() => setShowResetConfirm(true)}
           className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-900/30 border border-red-500/30 text-red-400 text-[10px] font-bold hover:bg-red-900/50 transition-colors"
         >
@@ -1362,6 +1533,16 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             </div>
           </div>
         </div>
+      )}
+
+      {/* Infermeria Panel Modal */}
+      {showInfermeria && (
+        <InfermeriaPanel
+          authToken={authToken || ''}
+          userCredits={userCredits}
+          onCreditsUpdated={(c) => setUserCredits(c)}
+          onClose={() => setShowInfermeria(false)}
+        />
       )}
 
       {/* ── Badge strip: medaglie tappe completate ── */}
