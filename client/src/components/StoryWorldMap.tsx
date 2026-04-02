@@ -53,9 +53,29 @@ interface OtherPlayer {
   z: number;
 }
 
+/* ── Particle types ─────────────────────────────────────────── */
+type LeafParticle = { wx: number; wz: number; ox: number; oz: number; life: number; maxLife: number; speed: number; size: number; sway: number };
+type FireflyParticle = { wx: number; wz: number; phase: number; speed: number; size: number; orbitR: number };
+
 /* ── World constants ─────────────────────────────────────────── */
 const PLAYER_SPEED = 11;
 const MAP_BOUND    = 80;
+
+/* ── Pre-computed star field (deterministic, no Math.random in render) ── */
+const STAR_DATA: { sx: number; sy: number; r: number; twinkle: number }[] = (() => {
+  const stars: { sx: number; sy: number; r: number; twinkle: number }[] = [];
+  for (let i = 0; i < 160; i++) {
+    const a = (i * 2.399963) % (Math.PI * 2);
+    const rr = Math.sqrt((i + 1) / 160) * 950;
+    stars.push({
+      sx: Math.cos(a) * rr,
+      sy: Math.sin(a) * rr * 0.72,
+      r: 0.4 + ((i * 37) % 9) * 0.18,
+      twinkle: ((i * 53) % 100) / 100,
+    });
+  }
+  return stars;
+})();
 
 const ARENA_POSITIONS_BASE: [number, number][] = [
   [  0,  68 ], [ 40,  52 ], [ 68,  18 ], [ 58, -20 ],
@@ -654,6 +674,10 @@ export function StoryWorldMap({
   const lastNearCollIdRef      = useRef<number | null>(null);
   const proximityTimerRef      = useRef(0);
 
+  /* ── Particle / atmosphere refs ──────────────────────────── */
+  const leavesRef    = useRef<LeafParticle[]>([]);
+  const firefliesRef = useRef<FireflyParticle[]>([]);
+
   /* ── Keyboard listeners ────────────────────────────────── */
   useEffect(() => {
     const down = (e: KeyboardEvent) => keysRef.current.add(e.code);
@@ -843,6 +867,36 @@ export function StoryWorldMap({
     let raf = 0;
     let lastTime = performance.now();
 
+    /* --- Initialize leaf & firefly particles (once) -------- */
+    if (leavesRef.current.length === 0 && TREE_DATA.length > 0) {
+      for (let pi = 0; pi < 45; pi++) {
+        const tree = TREE_DATA[pi % TREE_DATA.length];
+        const ph = (pi * 0.618) * Math.PI * 2;
+        leavesRef.current.push({
+          wx: tree.x, wz: tree.z,
+          ox: 0, oz: 0,
+          life: ph, maxLife: 3.5 + ((pi * 37) % 5) * 0.4,
+          speed: 0.7 + ((pi * 53) % 10) * 0.06,
+          size: 2.5 + ((pi * 17) % 4) * 0.5,
+          sway: 0.8 + ((pi * 41) % 6) * 0.2,
+        });
+      }
+    }
+    if (firefliesRef.current.length === 0 && TREE_DATA.length > 0) {
+      for (let fi = 0; fi < 22; fi++) {
+        const treeIdx = (fi * 7) % TREE_DATA.length;
+        const tree = TREE_DATA[treeIdx];
+        firefliesRef.current.push({
+          wx: tree.x + ((fi * 3 - 4) % 9) - 4,
+          wz: tree.z + ((fi * 5 - 3) % 7) - 3,
+          phase: fi * 0.285,
+          speed: 0.25 + ((fi * 31) % 7) * 0.04,
+          size: 1.5 + ((fi * 19) % 3) * 0.5,
+          orbitR: 1.5 + ((fi * 13) % 5) * 0.4,
+        });
+      }
+    }
+
     /* --- world → screen: always centered on player -------- */
     const w2s = (wx: number, wz: number): [number, number] => {
       const cvs = canvasRef.current;
@@ -896,22 +950,45 @@ export function StoryWorldMap({
     const drawTree = (ctx: CanvasRenderingContext2D, tree: typeof TREE_DATA[0]) => {
       const [sx, sy] = w2s(tree.x, tree.z);
       const R = tree.r * TILE;
-      /* shadow */
-      ctx.beginPath(); ctx.ellipse(sx, sy + R * 0.2, R * 0.9, R * 0.38, 0, 0, Math.PI * 2);
+      /* directional shadow follows sun angle */
+      const dayP = (t / 300) % 1;
+      const sAngle = dayP * Math.PI * 2 - Math.PI * 0.5;
+      const shDX = Math.cos(sAngle) * R * 0.85;
+      const shDZ = Math.sin(sAngle) * R * 0.32;
+      ctx.beginPath();
+      ctx.ellipse(sx + shDX, sy + R * 0.18 + shDZ, R * 1.05, R * 0.36, sAngle * 0.25, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fill();
-      /* trunk */
-      const tw = 0.22 * TILE; const th = R * 1.1;
-      ctx.fillStyle = '#5c3318';
-      ctx.fillRect(sx - tw / 2, sy - th * 0.15, tw, th * 0.55);
-      /* foliage outer ring (darker) */
-      ctx.beginPath(); ctx.arc(sx, sy - R * 0.9, R * 1.05, 0, Math.PI * 2);
+      /* tapered trunk */
+      const tw = 0.24 * TILE; const th = R * 0.75;
+      const trunkGrad = ctx.createLinearGradient(sx - tw / 2, sy, sx + tw / 2, sy);
+      trunkGrad.addColorStop(0, '#3d1f08'); trunkGrad.addColorStop(0.5, '#6b3d1a'); trunkGrad.addColorStop(1, '#2d1605');
+      ctx.fillStyle = trunkGrad;
+      ctx.beginPath();
+      ctx.moveTo(sx - tw * 0.52, sy + th * 0.12);
+      ctx.lineTo(sx + tw * 0.52, sy + th * 0.12);
+      ctx.lineTo(sx + tw * 0.28, sy - th * 0.62);
+      ctx.lineTo(sx - tw * 0.28, sy - th * 0.62);
+      ctx.closePath(); ctx.fill();
+      /* foliage - 5 layers for volumetric look */
+      const fy = sy - R * 0.88;
+      /* shadow base ring */
+      ctx.beginPath(); ctx.arc(sx, fy, R * 1.12, 0, Math.PI * 2);
+      ctx.fillStyle = '#0d3310'; ctx.fill();
+      /* main body */
+      ctx.beginPath(); ctx.arc(sx, fy, R, 0, Math.PI * 2);
       ctx.fillStyle = '#1a5c1a'; ctx.fill();
-      /* foliage main */
-      ctx.beginPath(); ctx.arc(sx, sy - R * 0.95, R, 0, Math.PI * 2);
+      /* east-side ambient occlusion */
+      ctx.beginPath(); ctx.arc(sx + R * 0.28, fy + R * 0.1, R * 0.72, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,18,0,0.32)'; ctx.fill();
+      /* mid highlight layer */
+      ctx.beginPath(); ctx.arc(sx - R * 0.14, fy - R * 0.18, R * 0.78, 0, Math.PI * 2);
       ctx.fillStyle = '#236b23'; ctx.fill();
-      /* foliage highlight */
-      ctx.beginPath(); ctx.arc(sx - R * 0.22, sy - R * 1.15, R * 0.55, 0, Math.PI * 2);
-      ctx.fillStyle = '#2e8c2e'; ctx.fill();
+      /* top highlight */
+      ctx.beginPath(); ctx.arc(sx - R * 0.3, fy - R * 0.34, R * 0.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#35a035'; ctx.fill();
+      /* specular spot */
+      ctx.beginPath(); ctx.arc(sx - R * 0.42, fy - R * 0.46, R * 0.22, 0, Math.PI * 2);
+      ctx.fillStyle = '#4ec44e'; ctx.fill();
     };
 
     const drawArena = (
@@ -926,7 +1003,6 @@ export function StoryWorldMap({
     ) => {
       const color = ARENA_COLORS[idx % ARENA_COLORS.length];
       const bW = 3.2 * TILE; const bH = 3.6 * TILE;
-      const roofH = bH * 0.32;
 
       /* unlock glow animation */
       if (unlockAnim) {
@@ -964,44 +1040,107 @@ export function StoryWorldMap({
         ctx.lineWidth = 3; ctx.stroke();
       }
 
-      /* shadow */
-      ctx.beginPath(); ctx.ellipse(cx + 3, cy + bH * 0.38, bW * 0.42, bH * 0.18, 0, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
-
-      /* body */
+      /* ─── Pseudo-3D building ─────────────────────────────── */
       const bodyColor = status === 'locked' ? '#374151' : color;
-      rrect(ctx, cx - bW / 2, cy - bH / 2, bW, bH, 7);
-      ctx.fillStyle = bodyColor; ctx.fill();
-      ctx.strokeStyle = status === 'locked' ? '#4b5563' : darken(color, 40);
-      ctx.lineWidth = 1.5; ctx.stroke();
 
-      /* roof band */
-      const roofColor = status === 'locked' ? '#4b5563' : lighten(color, 35);
-      rrect(ctx, cx - bW / 2, cy - bH / 2, bW, roofH, 7);
-      ctx.fillStyle = roofColor; ctx.fill();
-
-      /* roof ridge line */
+      /* directional cast shadow */
+      const dayP2 = (time / 300) % 1;
+      const sAngle2 = dayP2 * Math.PI * 2 - Math.PI * 0.5;
+      const shDX2 = Math.cos(sAngle2) * bW * 0.32;
+      const shDY2 = Math.sin(sAngle2) * bH * 0.2;
       ctx.beginPath();
-      ctx.moveTo(cx - bW / 2 + 4, cy - bH / 2 + roofH);
-      ctx.lineTo(cx + bW / 2 - 4, cy - bH / 2 + roofH);
-      ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.ellipse(cx + shDX2 + 3, cy + bH * 0.35 + shDY2, bW * 0.46, bH * 0.17, 0.1, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill();
 
-      /* door */
-      const doorW = bW * 0.28; const doorH = bH * 0.25;
-      ctx.fillStyle = darken(bodyColor, 50);
-      ctx.fillRect(cx - doorW / 2, cy + bH / 2 - doorH - 1, doorW, doorH);
-      /* door arch top */
+      /* 3-face building geometry */
+      const sideW2 = Math.round(bW * 0.15);   // right-wall strip width
+      const wallH2 = Math.round(bH * 0.30);   // south front wall height
+      const roofH2 = bH - wallH2;              // roof/top face height
+      const fLeft  = cx - bW / 2;
+      const fRight = cx + bW / 2 - sideW2;    // right edge of front/roof
+      const sRight = cx + bW / 2;              // rightmost edge (side wall)
+      const topY   = cy - bH / 2;
+      const wallY  = cy + bH / 2 - wallH2;    // y where roof ends, wall begins
+      const botY   = cy + bH / 2;
+
+      /* RIGHT SIDE WALL (darkest — in shadow) */
+      const sideGrad = ctx.createLinearGradient(fRight, 0, sRight, 0);
+      sideGrad.addColorStop(0, darken(bodyColor, 50));
+      sideGrad.addColorStop(1, darken(bodyColor, 72));
+      ctx.fillStyle = sideGrad;
       ctx.beginPath();
-      ctx.arc(cx, cy + bH / 2 - doorH - 1, doorW / 2, Math.PI, 0);
+      ctx.roundRect(fRight, topY, sideW2, bH, [0, 4, 4, 0]);
       ctx.fill();
 
-      /* windows */
-      const winY = cy - bH * 0.08;
-      [cx - bW * 0.22, cx + bW * 0.22].forEach(wx => {
-        ctx.fillStyle = 'rgba(255,255,200,0.25)';
-        ctx.fillRect(wx - 5, winY - 5, 10, 8);
-        ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1;
-        ctx.strokeRect(wx - 5, winY - 5, 10, 8);
+      /* SOUTH FRONT WALL (medium dark, gradient top→bottom) */
+      const frontGrad = ctx.createLinearGradient(fLeft, wallY, fLeft, botY);
+      frontGrad.addColorStop(0, darken(bodyColor, 18));
+      frontGrad.addColorStop(1, darken(bodyColor, 40));
+      ctx.fillStyle = frontGrad;
+      ctx.beginPath();
+      ctx.roundRect(fLeft, wallY, fRight - fLeft, wallH2, [0, 0, 4, 4]);
+      ctx.fill();
+
+      /* ROOF / TOP FACE (lightest — sun-lit) */
+      const roofGrad2 = ctx.createLinearGradient(fLeft, topY, fRight, wallY);
+      roofGrad2.addColorStop(0, lighten(bodyColor, 55));
+      roofGrad2.addColorStop(0.55, lighten(bodyColor, 30));
+      roofGrad2.addColorStop(1, lighten(bodyColor, 10));
+      ctx.fillStyle = roofGrad2;
+      ctx.beginPath();
+      ctx.roundRect(fLeft, topY, fRight - fLeft, roofH2, [7, 4, 0, 7]);
+      ctx.fill();
+
+      /* ROOF tile hints (horizontal lines) */
+      ctx.strokeStyle = 'rgba(0,0,0,0.07)'; ctx.lineWidth = 1;
+      for (let li = 1; li <= 3; li++) {
+        const lineY2 = topY + (roofH2 * li) / 4;
+        ctx.beginPath();
+        ctx.moveTo(fLeft + 3, lineY2); ctx.lineTo(fRight - 3, lineY2);
+        ctx.stroke();
+      }
+
+      /* EAVE LINE (roof-to-wall divider) */
+      ctx.beginPath();
+      ctx.moveTo(fLeft + 4, wallY); ctx.lineTo(fRight, wallY);
+      ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 1.5; ctx.stroke();
+
+      /* BUILDING OUTLINE */
+      ctx.strokeStyle = status === 'locked' ? '#4b5563' : darken(color, 48);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.roundRect(fLeft, topY, fRight - fLeft, bH, [7, 0, 4, 7]); ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(fRight, topY, sideW2, bH, [0, 4, 4, 0]); ctx.stroke();
+
+      /* DOOR (front wall, arched) */
+      const doorW = bW * 0.22; const doorH = wallH2 * 0.76;
+      const doorBotY = botY - 2; const doorX = cx - doorW / 2;
+      ctx.fillStyle = darken(bodyColor, 62);
+      ctx.fillRect(doorX, doorBotY - doorH, doorW, doorH);
+      ctx.beginPath(); ctx.arc(cx, doorBotY - doorH, doorW / 2, Math.PI, 0); ctx.fill();
+      /* door highlight */
+      ctx.fillStyle = 'rgba(255,255,255,0.07)';
+      ctx.fillRect(doorX + 2, doorBotY - doorH + 2, doorW * 0.38, doorH * 0.55);
+      /* door handle */
+      ctx.beginPath(); ctx.arc(cx + doorW * 0.26, doorBotY - doorH * 0.4, 2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,240,160,0.65)'; ctx.fill();
+
+      /* WINDOWS (front wall, glowing) */
+      const winRowY = wallY + wallH2 * 0.28;
+      [cx - bW * 0.23, cx + bW * 0.1].forEach(wx => {
+        const wW = 10; const wH = 9;
+        /* frame */
+        ctx.fillStyle = darken(bodyColor, 58);
+        ctx.fillRect(wx - wW / 2 - 1, winRowY - wH / 2 - 1, wW + 2, wH + 2);
+        /* glass */
+        const wg = ctx.createRadialGradient(wx, winRowY, 0, wx, winRowY, wW);
+        wg.addColorStop(0, 'rgba(255,255,180,0.55)');
+        wg.addColorStop(1, 'rgba(160,220,255,0.10)');
+        ctx.fillStyle = wg;
+        ctx.fillRect(wx - wW / 2, winRowY - wH / 2, wW, wH);
+        /* cross bar */
+        ctx.strokeStyle = 'rgba(200,200,140,0.30)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(wx, winRowY - wH / 2); ctx.lineTo(wx, winRowY + wH / 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(wx - wW / 2, winRowY); ctx.lineTo(wx + wW / 2, winRowY); ctx.stroke();
       });
 
       /* leader portrait (clipped circle) */
@@ -1174,6 +1313,33 @@ export function StoryWorldMap({
         playerRef.current.z = Math.max(-MAP_BOUND, Math.min(MAP_BOUND, playerRef.current.z + dz * PLAYER_SPEED * dt));
         walkRef.current += dt;
       }
+      /* AABB collision: arena buildings */
+      {
+        const ARENA_HW = 1.85; const ARENA_HD = 2.05; const PR = 0.58;
+        arenaPositionsRef.current.forEach(([ax, az]) => {
+          const oX = ARENA_HW + PR - Math.abs(playerRef.current.x - ax);
+          const oZ = ARENA_HD + PR - Math.abs(playerRef.current.z - az);
+          if (oX > 0 && oZ > 0) {
+            if (oX < oZ) {
+              playerRef.current.x += playerRef.current.x < ax ? -oX : oX;
+            } else {
+              playerRef.current.z += playerRef.current.z < az ? -oZ : oZ;
+            }
+          }
+        });
+        /* circle collision: large boulders */
+        BOULDER_DATA.forEach(b => {
+          if (b.sx <= 1.25) return;
+          const br = b.sx * 0.82 + PR;
+          const ddx = playerRef.current.x - b.x;
+          const ddz = playerRef.current.z - b.z;
+          const dist = Math.sqrt(ddx * ddx + ddz * ddz);
+          if (dist < br && dist > 0.001) {
+            playerRef.current.x = b.x + (ddx / dist) * br;
+            playerRef.current.z = b.z + (ddz / dist) * br;
+          }
+        });
+      }
 
       /* ── Camera: player always centered ────────────── */
       camRef.current.x = playerRef.current.x;
@@ -1265,6 +1431,48 @@ export function StoryWorldMap({
       }
       ctx.fillRect(0, 0, w, h);
 
+      /* 1b. Day/night cycle: stars + sky tint */
+      {
+        const dayP3 = (t / 300) % 1;
+        let nightAlpha = 0;
+        if (dayP3 < 0.15) { nightAlpha = (1 - dayP3 / 0.15) * 0.55; }       // post-night fade
+        else if (dayP3 > 0.75 && dayP3 < 0.87) { nightAlpha = ((dayP3 - 0.75) / 0.12) * 0.55; } // dusk→night
+        else if (dayP3 >= 0.87) { nightAlpha = 0.55; }                        // full night
+        /* stars (screen-space, no scroll) */
+        if (nightAlpha > 0.05) {
+          STAR_DATA.forEach(star => {
+            const stx = w / 2 + star.sx * (w / 1900);
+            const sty = h / 2 + star.sy * (h / 1500);
+            if (stx < 0 || stx > w || sty < 0 || sty > h) return;
+            const tw2 = 0.7 + Math.sin(t * (1.2 + star.twinkle) + star.twinkle * 12) * 0.3;
+            ctx.beginPath(); ctx.arc(stx, sty, star.r * tw2, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255,255,255,${nightAlpha * tw2 * 0.95})`; ctx.fill();
+          });
+        }
+        /* sky colour overlay */
+        let skyR = 0, skyG = 0, skyB = 0, skyA = 0;
+        if (dayP3 < 0.15) {
+          skyR = 10; skyG = 20; skyB = 60; skyA = (1 - dayP3 / 0.15) * 0.52;
+        } else if (dayP3 < 0.25) {
+          const p = (dayP3 - 0.15) / 0.10;
+          skyR = 255; skyG = 140 - Math.round(p * 60); skyB = 60; skyA = (1 - p) * 0.25;
+        } else if (dayP3 < 0.65) {
+          skyA = 0; // full day, no overlay
+        } else if (dayP3 < 0.75) {
+          const p = (dayP3 - 0.65) / 0.10;
+          skyR = 255; skyG = Math.round(100 - p * 60); skyB = 20; skyA = p * 0.28;
+        } else if (dayP3 < 0.87) {
+          const p = (dayP3 - 0.75) / 0.12;
+          skyR = 10; skyG = 20; skyB = 55; skyA = p * 0.52;
+        } else {
+          skyR = 8; skyG = 14; skyB = 48; skyA = 0.52;
+        }
+        if (skyA > 0.005) {
+          ctx.fillStyle = `rgba(${skyR},${skyG},${skyB},${skyA})`;
+          ctx.fillRect(0, 0, w, h);
+        }
+      }
+
       /* 2. Sand paths between arenas */
       const nArenas = Math.min(leadersRef.current.length, ARENA_POSITIONS_BASE.length);
       if (nArenas > 1) {
@@ -1292,20 +1500,46 @@ export function StoryWorldMap({
         ctx.globalAlpha = 1;
       }
 
-      /* 3. Water patches */
+      /* 3. Water patches (animated ripples + rotating shimmers) */
       WATER_DATA.forEach((wd) => {
-        const [cx, cy] = w2s(wd.x, wd.z);
+        const [wcx, wcy] = w2s(wd.x, wd.z);
         const sr = wd.r * TILE;
-        /* sandy shore */
-        ctx.beginPath(); ctx.arc(cx, cy, sr + 1.4 * TILE, 0, Math.PI * 2);
-        ctx.fillStyle = '#c8a86b'; ctx.fill();
-        /* water surface */
-        const alpha = 0.74 + Math.sin(t * 1.4) * 0.07;
-        ctx.beginPath(); ctx.arc(cx, cy, sr, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(26,120,216,${alpha})`; ctx.fill();
-        /* shimmer */
-        ctx.beginPath(); ctx.ellipse(cx + sr * 0.14, cy - sr * 0.12, sr * 0.32, sr * 0.13, -0.4, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(128,200,255,0.28)'; ctx.fill();
+        /* sandy shore gradient */
+        const shoreGrad = ctx.createRadialGradient(wcx, wcy, sr * 0.88, wcx, wcy, sr + 1.5 * TILE);
+        shoreGrad.addColorStop(0, 'rgba(180,148,80,0)');
+        shoreGrad.addColorStop(0.5, '#c8a86b');
+        shoreGrad.addColorStop(1, '#b89050');
+        ctx.beginPath(); ctx.arc(wcx, wcy, sr + 1.5 * TILE, 0, Math.PI * 2);
+        ctx.fillStyle = shoreGrad; ctx.fill();
+        /* water base */
+        const wAlpha = 0.78 + Math.sin(t * 1.4 + wd.x) * 0.06;
+        const waterGrad = ctx.createRadialGradient(wcx - sr * 0.2, wcy - sr * 0.15, 0, wcx, wcy, sr);
+        waterGrad.addColorStop(0, `rgba(55,160,240,${wAlpha})`);
+        waterGrad.addColorStop(0.6, `rgba(26,120,216,${wAlpha})`);
+        waterGrad.addColorStop(1, `rgba(10,80,170,${wAlpha})`);
+        ctx.beginPath(); ctx.arc(wcx, wcy, sr, 0, Math.PI * 2);
+        ctx.fillStyle = waterGrad; ctx.fill();
+        /* concentric ripple rings */
+        const ripPhase = (t * 0.65) % 1;
+        for (let ri = 0; ri < 3; ri++) {
+          const rp = (ripPhase + ri / 3) % 1;
+          const rr2 = sr * rp;
+          if (rr2 > 0 && rr2 < sr) {
+            ctx.beginPath(); ctx.arc(wcx, wcy, rr2, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(140,210,255,${(1 - rp) * 0.22})`;
+            ctx.lineWidth = 1.5; ctx.stroke();
+          }
+        }
+        /* rotating shimmers */
+        for (let si = 0; si < 3; si++) {
+          const sAngl = t * 0.5 + si * 2.094;
+          const sDist = sr * 0.35;
+          const shX = wcx + Math.cos(sAngl) * sDist;
+          const shY = wcy + Math.sin(sAngl) * sDist * 0.55;
+          ctx.beginPath();
+          ctx.ellipse(shX, shY, sr * 0.2, sr * 0.07, sAngl + 0.5, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(180,230,255,${0.22 + Math.sin(t * 2 + si) * 0.08})`; ctx.fill();
+        }
       });
 
       /* 4. Flower patches */
@@ -1353,25 +1587,39 @@ export function StoryWorldMap({
         }
       });
 
-      /* 8. Lamp posts */
+      /* 8. Lamp posts (enhanced night glow) */
+      const lampDayP = (t / 300) % 1;
+      const lampNightA = lampDayP >= 0.87 ? 1 : lampDayP < 0.15 ? 1 : lampDayP > 0.75 ? (lampDayP - 0.75) / 0.12 : 0;
       LAMP_DATA.forEach((l) => {
         const [lx, ly] = w2s(l.x, l.z);
+        const lampGlX = lx + 0.6 * TILE; const lampGlY = ly - 1.8 * TILE;
+        /* large night pool of light (draw first, under pole) */
+        if (lampNightA > 0.05) {
+          const poolR = 2.8 * TILE;
+          const poolGrad = ctx.createRadialGradient(lampGlX, lampGlY, 0, lampGlX, lampGlY, poolR);
+          const poolInt = lampNightA * 0.18;
+          poolGrad.addColorStop(0, `rgba(255,235,120,${poolInt * 1.8})`);
+          poolGrad.addColorStop(0.4, `rgba(255,210,80,${poolInt})`);
+          poolGrad.addColorStop(1, 'rgba(255,190,40,0)');
+          ctx.beginPath(); ctx.arc(lampGlX, lampGlY, poolR, 0, Math.PI * 2);
+          ctx.fillStyle = poolGrad; ctx.fill();
+        }
         /* pole */
         ctx.strokeStyle = '#1e1e2e'; ctx.lineWidth = 3; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.moveTo(lx, ly + 0.5 * TILE); ctx.lineTo(lx, ly - 1.8 * TILE); ctx.stroke();
         /* arm */
-        ctx.beginPath(); ctx.moveTo(lx, ly - 1.8 * TILE); ctx.lineTo(lx + 0.6 * TILE, ly - 1.8 * TILE); ctx.stroke();
-        /* globe */
-        const glow = 0.12 + Math.sin(t * 0.8 + l.x) * 0.04;
-        const gg = ctx.createRadialGradient(lx + 0.6 * TILE, ly - 1.8 * TILE, 0, lx + 0.6 * TILE, ly - 1.8 * TILE, 0.3 * TILE);
-        gg.addColorStop(0, 'rgba(255,252,200,0.9)'); gg.addColorStop(1, 'rgba(255,232,80,0)');
-        ctx.beginPath(); ctx.arc(lx + 0.6 * TILE, ly - 1.8 * TILE, 0.3 * TILE, 0, Math.PI * 2);
+        ctx.beginPath(); ctx.moveTo(lx, ly - 1.8 * TILE); ctx.lineTo(lampGlX, lampGlY); ctx.stroke();
+        /* globe glow gradient */
+        const glow = 0.10 + Math.sin(t * 0.8 + l.x) * 0.04;
+        const gg = ctx.createRadialGradient(lampGlX, lampGlY, 0, lampGlX, lampGlY, 0.3 * TILE);
+        gg.addColorStop(0, 'rgba(255,255,210,0.98)'); gg.addColorStop(1, 'rgba(255,220,60,0)');
+        ctx.beginPath(); ctx.arc(lampGlX, lampGlY, 0.3 * TILE, 0, Math.PI * 2);
         ctx.fillStyle = gg; ctx.fill();
-        ctx.beginPath(); ctx.arc(lx + 0.6 * TILE, ly - 1.8 * TILE, 0.18 * TILE, 0, Math.PI * 2);
-        ctx.fillStyle = '#fffcdd'; ctx.fill();
-        /* night glow halo */
-        ctx.beginPath(); ctx.arc(lx + 0.6 * TILE, ly - 1.8 * TILE, 1.2 * TILE, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,240,120,${glow})`; ctx.fill();
+        ctx.beginPath(); ctx.arc(lampGlX, lampGlY, 0.16 * TILE, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff8e8'; ctx.fill();
+        /* close halo */
+        ctx.beginPath(); ctx.arc(lampGlX, lampGlY, 1.1 * TILE, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,240,120,${glow + lampNightA * 0.12})`; ctx.fill();
       });
 
       /* 9. Tall grass */
@@ -1567,6 +1815,56 @@ export function StoryWorldMap({
 
       sprites.sort((a, b) => a.z - b.z);
       sprites.forEach(s => s.draw());
+
+      /* ── Falling leaves (always, soft) ────────────────────── */
+      leavesRef.current.forEach(lp => {
+        lp.life += dt * lp.speed;
+        if (lp.life > lp.maxLife) {
+          lp.life = 0;
+          lp.ox = (Math.sin(lp.wx * 1.7) * 1.6) - 0.8;
+          lp.oz = -lp.maxLife * lp.speed * 0.28 * 0.5; // reset offset so it re-enters from above
+        }
+        const prog = lp.life / lp.maxLife;
+        const fallZ = prog * 3.5;
+        const swayX = Math.sin(lp.life * lp.sway * 1.5) * 0.6;
+        const [lsx, lsy] = w2s(lp.wx + lp.ox + swayX, lp.wz + fallZ);
+        const leafA = Math.min(1, Math.min(prog * 4, (1 - prog) * 4)) * 0.55;
+        if (leafA > 0.02) {
+          ctx.save();
+          ctx.globalAlpha = leafA;
+          ctx.translate(lsx, lsy - (lp.maxLife - lp.life) * 2.2);
+          ctx.rotate(lp.life * 2.3);
+          ctx.fillStyle = prog > 0.7 ? '#8B5E2A' : '#3a8c3a';
+          ctx.beginPath();
+          ctx.ellipse(0, 0, lp.size * 1.5, lp.size * 0.7, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      });
+
+      /* ── Fireflies (night only) ─────────────────────────── */
+      const ffDayP = (t / 300) % 1;
+      const ffNightA = ffDayP >= 0.87 ? 1 : ffDayP < 0.12 ? 1 : ffDayP > 0.78 ? (ffDayP - 0.78) / 0.09 : 0;
+      if (ffNightA > 0.05) {
+        firefliesRef.current.forEach(ff => {
+          const angle = t * ff.speed + ff.phase;
+          const fx2 = ff.wx + Math.cos(angle) * ff.orbitR;
+          const fz2 = ff.wz + Math.sin(angle * 0.7) * ff.orbitR * 0.5;
+          const [ffsx, ffsy] = w2s(fx2, fz2);
+          const pulse = 0.5 + Math.sin(t * 3.2 + ff.phase * 7) * 0.5;
+          const ffA = ffNightA * pulse * 0.88;
+          if (ffA > 0.05) {
+            const ffGrad = ctx.createRadialGradient(ffsx, ffsy, 0, ffsx, ffsy, ff.size * 4);
+            ffGrad.addColorStop(0, `rgba(180,255,120,${ffA})`);
+            ffGrad.addColorStop(0.3, `rgba(120,220,80,${ffA * 0.5})`);
+            ffGrad.addColorStop(1, 'rgba(80,180,40,0)');
+            ctx.beginPath(); ctx.arc(ffsx, ffsy, ff.size * 4, 0, Math.PI * 2);
+            ctx.fillStyle = ffGrad; ctx.fill();
+            ctx.beginPath(); ctx.arc(ffsx, ffsy, ff.size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(220,255,180,${ffA})`; ctx.fill();
+          }
+        });
+      }
 
       /* floating "+X crediti" texts (drawn on top of everything) */
       floatingTextsRef.current = floatingTextsRef.current.filter(ft => t - ft.startTime < 1.8);
