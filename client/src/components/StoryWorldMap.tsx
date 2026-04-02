@@ -47,21 +47,22 @@ const KEY_MAP = [
 const PLAYER_SPEED = 9;
 const MAP_BOUND    = 42;
 
-/* Fixed arena positions for up to 12 leaders.
-   For leaders beyond index 11 a deterministic spiral is generated. */
+/* Fixed arena positions for up to 12 leaders — spread across the full -42…+42 world.
+   Quadrant coverage: center + NE + SE + SW + NW + far edges.
+   Player spawns at [0, 26], so stage 1 is nearby; the rest fan out across all directions. */
 const ARENA_POSITIONS_BASE: [number, number][] = [
-  [  0,  15 ],   // 1
-  [ 12,   6 ],   // 2
-  [ 20,  -6 ],   // 3
-  [ 14, -18 ],   // 4
-  [  1, -27 ],   // 5
-  [-12, -22 ],   // 6
-  [-21,  -8 ],   // 7
-  [-17,   7 ],   // 8
-  [ -5,  20 ],   // 9
-  [  9, -35 ],   // 10
-  [ 26, -30 ],   // 11
-  [-25, -32 ],   // 12
+  [  0,  12 ],   //  1 — centro-sud (vicino al punto di spawn del giocatore)
+  [ 28,  22 ],   //  2 — quadrante SE
+  [ 38,  -2 ],   //  3 — est estremo
+  [ 26, -28 ],   //  4 — NE
+  [  4, -38 ],   //  5 — nord estremo
+  [-24, -32 ],   //  6 — NW
+  [-38,  -8 ],   //  7 — ovest estremo (lato nord)
+  [-36,  22 ],   //  8 — ovest estremo (lato sud)
+  [-18,  36 ],   //  9 — SW estremo
+  [ 10,  38 ],   // 10 — sud estremo
+  [ 18,  -8 ],   // 11 — centro-NE
+  [-10,   4 ],   // 12 — centro-NW
 ];
 
 function getArenaPosition(idx: number): [number, number] {
