@@ -47,6 +47,7 @@ export interface StoryWorldMapProps {
   username?: string;
   authToken?: string | null;
   onStartPvp?: (gameId: string, opponentUsername: string, yourDeck: number[], opponentDeck: number[], yourRole: 'challenger' | 'target') => void;
+  onCardCollected?: (cardId: string) => void;
 }
 
 interface OtherPlayer {
@@ -597,6 +598,7 @@ export function StoryWorldMap({
   username,
   authToken,
   onStartPvp,
+  onCardCollected,
 }: StoryWorldMapProps) {
 
   /* ── Canvas + container refs ────────────────────────────── */
@@ -2072,6 +2074,9 @@ export function StoryWorldMap({
         setCollectResult(data.reward);
         setNearCollectible(null);
         setCardReveal(null);
+        if (c.type === 'card') {
+          onCardCollected?.(c.cardId ?? String(c.id));
+        }
         if (c.type === 'coin') {
           const now = performance.now() / 1000;
           floatingTextsRef.current.push({
@@ -2086,7 +2091,7 @@ export function StoryWorldMap({
     } finally {
       setIsCollecting(false);
     }
-  }, [isCollecting]);
+  }, [isCollecting, onCardCollected]);
 
   /* Route: coins collect directly, cards open the reveal modal first */
   const handleCollectPrompt = useCallback(() => {

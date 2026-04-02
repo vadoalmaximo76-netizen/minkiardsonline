@@ -1663,6 +1663,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           userId={userId}
           username={playerName}
           authToken={authToken}
+          onCardCollected={fetchStoryDeck}
           onStartPvp={(pvpGameId, opponentUsername, _yourDeck, _opponentDeck, yourRole) => {
             const syntheticLeader: GymLeader = {
               id: -1,
