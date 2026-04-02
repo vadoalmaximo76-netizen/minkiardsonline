@@ -17248,7 +17248,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
 
     // PIOGGIA DI AGHI DI PINO: intercept before defense dialog — defender picks 1-6; if wrong → instant death
-    const isPioggiaDiAghi = mosseCard && (mosseCard.frontImage || '').toLowerCase().includes('pioggia-di-aghi');
+    const isPioggiaDiAghi = mosseCard && (
+      (mosseCard.frontImage || '').toLowerCase().includes('pioggia-di-aghi') ||
+      mosseEffect === 'death_on_dice_fail'
+    );
     if (!isHandTarget && !isDuelAttack && isPioggiaDiAghi) {
       const isDefenderCPUPD = this.isPlayerCPU(gameId, targetOwnerName);
       const ioPD = (global as any).io;
