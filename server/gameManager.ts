@@ -4967,7 +4967,8 @@ Rispondi SOLO in JSON:`;
         for (const [pattern, key] of NAME_INJECT_MAP) {
           if (pattern.test(cardNameLower)) {
             effectText = `[CUSTOM:${key}]`;
-            console.log(`🎯 [NAME-INJECT] Injected effect "[CUSTOM:${key}]" for card "${cardNameLower}" (effect was empty)`);
+            card.effect = effectText;
+            console.log(`🎯 [NAME-INJECT] Injected effect "[CUSTOM:${key}]" for card "${cardNameLower}" (effect was empty) — also written to card.effect`);
             break;
           }
         }
@@ -8913,10 +8914,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── VINCERE E VINCEREMO ────────────────────────────────────────────────
       case 'vincere_vinceremo': {
-        const capelloSmith = game.field.find((c: Card) =>
-          /capello.?smith|smith.?capello/i.test(c.name || '') &&
-          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-        );
+        console.log(`🏆 [VINCERE-VINCEREMO] Effetto attivato da ${playerName} — campo: ${game.field.map((c: Card) => `${c.name||'?'}(${c.type})`).join(', ')}`);
+        const capelloSmith = game.field.find((c: Card) => {
+          const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toLowerCase();
+          const cImg = (c.frontImage || '').toLowerCase();
+          const nameMatch = /capello.?smith|smith.?capello/i.test(cName);
+          const imgMatch = cImg.includes('capello-smith') || cImg.includes('capello_smith') || cImg.includes('capellosmith');
+          const isPersonaggio = (c.type === 'personaggi' || c.type === 'personaggi_speciali');
+          console.log(`🏆 [VINCERE-VINCEREMO] Controllo carta: name="${cName}", img="${cImg.substring(0,60)}", nameMatch=${nameMatch}, imgMatch=${imgMatch}, isPersonaggio=${isPersonaggio}`);
+          return (nameMatch || imgMatch) && isPersonaggio;
+        });
         if (capelloSmith) {
           const winner = capelloSmith.owner;
           emitChat(`🏆 VINCERE E VINCEREMO! CAPELLO SMITH è in campo! ${winner} vince IMMEDIATAMENTE!`);
