@@ -2611,7 +2611,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
                     if (gs) io.to(gid).emit('game-state-update', gs);
                     const fg = gm.getGameState(gid);
                     if (fg && fg.players[nxt]?.isCPU) {
-                      setTimeout(() => gm.processCPUTurn(gid, nxt, io), 2000);
+                      setTimeout(async () => {
+                        const act = await gm.processCPUTurn(gid, nxt, io);
+                        if (act) await gm.applyCPUAction(gid, nxt, act, io);
+                      }, 2000);
                     }
                   }
                 }

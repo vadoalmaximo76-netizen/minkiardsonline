@@ -21112,7 +21112,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 ioGlobal.to(gameId).emit('next-turn', { nextPlayer });
                 const freshState = this.games.get(gameId);
                 if (freshState && freshState.players[nextPlayer]?.isCPU) {
-                  setTimeout(() => this.processCPUTurn(gameId, nextPlayer, ioGlobal), 2000);
+                  setTimeout(async () => {
+                    const act = await this.processCPUTurn(gameId, nextPlayer, ioGlobal);
+                    if (act) await this.applyCPUAction(gameId, nextPlayer, act, ioGlobal);
+                  }, 2000);
                 }
               }
             }, 3500);
@@ -26974,6 +26977,47 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           console.log(`[CPU-STORY] ${cpuPlayerName} action → type="${action.type}" cardId="${action.data?.cardId ?? '—'}"`);
         } else {
           console.log(`[CPU-STORY] ${cpuPlayerName} → null action (waiting or no move available)`);
+        }
+      }
+
+      // NULL-ACTION RECOVERY: If takeTurn returned null but no intentional "waiting" state
+      // is active, schedule a 5-second forced end-turn to prevent the game from getting
+      // permanently stuck on this CPU's turn (no safety timer fires when applyCPUAction is skipped).
+      if (!action && socketEmitter) {
+        const isWaitingForAttack = cpuPlayer.cpuInstance.isWaitingForAttack?.() ?? false;
+        const isWaitingForResp  = cpuPlayer.cpuInstance.isWaitingForResponse ?? false;
+        const freshGame = this.games.get(gameId);
+        const activeDuel = (freshGame as any)?.activeDuel;
+        const isInDuel = activeDuel?.active && (
+          activeDuel.player1 === cpuPlayerName || activeDuel.player2 === cpuPlayerName
+        );
+        const isIntentionalNull = isWaitingForAttack || isWaitingForResp || isInDuel;
+        if (!isIntentionalNull) {
+          const gmRef = this;
+          const ioRef = socketEmitter;
+          console.warn(`⚠️ [CPU-NULL-RECOVERY] ${cpuPlayerName} in ${gameId}: unexpected null from takeTurn — scheduling 5s forced end-turn`);
+          setTimeout(async () => {
+            const fg = gmRef.games.get(gameId);
+            if (!fg) return;
+            const stillCpuTurn = fg.turnOrder[fg.currentTurnIndex] === cpuPlayerName;
+            if (!stillCpuTurn) return;
+            console.warn(`⚠️ [CPU-NULL-RECOVERY] ${cpuPlayerName}: turn still stuck after 5s — forcing end turn`);
+            ioRef.to(gameId).emit('cpu-done-thinking', { playerName: cpuPlayerName });
+            const next = gmRef.endTurn(gameId, cpuPlayerName);
+            if (next) {
+              ioRef.to(gameId).emit('next-turn', { nextPlayer: next });
+              const gs = gmRef.getSanitizedGameState(gameId);
+              if (gs) ioRef.to(gameId).emit('game-state-update', gs);
+              const fg2 = gmRef.games.get(gameId);
+              if (fg2?.players[next]?.isCPU) {
+                await new Promise(r => setTimeout(r, 1500));
+                const nextAct = await gmRef.processCPUTurn(gameId, next, ioRef);
+                if (nextAct) await gmRef.applyCPUAction(gameId, next, nextAct, ioRef);
+              } else {
+                gmRef.startTurnTimer(gameId, next);
+              }
+            }
+          }, 5000);
         }
       }
 
