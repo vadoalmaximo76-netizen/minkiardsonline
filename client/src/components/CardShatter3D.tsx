@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 
 interface CardShatter3DProps {
   isVisible: boolean;
@@ -157,12 +157,14 @@ export const CardShatter3D: React.FC<CardShatter3DProps> = ({
     return particles;
   }, []);
 
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => { onCompleteRef.current = onComplete; });
   useEffect(() => {
     if (isVisible) {
-      const timer = setTimeout(onComplete, 2200);
+      const timer = setTimeout(() => onCompleteRef.current(), 2200);
       return () => clearTimeout(timer);
     }
-  }, [isVisible, onComplete]);
+  }, [isVisible]);
 
   if (!isVisible) return null;
 

@@ -18,10 +18,12 @@ const AttackSlash3DMobile: React.FC<{
   const damageColor = isCritical ? '#ff2222' : '#ff6644';
   const glowColor = isCritical ? 'rgba(255,0,0,0.7)' : 'rgba(255,100,0,0.5)';
 
+  const onCompleteRef1 = useRef(onComplete);
+  useEffect(() => { onCompleteRef1.current = onComplete; });
   useEffect(() => {
-    const timer = setTimeout(onComplete, isCritical ? 900 : 650);
+    const timer = setTimeout(() => onCompleteRef1.current(), isCritical ? 900 : 650);
     return () => clearTimeout(timer);
-  }, [onComplete, isCritical]);
+  }, [isCritical]);
 
   return (
     <div
@@ -269,12 +271,14 @@ export const AttackSlash3D: React.FC<AttackSlash3DProps> = ({
     return rings;
   }, [isHeavy, isCritical]);
 
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => { onCompleteRef.current = onComplete; });
   useEffect(() => {
     if (isVisible) {
-      const timer = setTimeout(onComplete, isCritical ? 1200 : 900);
+      const timer = setTimeout(() => onCompleteRef.current(), isCritical ? 1200 : 900);
       return () => clearTimeout(timer);
     }
-  }, [isVisible, onComplete, isCritical]);
+  }, [isVisible, isCritical]);
 
   if (!isVisible) return null;
 

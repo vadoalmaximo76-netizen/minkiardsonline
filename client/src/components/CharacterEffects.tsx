@@ -485,7 +485,7 @@ function getEffectConfig(effectType: CharacterEffectType | 'attack') {
         bg: 'from-yellow-900/70 via-red-900/60 to-transparent',
         emoji: '💫',
         label: (name?: string) => name ? `CRITICO SU ${name}!` : 'COLPO CRITICO!',
-        duration: 3000,
+        duration: 2000,
         borderClass: 'bg-yellow-900/80 border-yellow-400/50',
         textShadow: '0 0 20px rgba(255,200,0,0.9)',
       };
@@ -530,12 +530,16 @@ export const CharacterEffects: React.FC<CharacterEffectProps> = ({
 }) => {
   const config = getEffectConfig(effectType);
 
+  /* stable ref — prevents re-render from parent resetting the timer */
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => { onCompleteRef.current = onComplete; });
+
   useEffect(() => {
     if (isVisible) {
-      const timer = setTimeout(onComplete, config.duration);
+      const timer = setTimeout(() => onCompleteRef.current(), config.duration);
       return () => clearTimeout(timer);
     }
-  }, [isVisible, onComplete, effectType]);
+  }, [isVisible, effectType]); // ⚠ onComplete excluded — use ref above to avoid timer resets
 
   if (!isVisible) return null;
 
