@@ -1447,7 +1447,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           userId={userId}
           username={playerName}
           authToken={authToken}
-          onStartPvp={(pvpGameId, opponentUsername, _yourDeck, _opponentDeck) => {
+          onStartPvp={(pvpGameId, opponentUsername, _yourDeck, _opponentDeck, yourRole) => {
             const syntheticLeader: GymLeader = {
               id: -1,
               orderIndex: 0,
@@ -1479,6 +1479,31 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             setPlayerName(playerName);
             generateSessionId();
             setPhase('battle');
+
+            /* ── Create/join the actual game room ── */
+            const joinRoom = () => {
+              socket.emit('create-training-game', {
+                gameId: pvpGameId,
+                playerName,
+                avatarId,
+                userId,
+                isGymMode: true,
+                livesCount: 1,
+              });
+              console.log(`[story-pvp] ${playerName} joined room ${pvpGameId} as ${yourRole}`);
+            };
+
+            if (yourRole === 'challenger') {
+              joinRoom();
+              /* After both players have had time to join, start the game */
+              setTimeout(() => {
+                socket.emit('start-story-pvp', { gameId: pvpGameId });
+                console.log(`[story-pvp] challenger triggered start for ${pvpGameId}`);
+              }, 1500);
+            } else {
+              /* Target waits 800ms so the challenger's create-training-game lands first */
+              setTimeout(joinRoom, 800);
+            }
           }}
         />
       )}

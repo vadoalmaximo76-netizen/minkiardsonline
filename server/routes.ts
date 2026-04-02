@@ -2602,6 +2602,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    /* ── Story World PvP: start the game once both human players have joined ── */
+    socket.on('start-story-pvp', ({ gameId }: { gameId: string }) => {
+      try {
+        const game = gameManager.getGame(gameId);
+        if (!game) { console.warn(`[start-story-pvp] game ${gameId} not found`); return; }
+        if (game.isPlaying) { console.log(`[start-story-pvp] game ${gameId} already playing, skipping`); return; }
+        const limit = game.characterLimit || '1';
+        const playerOrder = gameManager.startGame(gameId, limit);
+        if (playerOrder) {
+          io.to(gameId).emit('game-started', { playerOrder });
+          const updatedState = gameManager.getSanitizedGameState(gameId);
+          emitThrottledGameState(io, gameId, updatedState);
+          const firstPlayer = playerOrder[0];
+          const firstPlayerData = gameManager.getGameState(gameId)?.players[firstPlayer];
+          if (firstPlayerData?.isCPU) {
+            setTimeout(async () => {
+              const cpuAction = await gameManager.processCPUTurn(gameId, firstPlayer, io);
+              if (cpuAction) await gameManager.applyCPUAction(gameId, firstPlayer, cpuAction, io);
+            }, 1500);
+          } else {
+            gameManager.startTurnTimer(gameId, firstPlayer);
+          }
+          console.log(`⚔️ [start-story-pvp] game ${gameId} started — order: ${playerOrder.join(', ')}`);
+        }
+      } catch (e) { console.error('[start-story-pvp] error:', e); }
+    });
+
     socket.on('add-cpu-player', async ({ gameId }) => {
       try {
         const cpuName = await gameManager.addCPUPlayer(gameId);
