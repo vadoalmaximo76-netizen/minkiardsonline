@@ -1492,7 +1492,7 @@ export function StoryWorldMap({
         if (isNearFF !== lastNearFootballRef.current) {
           lastNearFootballRef.current = isNearFF;
           setNearFootball(isNearFF);
-          if (!isNearFF) setShowFootballPanel(false);
+          if (!isNearFF) setShowFootballMinigame(false);
         }
 
         /* Other player proximity (for PvP challenge button) */
