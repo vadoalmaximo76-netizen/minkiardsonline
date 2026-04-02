@@ -860,6 +860,22 @@ export const injuredPersonaggi = pgTable("injured_personaggi", {
 export const insertGymLeaderSchema = createInsertSchema(gymLeaders).omit({ id: true, createdAt: true });
 export const insertUserGymProgressSchema = createInsertSchema(userGymProgress).omit({ id: true });
 export type GymLeader = typeof gymLeaders.$inferSelect;
+
+/* ── Story Mode localities (custom map points managed by admin) ─── */
+export const storyLocalities = pgTable("story_localities", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull().default("custom"), // town | shop | inn | forest | shrine | custom
+  description: text("description"),
+  posX: integer("pos_x").notNull().default(0),
+  posZ: integer("pos_z").notNull().default(0),
+  icon: text("icon").notNull().default("📍"),
+  imageUrl: text("image_url"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export const insertStoryLocalitySchema = createInsertSchema(storyLocalities).omit({ id: true, createdAt: true });
+export type StoryLocality = typeof storyLocalities.$inferSelect;
 export type UserGymProgress = typeof userGymProgress.$inferSelect;
 export type UserStoryDeck = typeof userStoryDeck.$inferSelect;
 export type InjuredPersonaggio = typeof injuredPersonaggi.$inferSelect;

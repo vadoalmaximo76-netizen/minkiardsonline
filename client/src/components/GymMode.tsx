@@ -8,7 +8,7 @@ import { CARD_DATA } from '../lib/cardData';
 import { pauseHomeMusic, resumeHomeMusic } from './SpotifyPlayer';
 import { InjuredPersonaggiDisclaimer } from './InjuredPersonaggiDisclaimer';
 import { StarterDeckSelection, StarterDeckOption } from './StarterDeckSelection';
-import { StoryWorldMap } from './StoryWorldMap';
+import { StoryWorldMap, StoryLocality } from './StoryWorldMap';
 import { GymLeader } from '../types/gym';
 
 export type { GymLeader };
@@ -207,6 +207,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   });
   const [hoveredLeaderId, setHoveredLeaderId] = useState<number | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const [localities, setLocalities] = useState<StoryLocality[]>([]);
 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -243,6 +244,16 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     }
     finally { setLoading(false); }
   }, [authToken]);
+
+  const fetchLocalities = useCallback(async () => {
+    try {
+      const res = await fetch('/api/story-localities');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.localities)) {
+        setLocalities(data.localities);
+      }
+    } catch { /* silently ignore */ }
+  }, []);
 
   const fetchCardEffects = useCallback(async () => {
     try {
@@ -295,7 +306,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     fetchStoryDeck();
     fetchUserCredits();
     fetchCardEffects();
-  }, [fetchLeaders, fetchStoryDeck, fetchUserCredits, fetchCardEffects]);
+    fetchLocalities();
+  }, [fetchLeaders, fetchStoryDeck, fetchUserCredits, fetchCardEffects, fetchLocalities]);
 
   // Show deck selection screen when user has no story deck and first leader has starterDeckOptions
   useEffect(() => {
@@ -1415,6 +1427,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           getLeaderStatus={getLeaderStatus}
           onChallengeLeader={handleChallengeLeader}
           onResumeGame={handleInternalResume}
+          localities={localities}
         />
       )}
 

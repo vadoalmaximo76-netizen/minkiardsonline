@@ -4,6 +4,18 @@ import { useTexture, Html, KeyboardControls, useKeyboardControls } from '@react-
 import * as THREE from 'three';
 import { GymLeader } from '../types/gym';
 
+export interface StoryLocality {
+  id: number;
+  name: string;
+  type: string;
+  description?: string | null;
+  posX: number;
+  posZ: number;
+  icon: string;
+  imageUrl?: string | null;
+  isActive: boolean;
+}
+
 export interface StoryWorldMapProps {
   leaders: GymLeader[];
   lostLeaderIds: number[];
@@ -13,6 +25,7 @@ export interface StoryWorldMapProps {
   getLeaderStatus: (leader: GymLeader) => 'completed' | 'available' | 'locked';
   onChallengeLeader: (leader: GymLeader) => void;
   onResumeGame: (leader: GymLeader, gameId: string) => void;
+  localities?: StoryLocality[];
 }
 
 /* ── Controls ─────────────────────────────────────────────────── */
@@ -111,7 +124,7 @@ function Ground() {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
       <planeGeometry args={[120, 120]} />
-      <meshLambertMaterial map={tex} />
+      <meshStandardMaterial map={tex} roughness={0.85} metalness={0.0} />
     </mesh>
   );
 }
@@ -134,6 +147,67 @@ function Tree({ x, z, h, r }: { x: number; z: number; h: number; r: number }) {
         <coneGeometry args={[r * 0.75, r * 1.6, 7]} />
         <meshLambertMaterial color="#34a034" />
       </mesh>
+    </group>
+  );
+}
+
+/* ── Locality ────────────────────────────────────────────────────── */
+const LOCALITY_COLORS: Record<string, { body: string; accent: string; emissive: string }> = {
+  town:   { body: '#b45309', accent: '#f97316', emissive: '#7c2d12' },
+  shop:   { body: '#1d4ed8', accent: '#60a5fa', emissive: '#1e3a8a' },
+  inn:    { body: '#7e22ce', accent: '#c084fc', emissive: '#4a0e8f' },
+  forest: { body: '#15803d', accent: '#4ade80', emissive: '#052e16' },
+  shrine: { body: '#854d0e', accent: '#fbbf24', emissive: '#713f12' },
+  custom: { body: '#0e7490', accent: '#67e8f9', emissive: '#0c4a6e' },
+};
+
+function Locality({ locality }: { locality: StoryLocality }) {
+  const floatRef = useRef<THREE.Group>(null!);
+  const pulseT   = useRef(Math.random() * Math.PI * 2);
+  const colors   = LOCALITY_COLORS[locality.type] ?? LOCALITY_COLORS.custom;
+
+  useFrame((_, delta) => {
+    pulseT.current += delta * 1.1;
+    if (floatRef.current) {
+      floatRef.current.position.y = 4.2 + Math.sin(pulseT.current * 0.7) * 0.25;
+    }
+  });
+
+  return (
+    <group position={[locality.posX, 0, locality.posZ]}>
+      {/* base disc */}
+      <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <circleGeometry args={[1.8, 18]} />
+        <meshStandardMaterial color={colors.accent} transparent opacity={0.35} roughness={0.6} />
+      </mesh>
+      {/* slim pillar */}
+      <mesh position={[0, 1.2, 0]} castShadow>
+        <cylinderGeometry args={[0.2, 0.28, 2.4, 8]} />
+        <meshStandardMaterial color={colors.body} roughness={0.55} metalness={0.3} emissive={colors.emissive} emissiveIntensity={0.4} />
+      </mesh>
+      {/* top gem */}
+      <mesh position={[0, 2.55, 0]} castShadow>
+        <octahedronGeometry args={[0.38, 0]} />
+        <meshStandardMaterial color={colors.accent} emissive={colors.accent} emissiveIntensity={0.6} roughness={0.15} metalness={0.6} />
+      </mesh>
+      {/* floating label */}
+      <group ref={floatRef} position={[0, 4.2, 0]}>
+        <Html center distanceFactor={20} zIndexRange={[5, 15]} style={{ pointerEvents: 'none', userSelect: 'none', whiteSpace: 'nowrap' }}>
+          <div style={{
+            background: 'rgba(5,5,20,0.88)',
+            border: `1px solid ${colors.accent}55`,
+            borderRadius: 8,
+            padding: '2px 8px',
+            fontSize: 11,
+            fontWeight: 800,
+            color: colors.accent,
+            boxShadow: `0 0 8px ${colors.accent}44`,
+            letterSpacing: '0.03em',
+          }}>
+            {locality.icon} {locality.name}
+          </div>
+        </Html>
+      </group>
     </group>
   );
 }
@@ -196,22 +270,35 @@ function Arena({ leader, position, status, isCurrent, isNear, onChallenge }: Are
         onPointerOut={clickable ? () => setHovered(false) : undefined}
       >
         <cylinderGeometry args={[3.5, 3.5, 0.25, 20]} />
-        <meshLambertMaterial color={hovered && clickable ? (status === 'completed' ? '#22c55e' : '#f59e0b') : platformColor} />
+        <meshStandardMaterial
+          color={hovered && clickable ? (status === 'completed' ? '#22c55e' : '#f59e0b') : platformColor}
+          roughness={0.55} metalness={0.2}
+        />
       </mesh>
       {/* edge ring — pulses for available */}
       <mesh ref={ringRef} position={[0, 0.25, 0]}>
         <torusGeometry args={[3.5, 0.12, 8, 24]} />
-        <meshLambertMaterial color={sphereColor} emissive={status === 'available' ? sphereColor : '#000000'} emissiveIntensity={status === 'available' ? 0.4 : 0} />
+        <meshStandardMaterial
+          color={sphereColor}
+          emissive={status === 'available' ? sphereColor : '#000000'}
+          emissiveIntensity={status === 'available' ? 0.5 : 0}
+          roughness={0.3} metalness={0.4}
+        />
       </mesh>
       {/* pillar */}
       <mesh position={[0, 1.65, 0]} castShadow>
         <cylinderGeometry args={[0.38, 0.5, 3.0, 8]} />
-        <meshLambertMaterial color={pillarColor} emissive={emissive} emissiveIntensity={0.3} />
+        <meshStandardMaterial color={pillarColor} emissive={emissive} emissiveIntensity={0.35} roughness={0.6} metalness={0.25} />
       </mesh>
       {/* status sphere */}
       <mesh ref={sphereRef} position={[0, 3.35, 0]}>
-        <sphereGeometry args={[0.55, 12, 12]} />
-        <meshLambertMaterial color={sphereColor} emissive={sphereColor} emissiveIntensity={status === 'locked' ? 0 : 0.6} />
+        <sphereGeometry args={[0.55, 16, 16]} />
+        <meshStandardMaterial
+          color={sphereColor}
+          emissive={sphereColor}
+          emissiveIntensity={status === 'locked' ? 0 : 0.7}
+          roughness={0.2} metalness={0.5}
+        />
       </mesh>
 
       {/* ── Floating badge group — bobs up and down ── */}
@@ -360,22 +447,22 @@ function Player({ posRef, joystickRef }: PlayerProps) {
       {/* capsule torso — cylinder with rounded ends */}
       <mesh position={[0, 0.9, 0]} castShadow>
         <cylinderGeometry args={[0.32, 0.32, 1.1, 12]} />
-        <meshLambertMaterial color="#7c3aed" />
+        <meshStandardMaterial color="#7c3aed" roughness={0.4} metalness={0.2} emissive="#3b1a8a" emissiveIntensity={0.3} />
       </mesh>
       {/* capsule top cap */}
       <mesh position={[0, 1.45, 0]} castShadow>
         <sphereGeometry args={[0.32, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshLambertMaterial color="#7c3aed" />
+        <meshStandardMaterial color="#7c3aed" roughness={0.4} metalness={0.2} emissive="#3b1a8a" emissiveIntensity={0.3} />
       </mesh>
       {/* capsule bottom cap */}
       <mesh position={[0, 0.35, 0]} castShadow>
         <sphereGeometry args={[0.32, 12, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2]} />
-        <meshLambertMaterial color="#6d28d9" />
+        <meshStandardMaterial color="#6d28d9" roughness={0.4} metalness={0.2} />
       </mesh>
       {/* head (sphere) */}
       <mesh position={[0, 1.95, 0]} castShadow>
         <sphereGeometry args={[0.3, 14, 10]} />
-        <meshLambertMaterial color="#e2c9a8" />
+        <meshStandardMaterial color="#e2c9a8" roughness={0.7} metalness={0.0} />
       </mesh>
       {/* player shadow disc */}
       <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -418,6 +505,7 @@ interface WorldSceneProps {
   joystickRef: React.MutableRefObject<{ x: number; z: number }>;
   onNearestChange: (id: number | null, dist: number) => void;
   onChallengeLeader: (leader: GymLeader) => void;
+  localities: StoryLocality[];
 }
 
 function WorldScene({
@@ -430,6 +518,7 @@ function WorldScene({
   joystickRef,
   onNearestChange,
   onChallengeLeader,
+  localities,
 }: WorldSceneProps) {
 
   const nearCheckRef = useRef(0);
@@ -457,19 +546,26 @@ function WorldScene({
 
   return (
     <>
-      {/* Lighting */}
-      <ambientLight intensity={0.6} />
+      {/* Lighting — richer PBR setup */}
+      <ambientLight intensity={0.75} color="#e8f0ff" />
       <directionalLight
-        position={[30, 50, 20]}
-        intensity={1.1}
+        position={[30, 55, 20]}
+        intensity={1.4}
         castShadow
-        shadow-mapSize={[1024, 1024]}
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-far={180}
+        shadow-camera-left={-60}
+        shadow-camera-right={60}
+        shadow-camera-top={60}
+        shadow-camera-bottom={-60}
+        color="#fff5e0"
       />
-      <directionalLight position={[-20, 30, -20]} intensity={0.3} color="#c8e8ff" />
+      <directionalLight position={[-20, 30, -20]} intensity={0.4} color="#c8d8ff" />
+      <hemisphereLight args={['#87ceeb', '#3a6b35', 0.45]} />
 
       {/* Sky dome with texture */}
       <SkyDome />
-      <fog attach="fog" args={['#a8d8f0', 55, 120]} />
+      <fog attach="fog" args={['#b8d8f0', 62, 130]} />
 
       {/* Ground */}
       <Ground />
@@ -477,6 +573,11 @@ function WorldScene({
       {/* Trees */}
       {TREE_DATA.map((t, i) => (
         <Tree key={i} {...t} />
+      ))}
+
+      {/* Localities */}
+      {localities.map(loc => (
+        <Locality key={loc.id} locality={loc} />
       ))}
 
       {/* Arenas */}
@@ -504,6 +605,152 @@ function WorldScene({
       {/* Camera */}
       <CameraRig posRef={playerPosRef} />
     </>
+  );
+}
+
+/* ── GPS Minimap overlay ─────────────────────────────────────────── */
+interface MinimapProps {
+  playerPosRef: React.RefObject<THREE.Group>;
+  arenaPositions: [number, number][];
+  leaders: GymLeader[];
+  getLeaderStatus: (leader: GymLeader) => 'completed' | 'available' | 'locked';
+  localities: StoryLocality[];
+}
+
+function Minimap({ playerPosRef, arenaPositions, leaders, getLeaderStatus, localities }: MinimapProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef    = useRef<number>(0);
+  const [hovered, setHovered] = useState(false);
+
+  useEffect(() => {
+    const SIZE  = 160;
+    const PAD   = 8;
+    const WORLD = 84; // -42 to +42
+    const scale = (SIZE - PAD * 2) / WORLD;
+
+    const toC = (wx: number, wz: number) => ({
+      x: PAD + (wx + 42) * scale,
+      y: PAD + (wz + 42) * scale,
+    });
+
+    const draw = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) { rafRef.current = requestAnimationFrame(draw); return; }
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { rafRef.current = requestAnimationFrame(draw); return; }
+
+      ctx.clearRect(0, 0, SIZE, SIZE);
+
+      /* Background */
+      ctx.beginPath();
+      ctx.roundRect(0, 0, SIZE, SIZE, 10);
+      ctx.fillStyle = 'rgba(3,4,18,0.92)';
+      ctx.fill();
+
+      /* Border */
+      ctx.beginPath();
+      ctx.roundRect(0.5, 0.5, SIZE - 1, SIZE - 1, 10);
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      /* Label */
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.font = 'bold 8px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('MAPPA', SIZE / 2, 14);
+
+      /* Localities */
+      localities.forEach(loc => {
+        const { x, y } = toC(loc.posX, loc.posZ);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(Math.PI / 4);
+        ctx.fillStyle = '#60a5fa';
+        ctx.fillRect(-3.5, -3.5, 7, 7);
+        ctx.restore();
+      });
+
+      /* Arenas */
+      arenaPositions.forEach(([ax, az], idx) => {
+        if (idx >= leaders.length) return;
+        const status = getLeaderStatus(leaders[idx]);
+        const { x, y } = toC(ax, az);
+        const color = status === 'completed' ? '#4ade80' : status === 'available' ? '#fbbf24' : '#4b5563';
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        if (status !== 'locked') {
+          ctx.beginPath();
+          ctx.arc(x, y, 6.5, 0, Math.PI * 2);
+          ctx.strokeStyle = color + '66';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      });
+
+      /* Player */
+      if (playerPosRef.current) {
+        const px = playerPosRef.current.position.x;
+        const pz = playerPosRef.current.position.z;
+        const { x, y } = toC(px, pz);
+        /* Glow */
+        const grd = ctx.createRadialGradient(x, y, 0, x, y, 9);
+        grd.addColorStop(0, 'rgba(167,139,250,0.55)');
+        grd.addColorStop(1, 'rgba(167,139,250,0)');
+        ctx.beginPath();
+        ctx.arc(x, y, 9, 0, Math.PI * 2);
+        ctx.fillStyle = grd;
+        ctx.fill();
+        /* Dot */
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#a78bfa';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      rafRef.current = requestAnimationFrame(draw);
+    };
+
+    rafRef.current = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [arenaPositions, leaders, getLeaderStatus, localities, playerPosRef]);
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: 'absolute',
+        left: 12,
+        top: '50%',
+        transform: 'translateY(-50%)',
+        opacity: hovered ? 1 : 0.55,
+        transition: 'opacity 0.25s ease',
+        zIndex: 20,
+        borderRadius: 10,
+        overflow: 'hidden',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.7)',
+        cursor: 'default',
+      }}
+    >
+      <canvas ref={canvasRef} width={160} height={160} style={{ display: 'block' }} />
+      {hovered && (
+        <div style={{
+          position: 'absolute', bottom: 4, right: 6,
+          fontSize: 9, color: 'rgba(255,255,255,0.4)', fontWeight: 700,
+          letterSpacing: '0.05em',
+        }}>
+          🟢 completato &nbsp; 🟡 disponibile
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -551,6 +798,7 @@ export function StoryWorldMap({
   getLeaderStatus,
   onChallengeLeader,
   onResumeGame,
+  localities = [],
 }: StoryWorldMapProps) {
 
   const playerPosRef = useRef<THREE.Group>(null!);
@@ -643,18 +891,29 @@ export function StoryWorldMap({
             joystickRef={joystickRef}
             onNearestChange={handleNearestChange}
             onChallengeLeader={onChallengeLeader}
+            localities={localities}
           />
         </Canvas>
       </KeyboardControls>
 
-      {/* ── Persistent top-left HUD ── */}
+      {/* ── GPS Minimap — centered vertically on left side ── */}
+      <Minimap
+        playerPosRef={playerPosRef}
+        arenaPositions={arenaPositions}
+        leaders={leaders}
+        getLeaderStatus={getLeaderStatus}
+        localities={localities}
+      />
+
+      {/* ── Persistent top HUD (right-aligned to avoid minimap) ── */}
       <div style={{
-        position: 'absolute', top: 12, left: 12,
+        position: 'absolute', top: 12, right: 12,
         background: 'rgba(0,0,0,0.65)', border: '1px solid rgba(255,255,255,0.12)',
         borderRadius: 10, padding: '6px 12px',
         color: 'rgba(255,255,255,0.60)', fontSize: 11, fontWeight: 700,
         pointerEvents: 'none', zIndex: 20,
         display: 'flex', flexDirection: 'column', gap: 3,
+        textAlign: 'right',
       }}>
         <span style={{ color: 'rgba(255,255,255,0.45)' }}>WASD / ↑↓←→ — muoviti</span>
         <span style={{ color: '#4ade80', fontSize: 12 }}>
@@ -804,11 +1063,13 @@ export function StoryWorldMap({
         </div>
       )}
 
-      {/* ── Mobile joystick (touch devices only) ── */}
+      {/* ── Mobile joystick (touch devices only) — centered at bottom ── */}
       {isTouchDevice && (
         <div style={{
-          position: 'absolute', bottom: nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 140 : 14,
-          right: 16,
+          position: 'absolute',
+          bottom: nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 140 : 14,
+          left: '50%',
+          transform: 'translateX(-50%)',
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
           zIndex: 25,
           transition: 'bottom 0.2s ease',

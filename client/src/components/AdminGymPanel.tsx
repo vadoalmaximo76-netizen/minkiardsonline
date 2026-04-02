@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, Plus, Edit2, Trash2, Save, Shield, ChevronUp, ChevronDown, Eye, EyeOff, Search, Check, Layers, Users, Target, Swords } from 'lucide-react';
+import { X, Plus, Edit2, Trash2, Save, Shield, ChevronUp, ChevronDown, Eye, EyeOff, Search, Check, Layers, Users, Target, Swords, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 
 type LeaderMessages = {
@@ -211,6 +211,18 @@ export function AdminGymPanel({ onClose }: Props) {
   const [expandedMessages, setExpandedMessages] = useState<string | null>(null);
   const [expandedCpus, setExpandedCpus] = useState<Record<number, boolean>>({});
 
+  /* ── Localities ────────────────────────────────────────────────── */
+  interface LocalityEntry { id: number; name: string; type: string; description: string | null; posX: number; posZ: number; icon: string; imageUrl: string | null; isActive: boolean; }
+  const [localities, setLocalities] = useState<LocalityEntry[]>([]);
+  const [showLocalityForm, setShowLocalityForm] = useState(false);
+  const [editingLocality, setEditingLocality] = useState<LocalityEntry | null>(null);
+  const emptyLocalityForm = { name: '', type: 'custom', description: '', posX: '0', posZ: '0', icon: '📍', imageUrl: '', isActive: true };
+  const [localityForm, setLocalityForm] = useState({ ...emptyLocalityForm });
+  const [localitySaving, setLocalitySaving] = useState(false);
+  const [localityError, setLocalityError] = useState('');
+  const [localitySuccess, setLocalitySuccess] = useState('');
+  const [showLocalitiesSection, setShowLocalitiesSection] = useState(false);
+
   const authToken = localStorage.getItem('authToken');
 
   const fetchLeaders = useCallback(async () => {
@@ -242,6 +254,63 @@ export function AdminGymPanel({ onClose }: Props) {
     } catch {}
     finally { setLoadingCards(false); }
   }, [authToken]);
+
+  const fetchLocalities = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/story-localities', { headers: { Authorization: `Bearer ${authToken}` } });
+      const data = await res.json();
+      if (data.success) setLocalities(data.localities || []);
+    } catch {}
+  }, [authToken]);
+
+  useEffect(() => { fetchLocalities(); }, [fetchLocalities]);
+
+  const saveLocality = useCallback(async () => {
+    setLocalitySaving(true);
+    setLocalityError('');
+    try {
+      const body = {
+        name: localityForm.name.trim() || 'Nuova Località',
+        type: localityForm.type,
+        description: localityForm.description.trim() || null,
+        posX: parseInt(localityForm.posX) || 0,
+        posZ: parseInt(localityForm.posZ) || 0,
+        icon: localityForm.icon.trim() || '📍',
+        imageUrl: localityForm.imageUrl.trim() || null,
+        isActive: localityForm.isActive,
+      };
+      const url = editingLocality ? `/api/admin/story-localities/${editingLocality.id}` : '/api/admin/story-localities';
+      const method = editingLocality ? 'PUT' : 'POST';
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (data.success) {
+        setLocalitySuccess(editingLocality ? 'Aggiornato!' : 'Creato!');
+        setShowLocalityForm(false);
+        setEditingLocality(null);
+        setLocalityForm({ name: '', type: 'custom', description: '', posX: '0', posZ: '0', icon: '📍', imageUrl: '', isActive: true });
+        await fetchLocalities();
+        setTimeout(() => setLocalitySuccess(''), 3000);
+      } else {
+        setLocalityError(data.error || 'Errore');
+      }
+    } catch { setLocalityError('Errore di rete'); }
+    finally { setLocalitySaving(false); }
+  }, [localityForm, editingLocality, authToken, fetchLocalities]);
+
+  const deleteLocality = useCallback(async (id: number, name: string) => {
+    if (!confirm(`Eliminare la località "${name}"?`)) return;
+    try {
+      await fetch(`/api/admin/story-localities/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${authToken}` } });
+      await fetchLocalities();
+    } catch {}
+  }, [authToken, fetchLocalities]);
+
+  const openEditLocality = (loc: LocalityEntry) => {
+    setEditingLocality(loc);
+    setLocalityForm({ name: loc.name, type: loc.type, description: loc.description || '', posX: String(loc.posX), posZ: String(loc.posZ), icon: loc.icon, imageUrl: loc.imageUrl || '', isActive: loc.isActive });
+    setShowLocalityForm(true);
+    setLocalityError('');
+  };
 
   const syncCpuConfigs = (count: number, existing: CpuConfig[]): CpuConfig[] => {
     const result: CpuConfig[] = [];
@@ -1350,6 +1419,126 @@ export function AdminGymPanel({ onClose }: Props) {
           </div>
         </div>
       )}
+
+      {/* ── LOCALITIES SECTION ────────────────────────────────────── */}
+      <div className="mt-6 border-t border-white/10 pt-6">
+        <button
+          className="w-full flex items-center justify-between px-4 py-3 bg-blue-900/20 border border-blue-500/20 rounded-xl hover:bg-blue-900/35 transition-colors"
+          onClick={() => setShowLocalitiesSection(v => !v)}
+        >
+          <div className="flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-blue-400" />
+            <span className="text-white font-bold text-sm">Località Mappa Story Mode</span>
+            <span className="text-blue-300/60 text-xs">({localities.length} configurate)</span>
+          </div>
+          <span className="text-white/40 text-xs">{showLocalitiesSection ? '▲ Comprimi' : '▼ Espandi'}</span>
+        </button>
+
+        {showLocalitiesSection && (
+          <div className="mt-4 space-y-3">
+            {localityError && <div className="bg-red-900/50 border border-red-500/30 text-red-300 rounded-xl px-4 py-3 text-sm">{localityError}</div>}
+            {localitySuccess && <div className="bg-green-900/50 border border-green-500/30 text-green-300 rounded-xl px-4 py-3 text-sm">{localitySuccess}</div>}
+
+            <div className="flex justify-between items-center">
+              <p className="text-white/40 text-xs">Punti di interesse visibili nella mappa 3D (range: -42 … +42)</p>
+              <Button size="sm" onClick={() => { setEditingLocality(null); setLocalityForm({ name: '', type: 'custom', description: '', posX: '0', posZ: '0', icon: '📍', imageUrl: '', isActive: true }); setShowLocalityForm(true); setLocalityError(''); }}
+                className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
+                <Plus className="w-3.5 h-3.5" /> Nuova Località
+              </Button>
+            </div>
+
+            {/* Locality form */}
+            {showLocalityForm && (
+              <div className="bg-gray-800/80 rounded-2xl border border-white/10 p-5 shadow-xl">
+                <h4 className="text-white font-bold text-base mb-4">{editingLocality ? 'Modifica Località' : 'Nuova Località'}</h4>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="text-white/50 text-xs block mb-1">Nome *</label>
+                    <input value={localityForm.name} onChange={e => setLocalityForm(f => ({ ...f, name: e.target.value }))}
+                      className="w-full bg-gray-700 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-400" placeholder="Es. Villaggio del Bosco" />
+                  </div>
+                  <div>
+                    <label className="text-white/50 text-xs block mb-1">Tipo</label>
+                    <select value={localityForm.type} onChange={e => setLocalityForm(f => ({ ...f, type: e.target.value }))}
+                      className="w-full bg-gray-700 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-400">
+                      <option value="town">🏘️ Città (town)</option>
+                      <option value="shop">🏪 Negozio (shop)</option>
+                      <option value="inn">🏨 Locanda (inn)</option>
+                      <option value="forest">🌲 Foresta (forest)</option>
+                      <option value="shrine">⛩️ Santuario (shrine)</option>
+                      <option value="custom">📍 Personalizzato (custom)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-white/50 text-xs block mb-1">Icona (emoji)</label>
+                    <input value={localityForm.icon} onChange={e => setLocalityForm(f => ({ ...f, icon: e.target.value }))}
+                      className="w-full bg-gray-700 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-400" placeholder="📍" maxLength={4} />
+                  </div>
+                  <div>
+                    <label className="text-white/50 text-xs block mb-1">Descrizione</label>
+                    <input value={localityForm.description} onChange={e => setLocalityForm(f => ({ ...f, description: e.target.value }))}
+                      className="w-full bg-gray-700 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-400" placeholder="Descrizione opzionale" />
+                  </div>
+                  <div>
+                    <label className="text-white/50 text-xs block mb-1">Posizione X (est/ovest: -42…42)</label>
+                    <input type="number" value={localityForm.posX} onChange={e => setLocalityForm(f => ({ ...f, posX: e.target.value }))}
+                      className="w-full bg-gray-700 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-400" min={-42} max={42} />
+                  </div>
+                  <div>
+                    <label className="text-white/50 text-xs block mb-1">Posizione Z (nord/sud: -42…42)</label>
+                    <input type="number" value={localityForm.posZ} onChange={e => setLocalityForm(f => ({ ...f, posZ: e.target.value }))}
+                      className="w-full bg-gray-700 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-400" min={-42} max={42} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-white/50 text-xs block mb-1">Image URL (opzionale)</label>
+                    <input value={localityForm.imageUrl} onChange={e => setLocalityForm(f => ({ ...f, imageUrl: e.target.value }))}
+                      className="w-full bg-gray-700 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-400" placeholder="https://..." />
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 mb-4 cursor-pointer">
+                  <input type="checkbox" checked={localityForm.isActive} onChange={e => setLocalityForm(f => ({ ...f, isActive: e.target.checked }))} className="rounded" />
+                  <span className="text-white/60 text-sm">Attivo (visibile nella mappa)</span>
+                </label>
+                <div className="flex gap-3">
+                  <Button onClick={saveLocality} disabled={localitySaving} className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
+                    <Save className="w-3.5 h-3.5" /> {localitySaving ? 'Salvataggio…' : 'Salva'}
+                  </Button>
+                  <Button variant="outline" onClick={() => { setShowLocalityForm(false); setEditingLocality(null); setLocalityError(''); }}
+                    className="border-white/20 text-white/60 hover:text-white">
+                    Annulla
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Locality list */}
+            <div className="space-y-2">
+              {localities.length === 0 && <p className="text-white/30 text-sm text-center py-6">Nessuna località configurata.</p>}
+              {localities.map(loc => (
+                <div key={loc.id} className="flex items-center gap-3 bg-gray-800/50 rounded-xl px-4 py-3 border border-white/8">
+                  <span className="text-xl w-8 text-center">{loc.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-semibold text-sm">{loc.name}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-900/40 text-blue-300 border border-blue-500/20">{loc.type}</span>
+                      {!loc.isActive && <span className="text-xs text-white/30">(nascosto)</span>}
+                    </div>
+                    <span className="text-white/40 text-xs">X: {loc.posX} · Z: {loc.posZ}{loc.description ? ` · ${loc.description}` : ''}</span>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button onClick={() => openEditLocality(loc)} className="p-1.5 rounded-lg hover:bg-white/10 text-blue-400 hover:text-blue-300 transition-colors">
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => deleteLocality(loc.id, loc.name)} className="p-1.5 rounded-lg hover:bg-red-900/30 text-red-400 hover:text-red-300 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

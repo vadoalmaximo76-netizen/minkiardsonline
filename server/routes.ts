@@ -15,7 +15,7 @@ function handle402(err: unknown): boolean {
   }
   return false;
 }
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, storyCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates, dailyChallengeScores, pageTooltips } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, storyCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates, dailyChallengeScores, pageTooltips, storyLocalities } from "../shared/schema";
 import { jsonStorage, homePanelsStorage, newsTickerStorage, homeConfigStorage, rankiardTiersStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray, gt, isNull } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from "../client/src/lib/cardData";
@@ -13329,6 +13329,80 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       console.error('Error completing gym:', e);
       res.status(500).json({ success: false, error: 'Errore server' });
     }
+  });
+
+  // ============= STORY LOCALITIES (Map points) =============
+
+  // GET /api/story-localities - public, active only
+  app.get('/api/story-localities', async (_req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ success: true, localities: [] });
+      const list = await db.select().from(storyLocalities).where(eq(storyLocalities.isActive, true)).orderBy(storyLocalities.name);
+      res.json({ success: true, localities: list });
+    } catch (e) {
+      console.error('Error fetching story localities:', e);
+      res.json({ success: true, localities: [] });
+    }
+  });
+
+  // GET /api/admin/story-localities - all (admin)
+  app.get('/api/admin/story-localities', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+      const list = await db.select().from(storyLocalities).orderBy(storyLocalities.name);
+      res.json({ success: true, localities: list });
+    } catch (e) { res.status(500).json({ success: false, error: 'Errore server' }); }
+  });
+
+  // POST /api/admin/story-localities - create
+  app.post('/api/admin/story-localities', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+      const { name, type, description, posX, posZ, icon, imageUrl, isActive } = req.body;
+      const [created] = await db.insert(storyLocalities).values({
+        name: name || 'Nuova Località',
+        type: type || 'custom',
+        description: description || null,
+        posX: parseInt(posX ?? '0') || 0,
+        posZ: parseInt(posZ ?? '0') || 0,
+        icon: icon || '📍',
+        imageUrl: imageUrl || null,
+        isActive: isActive !== false,
+      }).returning();
+      res.json({ success: true, locality: created });
+    } catch (e) { console.error(e); res.status(500).json({ success: false, error: 'Errore server' }); }
+  });
+
+  // PUT /api/admin/story-localities/:id - update
+  app.put('/api/admin/story-localities/:id', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+      const id = parseInt(req.params.id);
+      const { name, type, description, posX, posZ, icon, imageUrl, isActive } = req.body;
+      const [updated] = await db.update(storyLocalities).set({
+        name, type, description: description || null,
+        posX: parseInt(posX ?? '0') || 0,
+        posZ: parseInt(posZ ?? '0') || 0,
+        icon: icon || '📍',
+        imageUrl: imageUrl || null,
+        isActive: isActive !== false,
+      }).where(eq(storyLocalities.id, id)).returning();
+      res.json({ success: true, locality: updated });
+    } catch (e) { res.status(500).json({ success: false, error: 'Errore server' }); }
+  });
+
+  // DELETE /api/admin/story-localities/:id
+  app.delete('/api/admin/story-localities/:id', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+      const id = parseInt(req.params.id);
+      await db.delete(storyLocalities).where(eq(storyLocalities.id, id));
+      res.json({ success: true });
+    } catch (e) { res.status(500).json({ success: false, error: 'Errore server' }); }
   });
 
   // ============= SFIDA QUOTIDIANA (DAILY CHALLENGE) ENDPOINTS =============
