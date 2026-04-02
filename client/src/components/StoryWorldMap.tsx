@@ -371,6 +371,9 @@ function darken(hex: string, amt: number) {
   return `rgb(${Math.max(0,r-amt)},${Math.max(0,g-amt)},${Math.max(0,b-amt)})`;
 }
 
+/* ── Unlock animation registry ───────────────────────────────── */
+interface UnlockAnim { startTime: number; arenaIdx: number; }
+
 /* ── GPS Minimap overlay ─────────────────────────────────────── */
 interface MinimapProps {
   playerRef: React.RefObject<{ x: number; z: number }>;
@@ -504,16 +507,22 @@ function Minimap({ playerRef, arenaPositions, leaders, getLeaderStatus, localiti
 interface JoystickBtnProps { label: string; onStart: () => void; onEnd: () => void; }
 
 function JoystickBtn({ label, onStart, onEnd }: JoystickBtnProps) {
+  const [active, setActive] = React.useState(false);
   return (
     <div
-      onPointerDown={(e) => { e.preventDefault(); onStart(); }}
-      onPointerUp={onEnd} onPointerLeave={onEnd}
+      onPointerDown={(e) => { e.preventDefault(); setActive(true); onStart(); }}
+      onPointerUp={() => { setActive(false); onEnd(); }}
+      onPointerLeave={() => { setActive(false); onEnd(); }}
       style={{
-        width: 52, height: 52, borderRadius: 12,
-        background: 'rgba(255,255,255,0.18)', border: '2px solid rgba(255,255,255,0.35)',
+        width: 64, height: 64, borderRadius: 14,
+        background: active ? 'rgba(167,139,250,0.55)' : 'rgba(255,255,255,0.14)',
+        border: `2px solid ${active ? 'rgba(167,139,250,0.9)' : 'rgba(255,255,255,0.3)'}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 22, userSelect: 'none', cursor: 'pointer',
+        fontSize: 26, userSelect: 'none', cursor: 'pointer',
         touchAction: 'none', WebkitUserSelect: 'none',
+        boxShadow: active ? '0 0 16px rgba(167,139,250,0.5)' : '0 2px 8px rgba(0,0,0,0.3)',
+        transition: 'background 0.08s, border-color 0.08s, box-shadow 0.08s',
+        transform: active ? 'scale(0.93)' : 'scale(1)',
       }}
     >
       {label}
@@ -571,6 +580,19 @@ export function StoryWorldMap({
   useEffect(() => { localitiesRef.current = localities; }, [localities]);
   useEffect(() => { collectiblesRef.current = collectibles; }, [collectibles]);
 
+  /* ── Detect arena unlocks → trigger animation ───────────────── */
+  useEffect(() => {
+    const now = timeRef.current;
+    leaders.forEach((leader, idx) => {
+      const newStatus = getLeaderStatus(leader);
+      const prevStatus = prevStatusMapRef.current.get(leader.id);
+      if (prevStatus === 'locked' && newStatus === 'available') {
+        unlockAnimsRef.current.set(idx, { startTime: now, arenaIdx: idx });
+      }
+      prevStatusMapRef.current.set(leader.id, newStatus);
+    });
+  }, [leaders, getLeaderStatus]);
+
   /* ── React UI state ────────────────────────────────────── */
   const [nearestLeaderId, setNearestLeaderId] = useState<number | null>(null);
   const [nearestDist,     setNearestDist]     = useState(Infinity);
@@ -592,6 +614,16 @@ export function StoryWorldMap({
 
   /* floating "+X crediti" canvas animations */
   const floatingTextsRef = useRef<{ text: string; x: number; z: number; color: string; startTime: number }[]>([]);
+
+  /* unlock animations */
+  const unlockAnimsRef = useRef<Map<number, UnlockAnim>>(new Map());
+  const prevStatusMapRef = useRef<Map<number, string>>(new Map());
+
+  /* tooltip state */
+  const [tooltip, setTooltip] = useState<{ leader: GymLeader; status: 'completed' | 'available' | 'locked'; x: number; y: number } | null>(null);
+
+  /* victory history panel */
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
 
   /* Keep ref in sync with state for game loop reads */
   useEffect(() => { localCollectedIdsRef.current = localCollectedIds; }, [localCollectedIds]);
@@ -673,11 +705,15 @@ export function StoryWorldMap({
     for (let idx = 0; idx < lrs.length; idx++) {
       const [ax, az] = aps[idx] ?? getArenaPosition(idx);
       const dist = Math.sqrt((pos.x - ax) ** 2 + (pos.z - az) ** 2);
-      if (dist < ARENA_HIT_RADIUS && getLeaderStatusRef.current(lrs[idx]) !== 'locked') {
-        canvas.style.cursor = 'pointer'; return;
+      if (dist < ARENA_HIT_RADIUS * 1.5) {
+        const status = getLeaderStatusRef.current(lrs[idx]);
+        canvas.style.cursor = status !== 'locked' ? 'pointer' : 'default';
+        setTooltip({ leader: lrs[idx], status, x: e.clientX, y: e.clientY });
+        return;
       }
     }
     canvas.style.cursor = 'default';
+    setTooltip(null);
   }, [canvasScreenToWorld]);
 
   /* ── Resize observer ───────────────────────────────────── */
@@ -886,10 +922,39 @@ export function StoryWorldMap({
       isNear: boolean,
       idx: number,
       time: number,
+      unlockAnim?: UnlockAnim | null,
     ) => {
       const color = ARENA_COLORS[idx % ARENA_COLORS.length];
       const bW = 3.2 * TILE; const bH = 3.6 * TILE;
       const roofH = bH * 0.32;
+
+      /* unlock glow animation */
+      if (unlockAnim) {
+        const age = time - unlockAnim.startTime;
+        const DURATION = 2.5;
+        if (age < DURATION) {
+          const progress = age / DURATION;
+          const rings = 3;
+          for (let ri = 0; ri < rings; ri++) {
+            const ringProgress = (progress + ri / rings) % 1;
+            const ringR = bW * 0.5 + ringProgress * bW * 1.5;
+            const ringAlpha = (1 - ringProgress) * 0.65;
+            ctx.beginPath(); ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(251,191,36,${ringAlpha})`;
+            ctx.lineWidth = 3 * (1 - ringProgress); ctx.stroke();
+          }
+          /* particles */
+          for (let pi = 0; pi < 8; pi++) {
+            const angle = (pi / 8) * Math.PI * 2 + progress * 2;
+            const dist = bW * 0.4 + progress * bW * 1.2;
+            const px2 = cx + Math.cos(angle) * dist;
+            const py2 = cy + Math.sin(angle) * dist;
+            const pAlpha = Math.max(0, 1 - progress * 1.5);
+            ctx.beginPath(); ctx.arc(px2, py2, 4 * pAlpha, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(251,191,36,${pAlpha})`; ctx.fill();
+          }
+        }
+      }
 
       /* proximity glow */
       if (isNear && status !== 'locked') {
@@ -980,6 +1045,33 @@ export function StoryWorldMap({
       ctx.fillStyle = status === 'locked' ? 'rgba(107,114,128,0.9)' : 'rgba(255,255,255,0.88)';
       const name = leader.gymName || leader.name;
       ctx.fillText(name.length > 12 ? name.slice(0, 11) + '…' : name, cx, cy + bH / 2 + 4);
+
+      /* ── Above-node icon + boss label (always visible) ── */
+      const iconY = cy - bH / 2 - 36;
+      const iconEmoji = status === 'completed' ? '🏆' : status === 'available' ? '⚔️' : '🔒';
+      const iconSize = status === 'available' ? Math.round(TILE * 0.85 + Math.sin(time * 2.5) * 2) : Math.round(TILE * 0.8);
+      ctx.font = `${iconSize}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(iconEmoji, cx, iconY);
+
+      /* boss name label pill */
+      const labelText = leader.name.length > 14 ? leader.name.slice(0, 13) + '…' : leader.name;
+      const diffIcon = leader.cpuLevel === 'easy' ? '🟢' : leader.cpuLevel === 'medium' ? '🟡' : '🔴';
+      const fullLabel = `${diffIcon} ${labelText}`;
+      ctx.font = 'bold 9px sans-serif';
+      const textW = ctx.measureText(fullLabel).width;
+      const pillX = cx - textW / 2 - 7;
+      const pillY = iconY - 16;
+      const pillW = textW + 14;
+      const pillH = 15;
+      ctx.fillStyle = status === 'locked' ? 'rgba(20,20,30,0.82)' : 'rgba(5,5,20,0.88)';
+      rrect(ctx, pillX, pillY, pillW, pillH, 5);
+      ctx.fill();
+      ctx.strokeStyle = status === 'completed' ? 'rgba(74,222,128,0.5)' : status === 'available' ? 'rgba(251,191,36,0.5)' : 'rgba(107,114,128,0.3)';
+      ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = status === 'locked' ? 'rgba(156,163,175,0.8)' : 'rgba(255,255,255,0.9)';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(fullLabel, cx, pillY + pillH / 2);
     };
 
     const drawCollectible = (ctx: CanvasRenderingContext2D, c: StoryCollectible, time: number, alpha: number) => {
@@ -1358,9 +1450,14 @@ export function StoryWorldMap({
         const [ax, az] = arenaPositionsRef.current[idx] ?? getArenaPosition(idx);
         const status = getLeaderStatusRef.current(leader);
         const isNear = leader.id === lastNearLeaderIdRef.current;
+        const unlockAnim = unlockAnimsRef.current.get(idx) ?? null;
+        /* clean up expired animations */
+        if (unlockAnim && t - unlockAnim.startTime > 2.5) {
+          unlockAnimsRef.current.delete(idx);
+        }
         sprites.push({ z: az, draw: () => {
           const [cx, cy] = w2s(ax, az);
-          drawArena(ctx, cx, cy, leader, status, isNear, idx, t);
+          drawArena(ctx, cx, cy, leader, status, isNear, idx, t, unlockAnim);
         }});
       });
 
@@ -1573,6 +1670,7 @@ export function StoryWorldMap({
         ref={canvasRef}
         onClick={handleCanvasClick}
         onMouseMove={handleCanvasMouseMove}
+        onMouseLeave={() => setTooltip(null)}
         style={{ position: 'absolute', inset: 0, display: 'block', width: '100%', height: '100%', imageRendering: 'pixelated' }}
         tabIndex={0}
       />
@@ -1585,6 +1683,190 @@ export function StoryWorldMap({
         getLeaderStatus={getLeaderStatus}
         localities={localities}
       />
+
+      {/* Chapter progress bar (top center) */}
+      {(() => {
+        const total = leaders.length;
+        const completed = leaders.filter(l => getLeaderStatus(l) === 'completed').length;
+        const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+        const currentChapter = Math.min(completed + 1, total);
+        return (
+          <div style={{
+            position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(3,4,18,0.9)', border: '1px solid rgba(255,255,255,0.1)',
+            borderTop: 'none', borderRadius: '0 0 12px 12px',
+            padding: '6px 18px 8px', zIndex: 25, minWidth: 220,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+            pointerEvents: 'none',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', justifyContent: 'center' }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: 'rgba(251,191,36,0.9)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                ⚔️ Capitolo {currentChapter} di {total}
+              </span>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{pct}%</span>
+            </div>
+            <div style={{ width: '100%', height: 5, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', borderRadius: 4,
+                width: `${pct}%`,
+                background: 'linear-gradient(90deg, #4ade80, #fbbf24)',
+                transition: 'width 0.5s ease',
+              }} />
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Directional compass to next available arena */}
+      {(() => {
+        const nextArena = leaders.find(l => getLeaderStatus(l) === 'available');
+        if (!nextArena) return null;
+        const idx = leaders.indexOf(nextArena);
+        const [ax, az] = arenaPositions[idx] ?? getArenaPosition(idx);
+        const px = playerRef.current.x, pz = playerRef.current.z;
+        const dx = ax - px, dz = az - pz;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < 6) return null; // close enough, no arrow needed
+        const angle = Math.atan2(dz, dx); // angle in world space (x = right, z = down)
+        const screenAngle = angle; // canvas uses same convention
+        const distLabel = Math.round(dist);
+        return (
+          <div style={{
+            position: 'absolute', bottom: 90, right: 16,
+            background: 'rgba(3,4,18,0.88)', border: '1.5px solid rgba(251,191,36,0.5)',
+            borderRadius: 12, padding: '8px 12px', zIndex: 25,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+            pointerEvents: 'none',
+          }}>
+            <div style={{
+              width: 36, height: 36, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%',
+                border: '2px solid rgba(251,191,36,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <div style={{
+                  width: 0, height: 0,
+                  borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderBottom: '18px solid #fbbf24',
+                  transformOrigin: '50% 75%',
+                  transform: `rotate(${screenAngle + Math.PI / 2}rad)`,
+                }} />
+              </div>
+            </div>
+            <div style={{ fontSize: 9, color: 'rgba(251,191,36,0.8)', fontWeight: 800, textAlign: 'center' }}>
+              Prossima arena
+            </div>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>
+              {distLabel} u.m.
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Victory History button */}
+      {!showHistoryPanel && (
+        <button
+          onClick={() => setShowHistoryPanel(true)}
+          style={{
+            position: 'absolute',
+            bottom: isTouchDevice ? (nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 235 : 185) : 90,
+            left: isTouchDevice ? 188 : 16,
+            background: 'rgba(3,4,18,0.88)', border: '1.5px solid rgba(74,222,128,0.4)',
+            borderRadius: 10, padding: '7px 12px', color: '#4ade80',
+            fontSize: 12, fontWeight: 800, cursor: 'pointer', zIndex: 35,
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          🏆 Storico
+        </button>
+      )}
+
+      {showHistoryPanel && (() => {
+        const completed = leaders.filter(l => getLeaderStatus(l) === 'completed');
+        return (
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            background: 'rgba(3,4,18,0.97)', borderTop: '2px solid rgba(74,222,128,0.4)',
+            zIndex: 40, padding: '14px 16px', maxHeight: '55%', overflow: 'auto',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ color: '#4ade80', fontWeight: 900, fontSize: 14 }}>🏆 Storico vittorie</span>
+              <button onClick={() => setShowHistoryPanel(false)} style={{
+                background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: 8, color: 'rgba(255,255,255,0.6)', fontSize: 12, padding: '4px 10px', cursor: 'pointer',
+              }}>✕</button>
+            </div>
+            {completed.length === 0 ? (
+              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12, textAlign: 'center', margin: '20px 0' }}>Nessuna vittoria ancora</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {completed.map((leader, i) => (
+                  <div key={leader.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    background: 'rgba(74,222,128,0.05)', border: '1px solid rgba(74,222,128,0.15)',
+                    borderRadius: 10, padding: '10px 14px',
+                  }}>
+                    {leader.leaderImageUrl ? (
+                      <img src={leader.leaderImageUrl} alt={leader.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid rgba(74,222,128,0.4)', flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(22,101,52,0.5)', border: '1.5px solid rgba(74,222,128,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>🏋️</div>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: '#86efac', fontWeight: 800, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {leader.gymName}
+                      </div>
+                      <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 2 }}>
+                        👊 {leader.name} · {leader.cpuLevel === 'easy' ? '🟢 Facile' : leader.cpuLevel === 'medium' ? '🟡 Medio' : '🔴 Difficile'}
+                      </div>
+                    </div>
+                    <div style={{ color: '#4ade80', fontSize: 11, fontWeight: 800, textAlign: 'right', flexShrink: 0 }}>
+                      ✓ Completato
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Tooltip overlay */}
+      {tooltip && (
+        <div style={{
+          position: 'fixed',
+          left: tooltip.x + 14,
+          top: tooltip.y - 10,
+          background: 'rgba(3,4,18,0.96)',
+          border: `1.5px solid ${tooltip.status === 'completed' ? 'rgba(74,222,128,0.6)' : tooltip.status === 'available' ? 'rgba(251,191,36,0.6)' : 'rgba(107,114,128,0.4)'}`,
+          borderRadius: 10, padding: '10px 14px', zIndex: 100,
+          pointerEvents: 'none', minWidth: 160, maxWidth: 220,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.7)',
+        }}>
+          <div style={{ color: tooltip.status === 'completed' ? '#4ade80' : tooltip.status === 'available' ? '#fbbf24' : '#9ca3af', fontWeight: 900, fontSize: 12, marginBottom: 4 }}>
+            {tooltip.status === 'completed' ? '🏆 Completato' : tooltip.status === 'available' ? '⚔️ Disponibile' : '🔒 Bloccato'}
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 800, fontSize: 13, marginBottom: 3 }}>
+            {tooltip.leader.gymName}
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11, marginBottom: 2 }}>
+            👊 {tooltip.leader.name}
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, marginBottom: 2 }}>
+            {tooltip.leader.cpuLevel === 'easy' ? '🟢 Facile' : tooltip.leader.cpuLevel === 'medium' ? '🟡 Medio' : '🔴 Difficile'}
+            {' · '}❤️ {tooltip.leader.livesCount}
+          </div>
+          {tooltip.status === 'available' && (
+            <div style={{ color: 'rgba(251,191,36,0.7)', fontSize: 10, marginTop: 4, fontStyle: 'italic' }}>
+              Avvicinati per sfidare
+            </div>
+          )}
+          {tooltip.status === 'locked' && (
+            <div style={{ color: 'rgba(156,163,175,0.6)', fontSize: 10, marginTop: 4, fontStyle: 'italic' }}>
+              Completa le arene precedenti
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Top-right HUD */}
       <div style={{
@@ -1936,14 +2218,15 @@ export function StoryWorldMap({
       {isTouchDevice && (
         <div style={{
           position: 'absolute',
-          bottom: nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 112 : 18,
+          bottom: nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 130 : 18,
           left: 16,
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 52px)',
-          gridTemplateRows: 'repeat(3, 52px)',
-          gap: 4,
+          gridTemplateColumns: 'repeat(3, 64px)',
+          gridTemplateRows: 'repeat(3, 64px)',
+          gap: 5,
           zIndex: 32,
           transition: 'bottom 0.22s ease',
+          filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))',
         }}>
           {/* row 1: empty | up | empty */}
           <div />
@@ -1952,9 +2235,9 @@ export function StoryWorldMap({
           {/* row 2: left | center (empty) | right */}
           <JoystickBtn label="◀" onStart={() => setJoy(-1, 0)} onEnd={() => setJoy(0, 0)} />
           <div style={{
-            borderRadius: 8,
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 10,
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
           }} />
           <JoystickBtn label="▶" onStart={() => setJoy(1, 0)} onEnd={() => setJoy(0, 0)} />
           {/* row 3: empty | down | empty */}
