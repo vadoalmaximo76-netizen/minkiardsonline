@@ -104,6 +104,150 @@ const TREE_DATA: { x: number; z: number; h: number; r: number }[] = [
   { x: 16, z: 28, h: 2.3, r: 0.85 },
 ];
 
+/* ── Decoration static data (all deterministic — no Math.random in JSX) ── */
+
+/* Sand roads connecting consecutive arenas.
+   rotY = Math.atan2(dx, dz) where (dx,dz) = direction A→B in XZ space. */
+const ROAD_DATA: { x:number; z:number; ry:number; w:number; l:number }[] = [
+  { x: 13,    z: 25,   ry: 1.94,  w: 3.5, l: 29 },  // arena1→2
+  { x: 31,    z: 12,   ry: 2.58,  w: 3.5, l: 20 },  // arena2→3
+  { x: 30,    z: -4,   ry:-2.50,  w: 3.5, l: 21 },  // arena3→4
+  { x: 15,    z:-19,   ry:-2.23,  w: 3.5, l: 24 },  // arena4→5
+  { x: -1,    z:-31,   ry:-2.19,  w: 3.5, l: 18 },  // arena5→6
+  { x:-15,    z:-32,   ry:-1.05,  w: 3.5, l: 17 },  // arena6→7
+  { x:-28.5,  z:-20,   ry:-0.68,  w: 3.5, l: 22 },  // arena7→8
+  { x:-34.5,  z: -2,   ry: 0.05,  w: 3.5, l: 21 },  // arena8→9
+  { x:-27,    z: 15,   ry: 0.79,  w: 3.5, l: 21 },  // arena9→10
+  { x:-13,    z: 29,   ry: 0.79,  w: 3.5, l: 21 },  // arena10→11
+  { x:  9,    z: 36,   ry: 1.57,  w: 3.5, l: 31 },  // arena11→12
+];
+
+/* Ponds and lakes (decorative water bodies) */
+const WATER_DATA: { x:number; z:number; r:number }[] = [
+  { x:  6,  z: -8,  r: 6.5 },   // lago centrale
+  { x:-12,  z: 18,  r: 3.5 },   // stagno SW
+  { x: 22,  z:-28,  r: 3.0 },   // stagno NE
+  { x:-30,  z:-38,  r: 2.5 },   // pozza NW
+];
+
+/* Hedge rows (green bush cubes) */
+const HEDGE_DATA: { x:number; z:number; ry:number; n:number }[] = [
+  { x:-12,  z:  6,  ry: 0,           n: 8 },
+  { x: 10,  z:-40,  ry: 0,           n: 6 },
+  { x:-18,  z: 16,  ry: Math.PI / 2, n: 7 },
+  { x: -5,  z:-18,  ry: Math.PI / 2, n: 6 },
+  { x: 28,  z:  8,  ry: Math.PI / 2, n: 5 },
+  { x:-22,  z: -6,  ry: 0.2,         n: 6 },
+  { x: 15,  z:-38,  ry: 0,           n: 5 },
+  { x:-30,  z: 30,  ry: Math.PI / 2, n: 6 },
+  { x:  2,  z: 20,  ry: 0.5,         n: 5 },
+  { x: 20,  z:-30,  ry: 0.2,         n: 4 },
+];
+
+/* Pre-expand hedges into individual piece positions */
+const HEDGE_PIECES: { x:number; z:number; dark:boolean }[] = HEDGE_DATA.flatMap((row) =>
+  Array.from({ length: row.n }, (_, i) => {
+    const offset = (i - (row.n - 1) / 2) * 1.3;
+    return {
+      x: row.x + Math.sin(row.ry) * offset,
+      z: row.z + Math.cos(row.ry) * offset,
+      dark: i % 2 === 0,
+    };
+  })
+);
+
+/* Boulders (gray rocks, various sizes) */
+const BOULDER_DATA: { x:number; z:number; sy:number; sx:number; twin:boolean }[] = [
+  { x:-14, z: -6,  sy:1.5, sx:1.2, twin:true  },
+  { x: 20, z:-22,  sy:1.0, sx:0.9, twin:false },
+  { x: -9, z: 17,  sy:1.2, sx:1.1, twin:true  },
+  { x:  6, z:-16,  sy:1.8, sx:1.4, twin:false },
+  { x:-26, z:  9,  sy:1.0, sx:0.8, twin:true  },
+  { x: 19, z: 29,  sy:1.3, sx:1.0, twin:false },
+  { x:-32, z: -4,  sy:1.6, sx:1.3, twin:true  },
+  { x: 11, z:-31,  sy:1.1, sx:0.9, twin:false },
+  { x:-17, z: 26,  sy:1.0, sx:1.0, twin:true  },
+  { x: 32, z: 14,  sy:0.9, sx:0.8, twin:false },
+  { x: -8, z:-26,  sy:1.4, sx:1.2, twin:true  },
+  { x: 26, z:-36,  sy:1.1, sx:0.9, twin:false },
+  { x:-40, z: 20,  sy:1.2, sx:1.0, twin:true  },
+  { x: 38, z: 22,  sy:1.0, sx:0.8, twin:false },
+  { x: 18, z:-38,  sy:0.9, sx:1.1, twin:true  },
+  { x:-18, z:-38,  sy:1.3, sx:1.0, twin:false },
+  { x: 36, z:-32,  sy:1.1, sx:0.9, twin:true  },
+  { x:-38, z:-28,  sy:1.0, sx:1.2, twin:false },
+];
+
+/* Flower patches (flat colored circles on ground) */
+const FLOWER_DATA: { x:number; z:number; r:number; color:string }[] = [
+  { x:  8, z: 18,  r:2.5, color:'#ff6b9d' },
+  { x:-20, z:  5,  r:2.0, color:'#fbbf24' },
+  { x: 16, z: -6,  r:1.8, color:'#a78bfa' },
+  { x: -9, z: 28,  r:2.2, color:'#34d399' },
+  { x: 28, z: 10,  r:1.6, color:'#f97316' },
+  { x:-28, z:-30,  r:2.0, color:'#60a5fa' },
+  { x:  5, z:-20,  r:1.5, color:'#fbbf24' },
+  { x:-16, z: 35,  r:1.8, color:'#ff6b9d' },
+  { x: 20, z:-38,  r:2.2, color:'#a78bfa' },
+  { x:-35, z: 30,  r:1.6, color:'#34d399' },
+  { x: -2, z:  8,  r:1.4, color:'#f97316' },
+  { x: 33, z:-18,  r:1.8, color:'#60a5fa' },
+  { x:-10, z:-15,  r:1.6, color:'#ff6b9d' },
+  { x: 22, z: 14,  r:1.5, color:'#fbbf24' },
+];
+
+/* Lamp posts along the zigzag route */
+const LAMP_DATA: { x:number; z:number }[] = [
+  { x:  8, z: 24 }, { x: 20, z: 18 }, { x: 32, z:  8 }, { x: 28, z: -6 },
+  { x: 18, z:-16 }, { x:  4, z:-28 }, { x:-10, z:-34 }, { x:-24, z:-26 },
+  { x:-36, z:-14 }, { x:-36, z:  0 }, { x:-28, z: 14 }, { x:-14, z: 26 },
+  { x:  2, z: 36 },
+];
+
+/* Stone wall segments */
+const WALL_DATA: { x:number; z:number; ry:number; n:number }[] = [
+  { x: 16,  z:  7,  ry: 0.1,        n: 5 },
+  { x: -4,  z:-11,  ry: Math.PI / 2, n: 5 },
+  { x:-28,  z:-17,  ry: 0.3,         n: 6 },
+  { x:  9,  z:-28,  ry:-0.2,         n: 4 },
+  { x:-19,  z: 31,  ry: 0.5,         n: 5 },
+  { x: 30,  z:-28,  ry: 1.2,         n: 4 },
+];
+
+/* Pre-expand wall pieces */
+const WALL_PIECES: { x:number; z:number; alt:boolean }[] = WALL_DATA.flatMap((wall) =>
+  Array.from({ length: wall.n }, (_, i) => {
+    const offset = (i - (wall.n - 1) / 2) * 1.2;
+    return {
+      x: wall.x + Math.sin(wall.ry) * offset,
+      z: wall.z + Math.cos(wall.ry) * offset,
+      alt: i % 2 === 0,
+    };
+  })
+);
+
+/* Deterministic seeded random helper (for module-level pre-computation only) */
+const _sr = (seed: number) => { const x = Math.sin(seed + 1) * 10000; return x - Math.floor(x); };
+
+/* Tall grass blade positions (5 patches, pre-computed at module level) */
+const TALLGRASS_PATCHES = [
+  { cx: -3,  cz: 14,  n: 22 },
+  { cx: 10,  cz: -6,  n: 18 },
+  { cx:-25,  cz:  0,  n: 16 },
+  { cx: 18,  cz:-20,  n: 16 },
+  { cx:-14,  cz:-14,  n: 14 },
+  { cx: -8,  cz: 36,  n: 12 },
+].map((patch, pi) => ({
+  cx: patch.cx,
+  cz: patch.cz,
+  blades: Array.from({ length: patch.n }, (_, i) => ({
+    dx: (_sr(pi * 200 + i * 4)     - 0.5) * 5.5,
+    dz: (_sr(pi * 200 + i * 4 + 1) - 0.5) * 5.5,
+    h:  0.5 + _sr(pi * 200 + i * 4 + 2) * 0.55,
+    ry: _sr(pi * 200 + i * 4 + 3) * Math.PI * 2,
+  })),
+}));
+
 /* ── Sky ─────────────────────────────────────────────────────────── */
 function SkyDome() {
   const tex = useTexture('/textures/sky.png');
@@ -149,6 +293,202 @@ function Tree({ x, z, h, r }: { x: number; z: number; h: number; r: number }) {
         <meshLambertMaterial color="#34a034" />
       </mesh>
     </group>
+  );
+}
+
+/* ── Water patch (animated lake/pond) ──────────────────────────── */
+function WaterPatch({ x, z, r }: { x: number; z: number; r: number }) {
+  const meshRef = useRef<THREE.Mesh>(null!);
+  useFrame((state) => {
+    if (meshRef.current) {
+      const mat = meshRef.current.material as THREE.MeshStandardMaterial;
+      mat.opacity = 0.72 + Math.sin(state.clock.elapsedTime * 1.4) * 0.07;
+    }
+  });
+  return (
+    <group position={[x, 0.03, z]}>
+      {/* sandy shore ring */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <ringGeometry args={[r, r + 1.2, 28]} />
+        <meshStandardMaterial color="#c8a86b" roughness={0.9} metalness={0} />
+      </mesh>
+      {/* water surface */}
+      <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[r, 28]} />
+        <meshStandardMaterial
+          color="#1a78d8"
+          transparent
+          opacity={0.76}
+          roughness={0.08}
+          metalness={0.5}
+          emissive="#003070"
+          emissiveIntensity={0.22}
+        />
+      </mesh>
+      {/* subtle highlight streak */}
+      <mesh position={[r * 0.2, 0.01, r * -0.2]} rotation={[-Math.PI / 2, 0, 0.4]} scale={[0.28, 1, 0.1]}>
+        <circleGeometry args={[r, 10]} />
+        <meshBasicMaterial color="#80c8ff" transparent opacity={0.28} />
+      </mesh>
+    </group>
+  );
+}
+
+/* ── World decorations (roads, hedges, boulders, flowers, lamps, walls, grass) */
+function WorldDecorations() {
+  const sandTex = useTexture('/textures/sand.jpg');
+  const woodTex = useTexture('/textures/wood.jpg');
+
+  useMemo(() => {
+    sandTex.wrapS = sandTex.wrapT = THREE.RepeatWrapping;
+    sandTex.repeat.set(1.2, 5);
+    woodTex.wrapS = woodTex.wrapT = THREE.RepeatWrapping;
+    woodTex.repeat.set(4, 1);
+  }, [sandTex, woodTex]);
+
+  return (
+    <>
+      {/* ── Sand roads ─────────────────────────────────────── */}
+      {ROAD_DATA.map((r, i) => (
+        <mesh key={`road-${i}`} position={[r.x, 0.016, r.z]} rotation={[-Math.PI / 2, 0, r.ry]} receiveShadow>
+          <planeGeometry args={[r.w, r.l]} />
+          <meshStandardMaterial map={sandTex} roughness={0.92} metalness={0} />
+        </mesh>
+      ))}
+
+      {/* ── Hedges (green bush rows) ───────────────────────── */}
+      {HEDGE_PIECES.map((p, i) => (
+        <group key={`hedge-${i}`} position={[p.x, 0.6, p.z]}>
+          <mesh castShadow receiveShadow>
+            <boxGeometry args={[1.1, 1.2, 1.1]} />
+            <meshLambertMaterial color={p.dark ? '#1a5c1a' : '#236b23'} />
+          </mesh>
+          <mesh position={[0, 0.72, 0]}>
+            <sphereGeometry args={[0.56, 6, 4]} />
+            <meshLambertMaterial color="#2d7a2d" />
+          </mesh>
+        </group>
+      ))}
+
+      {/* ── Boulders ───────────────────────────────────────── */}
+      {BOULDER_DATA.map((b, i) => (
+        <group key={`boulder-${i}`} position={[b.x, 0, b.z]}>
+          <mesh position={[0, b.sy * 0.42, 0]} castShadow>
+            <sphereGeometry args={[b.sx * 0.82, 7, 5]} />
+            <meshStandardMaterial
+              color={i % 3 === 0 ? '#8a8a8a' : i % 3 === 1 ? '#9a9080' : '#7a7878'}
+              roughness={0.92} metalness={0.04}
+            />
+          </mesh>
+          {b.twin && (
+            <mesh position={[b.sx * 0.55, b.sy * 0.32, b.sx * 0.28]} castShadow>
+              <sphereGeometry args={[b.sx * 0.52, 6, 4]} />
+              <meshStandardMaterial color="#7a7870" roughness={0.95} metalness={0} />
+            </mesh>
+          )}
+        </group>
+      ))}
+
+      {/* ── Flower patches ─────────────────────────────────── */}
+      {FLOWER_DATA.map((f, i) => (
+        <group key={`flower-${i}`} position={[f.x, 0.02, f.z]}>
+          {/* colored ground circle */}
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <circleGeometry args={[f.r, 16]} />
+            <meshStandardMaterial color={f.color} transparent opacity={0.65} roughness={1} metalness={0} />
+          </mesh>
+          {/* tiny dot flowers on top */}
+          {[0, 1, 2, 3, 4].map(j => (
+            <mesh
+              key={j}
+              position={[
+                Math.cos(j * 1.256) * f.r * 0.55,
+                0.06,
+                Math.sin(j * 1.256) * f.r * 0.55,
+              ]}
+            >
+              <sphereGeometry args={[0.14, 5, 4]} />
+              <meshBasicMaterial color={f.color} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+
+      {/* ── Lamp posts ─────────────────────────────────────── */}
+      {LAMP_DATA.map((l, i) => (
+        <group key={`lamp-${i}`} position={[l.x, 0, l.z]}>
+          {/* pole */}
+          <mesh position={[0, 1.5, 0]} castShadow>
+            <cylinderGeometry args={[0.06, 0.09, 3.0, 6]} />
+            <meshStandardMaterial color="#1e1e2e" metalness={0.75} roughness={0.3} />
+          </mesh>
+          {/* horizontal arm */}
+          <mesh position={[0.32, 2.88, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+            <cylinderGeometry args={[0.04, 0.04, 0.64, 5]} />
+            <meshStandardMaterial color="#1e1e2e" metalness={0.75} roughness={0.3} />
+          </mesh>
+          {/* glowing globe */}
+          <mesh position={[0.64, 2.88, 0]}>
+            <sphereGeometry args={[0.19, 8, 6]} />
+            <meshStandardMaterial
+              color="#fffcdd"
+              emissive="#ffe87a"
+              emissiveIntensity={1.5}
+              roughness={0.2}
+              metalness={0}
+            />
+          </mesh>
+        </group>
+      ))}
+
+      {/* ── Stone walls ─────────────────────────────────────── */}
+      {WALL_PIECES.map((p, i) => (
+        <mesh key={`wall-${i}`} position={[p.x, 0.45, p.z]} castShadow receiveShadow>
+          <boxGeometry args={[1.0, 0.9, 0.5]} />
+          <meshStandardMaterial
+            color={p.alt ? '#8a7a6a' : '#7a6a5a'}
+            roughness={0.88} metalness={0.04}
+          />
+        </mesh>
+      ))}
+
+      {/* ── Tall grass patches (Pokémon-style) ─────────────── */}
+      {TALLGRASS_PATCHES.flatMap((patch, pi) =>
+        patch.blades.map((blade, bi) => (
+          <mesh
+            key={`grass-${pi}-${bi}`}
+            position={[patch.cx + blade.dx, blade.h / 2, patch.cz + blade.dz]}
+            rotation={[0, blade.ry, 0]}
+          >
+            <planeGeometry args={[0.25, blade.h]} />
+            <meshLambertMaterial
+              color={bi % 3 === 0 ? '#3aaa3a' : bi % 3 === 1 ? '#2e8c2e' : '#4dc44d'}
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.88}
+            />
+          </mesh>
+        ))
+      )}
+
+      {/* ── Decorative wooden bridge (over central lake) ─────── */}
+      <group position={[6, 0.08, -1]} rotation={[0, 0.15, 0]}>
+        {[0, 0.85, 1.7, 2.55, 3.4].map((off, i) => (
+          <mesh key={`plank-${i}`} position={[0, 0.14, off - 1.7]} castShadow>
+            <boxGeometry args={[4.0, 0.12, 0.76]} />
+            <meshStandardMaterial map={woodTex} roughness={0.85} metalness={0} />
+          </mesh>
+        ))}
+        <mesh position={[-1.8, 0.42, 0]} castShadow>
+          <boxGeometry args={[0.12, 0.5, 3.6]} />
+          <meshStandardMaterial map={woodTex} roughness={0.85} metalness={0} />
+        </mesh>
+        <mesh position={[1.8, 0.42, 0]} castShadow>
+          <boxGeometry args={[0.12, 0.5, 3.6]} />
+          <meshStandardMaterial map={woodTex} roughness={0.85} metalness={0} />
+        </mesh>
+      </group>
+    </>
   );
 }
 
@@ -570,6 +910,14 @@ function WorldScene({
 
       {/* Ground */}
       <Ground />
+
+      {/* Decorations: roads, hedges, boulders, flowers, lamps, walls, tall grass */}
+      <WorldDecorations />
+
+      {/* Water: lakes and ponds */}
+      {WATER_DATA.map((w, i) => (
+        <WaterPatch key={`water-${i}`} {...w} />
+      ))}
 
       {/* Trees */}
       {TREE_DATA.map((t, i) => (
