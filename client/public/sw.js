@@ -43,7 +43,7 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  event.respondWith(fetch(event.request));
+  // Non-image requests (e.g. API calls) are not intercepted
 });
 
 // Handle messages from main thread
