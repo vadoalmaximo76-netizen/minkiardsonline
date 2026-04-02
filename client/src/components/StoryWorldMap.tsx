@@ -374,14 +374,16 @@ export function StoryWorldMap({
   const movingRef = useRef(false);
 
   /* ── Prop refs (stable for game loop) ──────────────────── */
-  const leadersRef            = useRef(leaders);
-  const getLeaderStatusRef    = useRef(getLeaderStatus);
-  const localitiesRef         = useRef(localities);
-  const collectiblesRef       = useRef(collectibles);
-  const localCollectedIdsRef  = useRef<Set<number>>(new Set());
+  const leadersRef              = useRef(leaders);
+  const getLeaderStatusRef      = useRef(getLeaderStatus);
+  const onChallengeLeaderRef    = useRef(onChallengeLeader);
+  const localitiesRef           = useRef(localities);
+  const collectiblesRef         = useRef(collectibles);
+  const localCollectedIdsRef    = useRef<Set<number>>(new Set());
 
   useEffect(() => { leadersRef.current = leaders; }, [leaders]);
   useEffect(() => { getLeaderStatusRef.current = getLeaderStatus; }, [getLeaderStatus]);
+  useEffect(() => { onChallengeLeaderRef.current = onChallengeLeader; }, [onChallengeLeader]);
   useEffect(() => { localitiesRef.current = localities; }, [localities]);
   useEffect(() => { collectiblesRef.current = collectibles; }, [collectibles]);
 
@@ -434,6 +436,52 @@ export function StoryWorldMap({
     window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
   }, []);
+
+  /* ── Canvas click: arena hit-testing (via React props on canvas) ── */
+  const ARENA_HIT_RADIUS = 4.0;
+  const canvasScreenToWorld = useCallback((clientX: number, clientY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const { w, h } = sizeRef.current;
+    return {
+      x: (clientX - rect.left - w / 2) / TILE + camRef.current.x,
+      z: (clientY - rect.top  - h / 2) / TILE + camRef.current.z,
+    };
+  }, []);
+
+  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const pos = canvasScreenToWorld(e.clientX, e.clientY);
+    if (!pos) return;
+    const lrs = leadersRef.current;
+    const aps = arenaPositionsRef.current;
+    let best: { leader: GymLeader; dist: number } | null = null;
+    lrs.forEach((l, idx) => {
+      const [ax, az] = aps[idx] ?? getArenaPosition(idx);
+      const dist = Math.sqrt((pos.x - ax) ** 2 + (pos.z - az) ** 2);
+      if (!best || dist < best.dist) best = { leader: l, dist };
+    });
+    if (best && best.dist < ARENA_HIT_RADIUS) {
+      const status = getLeaderStatusRef.current(best.leader);
+      if (status !== 'locked') onChallengeLeaderRef.current(best.leader);
+    }
+  }, [canvasScreenToWorld]);
+
+  const handleCanvasMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const pos = canvasScreenToWorld(e.clientX, e.clientY);
+    const canvas = canvasRef.current;
+    if (!pos || !canvas) return;
+    const lrs = leadersRef.current;
+    const aps = arenaPositionsRef.current;
+    for (let idx = 0; idx < lrs.length; idx++) {
+      const [ax, az] = aps[idx] ?? getArenaPosition(idx);
+      const dist = Math.sqrt((pos.x - ax) ** 2 + (pos.z - az) ** 2);
+      if (dist < ARENA_HIT_RADIUS && getLeaderStatusRef.current(lrs[idx]) !== 'locked') {
+        canvas.style.cursor = 'pointer'; return;
+      }
+    }
+    canvas.style.cursor = 'default';
+  }, [canvasScreenToWorld]);
 
   /* ── Resize observer ───────────────────────────────────── */
   useEffect(() => {
@@ -1030,13 +1078,6 @@ export function StoryWorldMap({
   useEffect(() => { const t = setTimeout(() => setShowHint(false), 5000); return () => clearTimeout(t); }, []);
   const setJoy = useCallback((x: number, z: number) => { joyRef.current = { x, z }; }, []);
 
-  const handleNearCollectibleChange = useCallback((c: StoryCollectible | null) => {
-    setNearCollectible(prev => {
-      if (c && localCollectedIdsRef.current.has(c.id)) return null;
-      return c;
-    });
-  }, []);
-
   const handleCollect = useCallback(async () => {
     if (!nearCollectible || isCollecting) return;
     setIsCollecting(true);
@@ -1084,6 +1125,8 @@ export function StoryWorldMap({
       {/* Main canvas */}
       <canvas
         ref={canvasRef}
+        onClick={handleCanvasClick}
+        onMouseMove={handleCanvasMouseMove}
         style={{ position: 'absolute', inset: 0, display: 'block', imageRendering: 'pixelated' }}
         tabIndex={0}
       />
@@ -1126,7 +1169,7 @@ export function StoryWorldMap({
           color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 700,
           pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 20,
         }}>
-          Clicca su uno Stage o avvicinati per sfidarlo
+          Avvicinati a uno Stage o cliccaci sopra per sfidarlo
         </div>
       )}
 
