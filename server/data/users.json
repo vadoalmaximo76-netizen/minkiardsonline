@@ -89,5 +89,18 @@
     "resetPasswordExpires": null,
     "id": 7,
     "createdAt": "2026-04-01T07:38:19.341Z"
+  },
+  {
+    "username": "ernesto_renegade",
+    "email": "domenico.roak@gmail.com",
+    "password": "$2b$10$li2la7gCLVl1gc8wn7GT3euzULX6GeE00Vr7eu3KuafawBbCgMlQi",
+    "googleId": null,
+    "avatar": "shark",
+    "puntiRankiard": 0,
+    "isAdmin": false,
+    "resetPasswordToken": null,
+    "resetPasswordExpires": null,
+    "id": 8,
+    "createdAt": "2026-04-02T20:29:21.787Z"
   }
 ]
