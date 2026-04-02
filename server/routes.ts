@@ -13764,17 +13764,31 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
   });
 
   // ── Story Mode Collectibles ────────────────────────────────────────────────
+  /* Resolve a card image URL from CARD_DATA by string id like "personaggi-10" */
+  const resolveCardImageUrl = (cardId: string): string | undefined => {
+    const parts = cardId.split('-');
+    const idx = parseInt(parts[parts.length - 1]);
+    const deckType = parts.slice(0, -1).join('-'); // handles "personaggi_speciali-3" etc.
+    const urls = (CARD_DATA as any)[deckType] as string[] | undefined;
+    if (urls && !isNaN(idx) && urls[idx]) return urls[idx];
+    return undefined;
+  };
+
   // Hardcoded collectible definitions (8 items: 5 coins + 3 cards)
+  // Positions chosen to be hidden near trees/water/hedges/boulders
   const STORY_COLLECTIBLES = [
-    { id: 1, type: 'coin' as const,  posX:  18, posZ:   6, creditValue: 10 },
-    { id: 2, type: 'coin' as const,  posX: -18, posZ:  -2, creditValue: 10 },
-    { id: 3, type: 'coin' as const,  posX:   2, posZ: -16, creditValue: 10 },
-    { id: 4, type: 'coin' as const,  posX: -30, posZ:  20, creditValue: 10 },
-    { id: 5, type: 'coin' as const,  posX:  32, posZ:  28, creditValue: 10 },
-    { id: 6, type: 'card' as const,  posX: -12, posZ: -22, subtype: 'personaggi', cardId: 'personaggi-10' },
-    { id: 7, type: 'card' as const,  posX:  20, posZ:  -2, subtype: 'mossa',      cardId: 'mosse-7' },
-    { id: 8, type: 'card' as const,  posX:  -8, posZ:  28, subtype: 'bonus',      cardId: 'bonus-1' },
-  ] as const;
+    { id: 1, type: 'coin' as const,  posX:   8, posZ:  -6, creditValue: 10 }, // in central lake
+    { id: 2, type: 'coin' as const,  posX: -11, posZ:  18, creditValue: 10 }, // in NW lake
+    { id: 3, type: 'coin' as const,  posX:  24, posZ: -27, creditValue: 10 }, // in SE lake / near tree
+    { id: 4, type: 'coin' as const,  posX: -31, posZ: -37, creditValue: 10 }, // in SW lake
+    { id: 5, type: 'coin' as const,  posX:  31, posZ:  29, creditValue: 10 }, // behind tree cluster
+    { id: 6, type: 'card' as const,  posX: -28, posZ: -13, subtype: 'personaggi', cardId: 'personaggi-10',
+      imageUrl: resolveCardImageUrl('personaggi-10') },                         // behind tree -30,-12
+    { id: 7, type: 'card' as const,  posX:  23, posZ: -26, subtype: 'mossa',      cardId: 'mosse-7',
+      imageUrl: resolveCardImageUrl('mosse-7') },                               // in/near SE lake
+    { id: 8, type: 'card' as const,  posX: -14, posZ:  19, subtype: 'bonus',      cardId: 'bonus-1',
+      imageUrl: resolveCardImageUrl('bonus-1') },                               // behind hedge/boulders
+  ];
 
   // GET /api/story-mode/collectibles - list all collectibles with collected status for current user
   app.get('/api/story-mode/collectibles', authMiddleware, async (req, res) => {

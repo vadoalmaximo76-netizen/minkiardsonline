@@ -19,6 +19,7 @@ export interface StoryCollectible {
   type: 'coin' | 'card';
   subtype?: string;
   cardId?: string;
+  imageUrl?: string;
   posX: number;
   posZ: number;
   creditValue?: number;
@@ -398,6 +399,10 @@ export function StoryWorldMap({
   const [localCollectedIds,  setLocalCollectedIds]  = useState<Set<number>>(new Set());
   const [isCollecting,       setIsCollecting]       = useState(false);
   const [collectResult,      setCollectResult]      = useState<{ type: string; credits?: number; cardId?: string; subtype?: string } | null>(null);
+  const [cardReveal,         setCardReveal]         = useState<StoryCollectible | null>(null);
+
+  /* floating "+X crediti" canvas animations */
+  const floatingTextsRef = useRef<{ text: string; x: number; z: number; color: string; startTime: number }[]>([]);
 
   /* Keep ref in sync with state for game loop reads */
   useEffect(() => { localCollectedIdsRef.current = localCollectedIds; }, [localCollectedIds]);
@@ -704,10 +709,13 @@ export function StoryWorldMap({
       ctx.fillText(name.length > 12 ? name.slice(0, 11) + '…' : name, cx, cy + bH / 2 + 4);
     };
 
-    const drawCollectible = (ctx: CanvasRenderingContext2D, c: StoryCollectible, time: number) => {
+    const drawCollectible = (ctx: CanvasRenderingContext2D, c: StoryCollectible, time: number, alpha: number) => {
       const [sx, sy] = w2s(c.posX, c.posZ);
       const bob = Math.sin(time * 2.2 + c.id * 0.9) * 4;
       const spin = time * 1.8 + c.id;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
 
       /* ground glow */
       const glowColor = c.type === 'coin' ? 'rgba(251,191,36,0.3)' : 'rgba(167,139,250,0.25)';
@@ -737,6 +745,8 @@ export function StoryWorldMap({
         ctx.fillRect(-6, -6, 12, 4);
         ctx.restore();
       }
+
+      ctx.restore(); // restores globalAlpha
     };
 
     const drawPlayer = (ctx: CanvasRenderingContext2D, time: number, moving: boolean) => {
@@ -1056,9 +1066,14 @@ export function StoryWorldMap({
         }});
       });
 
-      /* collectibles */
+      /* collectibles — proximity-based fade-in only */
+      const cpx = playerRef.current.x, cpz = playerRef.current.z;
+      const REVEAL_DIST = 3.5; // world units
       visibleCollectiblesRef.current.forEach(c => {
-        sprites.push({ z: c.posZ, draw: () => drawCollectible(ctx, c, t) });
+        const dist = Math.sqrt((c.posX - cpx) ** 2 + (c.posZ - cpz) ** 2);
+        if (dist > REVEAL_DIST) return;
+        const alpha = Math.min(1, (REVEAL_DIST - dist) / 1.2);
+        sprites.push({ z: c.posZ, draw: () => drawCollectible(ctx, c, t, alpha) });
       });
 
       /* player */
@@ -1066,6 +1081,24 @@ export function StoryWorldMap({
 
       sprites.sort((a, b) => a.z - b.z);
       sprites.forEach(s => s.draw());
+
+      /* floating "+X crediti" texts (drawn on top of everything) */
+      floatingTextsRef.current = floatingTextsRef.current.filter(ft => t - ft.startTime < 1.8);
+      floatingTextsRef.current.forEach(ft => {
+        const age = t - ft.startTime;
+        const [fx, fy] = w2s(ft.x, ft.z);
+        const rise = age * 45;
+        const a = Math.max(0, 1 - age / 1.8);
+        ctx.save();
+        ctx.globalAlpha = a;
+        ctx.font = 'bold 17px sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 3;
+        ctx.strokeText(ft.text, fx, fy - 20 - rise);
+        ctx.fillStyle = ft.color;
+        ctx.fillText(ft.text, fx, fy - 20 - rise);
+        ctx.restore();
+      });
 
       raf = requestAnimationFrame(tick);
     };
@@ -1078,16 +1111,25 @@ export function StoryWorldMap({
   useEffect(() => { const t = setTimeout(() => setShowHint(false), 5000); return () => clearTimeout(t); }, []);
   const setJoy = useCallback((x: number, z: number) => { joyRef.current = { x, z }; }, []);
 
-  const handleCollect = useCallback(async () => {
-    if (!nearCollectible || isCollecting) return;
+  /* Perform the actual collect API call */
+  const handleCollectDirect = useCallback(async (c: StoryCollectible) => {
+    if (isCollecting) return;
     setIsCollecting(true);
     try {
-      const res = await fetch(`/api/story-mode/collect/${nearCollectible.id}`, { method: 'POST', credentials: 'include' });
+      const res = await fetch(`/api/story-mode/collect/${c.id}`, { method: 'POST', credentials: 'include' });
       const data = await res.json();
       if (data.success) {
-        setLocalCollectedIds(prev => new Set([...prev, nearCollectible.id]));
+        setLocalCollectedIds(prev => new Set([...prev, c.id]));
         setCollectResult(data.reward);
         setNearCollectible(null);
+        setCardReveal(null);
+        if (c.type === 'coin') {
+          const now = performance.now() / 1000;
+          floatingTextsRef.current.push({
+            text: `+${c.creditValue ?? 10} crediti`,
+            x: c.posX, z: c.posZ, color: '#fbbf24', startTime: now,
+          });
+        }
         setTimeout(() => setCollectResult(null), 3500);
       }
     } catch (e) {
@@ -1095,7 +1137,17 @@ export function StoryWorldMap({
     } finally {
       setIsCollecting(false);
     }
-  }, [nearCollectible, isCollecting]);
+  }, [isCollecting]);
+
+  /* Route: coins collect directly, cards open the reveal modal first */
+  const handleCollectPrompt = useCallback(() => {
+    if (!nearCollectible) return;
+    if (nearCollectible.type === 'card') {
+      setCardReveal(nearCollectible);
+    } else {
+      handleCollectDirect(nearCollectible);
+    }
+  }, [nearCollectible, handleCollectDirect]);
 
   /* ── Early returns ─────────────────────────────────────── */
   if (loading) {
@@ -1251,54 +1303,131 @@ export function StoryWorldMap({
         </div>
       )}
 
-      {/* Collectible pickup popup */}
-      {nearCollectible && !localCollectedIds.has(nearCollectible.id) && (
+      {/* Coin pickup popup (coins only — cards go to reveal modal) */}
+      {nearCollectible && nearCollectible.type === 'coin' && !localCollectedIds.has(nearCollectible.id) && !cardReveal && (
         <div style={{
-          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-          background: 'rgba(5,5,20,0.96)',
-          border: `2px solid ${nearCollectible.type === 'coin' ? 'rgba(251,191,36,0.7)' : nearCollectible.subtype === 'personaggi' ? 'rgba(129,140,248,0.7)' : nearCollectible.subtype === 'mossa' ? 'rgba(248,113,113,0.7)' : 'rgba(74,222,128,0.7)'}`,
-          borderRadius: 16, padding: '20px 28px', zIndex: 50, minWidth: 240,
-          textAlign: 'center', boxShadow: '0 0 40px rgba(0,0,0,0.8)',
+          position: 'absolute', bottom: isTouchDevice ? 180 : 120, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(5,5,20,0.92)',
+          border: '2px solid rgba(251,191,36,0.7)',
+          borderRadius: 14, padding: '14px 24px', zIndex: 50,
+          textAlign: 'center', boxShadow: '0 0 30px rgba(251,191,36,0.2)',
+          display: 'flex', alignItems: 'center', gap: 14,
         }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>
-            {nearCollectible.type === 'coin' ? '🪙' : nearCollectible.subtype === 'personaggi' ? '🧙' : nearCollectible.subtype === 'mossa' ? '⚔️' : '✨'}
+          <div style={{ fontSize: 32 }}>🪙</div>
+          <div>
+            <div style={{ color: '#fbbf24', fontWeight: 900, fontSize: 15 }}>
+              +{nearCollectible.creditValue ?? 10} crediti
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, marginTop: 2 }}>Moneta nascosta trovata!</div>
           </div>
-          <div style={{ color: 'white', fontWeight: 800, fontSize: 16, marginBottom: 4 }}>
-            {nearCollectible.type === 'coin' ? `Moneta (+${nearCollectible.creditValue ?? 10} crediti)`
-              : nearCollectible.subtype === 'personaggi' ? 'Carta Personaggio'
-              : nearCollectible.subtype === 'mossa' ? 'Carta Mossa' : 'Carta Bonus'}
-          </div>
-          <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginBottom: 16 }}>
-            {nearCollectible.type === 'coin' ? 'Aggiungi al tuo profilo' : 'Aggiungi al tuo mazzo Story Mode'}
-          </div>
-          <button onClick={handleCollect} disabled={isCollecting} style={{
-            background: nearCollectible.type === 'coin' ? 'linear-gradient(135deg,#f59e0b,#d97706)'
-              : nearCollectible.subtype === 'personaggi' ? 'linear-gradient(135deg,#818cf8,#6366f1)'
-              : nearCollectible.subtype === 'mossa' ? 'linear-gradient(135deg,#f87171,#dc2626)'
-              : 'linear-gradient(135deg,#4ade80,#16a34a)',
+          <button onClick={handleCollectPrompt} disabled={isCollecting} style={{
+            background: 'linear-gradient(135deg,#f59e0b,#d97706)',
             border: 'none', borderRadius: 10, color: 'white', fontWeight: 900,
-            fontSize: 15, padding: '10px 28px',
-            cursor: isCollecting ? 'wait' : 'pointer', opacity: isCollecting ? 0.7 : 1, width: '100%',
+            fontSize: 14, padding: '9px 18px',
+            cursor: isCollecting ? 'wait' : 'pointer', opacity: isCollecting ? 0.7 : 1,
           }}>
-            {isCollecting ? '...' : '➕ Aggiungi'}
+            {isCollecting ? '…' : '➕ Prendi'}
           </button>
         </div>
       )}
 
-      {/* Collect success banner */}
-      {collectResult && (
+      {/* Card proximity hint (show that a card is near without revealing it) */}
+      {nearCollectible && nearCollectible.type === 'card' && !localCollectedIds.has(nearCollectible.id) && !cardReveal && (
+        <div style={{
+          position: 'absolute', bottom: isTouchDevice ? 180 : 120, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(5,5,20,0.92)',
+          border: `2px solid ${nearCollectible.subtype === 'personaggi' ? 'rgba(129,140,248,0.7)' : nearCollectible.subtype === 'mossa' ? 'rgba(248,113,113,0.7)' : 'rgba(74,222,128,0.7)'}`,
+          borderRadius: 14, padding: '14px 24px', zIndex: 50,
+          textAlign: 'center', boxShadow: '0 0 30px rgba(0,0,0,0.6)',
+          display: 'flex', alignItems: 'center', gap: 14,
+        }}>
+          <div style={{ fontSize: 32 }}>{nearCollectible.subtype === 'personaggi' ? '🧙' : nearCollectible.subtype === 'mossa' ? '⚔️' : '✨'}</div>
+          <div>
+            <div style={{ color: 'white', fontWeight: 900, fontSize: 15 }}>Carta trovata!</div>
+            <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, marginTop: 2 }}>Clicca per scoprire di quale si tratta</div>
+          </div>
+          <button onClick={handleCollectPrompt} style={{
+            background: nearCollectible.subtype === 'personaggi' ? 'linear-gradient(135deg,#818cf8,#6366f1)'
+              : nearCollectible.subtype === 'mossa' ? 'linear-gradient(135deg,#f87171,#dc2626)'
+              : 'linear-gradient(135deg,#4ade80,#16a34a)',
+            border: 'none', borderRadius: 10, color: 'white', fontWeight: 900,
+            fontSize: 14, padding: '9px 18px', cursor: 'pointer',
+          }}>
+            🃏 Scopri
+          </button>
+        </div>
+      )}
+
+      {/* Card reveal full modal */}
+      {cardReveal && !localCollectedIds.has(cardReveal.id) && (
+        <div style={{
+          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.82)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 80,
+        }}>
+          <div style={{
+            background: 'rgba(5,5,20,0.98)', borderRadius: 20, padding: '28px 28px 22px',
+            maxWidth: 320, width: '90%', textAlign: 'center',
+            border: `2px solid ${cardReveal.subtype === 'personaggi' ? '#818cf8' : cardReveal.subtype === 'mossa' ? '#f87171' : '#4ade80'}`,
+            boxShadow: `0 0 60px ${cardReveal.subtype === 'personaggi' ? 'rgba(129,140,248,0.3)' : cardReveal.subtype === 'mossa' ? 'rgba(248,113,113,0.3)' : 'rgba(74,222,128,0.3)'}`,
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase',
+              color: cardReveal.subtype === 'personaggi' ? '#a5b4fc' : cardReveal.subtype === 'mossa' ? '#fca5a5' : '#86efac',
+              marginBottom: 14 }}>
+              {cardReveal.subtype === 'personaggi' ? '🧙 Carta Personaggio' : cardReveal.subtype === 'mossa' ? '⚔️ Carta Mossa' : '✨ Carta Bonus'} nascosta trovata!
+            </div>
+            {/* Card image */}
+            {cardReveal.imageUrl ? (
+              <div style={{ margin: '0 auto 18px', width: 140, height: 200, borderRadius: 10, overflow: 'hidden',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
+                border: `2px solid ${cardReveal.subtype === 'personaggi' ? '#6366f1' : cardReveal.subtype === 'mossa' ? '#dc2626' : '#16a34a'}`,
+              }}>
+                <img src={cardReveal.imageUrl} alt="carta" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+            ) : (
+              <div style={{ margin: '0 auto 18px', width: 140, height: 200, borderRadius: 10,
+                background: `linear-gradient(135deg, ${cardReveal.subtype === 'personaggi' ? '#312e81,#4f46e5' : cardReveal.subtype === 'mossa' ? '#7f1d1d,#dc2626' : '#14532d,#16a34a'})`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 60,
+                boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
+              }}>
+                {cardReveal.subtype === 'personaggi' ? '🧙' : cardReveal.subtype === 'mossa' ? '⚔️' : '✨'}
+              </div>
+            )}
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginBottom: 18 }}>
+              Aggiungi questa carta al tuo mazzo Story Mode
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setCardReveal(null)} style={{
+                flex: 1, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 700, fontSize: 13,
+                padding: '10px 0', cursor: 'pointer',
+              }}>↩ Dopo</button>
+              <button onClick={() => handleCollectDirect(cardReveal)} disabled={isCollecting} style={{
+                flex: 2,
+                background: cardReveal.subtype === 'personaggi' ? 'linear-gradient(135deg,#818cf8,#6366f1)'
+                  : cardReveal.subtype === 'mossa' ? 'linear-gradient(135deg,#f87171,#dc2626)'
+                  : 'linear-gradient(135deg,#4ade80,#16a34a)',
+                border: 'none', borderRadius: 10, color: 'white', fontWeight: 900,
+                fontSize: 14, padding: '10px 0',
+                cursor: isCollecting ? 'wait' : 'pointer', opacity: isCollecting ? 0.7 : 1,
+              }}>
+                {isCollecting ? '…' : '➕ Aggiungi al mazzo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Collect success banner (card only — coins use floating canvas text) */}
+      {collectResult && collectResult.type === 'card' && (
         <div style={{
           position: 'absolute', top: 70, left: '50%', transform: 'translateX(-50%)',
           background: 'rgba(5,5,20,0.95)',
-          border: `1.5px solid ${collectResult.type === 'coin' ? 'rgba(251,191,36,0.6)' : 'rgba(74,222,128,0.6)'}`,
+          border: '1.5px solid rgba(74,222,128,0.6)',
           borderRadius: 12, padding: '10px 22px', zIndex: 50,
-          color: collectResult.type === 'coin' ? '#fbbf24' : '#4ade80',
-          fontWeight: 800, fontSize: 14, whiteSpace: 'nowrap',
+          color: '#4ade80', fontWeight: 800, fontSize: 14, whiteSpace: 'nowrap',
           boxShadow: '0 4px 20px rgba(0,0,0,0.7)',
         }}>
-          {collectResult.type === 'coin'
-            ? `🪙 +${collectResult.credits} crediti aggiunti al profilo!`
-            : `✅ Carta aggiunta al mazzo Story Mode!`}
+          ✅ Carta aggiunta al mazzo Story Mode!
         </div>
       )}
 
