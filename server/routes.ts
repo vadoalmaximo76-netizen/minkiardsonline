@@ -14057,6 +14057,298 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       imageUrl: resolveCardImageUrl('bonus-1') },                               // behind hedge/boulders
   ];
 
+  // ── Mini-game system (server-authoritative sessions) ────────────────────────
+  // Cooldown store: userId → Map<gameId, cooldownUntilTimestamp>
+  const minigameCooldownMap = new Map<number, Map<string, number>>();
+  const MINIGAME_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
+
+  // Active sessions: sessionToken → { userId, gameId, outcomes, expiresAt, bet? }
+  interface MinigameSession {
+    userId: number;
+    gameId: string;
+    expiresAt: number;
+    // game-specific server-generated data
+    wheelSectorIdx?: number;       // ruota
+    diceSets?: { playerDice: number[]; cpuDice: number[] }[];  // dado (3 dice each)
+    rpsRounds?: string[];          // rps: cpu choices per round (up to 3)
+    quizQuestions?: {              // quiz
+      name: string; pti: number; stars: number;
+      questionType: 'stars' | 'pti';
+      correctAnswer: string;
+      options: string[];
+    }[];
+  }
+  const minigameSessions = new Map<string, MinigameSession>();
+
+  // Load personaggi cache for quiz
+  const personaggiCacheRaw: { id: number; name: string; pti: number; stars: number }[] = (() => {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const p = path.join(__dirname, 'data', 'personaggiCache.json');
+      if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, 'utf8'));
+    } catch (_) {}
+    return [];
+  })();
+
+  function mgShuffle<T>(arr: T[]): T[] {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function generateQuizSession(count = 5): MinigameSession['quizQuestions'] {
+    if (personaggiCacheRaw.length < 4) return [];
+    const picked = mgShuffle([...personaggiCacheRaw]).slice(0, count);
+    return picked.map(card => {
+      const questionType = Math.random() > 0.5 ? 'stars' : 'pti';
+      const correctAnswer = String(questionType === 'stars' ? card.stars : card.pti);
+      // Generate 3 wrong answers of same type
+      const allValues = personaggiCacheRaw
+        .map(c => String(questionType === 'stars' ? c.stars : c.pti))
+        .filter(v => v !== correctAnswer);
+      const wrongs = mgShuffle([...new Set(allValues)]).slice(0, 3);
+      const options = mgShuffle([correctAnswer, ...wrongs]);
+      return { name: card.name, pti: card.pti, stars: card.stars, questionType, correctAnswer, options };
+    });
+  }
+
+  function generateMinigameSession(userId: number, gameId: string): MinigameSession {
+    const session: MinigameSession = {
+      userId,
+      gameId,
+      expiresAt: Date.now() + 30 * 60 * 1000, // 30 min to complete
+    };
+    switch (gameId) {
+      case 'ruota':
+        session.wheelSectorIdx = Math.floor(Math.random() * 8);
+        break;
+      case 'dado':
+        // Pre-generate 1 set of 3 player dice + 3 cpu dice
+        session.diceSets = [{
+          playerDice: [1, 2, 3].map(() => Math.ceil(Math.random() * 6)),
+          cpuDice: [1, 2, 3].map(() => Math.ceil(Math.random() * 6)),
+        }];
+        break;
+      case 'rps':
+        // Pre-generate up to 3 cpu choices
+        session.rpsRounds = [1, 2, 3].map(() => ['sasso', 'carta', 'forbice'][Math.floor(Math.random() * 3)]);
+        break;
+      case 'quiz':
+        session.quizQuestions = generateQuizSession(5);
+        break;
+      // memory/reazione: no pre-generated outcomes (skill-based)
+    }
+    return session;
+  }
+
+  // GET /api/minigame/cooldowns - return remaining cooldown timestamps
+  app.get('/api/minigame/cooldowns', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const userId: number = user.userId;
+      const userCooldowns = minigameCooldownMap.get(userId);
+      const now = Date.now();
+      const cooldowns: Record<string, number> = {};
+      if (userCooldowns) {
+        for (const [gid, cooldownUntil] of userCooldowns.entries()) {
+          if (cooldownUntil > now) cooldowns[gid] = cooldownUntil;
+        }
+      }
+      return res.json({ success: true, cooldowns });
+    } catch (e) {
+      console.error('Minigame cooldowns error:', e);
+      return res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/minigame/start - begin a session; server generates all random outcomes
+  app.post('/api/minigame/start', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const userId: number = user.userId;
+      const { gameId } = req.body;
+      const validTypes = new Set(['ruota', 'memory', 'dado', 'reazione', 'quiz', 'rps']);
+      if (!gameId || !validTypes.has(gameId)) {
+        return res.status(400).json({ success: false, error: 'Gioco non valido' });
+      }
+
+      // Check cooldown
+      let userCooldowns = minigameCooldownMap.get(userId);
+      if (!userCooldowns) { userCooldowns = new Map(); minigameCooldownMap.set(userId, userCooldowns); }
+      const now = Date.now();
+      const cooldownUntil = userCooldowns.get(gameId);
+      if (cooldownUntil && now < cooldownUntil) {
+        return res.json({ success: false, error: 'Cooldown attivo', cooldownUntil });
+      }
+
+      // Fetch current PR for bet validation
+      const rows = await db.select({ puntiRankiard: users.puntiRankiard }).from(users).where(eq(users.id, userId));
+      const currentPR = rows[0]?.puntiRankiard ?? 0;
+
+      // Generate session and token
+      const session = generateMinigameSession(userId, gameId);
+      const sessionToken = `mg-${userId}-${gameId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      minigameSessions.set(sessionToken, session);
+
+      // Expire old sessions after 30 minutes (lazy cleanup)
+      setTimeout(() => minigameSessions.delete(sessionToken), 30 * 60 * 1000);
+
+      // Build client-facing payload (only what client needs to play)
+      const clientData: Record<string, unknown> = { sessionToken, currentPR };
+
+      if (gameId === 'dado' && session.diceSets) {
+        clientData.playerDice = session.diceSets[0].playerDice;
+        clientData.cpuDice = session.diceSets[0].cpuDice;
+      }
+      if (gameId === 'ruota' && session.wheelSectorIdx !== undefined) {
+        clientData.wheelSectorIdx = session.wheelSectorIdx;
+      }
+      if (gameId === 'rps' && session.rpsRounds) {
+        clientData.rpsRounds = session.rpsRounds; // client needs cpu choices to animate
+      }
+      if (gameId === 'quiz' && session.quizQuestions) {
+        // Send questions but NOT correct answers
+        clientData.questions = session.quizQuestions.map(q => ({
+          name: q.name,
+          questionType: q.questionType,
+          options: q.options,
+          // no correctAnswer in client payload
+        }));
+      }
+
+      return res.json({ success: true, ...clientData });
+    } catch (e) {
+      console.error('Minigame start error:', e);
+      return res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/minigame/reward - validate session result and credit PR
+  app.post('/api/minigame/reward', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const userId: number = user.userId;
+      const { gameId, sessionToken, result } = req.body;
+
+      // Validate session token
+      const session = minigameSessions.get(sessionToken);
+      if (!session) return res.status(400).json({ success: false, error: 'Sessione non valida o scaduta' });
+      if (session.userId !== userId) return res.status(403).json({ success: false, error: 'Sessione non appartiene a questo utente' });
+      if (session.gameId !== gameId) return res.status(400).json({ success: false, error: 'gameId non corrisponde alla sessione' });
+      if (Date.now() > session.expiresAt) {
+        minigameSessions.delete(sessionToken);
+        return res.status(400).json({ success: false, error: 'Sessione scaduta' });
+      }
+
+      // Consume session (one-use)
+      minigameSessions.delete(sessionToken);
+
+      // Fetch current PR for bet validation
+      const prRows = await db.select({ puntiRankiard: users.puntiRankiard }).from(users).where(eq(users.id, userId));
+      const currentPR = prRows[0]?.puntiRankiard ?? 0;
+
+      // Compute PR from session data (server-authoritative)
+      let prAwarded = 0;
+      const WHEEL_MULTS = [0, 0.5, 1.5, 2, 3, 5, 0, 1.5];
+      const RPS_BEATS: Record<string, string> = { sasso: 'forbice', carta: 'sasso', forbice: 'carta' };
+
+      switch (gameId) {
+        case 'ruota': {
+          const bet = Math.max(5, Math.min(200, Math.round(Number(result?.bet ?? 0))));
+          if (bet > currentPR) return res.status(400).json({ success: false, error: 'PR insufficienti per la puntata' });
+          const sIdx = session.wheelSectorIdx ?? 0;
+          const mult = WHEEL_MULTS[sIdx % WHEEL_MULTS.length] ?? 0;
+          prAwarded = Math.round(bet * mult) - bet;
+          break;
+        }
+        case 'dado': {
+          const bet = Math.max(5, Math.min(200, Math.round(Number(result?.bet ?? 0))));
+          if (bet > currentPR) return res.status(400).json({ success: false, error: 'PR insufficienti per la puntata' });
+          const ds = session.diceSets?.[0];
+          if (!ds) return res.status(500).json({ success: false, error: 'Sessione dado non valida' });
+          const ps = ds.playerDice.reduce((a, b) => a + b, 0);
+          const cs = ds.cpuDice.reduce((a, b) => a + b, 0);
+          prAwarded = ps > cs ? bet : ps < cs ? -bet : 0;
+          break;
+        }
+        case 'rps': {
+          const bet = Math.max(5, Math.min(200, Math.round(Number(result?.bet ?? 0))));
+          if (bet > currentPR) return res.status(400).json({ success: false, error: 'PR insufficienti per la puntata' });
+          const playerChoices: string[] = Array.isArray(result?.playerChoices) ? result.playerChoices : [];
+          const cpuRounds = session.rpsRounds ?? [];
+          let playerWins = 0, cpuWins = 0;
+          for (let i = 0; i < Math.min(playerChoices.length, cpuRounds.length, 3); i++) {
+            const pc = playerChoices[i], cc = cpuRounds[i];
+            if (pc === cc) continue;
+            if (RPS_BEATS[pc] === cc) playerWins++;
+            else cpuWins++;
+            if (playerWins >= 2 || cpuWins >= 2) break;
+          }
+          prAwarded = playerWins >= 2 ? bet : cpuWins >= 2 ? -bet : 0;
+          break;
+        }
+        case 'memory': {
+          const pairs = Math.max(0, Math.min(8, Math.round(Number(result?.pairs ?? 0))));
+          const totalPairs = 8;
+          const timeLeft = Math.max(0, Math.min(60, Math.round(Number(result?.timeLeft ?? 0))));
+          prAwarded = pairs >= totalPairs ? Math.round(20 + timeLeft * 0.67) : 0;
+          break;
+        }
+        case 'reazione': {
+          const hits = Math.max(0, Math.min(10, Math.round(Number(result?.hits ?? 0))));
+          const misses = Math.max(0, Math.min(10, Math.round(Number(result?.misses ?? 0))));
+          prAwarded = hits * 10 - misses * 2;
+          break;
+        }
+        case 'quiz': {
+          const qs = session.quizQuestions ?? [];
+          const clientAnswers: string[] = Array.isArray(result?.answers) ? result.answers : [];
+          let correct = 0;
+          for (let i = 0; i < qs.length; i++) {
+            if (clientAnswers[i] === qs[i].correctAnswer) correct++;
+          }
+          prAwarded = correct * 20;
+          break;
+        }
+        default:
+          return res.status(400).json({ success: false, error: 'Tipo di gioco non valido' });
+      }
+
+      // Apply PR (always, even 0 — cooldown still counts)
+      let newTotal = 0;
+      if (prAwarded !== 0) {
+        const updatedRows = await db
+          .update(users)
+          .set({ puntiRankiard: sql`GREATEST(${users.puntiRankiard} + ${prAwarded}, 0)` })
+          .where(eq(users.id, userId))
+          .returning({ puntiRankiard: users.puntiRankiard });
+        newTotal = updatedRows[0]?.puntiRankiard ?? 0;
+      } else {
+        newTotal = currentPR;
+      }
+
+      // Set cooldown (always, for every completed session)
+      let userCooldowns2 = minigameCooldownMap.get(userId);
+      if (!userCooldowns2) { userCooldowns2 = new Map(); minigameCooldownMap.set(userId, userCooldowns2); }
+      const nextCooldown = Date.now() + MINIGAME_COOLDOWN_MS;
+      userCooldowns2.set(gameId, nextCooldown);
+
+      return res.json({ success: true, newTotal, cooldownUntil: nextCooldown, prAwarded });
+    } catch (e) {
+      console.error('Minigame reward error:', e);
+      return res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
   // GET /api/story-mode/collectibles - list all collectibles with collected status for current user
   app.get('/api/story-mode/collectibles', authMiddleware, async (req, res) => {
     try {

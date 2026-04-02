@@ -1,6 +1,10 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { GymLeader } from '../types/gym';
 import { socket } from '../lib/socket';
+import {
+  RuotaDellaFortuna, MemoryGame, SfidaAlDado,
+  ReazioneRapida, QuizMinkiard, SassoCartaForbice,
+} from './MiniGames';
 
 /* ── Interfaces (unchanged) ─────────────────────────────────── */
 export interface StoryLocality {
@@ -277,7 +281,7 @@ const TALLGRASS_PATCHES = [
 }));
 
 /* ── Buildings ───────────────────────────────────────────────── */
-type BuildingType = 'house' | 'shop' | 'inn' | 'tower' | 'ruin' | 'church';
+type BuildingType = 'house' | 'shop' | 'inn' | 'tower' | 'ruin' | 'church' | 'arcade';
 const BUILDING_DATA: { x: number; z: number; type: BuildingType; w: number; h: number }[] = [
   // South starting town (arena 1: 0,68)
   { x:  8, z: 58, type:'house',  w:2.2, h:1.8 }, { x: -9, z: 58, type:'house',  w:2.0, h:1.8 },
@@ -339,7 +343,27 @@ const BUILDING_COLORS: Record<BuildingType, { body: string; roof: string }> = {
   tower:  { body: '#9a9a9a', roof: '#555555' },
   ruin:   { body: '#8a8070', roof: '#5a5040' },
   church: { body: '#f0e8d0', roof: '#c04040' },
+  arcade: { body: '#2d1a4e', roof: '#7c3aed' },
 };
+
+/* ── Arcade mini-game buildings ─────────────────────────────── */
+interface ArcadeBuilding {
+  id: string;
+  name: string;
+  emoji: string;
+  x: number;
+  z: number;
+  color: string;
+}
+
+const ARCADE_BUILDINGS: ArcadeBuilding[] = [
+  { id: 'ruota',    name: 'Ruota della Fortuna', emoji: '🎡', x:  20, z: 22,  color: '#a855f7' },
+  { id: 'memory',   name: 'Memory delle Carte',  emoji: '🃏', x: -30, z:-8,   color: '#818cf8' },
+  { id: 'dado',     name: 'Sfida al Dado',        emoji: '🎲', x:  55, z:-45,  color: '#f97316' },
+  { id: 'reazione', name: 'Reazione Rapida',      emoji: '⚡', x: -52, z:-35,  color: '#fbbf24' },
+  { id: 'quiz',     name: 'Quiz del Minkiard',    emoji: '❓', x: -20, z: 44,  color: '#06b6d4' },
+  { id: 'rps',      name: 'Sasso Carta Forbice',  emoji: '✂️', x:  36, z:-76,  color: '#ec4899' },
+];
 
 /* ── Bridge positions ────────────────────────────────────────── */
 const BRIDGE_DATA: { x: number; z: number; ry: number }[] = [
@@ -662,6 +686,18 @@ export function StoryWorldMap({
 
   /* victory history panel */
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+
+  /* ── Arcade mini-game state ─────────────────────────────── */
+  const [nearestArcadeId,  setNearestArcadeId]  = useState<string | null>(null);
+  const [nearestArcadeDist,setNearestArcadeDist]= useState(Infinity);
+  const [activeMinigame,   setActiveMinigame]   = useState<ArcadeBuilding | null>(null);
+  const [minigameCooldowns,setMinigameCooldowns]= useState<Record<string, number>>({});
+  const [minigameResult,   setMinigameResult]   = useState<{ gameName: string; pr: number } | null>(null);
+  const [minigameSession,  setMinigameSession]  = useState<{ token: string; serverData: Record<string, unknown> } | null>(null);
+  const [startingMinigame, setStartingMinigame] = useState(false);
+  const lastNearArcadeIdRef  = useRef<string | null>(null);
+  const lastNearArcadeDistRef= useRef(Infinity);
+  const [userPR, setUserPR] = useState<number>(0);
 
   /* Keep ref in sync with state for game loop reads */
   useEffect(() => { localCollectedIdsRef.current = localCollectedIds; }, [localCollectedIds]);
@@ -1424,6 +1460,22 @@ export function StoryWorldMap({
           if (d < closestDist) { closestDist = d; closestOp = op; }
         });
         setProximityPlayer(closestOp);
+
+        /* Arcade buildings proximity */
+        let arcadeMinDist = Infinity, arcadeMinId: string | null = null;
+        ARCADE_BUILDINGS.forEach(ab => {
+          const d = Math.sqrt((px - ab.x) ** 2 + (pz - ab.z) ** 2);
+          if (d < arcadeMinDist) { arcadeMinDist = d; arcadeMinId = ab.id; }
+        });
+        const nearArcadeId = arcadeMinDist <= 9 ? arcadeMinId : null;
+        if (nearArcadeId !== lastNearArcadeIdRef.current) {
+          lastNearArcadeIdRef.current = nearArcadeId;
+          setNearestArcadeId(nearArcadeId);
+        }
+        if (Math.abs(arcadeMinDist - lastNearArcadeDistRef.current) > 0.3) {
+          lastNearArcadeDistRef.current = arcadeMinDist;
+          setNearestArcadeDist(arcadeMinDist);
+        }
       }
 
       /* Throttled move emit (every ~100ms) */
@@ -1822,6 +1874,53 @@ export function StoryWorldMap({
         }});
       });
 
+      /* arcade buildings */
+      ARCADE_BUILDINGS.forEach(ab => {
+        const isNearArcade = ab.id === lastNearArcadeIdRef.current;
+        sprites.push({ z: ab.z, draw: () => {
+          const [ax, ay] = w2s(ab.x, ab.z);
+          const bW = 3.0 * TILE; const bH = 2.8 * TILE;
+          /* neon glow halo */
+          ctx.beginPath(); ctx.ellipse(ax, ay + bH * 0.2, bW * 0.7, bH * 0.2, 0, 0, Math.PI * 2);
+          ctx.fillStyle = `${ab.color}44`; ctx.fill();
+          /* body */
+          rrect(ctx, ax - bW / 2, ay - bH / 2, bW, bH, 6);
+          ctx.fillStyle = '#1e0a3e'; ctx.fill();
+          ctx.strokeStyle = ab.color; ctx.lineWidth = isNearArcade ? 2.5 : 1.5; ctx.stroke();
+          /* roof */
+          const roofH = bH * 0.28;
+          rrect(ctx, ax - bW / 2, ay - bH / 2, bW, roofH, 6);
+          ctx.fillStyle = ab.color + 'cc'; ctx.fill();
+          /* sign board */
+          rrect(ctx, ax - bW * 0.38, ay - bH * 0.1, bW * 0.76, bH * 0.3, 4);
+          ctx.fillStyle = `rgba(0,0,0,0.6)`; ctx.fill();
+          ctx.strokeStyle = ab.color + '88'; ctx.lineWidth = 1; ctx.stroke();
+          /* emoji icon */
+          ctx.font = `${Math.round(TILE * 0.7)}px sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(ab.emoji, ax, ay + bH * 0.04);
+          /* name label */
+          ctx.font = `bold ${Math.round(TILE * 0.38)}px sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+          ctx.fillStyle = ab.color;
+          const nameShort = ab.name.length > 14 ? ab.name.slice(0, 13) + '…' : ab.name;
+          ctx.fillText(nameShort, ax, ay + bH / 2 + 4);
+          /* neon outline flash when near */
+          if (isNearArcade) {
+            ctx.strokeStyle = ab.color;
+            ctx.lineWidth = 2 + Math.sin(t * 4) * 0.5;
+            rrect(ctx, ax - bW / 2 - 3, ay - bH / 2 - 3, bW + 6, bH + 6, 8);
+            ctx.stroke();
+          }
+          /* decorative neon dots */
+          for (let di = 0; di < 4; di++) {
+            const dox = (di / 3 - 0.5) * bW * 0.6;
+            ctx.beginPath(); ctx.arc(ax + dox, ay - bH * 0.32, 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = di % 2 === 0 ? ab.color : '#ffffff88'; ctx.fill();
+          }
+        }});
+      });
+
       /* other online players */
       otherPlayersRef.current.forEach(op => {
         sprites.push({ z: op.z, draw: () => {
@@ -1998,6 +2097,65 @@ export function StoryWorldMap({
       handleCollectDirect(nearCollectible);
     }
   }, [nearCollectible, handleCollectDirect]);
+
+  /* ── Arcade: fetch user PR on mount ─────────────────────── */
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+    const authHeaders = { Authorization: `Bearer ${token}` };
+    fetch('/api/profile', { credentials: 'include', headers: authHeaders })
+      .then(r => r.json())
+      .then(d => { if (d.profile?.user?.puntiRankiard != null) setUserPR(d.profile.user.puntiRankiard); })
+      .catch(() => {});
+    fetch('/api/minigame/cooldowns', { credentials: 'include', headers: authHeaders })
+      .then(r => r.json())
+      .then(d => { if (d.success && d.cooldowns) setMinigameCooldowns(d.cooldowns); })
+      .catch(() => {});
+  }, []);
+
+  /* ── Arcade: handle mini-game completion (submits session result for server-side PR) ── */
+  const handleMinigameComplete = useCallback(async (sr: import('./MiniGames').SessionResult, gameName: string) => {
+    const token = localStorage.getItem('authToken');
+    try {
+      const res = await fetch('/api/minigame/reward', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ gameId: sr.gameId, sessionToken: sr.sessionToken, result: sr.result }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUserPR(data.newTotal ?? userPR);
+        if (data.cooldownUntil) {
+          setMinigameCooldowns(prev => ({ ...prev, [sr.gameId]: data.cooldownUntil }));
+        }
+        setMinigameResult({ gameName, pr: data.prAwarded ?? 0 });
+      } else {
+        if (data.cooldownUntil) {
+          setMinigameCooldowns(prev => ({ ...prev, [sr.gameId]: data.cooldownUntil }));
+        }
+        setMinigameResult({ gameName, pr: 0 });
+      }
+    } catch (e) {
+      console.error('Minigame reward error', e);
+    }
+    setTimeout(() => setMinigameResult(null), 3500);
+    setActiveMinigame(null);
+    setMinigameSession(null);
+  }, [userPR]);
+
+  /* Cooldown: check remaining time */
+  const getArcadeCooldownText = useCallback((gameId: string): string | null => {
+    const cooldown = minigameCooldowns[gameId];
+    if (!cooldown) return null;
+    const remaining = cooldown - Date.now();
+    if (remaining <= 0) return null;
+    const mins = Math.ceil(remaining / 60000);
+    return `${mins}m`;
+  }, [minigameCooldowns]);
 
   /* ── Early returns ─────────────────────────────────────── */
   if (loading) {
@@ -2347,6 +2505,117 @@ export function StoryWorldMap({
               }}>↺ Rigioca</button>
             ) : null}
           </div>
+        </div>
+      )}
+
+      {/* ── Arcade proximity HUD ──────────────────────────────── */}
+      {nearestArcadeId && nearestArcadeDist <= 9 && !nearLeader && !activeMinigame && (() => {
+        const ab = ARCADE_BUILDINGS.find(a => a.id === nearestArcadeId);
+        if (!ab) return null;
+        const coolText = getArcadeCooldownText(ab.id);
+        return (
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            background: 'linear-gradient(to top, rgba(10,2,30,0.97) 0%, rgba(20,5,50,0.9) 100%)',
+            borderTop: `2px solid ${ab.color}88`,
+            padding: isMobileLandscape ? '8px 16px' : '14px 16px',
+            display: 'flex', alignItems: 'center', gap: isMobileLandscape ? 8 : 14, zIndex: 30,
+          }}>
+            <div style={{
+              width: isMobileLandscape ? 36 : 52, height: isMobileLandscape ? 36 : 52, borderRadius: 12, flexShrink: 0,
+              background: `linear-gradient(135deg, ${ab.color}44, ${ab.color}22)`,
+              border: `2px solid ${ab.color}88`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: isMobileLandscape ? 18 : 26,
+              boxShadow: `0 0 18px ${ab.color}44`,
+            }}>{ab.emoji}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: ab.color }}>
+                🎮 Arcade
+              </div>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: 'rgba(255,255,255,0.95)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {ab.name}
+              </p>
+              <p style={{ margin: '1px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
+                {coolText ? `⏳ Cooldown: ${coolText}` : 'Entra e gioca per guadagnare PR!'}
+              </p>
+            </div>
+            <div style={{ flexShrink: 0 }}>
+              {coolText ? (
+                <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12, fontWeight: 700 }}>⏳ {coolText}</div>
+              ) : (
+                <button
+                  disabled={startingMinigame}
+                  onClick={async () => {
+                    const token = localStorage.getItem('authToken');
+                    setStartingMinigame(true);
+                    try {
+                      const r = await fetch('/api/minigame/start', {
+                        method: 'POST', credentials: 'include',
+                        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                        body: JSON.stringify({ gameId: ab.id }),
+                      });
+                      const d = await r.json();
+                      if (d.success) {
+                        const { sessionToken, currentPR: srvPR, ...rest } = d;
+                        if (srvPR != null) setUserPR(srvPR);
+                        setMinigameSession({ token: sessionToken, serverData: rest });
+                        setActiveMinigame(ab);
+                      } else if (d.cooldownUntil) {
+                        setMinigameCooldowns(prev => ({ ...prev, [ab.id]: d.cooldownUntil }));
+                      }
+                    } catch (_) {}
+                    setStartingMinigame(false);
+                  }}
+                  style={{
+                    background: `linear-gradient(135deg, ${ab.color}, ${ab.color}bb)`,
+                    border: 'none', borderRadius: 10, color: 'white', fontSize: 14, fontWeight: 900,
+                    padding: '10px 18px', cursor: startingMinigame ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+                    boxShadow: `0 2px 14px ${ab.color}55`, letterSpacing: '0.04em',
+                    opacity: startingMinigame ? 0.6 : 1,
+                  }}>
+                  {startingMinigame ? '⏳…' : '🎮 Gioca!'}
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Arcade active mini-game modal ─────────────────────── */}
+      {activeMinigame && minigameSession && (() => {
+        const ab = activeMinigame;
+        const onClose = () => { setActiveMinigame(null); setMinigameSession(null); };
+        const onComplete = (sr: import('./MiniGames').SessionResult) => handleMinigameComplete(sr, ab.name);
+        const commonProps = {
+          gameId: ab.id, gameName: ab.name, onClose, onComplete, userPR,
+          sessionToken: minigameSession.token,
+          serverData: minigameSession.serverData,
+        };
+        switch (ab.id) {
+          case 'ruota':    return <RuotaDellaFortuna {...commonProps} />;
+          case 'memory':   return <MemoryGame {...commonProps} />;
+          case 'dado':     return <SfidaAlDado {...commonProps} />;
+          case 'reazione': return <ReazioneRapida {...commonProps} />;
+          case 'quiz':     return <QuizMinkiard {...commonProps} />;
+          case 'rps':      return <SassoCartaForbice {...commonProps} />;
+          default:         return null;
+        }
+      })()}
+
+      {/* ── Arcade result toast ───────────────────────────────── */}
+      {minigameResult && (
+        <div style={{
+          position: 'absolute', top: 70, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(5,5,20,0.97)',
+          border: `1.5px solid ${minigameResult.pr > 0 ? 'rgba(74,222,128,0.6)' : minigameResult.pr < 0 ? 'rgba(239,68,68,0.6)' : 'rgba(251,191,36,0.6)'}`,
+          borderRadius: 12, padding: '10px 22px', zIndex: 150,
+          color: minigameResult.pr > 0 ? '#4ade80' : minigameResult.pr < 0 ? '#ef4444' : '#fbbf24',
+          fontWeight: 800, fontSize: 14, whiteSpace: 'nowrap',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.7)',
+          pointerEvents: 'none',
+        }}>
+          🎮 {minigameResult.gameName}: {minigameResult.pr > 0 ? `+${minigameResult.pr}` : minigameResult.pr} PR
         </div>
       )}
 
