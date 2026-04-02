@@ -320,11 +320,17 @@ export async function probeAndSwitchIfNeeded(): Promise<void> {
   try {
     await _db.execute(drizzleSql`SELECT 1`);
     console.log(`✅ [DB probe] Primary DB is reachable (source: ${_activeDbSource})`);
-    // Ensure last_daily_card_claim column exists in user_draft_credits (inline schema migration)
-    try {
-      await _db.execute(drizzleSql`ALTER TABLE user_draft_credits ADD COLUMN IF NOT EXISTS last_daily_card_claim TIMESTAMP`);
-    } catch (migErr) {
-      console.warn('[DB probe] Could not ensure last_daily_card_claim column:', migErr);
+    // Ensure missing columns exist (inline schema migrations)
+    const inlineMigrations: Array<{ sql: ReturnType<typeof drizzleSql>; label: string }> = [
+      { sql: drizzleSql`ALTER TABLE user_draft_credits ADD COLUMN IF NOT EXISTS last_daily_card_claim TIMESTAMP`, label: 'user_draft_credits.last_daily_card_claim' },
+      { sql: drizzleSql`ALTER TABLE draft_pack_openings ADD COLUMN IF NOT EXISTS duplicates_credits INTEGER NOT NULL DEFAULT 0`, label: 'draft_pack_openings.duplicates_credits' },
+    ];
+    for (const { sql: migSql, label } of inlineMigrations) {
+      try {
+        await _db.execute(migSql);
+      } catch (migErr) {
+        console.warn(`[DB probe] Could not ensure column ${label}:`, migErr);
+      }
     }
   } catch (err: unknown) {
     if (is402QuotaError(err)) {
