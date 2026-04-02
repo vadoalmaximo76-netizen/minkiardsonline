@@ -320,6 +320,12 @@ export async function probeAndSwitchIfNeeded(): Promise<void> {
   try {
     await _db.execute(drizzleSql`SELECT 1`);
     console.log(`✅ [DB probe] Primary DB is reachable (source: ${_activeDbSource})`);
+    // Ensure last_daily_card_claim column exists in user_draft_credits (inline schema migration)
+    try {
+      await _db.execute(drizzleSql`ALTER TABLE user_draft_credits ADD COLUMN IF NOT EXISTS last_daily_card_claim TIMESTAMP`);
+    } catch (migErr) {
+      console.warn('[DB probe] Could not ensure last_daily_card_claim column:', migErr);
+    }
   } catch (err: unknown) {
     if (is402QuotaError(err)) {
       console.warn('⚠️ [DB probe] Primary DB returned 402 quota error at startup — switching to fallback (Supabase) immediately');

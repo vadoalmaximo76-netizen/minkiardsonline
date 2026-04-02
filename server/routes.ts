@@ -20706,6 +20706,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         .where(eq(creditPurchases.id, purchaseId));
       res.json({ success: true, message: `${purchase.creditsAmount} crediti aggiunti all'utente` });
     } catch (error) {
+      console.error('Error approving draft purchase:', error);
       res.status(500).json({ error: 'Errore nell\'approvazione acquisto' });
     }
   });

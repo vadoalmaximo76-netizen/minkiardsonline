@@ -28,7 +28,7 @@ function AdminDraftCreditsPanel({ onClose }: { onClose: () => void }) {
   const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<number | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const authToken = localStorage.getItem('authToken');
 
   const load = useCallback(async () => {
@@ -46,6 +46,11 @@ function AdminDraftCreditsPanel({ onClose }: { onClose: () => void }) {
 
   useEffect(() => { load(); }, [load]);
 
+  const showMsg = (text: string, ok: boolean) => {
+    setMsg({ text, ok });
+    setTimeout(() => setMsg(null), 3000);
+  };
+
   const approve = async (id: number) => {
     setProcessing(id);
     try {
@@ -54,9 +59,10 @@ function AdminDraftCreditsPanel({ onClose }: { onClose: () => void }) {
         headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
-      if (res.ok) { setMsg('Approvato!'); load(); }
-      else { const d = await res.json(); setMsg(d.error || 'Errore'); }
-    } finally { setProcessing(null); setTimeout(() => setMsg(null), 3000); }
+      if (res.ok) { showMsg('Approvato!', true); load(); }
+      else { const d = await res.json(); showMsg(d.error || 'Errore durante l\'approvazione', false); }
+    } catch { showMsg('Errore di rete', false); }
+    finally { setProcessing(null); }
   };
 
   const reject = async (id: number) => {
@@ -67,9 +73,10 @@ function AdminDraftCreditsPanel({ onClose }: { onClose: () => void }) {
         headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ adminNote: 'Rifiutato dall\'admin' })
       });
-      if (res.ok) { setMsg('Rifiutato.'); load(); }
-      else { const d = await res.json(); setMsg(d.error || 'Errore'); }
-    } finally { setProcessing(null); setTimeout(() => setMsg(null), 3000); }
+      if (res.ok) { showMsg('Rifiutato.', true); load(); }
+      else { const d = await res.json(); showMsg(d.error || 'Errore durante il rifiuto', false); }
+    } catch { showMsg('Errore di rete', false); }
+    finally { setProcessing(null); }
   };
 
   const pending = purchases.filter(p => p.status === 'pending');
@@ -82,7 +89,11 @@ function AdminDraftCreditsPanel({ onClose }: { onClose: () => void }) {
           <h2 className="text-white font-bold text-lg flex items-center gap-2"><Coins className="w-5 h-5 text-teal-400" />Acquisti Crediti Draft</h2>
           <button onClick={onClose} className="text-white/50 hover:text-white"><X /></button>
         </div>
-        {msg && <div className="bg-green-800/60 text-green-200 text-sm rounded px-3 py-2 mb-3">{msg}</div>}
+        {msg && (
+          <div className={`text-sm rounded px-3 py-2 mb-3 ${msg.ok ? 'bg-green-800/60 text-green-200' : 'bg-red-800/60 text-red-200'}`}>
+            {msg.text}
+          </div>
+        )}
         {loading ? (
           <div className="text-center text-white/40 py-8">Caricamento...</div>
         ) : (
