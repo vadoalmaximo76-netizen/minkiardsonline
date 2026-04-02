@@ -13348,8 +13348,8 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
   // GET /api/admin/story-localities - all (admin)
   app.get('/api/admin/story-localities', authMiddleware, async (req, res) => {
     try {
-      const user = (req as any).user;
-      if (!user?.isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+      const userEmail = (req as any).user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) return res.status(403).json({ success: false, error: 'Admin richiesto' });
       const list = await db.select().from(storyLocalities).orderBy(storyLocalities.name);
       res.json({ success: true, localities: list });
     } catch (e) { res.status(500).json({ success: false, error: 'Errore server' }); }
@@ -13358,15 +13358,15 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
   // POST /api/admin/story-localities - create
   app.post('/api/admin/story-localities', authMiddleware, async (req, res) => {
     try {
-      const user = (req as any).user;
-      if (!user?.isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+      const userEmail = (req as any).user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) return res.status(403).json({ success: false, error: 'Admin richiesto' });
       const { name, type, description, posX, posZ, icon, imageUrl, isActive } = req.body;
       const [created] = await db.insert(storyLocalities).values({
         name: name || 'Nuova Località',
         type: type || 'custom',
         description: description || null,
-        posX: parseInt(posX ?? '0') || 0,
-        posZ: parseInt(posZ ?? '0') || 0,
+        posX: Number(posX) || 0,
+        posZ: Number(posZ) || 0,
         icon: icon || '📍',
         imageUrl: imageUrl || null,
         isActive: isActive !== false,
@@ -13378,14 +13378,14 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
   // PUT /api/admin/story-localities/:id - update
   app.put('/api/admin/story-localities/:id', authMiddleware, async (req, res) => {
     try {
-      const user = (req as any).user;
-      if (!user?.isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+      const userEmail = (req as any).user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) return res.status(403).json({ success: false, error: 'Admin richiesto' });
       const id = parseInt(req.params.id);
       const { name, type, description, posX, posZ, icon, imageUrl, isActive } = req.body;
       const [updated] = await db.update(storyLocalities).set({
         name, type, description: description || null,
-        posX: parseInt(posX ?? '0') || 0,
-        posZ: parseInt(posZ ?? '0') || 0,
+        posX: Number(posX) || 0,
+        posZ: Number(posZ) || 0,
         icon: icon || '📍',
         imageUrl: imageUrl || null,
         isActive: isActive !== false,
@@ -13397,8 +13397,8 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
   // DELETE /api/admin/story-localities/:id
   app.delete('/api/admin/story-localities/:id', authMiddleware, async (req, res) => {
     try {
-      const user = (req as any).user;
-      if (!user?.isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+      const userEmail = (req as any).user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) return res.status(403).json({ success: false, error: 'Admin richiesto' });
       const id = parseInt(req.params.id);
       await db.delete(storyLocalities).where(eq(storyLocalities.id, id));
       res.json({ success: true });

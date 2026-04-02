@@ -39,54 +39,95 @@ export interface StoryWorldMapProps {
   collectibles?: StoryCollectible[];
 }
 
-/* ── World constants (identical to 3D version) ──────────────── */
-const PLAYER_SPEED = 9;
-const MAP_BOUND    = 42;
+/* ── World constants ─────────────────────────────────────────── */
+const PLAYER_SPEED = 11;
+const MAP_BOUND    = 80;
 
 const ARENA_POSITIONS_BASE: [number, number][] = [
-  [  0,  30 ], [ 26,  20 ], [ 36,   4 ], [ 24, -12 ],
-  [  6, -26 ], [ -8, -36 ], [-22, -28 ], [-35, -12 ],
-  [-34,   8 ], [-20,  22 ], [ -6,  36 ], [ 24,  36 ],
+  [  0,  68 ], [ 40,  52 ], [ 68,  18 ], [ 58, -20 ],
+  [ 28, -58 ], [ -5, -74 ], [-44, -56 ], [-70, -18 ],
+  [-64,  26 ], [-38,  60 ], [  8,  78 ], [ 48,  68 ],
 ];
 
 function getArenaPosition(idx: number): [number, number] {
   if (idx < ARENA_POSITIONS_BASE.length) return ARENA_POSITIONS_BASE[idx];
   const t = (idx - ARENA_POSITIONS_BASE.length + 1) * 1.37;
-  const r = 28 + t * 3.5;
+  const r = 50 + t * 4;
   const x = Math.round(Math.cos(t) * r);
   const z = Math.round(Math.sin(t) * r);
-  return [Math.max(-38, Math.min(38, x)), Math.max(-40, Math.min(40, z))];
+  return [Math.max(-72, Math.min(72, x)), Math.max(-76, Math.min(76, z))];
 }
 
 const TREE_DATA: { x: number; z: number; h: number; r: number }[] = [
-  { x: 30, z: 30, h: 2.4, r: 0.9 }, { x:-28, z: 28, h: 2.0, r: 0.75 },
-  { x: 32, z: 10, h: 2.8, r: 1.0 }, { x:-30, z:-12, h: 2.2, r: 0.85 },
-  { x: 28, z:-35, h: 2.5, r: 0.95 }, { x:-32, z:-35, h: 2.0, r: 0.8 },
-  { x:  5, z: 35, h: 2.6, r: 1.0 }, { x:-14, z: 32, h: 2.1, r: 0.7 },
-  { x: 22, z: 24, h: 2.3, r: 0.9 }, { x: 36, z:-10, h: 2.4, r: 0.85 },
-  { x:-36, z: 10, h: 2.2, r: 0.8 }, { x: 38, z:-25, h: 2.7, r: 1.0 },
-  { x:-38, z:-22, h: 2.0, r: 0.75 }, { x:  0, z:-40, h: 2.8, r: 1.0 },
-  { x: 18, z: 35, h: 2.1, r: 0.7 }, { x:-20, z:-42, h: 2.5, r: 0.9 },
-  { x: 34, z: 36, h: 2.2, r: 0.8 }, { x:-34, z: 35, h: 2.4, r: 0.9 },
-  { x: 40, z:  0, h: 2.3, r: 0.85 }, { x:-40, z: -5, h: 2.6, r: 0.95 },
-  { x: 14, z:-42, h: 2.0, r: 0.75 }, { x:-10, z: 40, h: 2.2, r: 0.8 },
-  { x: 24, z:-14, h: 2.5, r: 0.9 }, { x: -6, z:-38, h: 2.1, r: 0.7 },
-  { x: 16, z: 28, h: 2.3, r: 0.85 },
+  // NW dense forest
+  { x:-50, z:-32, h:2.5, r:0.95 }, { x:-56, z:-28, h:2.2, r:0.85 },
+  { x:-48, z:-42, h:2.6, r:1.0  }, { x:-60, z:-40, h:2.0, r:0.8  },
+  { x:-42, z:-30, h:2.3, r:0.9  }, { x:-58, z:-36, h:2.1, r:0.7  },
+  { x:-66, z:-50, h:2.4, r:0.85 }, { x:-44, z:-62, h:2.5, r:0.95 },
+  { x:-52, z:-68, h:2.2, r:0.8  }, { x:-36, z:-66, h:2.6, r:1.0  },
+  { x:-62, z:-62, h:2.0, r:0.75 }, { x:-54, z:-44, h:2.4, r:0.9  },
+  // NE forest
+  { x: 38, z:-38, h:2.4, r:0.9  }, { x: 46, z:-44, h:2.1, r:0.75 },
+  { x: 52, z:-32, h:2.6, r:0.95 }, { x: 30, z:-44, h:2.2, r:0.85 },
+  { x: 42, z:-55, h:2.0, r:0.8  }, { x: 55, z:-48, h:2.4, r:0.9  },
+  { x: 62, z:-52, h:2.2, r:0.8  }, { x: 48, z:-62, h:2.5, r:0.9  },
+  // Central woods
+  { x:-18, z:  2, h:2.3, r:0.85 }, { x:-26, z:-14, h:2.1, r:0.75 },
+  { x: 18, z: -8, h:2.5, r:0.9  }, { x: -9, z:-22, h:2.2, r:0.8  },
+  { x: 25, z: 10, h:2.0, r:0.75 }, { x: -4, z:  8, h:2.3, r:0.85 },
+  { x: 32, z: -2, h:2.1, r:0.75 }, { x:-32, z: -2, h:2.2, r:0.8  },
+  // Eastern border trees
+  { x: 72, z: 36, h:2.4, r:0.85 }, { x: 76, z: 52, h:2.2, r:0.8  },
+  { x: 70, z:-10, h:2.6, r:0.95 }, { x: 78, z:-28, h:2.1, r:0.75 },
+  { x: 74, z: 10, h:2.4, r:0.9  }, { x: 76, z:-50, h:2.2, r:0.8  },
+  // Western border trees
+  { x:-72, z: 12, h:2.5, r:0.9  }, { x:-78, z: -5, h:2.3, r:0.85 },
+  { x:-74, z: 40, h:2.0, r:0.75 }, { x:-76, z: 55, h:2.4, r:0.9  },
+  { x:-76, z:-22, h:2.2, r:0.8  }, { x:-74, z: -8, h:2.5, r:0.9  },
+  // South area palms/trees
+  { x: 20, z: 55, h:2.2, r:0.8  }, { x:-15, z: 52, h:2.5, r:0.9  },
+  { x:-22, z: 45, h:2.1, r:0.75 }, { x: 56, z: 60, h:2.3, r:0.85 },
+  { x:-56, z: 62, h:2.0, r:0.8  }, { x: 62, z: 70, h:2.4, r:0.9  },
+  { x: 75, z: 65, h:2.2, r:0.8  }, { x:-70, z: 68, h:2.5, r:0.9  },
+  // North mountain trees
+  { x:  8, z:-55, h:2.6, r:0.95 }, { x: -5, z:-62, h:2.2, r:0.8  },
+  { x: 18, z:-68, h:2.4, r:0.9  }, { x:-22, z:-52, h:2.1, r:0.75 },
+  { x: 14, z:-78, h:2.3, r:0.85 }, { x:-15, z:-78, h:2.5, r:0.9  },
+  // Interior scattered
+  { x: 45, z: 32, h:2.1, r:0.75 }, { x:-48, z: 42, h:2.5, r:0.9  },
+  { x:-62, z: 10, h:2.3, r:0.85 }, { x: 35, z: 18, h:2.2, r:0.8  },
 ];
 
 const WATER_DATA: { x: number; z: number; r: number }[] = [
-  { x:  6,  z: -8,  r: 6.5 },
-  { x:-12,  z: 18,  r: 3.5 },
-  { x: 22,  z:-28,  r: 3.0 },
-  { x:-30,  z:-38,  r: 2.5 },
+  { x: 10, z: -4,  r: 7.0 },   // central lake
+  { x:-12, z: 20,  r: 4.0 },   // NW pond
+  { x: 26, z:-26,  r: 3.5 },   // NE pond
+  { x:-32, z:-38,  r: 3.0 },   // NW lake
+  { x: 65, z:  8,  r: 6.5 },   // east coast sea
+  { x: 55, z: 48,  r: 4.5 },   // SE bay
+  { x:-58, z: 40,  r: 5.5 },   // west harbor
+  { x:  5, z: 85,  r: 14.0 },  // south sea
+  { x: 38, z:-46,  r: 3.5 },   // north lake
+  { x:-36, z: 36,  r: 3.5 },   // SW pond
+  { x:-68, z:-52,  r: 4.0 },   // far NW lake
+  { x: 22, z: 75,  r: 5.0 },   // SE coast
+  { x: 68, z:-42,  r: 3.0 },   // NE lake
+  { x:-15, z:-70,  r: 4.5 },   // north polar lake
 ];
 
 const HEDGE_DATA: { x:number; z:number; ry:number; n:number }[] = [
-  { x:-12, z:  6, ry: 0,           n: 8 }, { x: 10, z:-40, ry: 0,           n: 6 },
+  { x:-14, z:  6, ry: 0,           n: 8 }, { x: 10, z:-42, ry: 0,           n: 6 },
   { x:-18, z: 16, ry: Math.PI / 2, n: 7 }, { x: -5, z:-18, ry: Math.PI / 2, n: 6 },
   { x: 28, z:  8, ry: Math.PI / 2, n: 5 }, { x:-22, z: -6, ry: 0.2,         n: 6 },
-  { x: 15, z:-38, ry: 0,           n: 5 }, { x:-30, z: 30, ry: Math.PI / 2, n: 6 },
-  { x:  2, z: 20, ry: 0.5,         n: 5 }, { x: 20, z:-30, ry: 0.2,         n: 4 },
+  { x: 15, z:-40, ry: 0,           n: 5 }, { x:-30, z: 30, ry: Math.PI / 2, n: 6 },
+  { x:  2, z: 22, ry: 0.5,         n: 5 }, { x: 20, z:-32, ry: 0.2,         n: 4 },
+  { x: 44, z: 28, ry: 0,           n: 7 }, { x:-44, z: 24, ry: Math.PI / 2, n: 5 },
+  { x: 38, z:-12, ry: 0.4,         n: 6 }, { x:-35, z:-20, ry: 0,           n: 5 },
+  { x: 60, z: 36, ry: Math.PI / 2, n: 4 }, { x:-60, z: 55, ry: 0.3,         n: 5 },
+  { x: 18, z: 40, ry: 0,           n: 6 }, { x:-18, z: 40, ry: Math.PI / 2, n: 4 },
+  { x: 55, z:-10, ry: 0.2,         n: 5 }, { x:-50, z:-14, ry: 0,           n: 4 },
+  { x: 32, z: 60, ry: 0,           n: 6 }, { x:-30, z: 70, ry: Math.PI / 2, n: 5 },
+  { x: 48, z:-32, ry: 0.6,         n: 5 }, { x:-48, z: 60, ry: 0.4,         n: 6 },
 ];
 const HEDGE_PIECES: { x:number; z:number; dark:boolean }[] = HEDGE_DATA.flatMap((row) =>
   Array.from({ length: row.n }, (_, i) => {
@@ -101,10 +142,24 @@ const BOULDER_DATA: { x:number; z:number; sy:number; sx:number; twin:boolean }[]
   { x:-26, z:  9, sy:1.0, sx:0.8, twin:true  }, { x: 19, z: 29, sy:1.3, sx:1.0, twin:false },
   { x:-32, z: -4, sy:1.6, sx:1.3, twin:true  }, { x: 11, z:-31, sy:1.1, sx:0.9, twin:false },
   { x:-17, z: 26, sy:1.0, sx:1.0, twin:true  }, { x: 32, z: 14, sy:0.9, sx:0.8, twin:false },
-  { x: -8, z:-26, sy:1.4, sx:1.2, twin:true  }, { x: 26, z:-36, sy:1.1, sx:0.9, twin:false },
+  { x: -8, z:-26, sy:1.4, sx:1.2, twin:true  }, { x: 26, z:-38, sy:1.1, sx:0.9, twin:false },
   { x:-40, z: 20, sy:1.2, sx:1.0, twin:true  }, { x: 38, z: 22, sy:1.0, sx:0.8, twin:false },
-  { x: 18, z:-38, sy:0.9, sx:1.1, twin:true  }, { x:-18, z:-38, sy:1.3, sx:1.0, twin:false },
+  { x: 18, z:-40, sy:0.9, sx:1.1, twin:true  }, { x:-18, z:-40, sy:1.3, sx:1.0, twin:false },
   { x: 36, z:-32, sy:1.1, sx:0.9, twin:true  }, { x:-38, z:-28, sy:1.0, sx:1.2, twin:false },
+  // Mountain boulders (north)
+  { x: 15, z:-62, sy:2.0, sx:1.8, twin:true  }, { x: 22, z:-70, sy:2.2, sx:2.0, twin:false },
+  { x:  5, z:-68, sy:1.8, sx:1.6, twin:true  }, { x:-10, z:-60, sy:2.0, sx:1.8, twin:false },
+  { x: 30, z:-65, sy:1.6, sx:1.4, twin:true  }, { x:-24, z:-65, sy:1.8, sx:1.6, twin:false },
+  { x: 38, z:-72, sy:2.2, sx:2.0, twin:true  }, { x:-32, z:-72, sy:2.0, sx:1.8, twin:false },
+  // Western ruins boulders
+  { x:-58, z:-10, sy:1.5, sx:1.3, twin:true  }, { x:-65, z:-28, sy:1.8, sx:1.5, twin:false },
+  { x:-72, z: -5, sy:1.4, sx:1.2, twin:true  }, { x:-60, z: 15, sy:1.0, sx:0.9, twin:false },
+  // East coast boulders
+  { x: 62, z: 32, sy:1.2, sx:1.0, twin:true  }, { x: 70, z:-22, sy:1.5, sx:1.3, twin:false },
+  { x: 72, z: 55, sy:1.0, sx:0.9, twin:false }, { x: 55, z: 70, sy:1.2, sx:1.0, twin:true  },
+  // Scattered large rocks
+  { x: 45, z: -5, sy:1.4, sx:1.2, twin:true  }, { x:-45, z: -8, sy:1.3, sx:1.1, twin:false },
+  { x: 28, z: 42, sy:1.1, sx:0.9, twin:true  }, { x:-28, z: 45, sy:1.2, sx:1.0, twin:false },
 ];
 
 const FLOWER_DATA: { x:number; z:number; r:number; color:string }[] = [
@@ -112,22 +167,49 @@ const FLOWER_DATA: { x:number; z:number; r:number; color:string }[] = [
   { x: 16, z: -6, r:1.8, color:'#a78bfa' }, { x: -9, z: 28, r:2.2, color:'#34d399' },
   { x: 28, z: 10, r:1.6, color:'#f97316' }, { x:-28, z:-30, r:2.0, color:'#60a5fa' },
   { x:  5, z:-20, r:1.5, color:'#fbbf24' }, { x:-16, z: 35, r:1.8, color:'#ff6b9d' },
-  { x: 20, z:-38, r:2.2, color:'#a78bfa' }, { x:-35, z: 30, r:1.6, color:'#34d399' },
+  { x: 20, z:-40, r:2.2, color:'#a78bfa' }, { x:-35, z: 30, r:1.6, color:'#34d399' },
   { x: -2, z:  8, r:1.4, color:'#f97316' }, { x: 33, z:-18, r:1.8, color:'#60a5fa' },
   { x:-10, z:-15, r:1.6, color:'#ff6b9d' }, { x: 22, z: 14, r:1.5, color:'#fbbf24' },
+  { x: 48, z: 10, r:2.0, color:'#f97316' }, { x:-45, z:  8, r:1.8, color:'#ff6b9d' },
+  { x: 15, z: 35, r:1.6, color:'#34d399' }, { x:-18, z: 55, r:2.0, color:'#fbbf24' },
+  { x: 42, z: 60, r:1.8, color:'#a78bfa' }, { x:-42, z: 70, r:1.6, color:'#60a5fa' },
+  { x: 72, z: 28, r:2.0, color:'#ff6b9d' }, { x:-72, z: 28, r:1.8, color:'#34d399' },
+  { x: 35, z:-30, r:1.5, color:'#fbbf24' }, { x:-38, z:-15, r:2.0, color:'#f97316' },
+  { x: -2, z:-35, r:1.8, color:'#60a5fa' }, { x: 55, z:-32, r:1.6, color:'#a78bfa' },
+  { x: 22, z: 36, r:1.4, color:'#ff6b9d' }, { x:-20, z: 35, r:1.6, color:'#fbbf24' },
+  { x: 60, z: 50, r:2.0, color:'#34d399' }, { x:-55, z: 48, r:1.8, color:'#60a5fa' },
 ];
 
 const LAMP_DATA: { x:number; z:number }[] = [
-  { x:  8, z: 24 }, { x: 20, z: 18 }, { x: 32, z:  8 }, { x: 28, z: -6 },
-  { x: 18, z:-16 }, { x:  4, z:-28 }, { x:-10, z:-34 }, { x:-24, z:-26 },
-  { x:-36, z:-14 }, { x:-36, z:  0 }, { x:-28, z: 14 }, { x:-14, z: 26 },
-  { x:  2, z: 36 },
+  // Path lights following arena route
+  { x:  8, z: 64 }, { x: 20, z: 58 }, { x: 32, z: 52 }, { x: 40, z: 44 },
+  { x: 50, z: 34 }, { x: 58, z: 24 }, { x: 62, z: 12 }, { x: 60, z:  0 },
+  { x: 58, z:-12 }, { x: 48, z:-22 }, { x: 38, z:-38 }, { x: 28, z:-48 },
+  { x: 12, z:-60 }, { x: -2, z:-68 }, { x:-14, z:-62 }, { x:-28, z:-54 },
+  { x:-42, z:-44 }, { x:-55, z:-32 }, { x:-62, z:-18 }, { x:-66, z: -6 },
+  { x:-65, z:  8 }, { x:-62, z: 20 }, { x:-54, z: 32 }, { x:-44, z: 48 },
+  { x:-36, z: 58 }, { x:-20, z: 68 }, { x: -8, z: 74 }, { x:  8, z: 74 },
+  // Town squares
+  { x:  5, z: 55 }, { x: -5, z: 55 }, { x: 45, z: 65 }, { x: 30, z: 44 },
+  { x:-30, z: 58 }, { x:-18, z: 62 }, { x: 65, z: 20 }, { x: 70, z: 28 },
 ];
 
 const WALL_DATA: { x:number; z:number; ry:number; n:number }[] = [
   { x: 16, z:  7, ry: 0.1,         n: 5 }, { x: -4, z:-11, ry: Math.PI / 2, n: 5 },
   { x:-28, z:-17, ry: 0.3,         n: 6 }, { x:  9, z:-28, ry:-0.2,         n: 4 },
   { x:-19, z: 31, ry: 0.5,         n: 5 }, { x: 30, z:-28, ry: 1.2,         n: 4 },
+  // West ruins walls
+  { x:-62, z:-14, ry: 0.2,         n: 7 }, { x:-68, z:-28, ry: Math.PI / 2, n: 6 },
+  { x:-58, z: -4, ry: 1.1,         n: 5 }, { x:-72, z: -8, ry: 0.3,         n: 4 },
+  // North fortress walls
+  { x: 50, z:-28, ry: 0,           n: 8 }, { x: 62, z:-18, ry: Math.PI / 2, n: 6 },
+  { x: 55, z:-35, ry: 0.4,         n: 5 },
+  // South town walls
+  { x:-10, z: 62, ry: 0,           n: 6 }, { x: 10, z: 62, ry: 0,           n: 6 },
+  { x: 35, z: 55, ry: Math.PI / 2, n: 5 }, { x:-35, z: 55, ry: Math.PI / 2, n: 5 },
+  // Additional perimeter
+  { x: 70, z: 35, ry: Math.PI / 2, n: 6 }, { x:-70, z: 35, ry: Math.PI / 2, n: 5 },
+  { x: 25, z:-75, ry: 0,           n: 7 }, { x:-20, z:-75, ry: 0,           n: 6 },
 ];
 const WALL_PIECES: { x:number; z:number; alt:boolean }[] = WALL_DATA.flatMap((wall) =>
   Array.from({ length: wall.n }, (_, i) => {
@@ -140,6 +222,11 @@ const _sr = (seed: number) => { const x = Math.sin(seed + 1) * 10000; return x -
 const TALLGRASS_PATCHES = [
   { cx: -3,  cz: 14,  n: 22 }, { cx: 10,  cz: -6,  n: 18 }, { cx:-25,  cz:  0,  n: 16 },
   { cx: 18,  cz:-20,  n: 16 }, { cx:-14,  cz:-14,  n: 14 }, { cx: -8,  cz: 36,  n: 12 },
+  { cx: 35,  cz: -5,  n: 16 }, { cx:-35,  cz: -5,  n: 14 }, { cx: 50,  cz: 42,  n: 12 },
+  { cx:-50,  cz: 50,  n: 10 }, { cx: 18,  cz: 62,  n: 14 }, { cx:-25,  cz: 62,  n: 12 },
+  { cx: 42,  cz:-25,  n: 10 }, { cx:-40,  cz:-38,  n: 12 }, { cx:  0,  cz:-45,  n: 10 },
+  { cx: 60,  cz: 20,  n: 8  }, { cx:-60,  cz: 20,  n: 8  }, { cx: 30,  cz: 30,  n: 12 },
+  { cx:-30,  cz: 38,  n: 10 }, { cx: 55,  cz:-24,  n: 8  }, { cx:-55,  cz:-24,  n: 8  },
 ].map((patch, pi) => ({
   cx: patch.cx, cz: patch.cz,
   blades: Array.from({ length: patch.n }, (_, i) => ({
@@ -149,6 +236,80 @@ const TALLGRASS_PATCHES = [
     ry: _sr(pi * 200 + i * 4 + 3) * Math.PI * 2,
   })),
 }));
+
+/* ── Buildings ───────────────────────────────────────────────── */
+type BuildingType = 'house' | 'shop' | 'inn' | 'tower' | 'ruin' | 'church';
+const BUILDING_DATA: { x: number; z: number; type: BuildingType; w: number; h: number }[] = [
+  // South starting town (arena 1: 0,68)
+  { x:  8, z: 58, type:'house',  w:2.2, h:1.8 }, { x: -9, z: 58, type:'house',  w:2.0, h:1.8 },
+  { x: 14, z: 62, type:'inn',    w:2.8, h:2.2 }, { x:-14, z: 54, type:'shop',   w:2.4, h:1.8 },
+  { x:  6, z: 50, type:'house',  w:2.0, h:1.6 }, { x: -4, z: 50, type:'house',  w:1.8, h:1.6 },
+  { x: -2, z: 62, type:'church', w:2.8, h:2.4 }, { x: 18, z: 54, type:'house',  w:1.8, h:1.6 },
+  // SE village (arena 2: 40,52)
+  { x: 30, z: 46, type:'house',  w:2.2, h:1.8 }, { x: 44, z: 46, type:'house',  w:2.0, h:1.8 },
+  { x: 36, z: 56, type:'shop',   w:2.4, h:1.8 }, { x: 50, z: 56, type:'house',  w:1.8, h:1.6 },
+  { x: 28, z: 56, type:'inn',    w:2.4, h:2.0 },
+  // East port (arena 3: 68,18)
+  { x: 62, z: 22, type:'house',  w:2.2, h:1.8 }, { x: 72, z: 24, type:'house',  w:2.0, h:1.8 },
+  { x: 64, z: 14, type:'inn',    w:2.6, h:2.0 }, { x: 74, z: 14, type:'shop',   w:2.0, h:1.6 },
+  { x: 60, z: 30, type:'house',  w:1.8, h:1.6 },
+  // NE fort (arena 4: 58,-20)
+  { x: 50, z:-14, type:'house',  w:2.0, h:1.6 }, { x: 60, z:-26, type:'ruin',   w:2.2, h:2.0 },
+  { x: 65, z:-14, type:'tower',  w:1.8, h:3.0 }, { x: 52, z:-28, type:'ruin',   w:2.0, h:1.6 },
+  // North snowfield (arena 5: 28,-58)
+  { x: 20, z:-52, type:'house',  w:2.0, h:1.6 }, { x: 30, z:-56, type:'house',  w:1.8, h:1.6 },
+  { x: 24, z:-64, type:'inn',    w:2.4, h:2.0 },
+  // Far north ruins (arena 6: -5,-74)
+  { x: -5, z:-68, type:'ruin',   w:2.4, h:1.8 }, { x:-14, z:-76, type:'tower',  w:1.8, h:2.8 },
+  { x:  4, z:-78, type:'ruin',   w:2.0, h:1.6 },
+  // NW forest village (arena 7: -44,-56)
+  { x:-35, z:-48, type:'house',  w:2.0, h:1.8 }, { x:-46, z:-50, type:'house',  w:2.2, h:1.8 },
+  { x:-40, z:-64, type:'church', w:2.6, h:2.2 }, { x:-50, z:-60, type:'ruin',   w:2.0, h:1.6 },
+  // West ruins (arena 8: -70,-18)
+  { x:-62, z:-10, type:'ruin',   w:2.8, h:2.0 }, { x:-72, z:-22, type:'tower',  w:2.0, h:3.0 },
+  { x:-60, z:-28, type:'ruin',   w:2.4, h:1.8 }, { x:-74, z:-10, type:'ruin',   w:2.0, h:1.6 },
+  // West harbor (arena 9: -64,26)
+  { x:-56, z: 22, type:'house',  w:2.2, h:1.8 }, { x:-66, z: 28, type:'house',  w:2.0, h:1.8 },
+  { x:-70, z: 20, type:'inn',    w:2.8, h:2.0 }, { x:-62, z: 32, type:'shop',   w:2.4, h:1.8 },
+  { x:-72, z: 32, type:'house',  w:1.8, h:1.6 },
+  // SW coastal town (arena 10: -38,60)
+  { x:-28, z: 55, type:'house',  w:2.2, h:1.8 }, { x:-40, z: 55, type:'house',  w:2.0, h:1.8 },
+  { x:-32, z: 65, type:'inn',    w:2.6, h:2.0 }, { x:-20, z: 65, type:'shop',   w:2.4, h:1.8 },
+  { x:-44, z: 65, type:'church', w:2.4, h:2.0 }, { x:-48, z: 55, type:'house',  w:1.8, h:1.6 },
+  // SE tower arena 12 (48,68)
+  { x: 42, z: 62, type:'house',  w:2.0, h:1.8 }, { x: 54, z: 62, type:'shop',   w:2.2, h:1.8 },
+  { x: 48, z: 74, type:'tower',  w:2.0, h:2.8 }, { x: 58, z: 72, type:'house',  w:1.8, h:1.6 },
+  // Center village
+  { x:  0, z: 12, type:'house',  w:2.0, h:1.8 }, { x:  8, z:  6, type:'shop',   w:2.4, h:1.8 },
+  { x: -8, z:  6, type:'house',  w:2.0, h:1.8 }, { x: 12, z: -8, type:'ruin',   w:2.2, h:1.8 },
+  { x:-18, z: -4, type:'house',  w:1.8, h:1.6 }, { x:-10, z:  0, type:'inn',    w:2.2, h:1.8 },
+  // Scattered farmhouses & landmarks
+  { x: 22, z: 32, type:'house',  w:1.8, h:1.6 }, { x:-12, z: 34, type:'house',  w:1.8, h:1.6 },
+  { x: 42, z:-28, type:'house',  w:1.8, h:1.6 }, { x:-28, z:-28, type:'church', w:2.2, h:2.0 },
+  { x: 18, z:-38, type:'house',  w:1.8, h:1.6 }, { x:-50, z: 10, type:'house',  w:1.8, h:1.6 },
+  { x: 50, z: 35, type:'house',  w:1.8, h:1.6 }, { x:-25, z: 20, type:'inn',    w:2.4, h:2.0 },
+  { x: 35, z: -3, type:'house',  w:1.8, h:1.6 }, { x:-40, z: -8, type:'house',  w:1.8, h:1.6 },
+  { x: 65, z:-32, type:'tower',  w:2.0, h:3.0 }, { x:-65, z: 55, type:'church', w:2.4, h:2.2 },
+  { x: 48, z: 18, type:'house',  w:1.8, h:1.6 }, { x:-48, z: 25, type:'house',  w:1.8, h:1.6 },
+];
+
+const BUILDING_COLORS: Record<BuildingType, { body: string; roof: string }> = {
+  house:  { body: '#d4a96a', roof: '#a0522d' },
+  shop:   { body: '#b8d4f0', roof: '#4a80c0' },
+  inn:    { body: '#d4c88a', roof: '#8b6020' },
+  tower:  { body: '#9a9a9a', roof: '#555555' },
+  ruin:   { body: '#8a8070', roof: '#5a5040' },
+  church: { body: '#f0e8d0', roof: '#c04040' },
+};
+
+/* ── Bridge positions ────────────────────────────────────────── */
+const BRIDGE_DATA: { x: number; z: number; ry: number }[] = [
+  { x:  6, z:  1, ry: 0.15 },   // central lake
+  { x: 65, z:  5, ry: 1.05 },   // east coast
+  { x:-58, z: 42, ry: 0.85 },   // west harbor
+  { x:-12, z: 22, ry: 0.35 },   // NW pond
+  { x: 26, z:-24, ry: 0.2  },   // NE pond
+];
 
 /* ── 2D Canvas rendering constants ───────────────────────────── */
 const TILE = 20;
@@ -211,14 +372,14 @@ function Minimap({ playerRef, arenaPositions, leaders, getLeaderStatus, localiti
   const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
-    const SIZE  = 160;
+    const SIZE  = 180;
     const PAD   = 8;
-    const WORLD = 84;
+    const WORLD = 160;
     const scale = (SIZE - PAD * 2) / WORLD;
 
     const toC = (wx: number, wz: number) => ({
-      x: PAD + (wx + 42) * scale,
-      y: PAD + (wz + 42) * scale,
+      x: PAD + (wx + 80) * scale,
+      y: PAD + (wz + 80) * scale,
     });
 
     const draw = () => {
@@ -312,7 +473,7 @@ function Minimap({ playerRef, arenaPositions, leaders, getLeaderStatus, localiti
         boxShadow: '0 4px 24px rgba(0,0,0,0.7)', cursor: 'default',
       }}
     >
-      <canvas ref={canvasRef} width={160} height={160} style={{ display: 'block' }} />
+      <canvas ref={canvasRef} width={180} height={180} style={{ display: 'block' }} />
       {hovered && (
         <div style={{
           position: 'absolute', bottom: 4, right: 6,
@@ -366,8 +527,8 @@ export function StoryWorldMap({
   const sizeRef      = useRef<{ w: number; h: number }>({ w: 800, h: 600 });
 
   /* ── Game state refs (no re-render on change) ──────────── */
-  const playerRef = useRef<{ x: number; z: number }>({ x: 0, z: 26 });
-  const camRef    = useRef<{ x: number; z: number }>({ x: 0, z: 26 });
+  const playerRef = useRef<{ x: number; z: number }>({ x: 0, z: 72 });
+  const camRef    = useRef<{ x: number; z: number }>({ x: 0, z: 72 });
   const keysRef   = useRef<Set<string>>(new Set());
   const joyRef    = useRef<{ x: number; z: number }>({ x: 0, z: 0 });
   const timeRef   = useRef(0);
@@ -999,24 +1160,25 @@ export function StoryWorldMap({
         });
       });
 
-      /* 10. Wooden bridge (near central lake) */
-      const [brx, bry] = w2s(6, -1);
-      ctx.save();
-      ctx.translate(brx, bry); ctx.rotate(0.15);
-      for (let i = 0; i < 5; i++) {
-        const py = (i - 2) * 0.85 * TILE;
-        ctx.fillStyle = woodPatRef.current ?? '#a0682a';
-        ctx.fillRect(-2 * TILE, py - 0.4 * TILE, 4 * TILE, 0.76 * TILE);
-        ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1;
-        ctx.strokeRect(-2 * TILE, py - 0.4 * TILE, 4 * TILE, 0.76 * TILE);
-      }
-      /* railings */
-      ctx.strokeStyle = '#7a4a20'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(-1.9 * TILE, -2 * TILE); ctx.lineTo(-1.9 * TILE, 2 * TILE); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo( 1.9 * TILE, -2 * TILE); ctx.lineTo( 1.9 * TILE, 2 * TILE); ctx.stroke();
-      ctx.restore();
+      /* 10. Wooden bridges */
+      BRIDGE_DATA.forEach(br => {
+        const [bsx, bsy] = w2s(br.x, br.z);
+        ctx.save();
+        ctx.translate(bsx, bsy); ctx.rotate(br.ry);
+        for (let i = 0; i < 5; i++) {
+          const py = (i - 2) * 0.85 * TILE;
+          ctx.fillStyle = woodPatRef.current ?? '#a0682a';
+          ctx.fillRect(-2 * TILE, py - 0.4 * TILE, 4 * TILE, 0.76 * TILE);
+          ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1;
+          ctx.strokeRect(-2 * TILE, py - 0.4 * TILE, 4 * TILE, 0.76 * TILE);
+        }
+        ctx.strokeStyle = '#7a4a20'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(-1.9 * TILE, -2 * TILE); ctx.lineTo(-1.9 * TILE, 2 * TILE); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( 1.9 * TILE, -2 * TILE); ctx.lineTo( 1.9 * TILE, 2 * TILE); ctx.stroke();
+        ctx.restore();
+      });
 
-      /* ── Z-sorted sprites: trees + localities + arenas + collectibles + player ── */
+      /* ── Z-sorted sprites: buildings + trees + localities + arenas + collectibles + player ── */
       interface Sprite { z: number; draw: () => void; }
       const sprites: Sprite[] = [];
 
@@ -1074,6 +1236,65 @@ export function StoryWorldMap({
         if (dist > REVEAL_DIST) return;
         const alpha = Math.min(1, (REVEAL_DIST - dist) / 1.2);
         sprites.push({ z: c.posZ, draw: () => drawCollectible(ctx, c, t, alpha) });
+      });
+
+      /* buildings */
+      BUILDING_DATA.forEach(bld => {
+        const [bx, by] = w2s(bld.x, bld.z);
+        const bW = bld.w * TILE;
+        const bH = bld.h * TILE;
+        const colors = BUILDING_COLORS[bld.type] ?? BUILDING_COLORS.house;
+        sprites.push({ z: bld.z, draw: () => {
+          /* shadow */
+          ctx.beginPath();
+          ctx.ellipse(bx + 3, by + bH * 0.3, bW * 0.45, bH * 0.15, 0, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fill();
+          /* body */
+          rrect(ctx, bx - bW / 2, by - bH / 2, bW, bH, 4);
+          ctx.fillStyle = colors.body; ctx.fill();
+          ctx.strokeStyle = darken(colors.body, 40); ctx.lineWidth = 1.5; ctx.stroke();
+          /* roof strip */
+          const roofH = bH * 0.3;
+          rrect(ctx, bx - bW / 2, by - bH / 2, bW, roofH, 4);
+          ctx.fillStyle = colors.roof; ctx.fill();
+          /* type-specific details */
+          if (bld.type === 'ruin') {
+            ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(bx - bW * 0.2, by - bH * 0.28); ctx.lineTo(bx - bW * 0.05, by + bH * 0.22); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(bx + bW * 0.15, by - bH * 0.1); ctx.lineTo(bx + bW * 0.3, by + bH * 0.28); ctx.stroke();
+          } else if (bld.type === 'church') {
+            ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(bx, by - bH / 2 - 9); ctx.lineTo(bx, by - bH / 2 + 1); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(bx - 5, by - bH / 2 - 5); ctx.lineTo(bx + 5, by - bH / 2 - 5); ctx.stroke();
+          } else if (bld.type === 'tower') {
+            for (let ti = -1; ti <= 1; ti++) {
+              ctx.fillStyle = colors.roof;
+              ctx.fillRect(bx + ti * bW * 0.28 - 4, by - bH / 2 - 6, 7, 6);
+            }
+          } else if (bld.type === 'inn') {
+            ctx.strokeStyle = '#7a2020'; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(bx + bW / 2 - 2, by - bH / 2); ctx.lineTo(bx + bW / 2 - 2, by - bH / 2 - 10); ctx.stroke();
+            ctx.fillStyle = '#ff3333';
+            ctx.beginPath(); ctx.moveTo(bx + bW / 2 - 2, by - bH / 2 - 10); ctx.lineTo(bx + bW / 2 + 8, by - bH / 2 - 7); ctx.lineTo(bx + bW / 2 - 2, by - bH / 2 - 4); ctx.fill();
+          } else if (bld.type === 'shop') {
+            ctx.fillStyle = '#f97316';
+            ctx.fillRect(bx - bW / 2, by - bH / 2 + roofH, bW, 4);
+          }
+          /* door */
+          const doorW = bW * 0.24; const doorH = bH * 0.28;
+          ctx.fillStyle = darken(colors.body, 55);
+          ctx.fillRect(bx - doorW / 2, by + bH / 2 - doorH, doorW, doorH);
+          ctx.beginPath(); ctx.arc(bx, by + bH / 2 - doorH, doorW / 2, Math.PI, 0); ctx.fill();
+          /* windows */
+          if (bld.type !== 'ruin') {
+            [bx - bW * 0.24, bx + bW * 0.24].forEach(wx => {
+              ctx.fillStyle = 'rgba(255,255,180,0.38)';
+              ctx.fillRect(wx - 4, by + bH * 0.04 - 4, 8, 6);
+              ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1;
+              ctx.strokeRect(wx - 4, by + bH * 0.04 - 4, 8, 6);
+            });
+          }
+        }});
       });
 
       /* player */
