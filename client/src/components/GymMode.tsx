@@ -8,7 +8,7 @@ import { CARD_DATA } from '../lib/cardData';
 import { pauseHomeMusic, resumeHomeMusic } from './SpotifyPlayer';
 import { InjuredPersonaggiDisclaimer } from './InjuredPersonaggiDisclaimer';
 import { StarterDeckSelection, StarterDeckOption } from './StarterDeckSelection';
-import { StoryWorldMap, StoryLocality } from './StoryWorldMap';
+import { StoryWorldMap, StoryLocality, StoryCollectible } from './StoryWorldMap';
 import { GymLeader } from '../types/gym';
 
 export type { GymLeader };
@@ -208,6 +208,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [hoveredLeaderId, setHoveredLeaderId] = useState<number | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const [localities, setLocalities] = useState<StoryLocality[]>([]);
+  const [collectibles, setCollectibles] = useState<StoryCollectible[]>([]);
 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -254,6 +255,19 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
       }
     } catch { /* silently ignore */ }
   }, []);
+
+  const fetchCollectibles = useCallback(async () => {
+    if (!authToken) return;
+    try {
+      const res = await fetch('/api/story-mode/collectibles', {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.collectibles)) {
+        setCollectibles(data.collectibles);
+      }
+    } catch { /* silently ignore */ }
+  }, [authToken]);
 
   const fetchCardEffects = useCallback(async () => {
     try {
@@ -307,7 +321,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     fetchUserCredits();
     fetchCardEffects();
     fetchLocalities();
-  }, [fetchLeaders, fetchStoryDeck, fetchUserCredits, fetchCardEffects, fetchLocalities]);
+    fetchCollectibles();
+  }, [fetchLeaders, fetchStoryDeck, fetchUserCredits, fetchCardEffects, fetchLocalities, fetchCollectibles]);
 
   // Show deck selection screen when user has no story deck and first leader has starterDeckOptions
   useEffect(() => {
@@ -1428,6 +1443,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           onChallengeLeader={handleChallengeLeader}
           onResumeGame={handleInternalResume}
           localities={localities}
+          collectibles={collectibles}
         />
       )}
 

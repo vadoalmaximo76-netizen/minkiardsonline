@@ -16,6 +16,17 @@ export interface StoryLocality {
   isActive: boolean;
 }
 
+export interface StoryCollectible {
+  id: number;
+  type: 'coin' | 'card';
+  subtype?: string;
+  cardId?: string;
+  posX: number;
+  posZ: number;
+  creditValue?: number;
+  collected: boolean;
+}
+
 export interface StoryWorldMapProps {
   leaders: GymLeader[];
   lostLeaderIds: number[];
@@ -26,6 +37,7 @@ export interface StoryWorldMapProps {
   onChallengeLeader: (leader: GymLeader) => void;
   onResumeGame: (leader: GymLeader, gameId: string) => void;
   localities?: StoryLocality[];
+  collectibles?: StoryCollectible[];
 }
 
 /* ── Controls ─────────────────────────────────────────────────── */
@@ -835,6 +847,58 @@ function CameraRig({ posRef }: { posRef: React.RefObject<THREE.Group> }) {
   return null;
 }
 
+/* ── Collectible 3D item ────────────────────────────────────────── */
+function CollectibleItem({ collectible }: { collectible: StoryCollectible }) {
+  const meshRef = useRef<THREE.Group>(null!);
+  const color =
+    collectible.type === 'coin' ? '#fbbf24' :
+    collectible.subtype === 'personaggi' ? '#818cf8' :
+    collectible.subtype === 'mossa' ? '#f87171' : '#4ade80';
+
+  useFrame(({ clock }) => {
+    if (!meshRef.current) return;
+    const t = clock.getElapsedTime();
+    meshRef.current.position.y = 0.85 + Math.sin(t * 2.2 + collectible.id * 0.9) * 0.2;
+    meshRef.current.rotation.y = t * 1.8;
+  });
+
+  return (
+    <group position={[collectible.posX, 0, collectible.posZ]}>
+      <group ref={meshRef} position={[0, 0.85, 0]}>
+        {collectible.type === 'coin' ? (
+          <>
+            <mesh castShadow>
+              <sphereGeometry args={[0.36, 16, 12]} />
+              <meshStandardMaterial color="#fbbf24" metalness={0.92} roughness={0.08} emissive="#f59e0b" emissiveIntensity={0.55} />
+            </mesh>
+            <mesh rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[0.54, 0.07, 8, 28]} />
+              <meshStandardMaterial color="#f59e0b" metalness={0.85} roughness={0.15} />
+            </mesh>
+          </>
+        ) : (
+          <>
+            <mesh castShadow>
+              <boxGeometry args={[0.52, 0.74, 0.06]} />
+              <meshStandardMaterial color={color} metalness={0.25} roughness={0.45} emissive={color} emissiveIntensity={0.45} />
+            </mesh>
+            {/* card shine stripe */}
+            <mesh position={[0, 0.1, 0.04]}>
+              <boxGeometry args={[0.38, 0.12, 0.01]} />
+              <meshStandardMaterial color="#ffffff" transparent opacity={0.35} />
+            </mesh>
+          </>
+        )}
+      </group>
+      {/* ground glow ring */}
+      <mesh position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.55, 0.88, 28]} />
+        <meshBasicMaterial color={color} transparent opacity={0.32} />
+      </mesh>
+    </group>
+  );
+}
+
 /* ── World scene (inside Canvas) ───────────────────────────────── */
 interface WorldSceneProps {
   leaders: GymLeader[];
@@ -847,6 +911,8 @@ interface WorldSceneProps {
   onNearestChange: (id: number | null, dist: number) => void;
   onChallengeLeader: (leader: GymLeader) => void;
   localities: StoryLocality[];
+  collectibles: StoryCollectible[];
+  onNearCollectibleChange: (c: StoryCollectible | null) => void;
 }
 
 function WorldScene({
@@ -860,9 +926,12 @@ function WorldScene({
   onNearestChange,
   onChallengeLeader,
   localities,
+  collectibles,
+  onNearCollectibleChange,
 }: WorldSceneProps) {
 
   const nearCheckRef = useRef(0);
+  const lastNearCollectibleIdRef = useRef<number | null>(null);
 
   useFrame((_, delta) => {
     nearCheckRef.current += delta;
@@ -883,6 +952,18 @@ function WorldScene({
     });
 
     onNearestChange(minDist <= 9 ? minId : null, minDist);
+
+    // Check proximity to collectibles
+    let nearC: StoryCollectible | null = null;
+    for (const c of collectibles) {
+      const dist = Math.sqrt((px - c.posX) ** 2 + (pz - c.posZ) ** 2);
+      if (dist < 2.8) { nearC = c; break; }
+    }
+    const newNearId = nearC?.id ?? null;
+    if (newNearId !== lastNearCollectibleIdRef.current) {
+      lastNearCollectibleIdRef.current = newNearId;
+      onNearCollectibleChange(nearC);
+    }
   });
 
   return (
@@ -927,6 +1008,11 @@ function WorldScene({
       {/* Localities */}
       {localities.map(loc => (
         <Locality key={loc.id} locality={loc} />
+      ))}
+
+      {/* Collectibles */}
+      {collectibles.map(c => (
+        <CollectibleItem key={`collectible-${c.id}`} collectible={c} />
       ))}
 
       {/* Arenas */}
@@ -1148,6 +1234,7 @@ export function StoryWorldMap({
   onChallengeLeader,
   onResumeGame,
   localities = [],
+  collectibles = [],
 }: StoryWorldMapProps) {
 
   const playerPosRef = useRef<THREE.Group>(null!);
@@ -1160,6 +1247,44 @@ export function StoryWorldMap({
   const [isTouchDevice] = useState(
     () => typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
   );
+
+  /* Collectibles state */
+  const [nearCollectible, setNearCollectible]       = useState<StoryCollectible | null>(null);
+  const [localCollectedIds, setLocalCollectedIds]   = useState<Set<number>>(new Set());
+  const [isCollecting, setIsCollecting]             = useState(false);
+  const [collectResult, setCollectResult]           = useState<{ type: string; credits?: number; cardId?: string; subtype?: string } | null>(null);
+
+  const visibleCollectibles = useMemo(
+    () => collectibles.filter(c => !c.collected && !localCollectedIds.has(c.id)),
+    [collectibles, localCollectedIds]
+  );
+
+  const handleNearCollectibleChange = useCallback((c: StoryCollectible | null) => {
+    setNearCollectible(prev => {
+      // Don't re-show popup for already-collected ones
+      if (c && localCollectedIds.has(c.id)) return null;
+      return c;
+    });
+  }, [localCollectedIds]);
+
+  const handleCollect = useCallback(async () => {
+    if (!nearCollectible || isCollecting) return;
+    setIsCollecting(true);
+    try {
+      const res = await fetch(`/api/story-mode/collect/${nearCollectible.id}`, { method: 'POST', credentials: 'include' });
+      const data = await res.json();
+      if (data.success) {
+        setLocalCollectedIds(prev => new Set([...prev, nearCollectible.id]));
+        setCollectResult(data.reward);
+        setNearCollectible(null);
+        setTimeout(() => setCollectResult(null), 3500);
+      }
+    } catch (e) {
+      console.error('Collect error', e);
+    } finally {
+      setIsCollecting(false);
+    }
+  }, [nearCollectible, isCollecting]);
 
   /* Derive nearest leader object */
   const nearLeader = useMemo(
@@ -1241,6 +1366,8 @@ export function StoryWorldMap({
             onNearestChange={handleNearestChange}
             onChallengeLeader={onChallengeLeader}
             localities={localities}
+            collectibles={visibleCollectibles}
+            onNearCollectibleChange={handleNearCollectibleChange}
           />
         </Canvas>
       </KeyboardControls>
@@ -1409,6 +1536,90 @@ export function StoryWorldMap({
               </button>
             ) : null}
           </div>
+        </div>
+      )}
+
+      {/* ── Collectible pickup popup ── */}
+      {nearCollectible && !localCollectedIds.has(nearCollectible.id) && (
+        <div style={{
+          position: 'absolute',
+          top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'rgba(5,5,20,0.96)',
+          border: `2px solid ${nearCollectible.type === 'coin' ? 'rgba(251,191,36,0.7)' : nearCollectible.subtype === 'personaggi' ? 'rgba(129,140,248,0.7)' : nearCollectible.subtype === 'mossa' ? 'rgba(248,113,113,0.7)' : 'rgba(74,222,128,0.7)'}`,
+          borderRadius: 16,
+          padding: '20px 28px',
+          zIndex: 50,
+          minWidth: 240,
+          textAlign: 'center',
+          boxShadow: '0 0 40px rgba(0,0,0,0.8)',
+          animation: 'fadeIn 0.2s ease',
+        }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>
+            {nearCollectible.type === 'coin' ? '🪙' : nearCollectible.subtype === 'personaggi' ? '🧙' : nearCollectible.subtype === 'mossa' ? '⚔️' : '✨'}
+          </div>
+          <div style={{ color: 'white', fontWeight: 800, fontSize: 16, marginBottom: 4 }}>
+            {nearCollectible.type === 'coin'
+              ? `Moneta (+${nearCollectible.creditValue ?? 10} crediti)`
+              : nearCollectible.subtype === 'personaggi'
+              ? 'Carta Personaggio'
+              : nearCollectible.subtype === 'mossa'
+              ? 'Carta Mossa'
+              : 'Carta Bonus'}
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginBottom: 16 }}>
+            {nearCollectible.type === 'coin'
+              ? 'Aggiungi al tuo profilo'
+              : 'Aggiungi al tuo mazzo Story Mode'}
+          </div>
+          <button
+            onClick={handleCollect}
+            disabled={isCollecting}
+            style={{
+              background: nearCollectible.type === 'coin'
+                ? 'linear-gradient(135deg,#f59e0b,#d97706)'
+                : nearCollectible.subtype === 'personaggi'
+                ? 'linear-gradient(135deg,#818cf8,#6366f1)'
+                : nearCollectible.subtype === 'mossa'
+                ? 'linear-gradient(135deg,#f87171,#dc2626)'
+                : 'linear-gradient(135deg,#4ade80,#16a34a)',
+              border: 'none',
+              borderRadius: 10,
+              color: 'white',
+              fontWeight: 900,
+              fontSize: 15,
+              padding: '10px 28px',
+              cursor: isCollecting ? 'wait' : 'pointer',
+              opacity: isCollecting ? 0.7 : 1,
+              width: '100%',
+            }}
+          >
+            {isCollecting ? '...' : '➕ Aggiungi'}
+          </button>
+        </div>
+      )}
+
+      {/* ── Collect success banner ── */}
+      {collectResult && (
+        <div style={{
+          position: 'absolute',
+          top: 70, left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(5,5,20,0.95)',
+          border: `1.5px solid ${collectResult.type === 'coin' ? 'rgba(251,191,36,0.6)' : 'rgba(74,222,128,0.6)'}`,
+          borderRadius: 12,
+          padding: '10px 22px',
+          zIndex: 50,
+          color: collectResult.type === 'coin' ? '#fbbf24' : '#4ade80',
+          fontWeight: 800,
+          fontSize: 14,
+          whiteSpace: 'nowrap',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.7)',
+          animation: 'fadeIn 0.2s ease',
+        }}>
+          {collectResult.type === 'coin'
+            ? `🪙 +${collectResult.credits} crediti aggiunti al profilo!`
+            : `✅ Carta aggiunta al mazzo Story Mode!`}
         </div>
       )}
 

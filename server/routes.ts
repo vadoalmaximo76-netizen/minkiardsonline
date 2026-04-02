@@ -15,7 +15,7 @@ function handle402(err: unknown): boolean {
   }
   return false;
 }
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, storyCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates, dailyChallengeScores, pageTooltips, storyLocalities } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, storyCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates, dailyChallengeScores, pageTooltips, storyLocalities, storyCollectiblePickups } from "../shared/schema";
 import { jsonStorage, homePanelsStorage, newsTickerStorage, homeConfigStorage, rankiardTiersStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray, gt, isNull } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from "../client/src/lib/cardData";
@@ -13759,6 +13759,85 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       res.json({ success: true, cardIds: [] });
     } catch (e) {
       console.error('Error initializing story deck:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // ── Story Mode Collectibles ────────────────────────────────────────────────
+  // Hardcoded collectible definitions (8 items: 5 coins + 3 cards)
+  const STORY_COLLECTIBLES = [
+    { id: 1, type: 'coin' as const,  posX:  18, posZ:   6, creditValue: 10 },
+    { id: 2, type: 'coin' as const,  posX: -18, posZ:  -2, creditValue: 10 },
+    { id: 3, type: 'coin' as const,  posX:   2, posZ: -16, creditValue: 10 },
+    { id: 4, type: 'coin' as const,  posX: -30, posZ:  20, creditValue: 10 },
+    { id: 5, type: 'coin' as const,  posX:  32, posZ:  28, creditValue: 10 },
+    { id: 6, type: 'card' as const,  posX: -12, posZ: -22, subtype: 'personaggi', cardId: 'personaggi-10' },
+    { id: 7, type: 'card' as const,  posX:  20, posZ:  -2, subtype: 'mossa',      cardId: 'mosse-7' },
+    { id: 8, type: 'card' as const,  posX:  -8, posZ:  28, subtype: 'bonus',      cardId: 'bonus-1' },
+  ] as const;
+
+  // GET /api/story-mode/collectibles - list all collectibles with collected status for current user
+  app.get('/api/story-mode/collectibles', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const pickups = await db.select({ collectibleId: storyCollectiblePickups.collectibleId })
+        .from(storyCollectiblePickups)
+        .where(eq(storyCollectiblePickups.userId, user.userId));
+      const collectedIds = new Set(pickups.map(p => p.collectibleId));
+      const result = STORY_COLLECTIBLES.map(c => ({
+        ...c,
+        collected: collectedIds.has(c.id),
+      }));
+      res.json({ success: true, collectibles: result });
+    } catch (e) {
+      console.error('Error fetching collectibles:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/story-mode/collect/:id - collect an item (add card or credits)
+  app.post('/api/story-mode/collect/:id', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const collectibleId = parseInt(req.params.id);
+      const collectible = STORY_COLLECTIBLES.find(c => c.id === collectibleId);
+      if (!collectible) return res.status(404).json({ success: false, error: 'Collezionabile non trovato' });
+      // Check if already collected
+      const existing = await db.select().from(storyCollectiblePickups)
+        .where(and(eq(storyCollectiblePickups.userId, user.userId), eq(storyCollectiblePickups.collectibleId, collectibleId)))
+        .limit(1);
+      if (existing.length > 0) return res.status(409).json({ success: false, error: 'Già raccolto' });
+      // Mark as collected
+      await db.insert(storyCollectiblePickups).values({ userId: user.userId, collectibleId });
+      // Apply reward
+      if (collectible.type === 'coin') {
+        const credits = await db.select().from(userDraftCredits).where(eq(userDraftCredits.userId, user.userId)).limit(1);
+        const creditValue = (collectible as any).creditValue as number;
+        if (credits.length === 0) {
+          await db.insert(userDraftCredits).values({ userId: user.userId, freeCredits: creditValue, paidCredits: 0 });
+        } else {
+          await db.update(userDraftCredits)
+            .set({ freeCredits: credits[0].freeCredits + creditValue, updatedAt: new Date() })
+            .where(eq(userDraftCredits.userId, user.userId));
+        }
+        res.json({ success: true, reward: { type: 'coin', credits: creditValue } });
+      } else {
+        const cardId = (collectible as any).cardId as string;
+        const rows = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, user.userId)).limit(1);
+        if (rows.length === 0) {
+          await db.insert(userStoryDeck).values({ userId: user.userId, cardIds: [cardId] });
+        } else {
+          const current = (rows[0].cardIds as string[]) || [];
+          await db.update(userStoryDeck).set({ cardIds: [...current, cardId], updatedAt: new Date() }).where(eq(userStoryDeck.userId, user.userId));
+        }
+        res.json({ success: true, reward: { type: 'card', cardId, subtype: (collectible as any).subtype } });
+      }
+    } catch (e) {
+      console.error('Error collecting item:', e);
       res.status(500).json({ success: false, error: 'Errore server' });
     }
   });

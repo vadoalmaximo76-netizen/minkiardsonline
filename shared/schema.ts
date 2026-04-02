@@ -876,6 +876,16 @@ export const storyLocalities = pgTable("story_localities", {
 });
 export const insertStoryLocalitySchema = createInsertSchema(storyLocalities).omit({ id: true, createdAt: true });
 export type StoryLocality = typeof storyLocalities.$inferSelect;
+
+// ── Story Mode collectible pickups ───────────────────────────────────────────
+export const storyCollectiblePickups = pgTable("story_collectible_pickups", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  collectibleId: integer("collectible_id").notNull(),
+  collectedAt: timestamp("collected_at").notNull().defaultNow(),
+});
+export type StoryCollectiblePickup = typeof storyCollectiblePickups.$inferSelect;
+
 export type UserGymProgress = typeof userGymProgress.$inferSelect;
 export type UserStoryDeck = typeof userStoryDeck.$inferSelect;
 export type InjuredPersonaggio = typeof injuredPersonaggi.$inferSelect;
