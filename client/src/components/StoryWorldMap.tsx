@@ -151,16 +151,22 @@ interface ArenaProps {
 function Arena({ leader, position, status, isCurrent, isNear, onChallenge }: ArenaProps) {
   const [hovered, setHovered] = useState(false);
   const clickable = status !== 'locked';
-  const sphereRef = useRef<THREE.Mesh>(null!);
-  const ringRef   = useRef<THREE.Mesh>(null!);
-  const pulseT    = useRef(0);
+  const sphereRef    = useRef<THREE.Mesh>(null!);
+  const ringRef      = useRef<THREE.Mesh>(null!);
+  const floatRef     = useRef<THREE.Group>(null!);
+  const pulseT       = useRef(0);
 
   useFrame((_, delta) => {
-    if (status !== 'available') return;
-    pulseT.current += delta * 2.2;
-    const s = 1 + Math.sin(pulseT.current) * 0.18;
-    if (sphereRef.current) sphereRef.current.scale.setScalar(s);
-    if (ringRef.current)   ringRef.current.scale.setScalar(1 + Math.sin(pulseT.current) * 0.08);
+    pulseT.current += delta * 1.8;
+    if (status === 'available') {
+      const s = 1 + Math.sin(pulseT.current * 1.22) * 0.18;
+      if (sphereRef.current) sphereRef.current.scale.setScalar(s);
+      if (ringRef.current)   ringRef.current.scale.setScalar(1 + Math.sin(pulseT.current * 1.22) * 0.08);
+    }
+    /* Badge float bob — always animates so badge never stands still */
+    if (floatRef.current) {
+      floatRef.current.position.y = 7.6 + Math.sin(pulseT.current * 0.85) * 0.35;
+    }
   });
 
   const platformColor = status === 'completed'
@@ -173,6 +179,7 @@ function Arena({ leader, position, status, isCurrent, isNear, onChallenge }: Are
     ? '#4ade80' : status === 'available'
     ? '#fbbf24' : '#6b7280';
   const emissive = status === 'available' ? '#c05a00' : status === 'completed' ? '#052e16' : '#000000';
+  const accentColor = status === 'completed' ? '#4ade80' : '#fbbf24';
 
   const handleClick = useCallback(() => {
     if (clickable) onChallenge(leader);
@@ -180,11 +187,10 @@ function Arena({ leader, position, status, isCurrent, isNear, onChallenge }: Are
 
   return (
     <group position={position}>
-      {/* platform — clickable for available/completed arenas */}
+      {/* platform */}
       <mesh
         position={[0, 0.12, 0]}
-        receiveShadow
-        castShadow
+        receiveShadow castShadow
         onClick={clickable ? handleClick : undefined}
         onPointerOver={clickable ? () => setHovered(true) : undefined}
         onPointerOut={clickable ? () => setHovered(false) : undefined}
@@ -202,64 +208,96 @@ function Arena({ leader, position, status, isCurrent, isNear, onChallenge }: Are
         <cylinderGeometry args={[0.38, 0.5, 3.0, 8]} />
         <meshLambertMaterial color={pillarColor} emissive={emissive} emissiveIntensity={0.3} />
       </mesh>
-      {/* status sphere — pulses for available */}
+      {/* status sphere */}
       <mesh ref={sphereRef} position={[0, 3.35, 0]}>
         <sphereGeometry args={[0.55, 12, 12]} />
-        <meshLambertMaterial color={sphereColor} emissive={sphereColor} emissiveIntensity={status === 'locked' ? 0 : 0.5} />
+        <meshLambertMaterial color={sphereColor} emissive={sphereColor} emissiveIntensity={status === 'locked' ? 0 : 0.6} />
       </mesh>
 
-      {/* Label always visible */}
+      {/* ── Floating badge group — bobs up and down ── */}
+      {status !== 'locked' && (
+        <group ref={floatRef} position={[0, 7.6, 0]}>
+          <Html
+            center
+            distanceFactor={26}
+            zIndexRange={[20, 30]}
+            style={{ pointerEvents: 'none', userSelect: 'none' }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              {/* Boss portrait — large circle */}
+              <div style={{
+                width: 58, height: 58,
+                borderRadius: '50%',
+                border: `3px solid ${accentColor}`,
+                overflow: 'hidden',
+                background: '#0d0a1a',
+                boxShadow: `0 0 14px ${accentColor}99, 0 0 28px ${accentColor}44, 0 2px 8px rgba(0,0,0,0.8)`,
+                flexShrink: 0,
+              }}>
+                {leader.leaderImageUrl ? (
+                  <img
+                    src={leader.leaderImageUrl}
+                    alt={leader.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(#1a1040,#0d0a22)', fontSize: 24 }}>
+                    {status === 'completed' ? '✓' : '⚔️'}
+                  </div>
+                )}
+              </div>
+              {/* Badge icon — small, below portrait */}
+              {leader.badgeImageUrl && (
+                <div style={{
+                  width: 26, height: 26,
+                  borderRadius: '50%',
+                  border: `2px solid ${accentColor}`,
+                  overflow: 'hidden',
+                  background: '#0d0a1a',
+                  boxShadow: `0 0 8px ${accentColor}88`,
+                  marginTop: -2,
+                }}>
+                  <img src={leader.badgeImageUrl} alt="badge" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              )}
+            </div>
+          </Html>
+        </group>
+      )}
+
+      {/* ── Gym name label — static, below boss portrait ── */}
       <Html
-        position={[0, 5.2, 0]}
+        position={[0, 5.0, 0]}
         center
-        distanceFactor={18}
+        distanceFactor={22}
         zIndexRange={[10, 20]}
         style={{ pointerEvents: 'none', userSelect: 'none', whiteSpace: 'nowrap' }}
       >
         <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 2,
+          background: status === 'locked'
+            ? 'rgba(0,0,0,0.75)'
+            : status === 'completed'
+              ? 'rgba(5,46,22,0.92)'
+              : 'rgba(30,15,0,0.92)',
+          border: `1px solid ${status === 'completed' ? '#4ade8066' : status === 'available' ? '#fbbf2466' : '#374151'}`,
+          borderRadius: 8,
+          padding: '3px 9px',
+          fontSize: 12,
+          fontWeight: 800,
+          color: status === 'locked' ? '#6b7280' : status === 'completed' ? '#86efac' : '#fde68a',
+          letterSpacing: '0.03em',
+          boxShadow: status !== 'locked' ? `0 2px 8px rgba(0,0,0,0.7), 0 0 6px ${accentColor}44` : 'none',
         }}>
-          {status !== 'locked' && leader.leaderImageUrl && (
-            <img
-              src={leader.leaderImageUrl}
-              alt={leader.name}
-              style={{
-                width: 32, height: 32,
-                borderRadius: '50%',
-                border: `2px solid ${status === 'completed' ? '#4ade80' : '#fbbf24'}`,
-                objectFit: 'cover',
-                boxShadow: isCurrent ? '0 0 10px #fbbf24aa' : 'none',
-              }}
-            />
-          )}
-          <div style={{
-            background: status === 'locked'
-              ? 'rgba(0,0,0,0.7)'
-              : status === 'completed'
-                ? 'rgba(5,46,22,0.9)'
-                : 'rgba(30,15,0,0.9)',
-            border: `1px solid ${status === 'completed' ? '#4ade8055' : status === 'available' ? '#fbbf2455' : '#374151'}`,
-            borderRadius: 8,
-            padding: '3px 7px',
-            fontSize: 11,
-            fontWeight: 700,
-            color: status === 'locked' ? '#6b7280' : status === 'completed' ? '#86efac' : '#fde68a',
-            letterSpacing: '0.03em',
-          }}>
-            {status === 'locked' ? '🔒 ' : status === 'completed' ? '✓ ' : '⚡ '}
-            {leader.gymName}
-          </div>
+          {status === 'locked' ? '🔒 ' : status === 'completed' ? '✓ ' : '⚡ '}
+          {leader.gymName}
         </div>
       </Html>
 
-      {/* proximity glow ring on ground — shown near */}
+      {/* proximity glow ring on ground */}
       {isNear && status !== 'locked' && (
         <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[3.8, 4.4, 32]} />
-          <meshBasicMaterial color={status === 'completed' ? '#4ade80' : '#fbbf24'} transparent opacity={0.35} side={THREE.DoubleSide} />
+          <meshBasicMaterial color={accentColor} transparent opacity={0.4} side={THREE.DoubleSide} />
         </mesh>
       )}
     </group>
