@@ -1832,7 +1832,7 @@ export function StoryWorldMap({
           {!challengeSent ? (
             <button
               onClick={() => {
-                socket.emit('story-world:challenge', { targetUserId: proximityPlayer.userId });
+                socket.emit('story-world:challenge', { targetUserId: proximityPlayer.userId, authToken });
                 setChallengeSent(true);
                 setTimeout(() => setChallengeSent(false), 12000);
               }}
@@ -1872,6 +1872,7 @@ export function StoryWorldMap({
                 socket.emit('story-world:challenge-response', {
                   challengerUserId: incomingChallenge.challengerUserId,
                   accepted: true,
+                  authToken,
                 });
                 setIncomingChallenge(null);
               }}
@@ -1888,6 +1889,7 @@ export function StoryWorldMap({
                 socket.emit('story-world:challenge-response', {
                   challengerUserId: incomingChallenge.challengerUserId,
                   accepted: false,
+                  authToken,
                 });
                 setIncomingChallenge(null);
               }}

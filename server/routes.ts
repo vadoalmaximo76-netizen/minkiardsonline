@@ -10978,12 +10978,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       (socket as any).data.storyUserId = undefined;
     });
 
-    socket.on('story-world:challenge', async ({ targetUserId, authToken }: { targetUserId: number; authToken: string }) => {
+    socket.on('story-world:challenge', async ({ targetUserId, authToken }: { targetUserId: number; authToken?: string }) => {
       try {
-        if (!authToken) return;
-        const decoded = jwt.verify(authToken, jwtSecret) as { userId: number; email: string };
-        if (!decoded?.userId) return;
-        const challengerId = decoded.userId;
+        // Resolve challenger: prefer socket session, fall back to JWT
+        let challengerId = (socket as any).data?.storyUserId as number | undefined;
+        if (!challengerId) {
+          if (!authToken) return;
+          const decoded = jwt.verify(authToken, jwtSecret) as { userId: number; email: string };
+          if (!decoded?.userId) return;
+          challengerId = decoded.userId;
+        }
         const challenger = storyWorldPlayers.get(challengerId.toString());
         const target = storyWorldPlayers.get(targetUserId.toString());
         if (!challenger || !target) return;
@@ -10996,17 +11000,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch { /* invalid token */ }
     });
 
-    socket.on('story-world:challenge-response', async ({ challengerUserId, accepted, authToken }: { challengerUserId: number; accepted: boolean; authToken: string }) => {
+    socket.on('story-world:challenge-response', async ({ challengerUserId, accepted, authToken }: { challengerUserId: number; accepted: boolean; authToken?: string }) => {
       const challenger = storyWorldPlayers.get(challengerUserId.toString());
       if (!accepted) {
         if (challenger) io.to(challenger.socketId).emit('story-world:challenge-declined', {});
         return;
       }
       try {
-        if (!authToken) return;
-        const decoded = jwt.verify(authToken, jwtSecret) as { userId: number; email: string };
-        if (!decoded?.userId) return;
-        const targetId = decoded.userId;
+        // Resolve target: prefer socket session, fall back to JWT
+        let targetId = (socket as any).data?.storyUserId as number | undefined;
+        if (!targetId) {
+          if (!authToken) return;
+          const decoded = jwt.verify(authToken, jwtSecret) as { userId: number; email: string };
+          if (!decoded?.userId) return;
+          targetId = decoded.userId;
+        }
         const target = storyWorldPlayers.get(targetId.toString());
         if (!challenger || !target) return;
 
