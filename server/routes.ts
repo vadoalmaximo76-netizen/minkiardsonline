@@ -5313,6 +5313,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
+      // ── PIOGGIA DI AGHI DI PINO ──────────────────────────────────────────────
+      const pendingPD = (game as any).pendingPioggiaDiAghi;
+      if (pendingPD && pendingPD.choiceId === choiceId && pendingPD.defenderName === socketPlayerName) {
+        const chosenPD = parseInt(value, 10);
+        if (isNaN(chosenPD) || chosenPD < 1 || chosenPD > 6) {
+          console.warn(`🎲 PIOGGIA_DI_AGHI: invalid choice "${value}" from ${socketPlayerName} — ignoring`);
+          return;
+        }
+        delete (game as any).pendingPioggiaDiAghi;
+        const diceRollPD = Math.floor(Math.random() * 6) + 1;
+        io.to(gameId).emit('dice-rolled', { result: diceRollPD, playerName: socketPlayerName });
+        if (diceRollPD === chosenPD) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-pioggia-saved`,
+            playerName: 'Sistema',
+            message: `🎲 PIOGGIA DI AGHI: ${socketPlayerName} ha scelto ${chosenPD}. Dado: ${diceRollPD}. ✅ SALVATO! Il personaggio sopravvive!`,
+            timestamp: Date.now()
+          });
+        } else {
+          const pdTargetCardId = pendingPD.targetCardId;
+          const defCharPD = pdTargetCardId
+            ? game.field?.find((c: any) => c.id === pdTargetCardId) || game.characters?.find((c: any) => c.id === pdTargetCardId)
+            : (gameManager as any).getPlayerActiveCharacter(game, socketPlayerName);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-pioggia-death`,
+            playerName: 'Sistema',
+            message: `🎲 PIOGGIA DI AGHI: ${socketPlayerName} ha scelto ${chosenPD}. Dado: ${diceRollPD}. 💀 MORTE ISTANTANEA!`,
+            timestamp: Date.now()
+          });
+          if (defCharPD) {
+            defCharPD.pti = 0;
+            (gameManager as any).updateCardTextWithPTI(defCharPD);
+            io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+            const deathResultPD = (gameManager as any).moveToGraveyard(gameId, defCharPD.id, socketPlayerName, pendingPD.attackerName);
+            if (deathResultPD?.eliminationCheck) {
+              (gameManager as any).processEliminationAfterDeath(gameId, socketPlayerName, io, 'PIOGGIA_DI_AGHI');
+            }
+          }
+        }
+        const pdFinalState = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', pdFinalState);
+        console.log(`🎲 PIOGGIA_DI_AGHI (human): ${socketPlayerName} chose ${chosenPD} vs die ${diceRollPD} — ${diceRollPD === chosenPD ? 'SAVED' : 'DEAD'}`);
+        // CPU attacker turn continuation (same pattern as Roulette Russa)
+        const pdAttackerName = pendingPD.attackerName;
+        const pdGameAfter = gameManager.getGameState(gameId);
+        if (pdGameAfter && pdGameAfter.players[pdAttackerName]?.isCPU) {
+          const cpuInstPD = pdGameAfter.players[pdAttackerName].cpuInstance;
+          if (cpuInstPD) {
+            cpuInstPD.resolveAttack();
+            setTimeout(async () => {
+              try {
+                const updState = gameManager.getSanitizedGameState(gameId);
+                const nxtAction = await cpuInstPD.takeTurn(updState);
+                if (nxtAction) {
+                  await gameManager.processCPUTurn(gameId, pdAttackerName, io);
+                } else {
+                  gameManager.processDelayedDamages(gameId, pdAttackerName, io);
+                  const nextP = gameManager.endTurn(gameId, pdAttackerName);
+                  if (nextP) {
+                    io.to(gameId).emit('next-turn', { nextPlayer: nextP });
+                    if (pdGameAfter.players[nextP]?.isCPU) {
+                      setTimeout(() => { gameManager.processCPUTurn(gameId, nextP, io); }, 1200);
+                    }
+                  }
+                }
+              } catch (e) { console.error(`Error continuing CPU ${pdAttackerName} turn after pioggia:`, e); }
+            }, 500);
+          }
+        }
+        return;
+      }
+
       // ── RESPINTA ─────────────────────────────────────────────────────────────
       const pendingRespinta = (game as any).pendingRespinta;
       if (pendingRespinta && pendingRespinta.choiceId === choiceId && pendingRespinta.playerName === socketPlayerName) {
@@ -8205,6 +8277,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`🎲 ROULETTE RUSSA (CPU): attack resolved`);
           const updatedStateRRC = gameManager.getSanitizedGameState(gameId);
           emitThrottledGameState(io, gameId, updatedStateRRC);
+          return;
+        }
+
+        // PIOGGIA DI AGHI (human): panel shown to defender — bypass defense dialog, wait for choice-panel-response
+        if (attackResult.result?.pioggiaPending) {
+          console.log(`🎲 PIOGGIA DI AGHI pending: waiting for defender's number choice`);
+          const updatedStatePD = gameManager.getSanitizedGameState(gameId);
+          emitThrottledGameState(io, gameId, updatedStatePD);
+          return;
+        }
+
+        // PIOGGIA DI AGHI (CPU): already resolved in executeMossaAttack — just emit state
+        if (attackResult.result?.pioggiaCPUResolved) {
+          console.log(`🎲 PIOGGIA DI AGHI (CPU): attack resolved`);
+          const updatedStatePDC = gameManager.getSanitizedGameState(gameId);
+          emitThrottledGameState(io, gameId, updatedStatePDC);
           return;
         }
 

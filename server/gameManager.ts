@@ -17229,6 +17229,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }, 12000)
         };
         if (ioAC) {
+          console.log(`🎯 ACCHIAPPT CHESSA: emitting acchiappt-number-choice to room ${gameId} attackId=${attackId} chars=${fieldCharsAC.length}`);
           ioAC.to(gameId).emit('acchiappt-number-choice', {
             attackId,
             damageValue, attackerName,
@@ -17243,6 +17244,85 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         // STAKU: Clear mandatory attack obligation (ACCHIAPPT attack committed)
         if ((game as any).autoAttack?.[attackerName]) { delete (game as any).autoAttack[attackerName]; }
         return { success: true, result: { acchiapptPending: true, attackId, diceResult } };
+      }
+    }
+
+    // PIOGGIA DI AGHI DI PINO: intercept before defense dialog — defender picks 1-6; if wrong → instant death
+    const isPioggiaDiAghi = mosseCard && (mosseCard.frontImage || '').toLowerCase().includes('pioggia-di-aghi');
+    if (!isHandTarget && !isDuelAttack && isPioggiaDiAghi) {
+      const isDefenderCPUPD = this.isPlayerCPU(gameId, targetOwnerName);
+      const ioPD = (global as any).io;
+
+      if (!attacker.usedCardsThisTurn) attacker.usedCardsThisTurn = [];
+      attacker.usedCardsThisTurn.push(mosseCard.frontImage);
+      this.returnToDeck(gameId, mosseCardId, attackerName);
+
+      if (isDefenderCPUPD) {
+        const cpuGuessPD = Math.floor(Math.random() * 6) + 1;
+        const diceRollPD = Math.floor(Math.random() * 6) + 1;
+        if (ioPD) ioPD.to(gameId).emit('dice-rolled', { result: diceRollPD, playerName: targetOwnerName });
+        const savedPD = diceRollPD === cpuGuessPD;
+        if (ioPD) ioPD.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-pioggia-cpu`,
+          playerName: 'Sistema',
+          message: savedPD
+            ? `🎲 PIOGGIA DI AGHI: ${targetOwnerName} ha scelto ${cpuGuessPD}. Dado: ${diceRollPD}. ✅ SALVATO!`
+            : `🎲 PIOGGIA DI AGHI: ${targetOwnerName} ha scelto ${cpuGuessPD}. Dado: ${diceRollPD}. 💀 MORTE ISTANTANEA!`,
+          timestamp: Date.now()
+        });
+        if (!savedPD) {
+          const defCharPD = game.field.find((c: Card) =>
+            c.owner === targetOwnerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          if (defCharPD) {
+            defCharPD.pti = 0;
+            this.updateCardTextWithPTI(defCharPD);
+            const statePD = this.getSanitizedGameState(gameId);
+            if (ioPD) ioPD.to(gameId).emit('game-state-update', statePD);
+            const deathPD = this.moveToGraveyard(gameId, defCharPD.id, targetOwnerName, attackerName);
+            if (deathPD.eliminationCheck) {
+              this.processEliminationAfterDeath(gameId, targetOwnerName, ioPD, 'PIOGGIA_DI_AGHI');
+            }
+          }
+        }
+        const finalPD = this.getSanitizedGameState(gameId);
+        if (ioPD) ioPD.to(gameId).emit('game-state-update', finalPD);
+        console.log(`🎲 PIOGGIA_DI_AGHI (CPU): defender=${targetOwnerName} guess=${cpuGuessPD} roll=${diceRollPD} saved=${savedPD}`);
+        if ((game as any).autoAttack?.[attackerName]) { delete (game as any).autoAttack[attackerName]; }
+        return { success: true, result: { pioggiaCPUResolved: true } };
+      } else {
+        const choiceIdPD = `pioggia-${Date.now()}`;
+        (game as any).pendingPioggiaDiAghi = {
+          choiceId: choiceIdPD,
+          attackerName,
+          defenderName: targetOwnerName,
+          targetCardId
+        };
+        const pioggiaOpts = [
+          { value: '1', label: '1', description: '' },
+          { value: '2', label: '2', description: '' },
+          { value: '3', label: '3', description: '' },
+          { value: '4', label: '4', description: '' },
+          { value: '5', label: '5', description: '' },
+          { value: '6', label: '6', description: '' },
+        ];
+        if (ioPD) ioPD.to(gameId).emit('show-choice-panel', {
+          choiceId: choiceIdPD,
+          title: '🎲 PIOGGIA DI AGHI DI PINO',
+          question: 'Scegli un numero da 1 a 6! Se il dado esce quel numero, il tuo personaggio si salva!',
+          options: pioggiaOpts,
+          forPlayer: targetOwnerName,
+          timestamp: Date.now()
+        });
+        if (ioPD) ioPD.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-pioggia-panel`,
+          playerName: 'Sistema',
+          message: `🎲 PIOGGIA DI AGHI! ${targetOwnerName} deve scegliere un numero da 1 a 6!`,
+          timestamp: Date.now()
+        });
+        console.log(`🎲 PIOGGIA_DI_AGHI (human): waiting for ${targetOwnerName} to pick number (choiceId: ${choiceIdPD})`);
+        if ((game as any).autoAttack?.[attackerName]) { delete (game as any).autoAttack[attackerName]; }
+        return { success: true, result: { pioggiaPending: true } };
       }
     }
 
@@ -17305,9 +17385,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if ((game as any).autoAttack?.[attackerName]) { delete (game as any).autoAttack[attackerName]; }
         return { success: true, result: { rouletteCPUResolved: true } };
       } else {
-        // Human defender: show number-picker panel, wait for choice-panel-response
-        const defPlayerData76 = game.players[targetOwnerName] as any;
-        const defSocketId76 = defPlayerData76?.socketId;
+        // Human defender: broadcast panel to game room with forPlayer filter (avoids stale socketId issues)
         const choiceId76 = `roulette-${Date.now()}`;
         (game as any).pendingRouletteRussa = {
           choiceId: choiceId76,
@@ -17323,22 +17401,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           { value: '5', label: '5', description: '' },
           { value: '6', label: '6', description: '' },
         ];
-        this.emitChoicePanelOrAutoResolve(gameId, targetOwnerName, defSocketId76, {
+        if (io76) io76.to(gameId).emit('show-choice-panel', {
           choiceId: choiceId76,
           title: '🎲 ROULETTE RUSSA',
           question: 'Scegli un numero da 1 a 6. Se il dado esce quel numero, il tuo personaggio si salva!',
           options: rouletteOpts,
-          playerName: targetOwnerName,
-          cardName: 'ROULETTE RUSSA',
+          forPlayer: targetOwnerName,
           timestamp: Date.now()
-        }, rouletteOpts, 'pendingRouletteRussa', io76);
+        });
         if (io76) io76.to(gameId).emit('chat-message', {
           id: `${Date.now()}-roulette-panel`,
           playerName: 'Sistema',
           message: `🎲 ROULETTE RUSSA! ${targetOwnerName} deve scegliere un numero da 1 a 6!`,
           timestamp: Date.now()
         });
-        console.log(`🎲 ROULETTE_RUSSA (human): waiting for ${targetOwnerName} to pick number (choiceId: ${choiceId76})`);
+        console.log(`🎲 ROULETTE_RUSSA (human): show-choice-panel broadcasted to room ${gameId} forPlayer=${targetOwnerName} (choiceId: ${choiceId76})`);
         // STAKU: Clear mandatory attack obligation (ROULETTE RUSSA human attack committed)
         if ((game as any).autoAttack?.[attackerName]) { delete (game as any).autoAttack[attackerName]; }
         return { success: true, result: { roulettePending: true } };
@@ -35274,20 +35351,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
 
         case 'death_on_dice_fail': {
-          // mosse-66 (Pioggia di Aghi di Pino): 0 danno base, dado: se indovina nessun effetto; se sbaglia morte istantanea
-          if (!game) break;
+          // PIOGGIA DI AGHI DI PINO: should be intercepted upstream in executeMossaAttack before reaching here.
+          // If reached here (fallback/legacy), apply no damage and log a warning.
+          console.warn(`⚠️ PIOGGIA DI AGHI: reached processMosseDamage fallback — should have been intercepted in executeMossaAttack`);
           effectiveDamage = 0;
-          const diceRoll66 = Math.floor(Math.random() * 6) + 1;
-          const guess66 = Math.floor(Math.random() * 6) + 1; // attacker's guess (auto for simplicity)
-          const guessedRight66 = diceRoll66 === guess66;
-          io.to(gameId).emit('dice-rolled', { result: diceRoll66, playerName: attackerName });
-          if (guessedRight66) {
-            effectMessage = `🎲 PIOGGIA DI AGHI: Dado = ${diceRoll66}, Indovinato! Nessun effetto.`;
-          } else {
-            forceInstantDeath = true;
-            effectMessage = `🎲 PIOGGIA DI AGHI: Dado = ${diceRoll66}, Sbagliato (guessed ${guess66})! 💀 MORTE ISTANTANEA!`;
-          }
-          console.log(`🎲 DEATH_ON_DICE_FAIL: roll=${diceRoll66} guess=${guess66} guessedRight=${guessedRight66}`);
+          effectMessage = `🎲 PIOGGIA DI AGHI: risolto upstream.`;
           break;
         }
 

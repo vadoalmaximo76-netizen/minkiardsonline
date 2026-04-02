@@ -1342,7 +1342,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('block-card-type-select', handleBlockCardTypeSelect);
 
-    const handleShowChoicePanel = (data: { choiceId: string; title: string; question: string; options: Array<{value: string; label: string; description: string}> }) => {
+    const handleShowChoicePanel = (data: { choiceId: string; title: string; question: string; options: Array<{value: string; label: string; description: string}>; forPlayer?: string }) => {
+      if (data.forPlayer && data.forPlayer !== playerName) {
+        console.log(`[show-choice-panel] Ignored: panel is for ${data.forPlayer}, I am ${playerName}`);
+        return;
+      }
+      console.log(`[show-choice-panel] Showing panel: ${data.title} (choiceId: ${data.choiceId})`);
       setBobDylanPanel({ visible: true, choiceId: data.choiceId, title: data.title, question: data.question, options: data.options });
     };
     socket.on('show-choice-panel', handleShowChoicePanel);
@@ -1391,6 +1396,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('cyber-geena-choice', handleCyberGeenaChoice);
 
     const handleAcchiapptNumberChoice = (data: { attackId: string; diceResult?: number; damageValue: number; characters: Array<{id: string; name: string; owner: string; frontImage: string}> }) => {
+      console.log(`[ACCHIAPPT CHESSA] acchiappt-number-choice received: attackId=${data.attackId} damageValue=${data.damageValue} chars=${data.characters.length}`);
       setAcchiapptDialog({ visible: true, attackId: data.attackId, diceResult: data.diceResult ?? 0, damageValue: data.damageValue, characters: data.characters, chosenNumber: null });
     };
     socket.on('acchiappt-number-choice', handleAcchiapptNumberChoice);
