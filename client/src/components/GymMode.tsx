@@ -98,6 +98,84 @@ const DIFFICULTY_LABEL: Record<string, { label: string; color: string }> = {
   hard: { label: 'Difficile', color: 'text-red-400' },
 };
 
+/* ── Story-Mode 2D path layout ───────────────────────────────────── */
+const GYM_PATH_NODE_H = 138;
+const GYM_PATH_TOP_PAD = 14;
+
+const GYM_PATH_STYLES = `
+  @keyframes gymPathDraw {
+    from { stroke-dashoffset: 1600; }
+    to   { stroke-dashoffset: 0; }
+  }
+  @keyframes gymNodePulse {
+    0%,100% { transform: scale(1);    opacity: 0.85; }
+    70%      { transform: scale(1.75); opacity: 0; }
+  }
+  @keyframes gymNodeSpin {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes gymNodePop {
+    0%   { transform: scale(0.45) translateY(10px); opacity: 0; }
+    65%  { transform: scale(1.06) translateY(-2px); }
+    100% { transform: scale(1)    translateY(0);    opacity: 1; }
+  }
+  @keyframes gymCardShimmer {
+    0%   { background-position: -400% center; }
+    100% { background-position:  400% center; }
+  }
+  @keyframes gymBadgeBounce {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-2px); }
+  }
+  @keyframes gymNodeGlow {
+    0%,100% { filter: drop-shadow(0 0 6px #f59e0b) drop-shadow(0 0 14px #f59e0b88); }
+    50%      { filter: drop-shadow(0 0 14px #f59e0b) drop-shadow(0 0 28px #f59e0bcc); }
+  }
+  .gym-path-node-pop { animation: gymNodePop 0.42s cubic-bezier(0.34,1.56,0.64,1) both; }
+`;
+
+const GYM_NODE_PCT_RIGHT = 58;
+const GYM_NODE_PCT_LEFT  = 42;
+
+function GymPathSVG({ count }: { count: number }) {
+  const totalH = GYM_PATH_TOP_PAD + count * GYM_PATH_NODE_H + 24;
+  const pts = Array.from({ length: count }, (_, i) => ({
+    x: i % 2 === 0 ? GYM_NODE_PCT_RIGHT : GYM_NODE_PCT_LEFT,
+    y: GYM_PATH_TOP_PAD + i * GYM_PATH_NODE_H + GYM_PATH_NODE_H / 2,
+  }));
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 1; i < pts.length; i++) {
+    const p = pts[i - 1], n = pts[i];
+    const my = (p.y + n.y) / 2;
+    d += ` C ${p.x} ${my}, ${n.x} ${my}, ${n.x} ${n.y}`;
+  }
+  return (
+    <svg
+      width="100%" height={totalH}
+      viewBox={`0 0 100 ${totalH}`}
+      preserveAspectRatio="none"
+      style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 0 }}
+    >
+      <defs>
+        <linearGradient id="gymGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="#4ade80" stopOpacity="0.9" />
+          <stop offset="45%"  stopColor="#f59e0b" stopOpacity="1" />
+          <stop offset="100%" stopColor="#7c3aed" stopOpacity="0.35" />
+        </linearGradient>
+        <filter id="gymGlow">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="b" />
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <path d={d} fill="none" stroke="rgba(245,158,11,0.04)" strokeWidth={8} strokeLinecap="round" />
+      <path
+        d={d} fill="none" stroke="url(#gymGrad)" strokeWidth={1.4}
+        strokeLinecap="round" strokeDasharray="5 3.5" filter="url(#gymGlow)"
+        style={{ animation: 'gymPathDraw 2s ease-out forwards', strokeDashoffset: 1600 }}
+      />
+    </svg>
+  );
+}
 
 export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, onResumeGymGame, onClearPendingGymGame, onLogin }: GymModeProps) {
   const [leaders, setLeaders] = useState<GymLeader[]>([]);
@@ -124,6 +202,11 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+  const [storyViewMode, setStoryViewMode] = useState<'3d' | '2d'>(() => {
+    try { return (localStorage.getItem('storyViewMode') as '3d' | '2d') || '3d'; } catch { return '3d'; }
+  });
+  const [hoveredLeaderId, setHoveredLeaderId] = useState<number | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -131,6 +214,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const isReplayBattleRef = useRef(false);
   const expectedCpusRef = useRef(0);
   const cpusAddedRef = useRef(0);
+  const mapScrollRef = useRef<HTMLDivElement | null>(null);
 
   const { setGameId, setPlayerName, generateSessionId, clearSession: reset, setSelectedCard } = useGameState();
 
@@ -1123,6 +1207,33 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             <p className="text-white font-bold text-sm">{completedCount}/{totalCount}</p>
             <p className="text-white/40 text-xs">Stage</p>
           </div>
+          {/* View toggle */}
+          <button
+            onClick={() => {
+              const next = storyViewMode === '3d' ? '2d' : '3d';
+              setStoryViewMode(next);
+              try { localStorage.setItem('storyViewMode', next); } catch {}
+            }}
+            title={storyViewMode === '3d' ? 'Passa alla mappa classica 2D' : 'Passa alla mappa 3D'}
+            style={{
+              flexShrink: 0,
+              padding: '6px 10px',
+              borderRadius: 10,
+              border: '1px solid rgba(245,158,11,0.35)',
+              background: 'rgba(245,158,11,0.12)',
+              color: '#fde68a',
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              letterSpacing: '0.02em',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {storyViewMode === '3d' ? '🗺️ 2D' : '🌍 3D'}
+          </button>
         </div>
         {/* Progress bar */}
         {totalCount > 0 && (
@@ -1294,17 +1405,278 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
       )}
 
       {/* 3D World Map */}
-      <StoryWorldMap
-        leaders={activeLeaders}
-        lostLeaderIds={lostLeaderIds}
-        currentLeader={currentLeader ?? null}
-        pendingGymGame={pendingGymGame}
-        loading={loading}
-        getLeaderStatus={getLeaderStatus}
-        onChallengeLeader={handleChallengeLeader}
-        onResumeGame={handleInternalResume}
-      />
+      {storyViewMode === '3d' && (
+        <StoryWorldMap
+          leaders={activeLeaders}
+          lostLeaderIds={lostLeaderIds}
+          currentLeader={currentLeader ?? null}
+          pendingGymGame={pendingGymGame}
+          loading={loading}
+          getLeaderStatus={getLeaderStatus}
+          onChallengeLeader={handleChallengeLeader}
+          onResumeGame={handleInternalResume}
+        />
+      )}
 
+      {/* Classic 2D scroll map */}
+      {storyViewMode === '2d' && (
+        <>
+          <style>{GYM_PATH_STYLES}</style>
+          <div ref={mapScrollRef} className="flex-1 overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
+            {loading ? (
+              <div className="text-center py-16">
+                <div className="w-10 h-10 border-2 border-white/20 border-t-yellow-400 rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-white/30 text-sm">Caricamento Story Mode…</p>
+              </div>
+            ) : leaders.length === 0 ? (
+              <div className="text-center py-16">
+                <Shield className="w-16 h-16 text-white/10 mx-auto mb-4" />
+                <p className="text-white/30 text-sm">Nessuno stage disponibile</p>
+                <p className="text-white/20 text-xs mt-1">Gli stage Story Mode devono essere configurati da un amministratore</p>
+              </div>
+            ) : activeLeaders.length === 0 ? (
+              <div className="text-center py-16">
+                <Shield className="w-16 h-16 text-white/10 mx-auto mb-4" />
+                <p className="text-white/30 text-sm">Nessuno stage attivo</p>
+                <p className="text-white/20 text-xs mt-1">Tutti gli stage sono temporaneamente disabilitati</p>
+              </div>
+            ) : (
+              <div style={{ position: 'relative', width: '100%', minHeight: GYM_PATH_TOP_PAD + activeLeaders.length * GYM_PATH_NODE_H + 32 }}>
+                <GymPathSVG count={activeLeaders.length} />
+
+                {activeLeaders.map((leader, idx) => {
+                  const status = getLeaderStatus(leader);
+                  const isCompleted = status === 'completed';
+                  const isAvailable = status === 'available';
+                  const isLocked = status === 'locked';
+                  const isCurrent = leader.id === currentLeader?.id;
+                  const cpuCount = leader.cpuCount ?? 1;
+                  const side: 'left' | 'right' = idx % 2 === 0 ? 'right' : 'left';
+                  const nodeY = GYM_PATH_TOP_PAD + idx * GYM_PATH_NODE_H;
+                  const nodeSize = isCurrent ? 66 : 58;
+                  const borderColor = isCompleted ? '#4ade8099' : isCurrent ? '#f59e0b' : isAvailable ? '#f59e0b44' : '#1f2937';
+
+                  const leaderNode = (
+                    <div
+                      className="gym-path-node-pop"
+                      style={{ position: 'relative', width: nodeSize, height: nodeSize, flexShrink: 0, animationDelay: `${idx * 0.06}s`, zIndex: 2 }}
+                      onMouseEnter={(e) => { if (!isLocked) { setHoveredLeaderId(leader.id); setTooltipPos({ x: e.clientX, y: e.clientY }); } }}
+                      onMouseMove={(e) => { if (!isLocked) setTooltipPos({ x: e.clientX, y: e.clientY }); }}
+                      onMouseLeave={() => { setHoveredLeaderId(null); setTooltipPos(null); }}
+                      onTouchStart={(e) => {
+                        if (!isLocked) {
+                          const t = e.touches[0];
+                          setHoveredLeaderId(leader.id);
+                          setTooltipPos({ x: t.clientX, y: t.clientY });
+                          setTimeout(() => { setHoveredLeaderId(null); setTooltipPos(null); }, 2500);
+                        }
+                      }}
+                    >
+                      {isCurrent && (
+                        <div style={{ position: 'absolute', inset: -7, borderRadius: '50%', border: '2.5px solid #f59e0b99', animation: 'gymNodePulse 1.9s ease-out infinite' }} />
+                      )}
+                      {isCurrent && (
+                        <div style={{ position: 'absolute', inset: -10, borderRadius: '50%', border: '2px dashed #f59e0b44', animation: 'gymNodeSpin 6s linear infinite' }} />
+                      )}
+                      <div style={{
+                        width: '100%', height: '100%', borderRadius: '50%',
+                        border: `${isCurrent ? 3 : 2}px solid ${borderColor}`,
+                        overflow: 'hidden',
+                        background: isLocked ? '#0d0a1a' : 'linear-gradient(135deg,#1a1040,#0d0a22)',
+                        boxShadow: isCurrent ? '0 0 20px #f59e0baa, 0 0 40px #f59e0b44' : isCompleted ? '0 0 8px #4ade8044' : '0 4px 14px rgba(0,0,0,0.6)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        position: 'relative',
+                        animation: isCurrent ? 'gymNodeGlow 2.4s ease-in-out infinite' : 'none',
+                        opacity: isLocked ? 0.3 : 1,
+                      }}>
+                        {isLocked ? (
+                          <Lock className="w-5 h-5 text-white/20" />
+                        ) : leader.leaderImageUrl ? (
+                          <img src={leader.leaderImageUrl} alt={leader.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                        ) : (
+                          <Shield style={{ width: nodeSize * 0.4, height: nodeSize * 0.4, color: isCompleted ? '#4ade8066' : '#f59e0b55' }} />
+                        )}
+                        {isCompleted && (
+                          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 30% 25%, rgba(255,255,255,0.15), transparent 60%)' }} />
+                        )}
+                      </div>
+                      {isCompleted && (
+                        <div style={{
+                          position: 'absolute', top: -4, right: -4,
+                          width: 19, height: 19, borderRadius: '50%',
+                          background: 'linear-gradient(135deg,#16a34a,#15803d)',
+                          border: '2px solid #05080f',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          animation: 'gymBadgeBounce 2s ease-in-out infinite', zIndex: 3,
+                        }}>
+                          {leader.badgeImageUrl ? (
+                            <img src={leader.badgeImageUrl} alt="badge" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                          ) : (
+                            <Star style={{ width: '55%', height: '55%', color: isCompleted ? '#4ade80' : '#f59e0b' }} />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+
+                  const align = side === 'right' ? 'flex-start' : 'flex-end';
+                  const txtAlign: 'left' | 'right' = side === 'right' ? 'left' : 'right';
+                  const bgImg = leader.backgroundImageUrl;
+
+                  const infoCard = isLocked ? (
+                    <div style={{ width: '100%', height: '100%', borderRadius: 14, overflow: 'hidden', position: 'relative', border: '1px solid #1f2937', opacity: 0.38 }}>
+                      <div style={{ position: 'absolute', inset: 0, background: 'rgba(5,5,15,0.92)' }} />
+                      <div style={{ position: 'relative', zIndex: 1, padding: '10px 12px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: txtAlign }}>
+                        <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: '#374151', letterSpacing: '0.06em' }}>STAGE {leader.orderIndex}</p>
+                        <p style={{ margin: '4px 0 0', fontSize: 10, color: '#1f2937', fontWeight: 700 }}>🔒 Stage bloccato</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{
+                      width: '100%', height: '100%', borderRadius: 14, overflow: 'hidden', position: 'relative',
+                      border: isCurrent ? '1.5px solid #f59e0baa' : isCompleted ? '1px solid #4ade8044' : '1px solid rgba(245,158,11,0.18)',
+                      boxShadow: isCurrent ? '0 4px 22px #f59e0b55' : isCompleted ? '0 2px 10px #4ade8022' : 'none',
+                    }}>
+                      {bgImg && (
+                        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${bgImg})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.5 }} />
+                      )}
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        background: isCurrent ? 'linear-gradient(135deg,rgba(120,53,15,0.72),rgba(180,83,9,0.55))' : isCompleted ? 'rgba(0,30,15,0.72)' : 'rgba(5,5,18,0.70)',
+                      }} />
+                      {isCurrent && (
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(105deg,transparent 25%,rgba(255,255,255,0.07) 50%,transparent 75%)', backgroundSize: '400% auto', animation: 'gymCardShimmer 3s linear infinite' }} />
+                      )}
+                      <div style={{ position: 'relative', zIndex: 1, padding: '8px 10px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box', gap: 2 }}>
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ margin: '0 0 1px', fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: isCurrent ? '#f59e0bcc' : isCompleted ? '#4ade8099' : 'rgba(255,255,255,0.25)', textAlign: txtAlign, whiteSpace: 'nowrap' }}>⚡ Stage {leader.orderIndex}</p>
+                          <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 900, lineHeight: 1.1, color: isCurrent ? '#fde68a' : isCompleted ? '#86efac' : 'white', textAlign: txtAlign, letterSpacing: '0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{leader.gymName}</p>
+                          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: isCurrent ? 'rgba(253,230,138,0.65)' : isCompleted ? 'rgba(134,239,172,0.55)' : 'rgba(255,255,255,0.4)', textAlign: txtAlign, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            👊 <span style={{ fontWeight: 900, color: isCurrent ? '#fde68a' : isCompleted ? '#86efac' : 'rgba(255,255,255,0.7)' }}>{leader.name}</span>
+                          </p>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap', justifyContent: align, overflow: 'hidden' }}>
+                          <span style={{ fontSize: 10, fontWeight: 800, color: leader.cpuLevel === 'easy' ? '#4ade80' : leader.cpuLevel === 'medium' ? '#facc15' : '#f87171', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                            {leader.cpuLevel === 'easy' ? '🟢' : leader.cpuLevel === 'medium' ? '🟡' : '🔴'}
+                          </span>
+                          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>❤️{leader.livesCount}</span>
+                          {cpuCount > 1 && (
+                            <span style={{ fontSize: 10, color: '#c084fc', fontWeight: 800, background: 'rgba(168,85,247,0.2)', padding: '1px 5px', borderRadius: 99, display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                              <Users style={{ width: 9, height: 9 }} />{cpuCount}
+                            </span>
+                          )}
+                          <span style={{ fontSize: 10, color: '#fbbf24', fontWeight: 800, whiteSpace: 'nowrap', flexShrink: 0 }}>⭐{leader.rewardCredits}</span>
+                        </div>
+                        <div>
+                          {pendingGymGame?.gymLeaderId === leader.id && !lostLeaderIds.includes(leader.id) && !isCompleted ? (
+                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: align }}>
+                              <button onClick={() => handleInternalResume(leader, pendingGymGame.gameId)} style={{ background: 'linear-gradient(135deg,#ea580c,#c2410c)', border: 'none', borderRadius: 9, color: 'white', fontSize: 12, fontWeight: 900, padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, boxShadow: '0 2px 8px rgba(234,88,12,0.5)', whiteSpace: 'nowrap' }}>
+                                <Swords style={{ width: 11, height: 11 }} /> Riprendi
+                              </button>
+                              {isAvailable && (
+                                <button onClick={() => handleChallengeLeader(leader)} style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 9, color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: 800, padding: '5px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>Nuova</button>
+                              )}
+                            </div>
+                          ) : lostLeaderIds.includes(leader.id) && !isCompleted ? (
+                            <div style={{ display: 'flex', justifyContent: align }}>
+                              <button onClick={() => handleChallengeLeader(leader)} style={{ border: 'none', borderRadius: 9, color: 'white', fontSize: 13, fontWeight: 900, padding: '6px 13px', cursor: 'pointer', background: 'linear-gradient(135deg,#dc2626,#9333ea)', display: 'inline-flex', alignItems: 'center', gap: 5, letterSpacing: '0.04em', boxShadow: '0 2px 10px rgba(220,38,38,0.5)', whiteSpace: 'nowrap' }}>
+                                <Swords style={{ width: 12, height: 12 }} /> Riprova
+                              </button>
+                            </div>
+                          ) : isAvailable ? (
+                            <div style={{ display: 'flex', justifyContent: align }}>
+                              <button onClick={() => handleChallengeLeader(leader)} style={{ border: 'none', borderRadius: 9, color: 'white', fontSize: 13, fontWeight: 900, padding: '6px 13px', cursor: 'pointer', background: 'linear-gradient(135deg,#9333ea,#f59e0b)', display: 'inline-flex', alignItems: 'center', gap: 5, letterSpacing: '0.04em', boxShadow: '0 2px 10px rgba(147,51,234,0.5)', whiteSpace: 'nowrap' }}>
+                                <Swords style={{ width: 12, height: 12 }} /> SFIDA!
+                              </button>
+                            </div>
+                          ) : isCompleted ? (
+                            <div style={{ display: 'flex', justifyContent: align }}>
+                              <button onClick={() => handleChallengeLeader(leader)} style={{ background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 9, color: '#4ade80cc', fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, padding: '5px 10px', whiteSpace: 'nowrap' }}>
+                                <ChevronRight style={{ width: 12, height: 12 }} /> Rigioca
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  );
+
+                  const nodePct = side === 'right' ? GYM_NODE_PCT_RIGHT : GYM_NODE_PCT_LEFT;
+                  const GAP = 9;
+                  const EDGE = 10;
+
+                  return (
+                    <div key={leader.id} style={{ position: 'absolute', top: nodeY, left: 0, right: 0, height: GYM_PATH_NODE_H }}>
+                      <div style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', left: `calc(${nodePct}% - ${nodeSize / 2}px)`, zIndex: 2 }}>
+                        {leaderNode}
+                      </div>
+                      <div style={{
+                        position: 'absolute', top: 6, bottom: 6,
+                        ...(side === 'right'
+                          ? { left: `calc(${nodePct}% + ${nodeSize / 2 + GAP}px)`, right: EDGE }
+                          : { left: EDGE, right: `calc(${100 - nodePct}% + ${nodeSize / 2 + GAP}px)` }),
+                      }}>
+                        {infoCard}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {completedCount === totalCount && totalCount > 0 && (
+              <div className="text-center py-8">
+                <div className="text-5xl mb-3">🏆</div>
+                <p className="text-yellow-300 font-black text-xl">Campione della Story Mode!</p>
+                <p className="text-white/40 text-sm mt-1">Hai completato tutti gli stage disponibili</p>
+                <div className="flex items-center justify-center gap-1 mt-2">
+                  {[...Array(5)].map((_, i) => <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />)}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Tooltip 2D */}
+          {hoveredLeaderId !== null && tooltipPos && (() => {
+            const hLeader = activeLeaders.find(l => l.id === hoveredLeaderId);
+            if (!hLeader) return null;
+            const tipW = 220;
+            const tipH = 180;
+            const vpW = window.innerWidth;
+            const vpH = window.innerHeight;
+            let left = tooltipPos.x + 14;
+            let top = tooltipPos.y - 20;
+            if (left + tipW > vpW - 8) left = tooltipPos.x - tipW - 14;
+            if (top + tipH > vpH - 8) top = vpH - tipH - 8;
+            if (top < 8) top = 8;
+            return (
+              <div style={{ position: 'fixed', left, top, width: tipW, zIndex: 9999, pointerEvents: 'none', background: 'rgba(10,5,25,0.97)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 14, boxShadow: '0 8px 30px rgba(0,0,0,0.8)', padding: '12px' }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
+                  {hLeader.leaderImageUrl ? (
+                    <img src={hLeader.leaderImageUrl} alt={hLeader.name} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(245,158,11,0.5)', flexShrink: 0 }} />
+                  ) : (
+                    <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(245,158,11,0.1)', border: '2px solid rgba(245,158,11,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Shield style={{ width: 20, height: 20, color: 'rgba(245,158,11,0.5)' }} />
+                    </div>
+                  )}
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: '#fde68a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hLeader.name}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hLeader.gymName}</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 6 }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: hLeader.cpuLevel === 'easy' ? '#4ade80' : hLeader.cpuLevel === 'medium' ? '#facc15' : '#f87171', background: 'rgba(255,255,255,0.06)', borderRadius: 99, padding: '2px 7px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    {hLeader.cpuLevel === 'easy' ? '🟢 Facile' : hLeader.cpuLevel === 'medium' ? '🟡 Medio' : '🔴 Difficile'}
+                  </span>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: '#fbbf24', background: 'rgba(245,158,11,0.1)', borderRadius: 99, padding: '2px 7px', border: '1px solid rgba(245,158,11,0.2)' }}>⭐ +{hLeader.rewardCredits}</span>
+                </div>
+                {hLeader.specialty && <p style={{ margin: 0, fontSize: 10, color: 'rgba(253,230,138,0.7)', lineHeight: 1.4 }}>⚡ {hLeader.specialty}</p>}
+                {hLeader.description && !hLeader.specialty && <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.4)', lineHeight: 1.4 }}>{hLeader.description}</p>}
+              </div>
+            );
+          })()}
+        </>
+      )}
 
       {/* Reset Confirmation Modal */}
       {showResetConfirm && (
