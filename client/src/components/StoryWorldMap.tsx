@@ -54,7 +54,12 @@ interface OtherPlayer {
 }
 
 /* ── Particle types ─────────────────────────────────────────── */
-type LeafParticle = { wx: number; wz: number; ox: number; oz: number; life: number; maxLife: number; speed: number; size: number; sway: number };
+type LeafParticle = {
+  wx: number; wz: number;          // bezier P0 — tree origin (world units)
+  cx: number; cz: number;          // bezier P1 offset (control point)
+  ex: number; ez: number;          // bezier P2 offset (end point)
+  life: number; maxLife: number; speed: number; size: number;
+};
 type FireflyParticle = { wx: number; wz: number; phase: number; speed: number; size: number; orbitR: number };
 
 /* ── World constants ─────────────────────────────────────────── */
@@ -871,14 +876,19 @@ export function StoryWorldMap({
     if (leavesRef.current.length === 0 && TREE_DATA.length > 0) {
       for (let pi = 0; pi < 40; pi++) {
         const tree = TREE_DATA[pi % TREE_DATA.length];
-        const ph = (pi * 0.618) * Math.PI * 2;
+        const ph = (pi * 0.618) % 1;
+        /* bezier control/end offsets (world-unit offsets from tree origin) */
+        const cx = ((pi * 13 + 3) % 41) * 0.07 - 1.4;   // P1 horizontal drift
+        const cz = ((pi * 7) % 18) * 0.06 + 0.8;          // P1 downward
+        const ex = ((pi * 11 - 5) % 33) * 0.09 - 1.5;    // P2 horizontal land
+        const ez = ((pi * 19) % 14) * 0.12 + 2.8;         // P2 fully fallen
         leavesRef.current.push({
           wx: tree.x, wz: tree.z,
-          ox: 0, oz: 0,
-          life: ph, maxLife: 3.5 + ((pi * 37) % 5) * 0.4,
-          speed: 0.7 + ((pi * 53) % 10) * 0.06,
+          cx, cz, ex, ez,
+          life: ph * (3.5 + ((pi * 37) % 5) * 0.4),
+          maxLife: 3.5 + ((pi * 37) % 5) * 0.4,
+          speed: 0.55 + ((pi * 53) % 10) * 0.04,
           size: 2.5 + ((pi * 17) % 4) * 0.5,
-          sway: 0.8 + ((pi * 41) % 6) * 0.2,
         });
       }
     }
@@ -1333,16 +1343,19 @@ export function StoryWorldMap({
             }
           }
         });
-        /* circle collision: large boulders */
+        /* AABB collision: large boulders (axis-min-penetration slide) */
         BOULDER_DATA.forEach(b => {
           if (b.sx <= 1.3) return;
-          const br = b.sx * 0.82 + PR;
-          const ddx = playerRef.current.x - b.x;
-          const ddz = playerRef.current.z - b.z;
-          const dist = Math.sqrt(ddx * ddx + ddz * ddz);
-          if (dist < br && dist > 0.001) {
-            playerRef.current.x = b.x + (ddx / dist) * br;
-            playerRef.current.z = b.z + (ddz / dist) * br;
+          const BHW = b.sx * 0.72 + PR;
+          const BHD = b.sx * 0.72 + PR;
+          const oX = BHW - Math.abs(playerRef.current.x - b.x);
+          const oZ = BHD - Math.abs(playerRef.current.z - b.z);
+          if (oX > 0 && oZ > 0) {
+            if (oX < oZ) {
+              playerRef.current.x += playerRef.current.x < b.x ? -oX : oX;
+            } else {
+              playerRef.current.z += playerRef.current.z < b.z ? -oZ : oZ;
+            }
           }
         });
       }
@@ -1437,46 +1450,40 @@ export function StoryWorldMap({
       }
       ctx.fillRect(0, 0, w, h);
 
-      /* 1b. Day/night cycle: stars + sky tint */
-      {
-        const dayP3 = (t / 300) % 1;
-        let nightAlpha = 0;
-        if (dayP3 < 0.15) { nightAlpha = (1 - dayP3 / 0.15) * 0.55; }       // post-night fade
-        else if (dayP3 > 0.75 && dayP3 < 0.87) { nightAlpha = ((dayP3 - 0.75) / 0.12) * 0.55; } // dusk→night
-        else if (dayP3 >= 0.87) { nightAlpha = 0.55; }                        // full night
-        /* stars (screen-space, no scroll) */
-        if (nightAlpha > 0.05) {
-          STAR_DATA.forEach(star => {
-            const stx = w / 2 + star.sx * (w / 1900);
-            const sty = h / 2 + star.sy * (h / 1500);
-            if (stx < 0 || stx > w || sty < 0 || sty > h) return;
-            const tw2 = 0.7 + Math.sin(t * (1.2 + star.twinkle) + star.twinkle * 12) * 0.3;
-            ctx.beginPath(); ctx.arc(stx, sty, star.r * tw2, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(255,255,255,${nightAlpha * tw2 * 0.95})`; ctx.fill();
-          });
-        }
-        /* sky colour overlay */
-        let skyR = 0, skyG = 0, skyB = 0, skyA = 0;
-        if (dayP3 < 0.15) {
-          skyR = 10; skyG = 20; skyB = 60; skyA = (1 - dayP3 / 0.15) * 0.52;
-        } else if (dayP3 < 0.25) {
-          const p = (dayP3 - 0.15) / 0.10;
-          skyR = 255; skyG = 140 - Math.round(p * 60); skyB = 60; skyA = (1 - p) * 0.25;
-        } else if (dayP3 < 0.65) {
-          skyA = 0; // full day, no overlay
-        } else if (dayP3 < 0.75) {
-          const p = (dayP3 - 0.65) / 0.10;
-          skyR = 255; skyG = Math.round(100 - p * 60); skyB = 20; skyA = p * 0.28;
-        } else if (dayP3 < 0.87) {
-          const p = (dayP3 - 0.75) / 0.12;
-          skyR = 10; skyG = 20; skyB = 55; skyA = p * 0.52;
-        } else {
-          skyR = 8; skyG = 14; skyB = 48; skyA = 0.52;
-        }
-        if (skyA > 0.005) {
-          ctx.fillStyle = `rgba(${skyR},${skyG},${skyB},${skyA})`;
-          ctx.fillRect(0, 0, w, h);
-        }
+      /* 1b. Day/night cycle: compute atmosphere values (applied post-render) */
+      const _dayP = (t / 300) % 1;
+      let _nightAlpha = 0;
+      if (_dayP < 0.15) { _nightAlpha = (1 - _dayP / 0.15) * 0.55; }
+      else if (_dayP > 0.75 && _dayP < 0.87) { _nightAlpha = ((_dayP - 0.75) / 0.12) * 0.55; }
+      else if (_dayP >= 0.87) { _nightAlpha = 0.55; }
+      /* stars — drawn before world objects so they appear behind terrain */
+      if (_nightAlpha > 0.05) {
+        STAR_DATA.forEach(star => {
+          const stx = w / 2 + star.sx * (w / 1900);
+          const sty = h / 2 + star.sy * (h / 1500);
+          if (stx < 0 || stx > w || sty < 0 || sty > h) return;
+          const tw2 = 0.7 + Math.sin(t * (1.2 + star.twinkle) + star.twinkle * 12) * 0.3;
+          ctx.beginPath(); ctx.arc(stx, sty, star.r * tw2, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,255,${_nightAlpha * tw2 * 0.95})`; ctx.fill();
+        });
+      }
+      /* sky colour — only computed here; radialGradient applied post-render */
+      let _skyR = 0, _skyG = 0, _skyB = 0, _skyA = 0;
+      if (_dayP < 0.15) {
+        _skyR = 10; _skyG = 20; _skyB = 60; _skyA = (1 - _dayP / 0.15) * 0.52;
+      } else if (_dayP < 0.25) {
+        const p = (_dayP - 0.15) / 0.10;
+        _skyR = 255; _skyG = 140 - Math.round(p * 60); _skyB = 60; _skyA = (1 - p) * 0.25;
+      } else if (_dayP < 0.65) {
+        _skyA = 0;
+      } else if (_dayP < 0.75) {
+        const p = (_dayP - 0.65) / 0.10;
+        _skyR = 255; _skyG = Math.round(100 - p * 60); _skyB = 20; _skyA = p * 0.28;
+      } else if (_dayP < 0.87) {
+        const p = (_dayP - 0.75) / 0.12;
+        _skyR = 10; _skyG = 20; _skyB = 55; _skyA = p * 0.52;
+      } else {
+        _skyR = 8; _skyG = 14; _skyB = 48; _skyA = 0.52;
       }
 
       /* 2. Sand paths between arenas */
@@ -1840,25 +1847,31 @@ export function StoryWorldMap({
       sprites.sort((a, b) => a.z - b.z);
       sprites.forEach(s => s.draw());
 
-      /* ── Falling leaves (always, soft) ────────────────────── */
+      /* ── Falling leaves — bezier trajectory ───────────────── */
       leavesRef.current.forEach(lp => {
         lp.life += dt * lp.speed;
-        if (lp.life > lp.maxLife) {
+        if (lp.life >= lp.maxLife) {
+          /* re-init with new random bezier path */
+          const seed = Math.round(lp.wx * 31 + lp.wz * 17 + t * 3) & 0xfff;
+          lp.cx = ((seed * 13 + 3) % 41) * 0.07 - 1.4;
+          lp.cz = ((seed * 7) % 18) * 0.06 + 0.8;
+          lp.ex = ((seed * 11 + 5) % 33) * 0.09 - 1.5;
+          lp.ez = ((seed * 19) % 14) * 0.12 + 2.8;
           lp.life = 0;
-          lp.ox = (Math.sin(lp.wx * 1.7) * 1.6) - 0.8;
-          lp.oz = -lp.maxLife * lp.speed * 0.28 * 0.5; // reset offset so it re-enters from above
         }
         const prog = lp.life / lp.maxLife;
-        const fallZ = prog * 3.5;
-        const swayX = Math.sin(lp.life * lp.sway * 1.5) * 0.6;
-        const [lsx, lsy] = w2s(lp.wx + lp.ox + swayX, lp.wz + fallZ);
-        const leafA = Math.min(1, Math.min(prog * 4, (1 - prog) * 4)) * 0.55;
+        /* quadratic bezier: B(t) = (1-t)²P0 + 2t(1-t)P1 + t²P2 */
+        const mt = 1 - prog;
+        const bx = mt * mt * lp.wx + 2 * mt * prog * (lp.wx + lp.cx) + prog * prog * (lp.wx + lp.ex);
+        const bz = mt * mt * lp.wz + 2 * mt * prog * (lp.wz + lp.cz) + prog * prog * (lp.wz + lp.ez);
+        const [lsx, lsy] = w2s(bx, bz);
+        const leafA = Math.min(1, Math.min(prog * 5, (1 - prog) * 5)) * 0.60;
         if (leafA > 0.02) {
           ctx.save();
           ctx.globalAlpha = leafA;
-          ctx.translate(lsx, lsy - (lp.maxLife - lp.life) * 2.2);
-          ctx.rotate(lp.life * 2.3);
-          ctx.fillStyle = prog > 0.7 ? '#8B5E2A' : '#3a8c3a';
+          ctx.translate(lsx, lsy);
+          ctx.rotate(prog * Math.PI * 3.5);
+          ctx.fillStyle = prog > 0.65 ? '#8B5E2A' : '#3a8c3a';
           ctx.beginPath();
           ctx.ellipse(0, 0, lp.size * 1.5, lp.size * 0.7, 0, 0, Math.PI * 2);
           ctx.fill();
@@ -1888,6 +1901,17 @@ export function StoryWorldMap({
             ctx.fillStyle = `rgba(220,255,180,${ffA})`; ctx.fill();
           }
         });
+      }
+
+      /* ── Post-render: radialGradient atmosphere overlay ──── */
+      if (_skyA > 0.005) {
+        const atmoR = Math.hypot(w, h) * 0.65;
+        const atmoGrad = ctx.createRadialGradient(w / 2, h / 2, atmoR * 0.1, w / 2, h / 2, atmoR);
+        atmoGrad.addColorStop(0, `rgba(${_skyR},${_skyG},${_skyB},${_skyA * 0.30})`);
+        atmoGrad.addColorStop(0.55, `rgba(${_skyR},${_skyG},${_skyB},${_skyA * 0.50})`);
+        atmoGrad.addColorStop(1, `rgba(${_skyR},${_skyG},${_skyB},${_skyA * 0.72})`);
+        ctx.fillStyle = atmoGrad;
+        ctx.fillRect(0, 0, w, h);
       }
 
       /* floating "+X crediti" texts (drawn on top of everything) */
