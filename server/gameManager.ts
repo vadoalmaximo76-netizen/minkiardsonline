@@ -31388,25 +31388,31 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         });
 
         // GYM MODE: if the eliminated player is human, the game ends immediately (CPUs win)
+        // EXCEPTION: PvP GymMode (no CPUs) — let checkForGameVictory find the human winner
         if (game.isGymMode && game.players[playerName] && !game.players[playerName].isCPU) {
-          const cpuWinner = Object.keys(game.players).find(
-            p => game.players[p].isCPU && !game.eliminatedPlayers.has(p)
-          ) || game.gymLeaderCpuName || 'CPU';
-          console.log(`💀 [GymMode] Human ${playerName} eliminated → ${cpuWinner} wins immediately`);
-          const duration = Math.floor((Date.now() - game.startTime.getTime()) / 1000);
-          const statsMap: Record<string, any> = {};
-          for (const [pName, pStats] of game.playerStats.entries()) {
-            statsMap[pName] = pStats;
+          const hasCPU = Object.keys(game.players).some(p => game.players[p].isCPU);
+          if (hasCPU) {
+            const cpuWinner = Object.keys(game.players).find(
+              p => game.players[p].isCPU && !game.eliminatedPlayers.has(p)
+            ) || game.gymLeaderCpuName || 'CPU';
+            console.log(`💀 [GymMode] Human ${playerName} eliminated → ${cpuWinner} wins immediately`);
+            const duration = Math.floor((Date.now() - game.startTime.getTime()) / 1000);
+            const statsMap: Record<string, any> = {};
+            for (const [pName, pStats] of game.playerStats.entries()) {
+              statsMap[pName] = pStats;
+            }
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-gym-defeat`,
+              playerName: 'Sistema',
+              message: `☠️ Il giocatore umano è stato sconfitto! La partita è terminata.`,
+              timestamp: Date.now()
+            });
+            io.to(gameId).emit('game-victory', { winner: cpuWinner, lastAction: game.lastAction || null, matchDuration: duration, playerStats: statsMap });
+            this.completeMatch(gameId, cpuWinner);
+            return true;
           }
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-gym-defeat`,
-            playerName: 'Sistema',
-            message: `☠️ Il giocatore umano è stato sconfitto! La partita è terminata.`,
-            timestamp: Date.now()
-          });
-          io.to(gameId).emit('game-victory', { winner: cpuWinner, lastAction: game.lastAction || null, matchDuration: duration, playerStats: statsMap });
-          this.completeMatch(gameId, cpuWinner);
-          return true;
+          // PvP GymMode: fall through to checkForGameVictory below (finds the winning human)
+          console.log(`💀 [GymMode PvP] Human ${playerName} eliminated — checking for human winner`);
         }
 
         const winner = this.checkForGameVictory(gameId);
@@ -36084,6 +36090,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const winner = allActivePlayers[0];
       // Mark game as ended to prevent multiple victory notifications
       game.gameEnded = true;
+      (game as any).lastWinner = winner;
       console.log(`Game victory declared for ${winner} - game marked as ended`);
       // Mark game as inactive in database
       this.markGameInactive(gameId).catch(err => console.error('Failed to mark game inactive:', err));
@@ -36097,6 +36104,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (activeHumans.length === 1 && activeCPUs.length === 0) {
       const winner = activeHumans[0];
       game.gameEnded = true;
+      (game as any).lastWinner = winner;
       console.log(`Game victory declared for human ${winner} (all CPUs eliminated) - game marked as ended`);
       // Mark game as inactive in database
       this.markGameInactive(gameId).catch(err => console.error('Failed to mark game inactive:', err));

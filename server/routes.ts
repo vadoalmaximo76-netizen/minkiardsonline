@@ -2622,9 +2622,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (cpuAction) await gameManager.applyCPUAction(gameId, firstPlayer, cpuAction, io);
             }, 1500);
           } else {
+            // Emit next-turn immediately so the first human player knows it's their turn
+            io.to(gameId).emit('next-turn', { nextPlayer: firstPlayer });
             gameManager.startTurnTimer(gameId, firstPlayer);
           }
-          console.log(`⚔️ [start-story-pvp] game ${gameId} started — order: ${playerOrder.join(', ')}`);
+          console.log(`⚔️ [start-story-pvp] game ${gameId} started — order: ${playerOrder.join(', ')}, first: ${firstPlayer}`);
         }
       } catch (e) { console.error('[start-story-pvp] error:', e); }
     });
@@ -6214,6 +6216,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           handled = true;
           if (result.eliminationCheck) {
             gameManager.processEliminationAfterDeath(gameId, result.cardOwner || playerName, io, 'remove-card-to-graveyard');
+            // If processEliminationAfterDeath already ended the game (PvP GymMode path),
+            // award story PvP credits now since checkForGameVictory below will return null.
+            const endedGame = gameManager.getGame(gameId);
+            if (endedGame?.gameEnded && (endedGame as any).lastWinner) {
+              awardStoryPvpCredits(gameId, (endedGame as any).lastWinner).catch(() => {});
+            }
           }
         }
       }
