@@ -4927,7 +4927,7 @@ Rispondi SOLO in JSON:`;
           [/lega\s+camera\s+caf/i, 'lega_camera_caf'],
           [/evoluzione\s+arcobaleno/i, 'evoluzione_arcobaleno'],
           [/^evoluzione\s+blu$/i, 'evoluzione_blu'],
-          [/^evoluzione\s+giallo$/i, 'evoluzione_giallo'],
+          [/^evoluzione\s+giall[ao]$/i, 'evoluzione_gialla'],
           [/^evoluzione\s+rossa$/i, 'evoluzione_rossa'],
           [/^evoluzione\s+verde$/i, 'evoluzione_verde'],
           [/^ameeco$/i, 'ameeco'],
@@ -6846,7 +6846,7 @@ Rispondi SOLO in JSON:`;
         [/lega\s+camera\s+caf/i, 'lega_camera_caf'],
         [/evoluzione\s+arcobaleno/i, 'evoluzione_arcobaleno'],
         [/^evoluzione\s+blu$/i, 'evoluzione_blu'],
-        [/^evoluzione\s+giallo$/i, 'evoluzione_giallo'],
+        [/^evoluzione\s+giall[ao]$/i, 'evoluzione_gialla'],
         [/^evoluzione\s+rossa$/i, 'evoluzione_rossa'],
         [/^evoluzione\s+verde$/i, 'evoluzione_verde'],
         [/^ameeco$/i, 'ameeco'],
@@ -8145,14 +8145,42 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 .toUpperCase();
               
               const oldName = handCard.name || handCard.id;
+
+              // Compute base stats from original values before mutation
+              let handOrigPti = (handCard as any).originalPti || 0;
+              let handOrigStars = handCard.stars || 1;
+              if (!handOrigPti) {
+                const hOrigMod = jsonStorage.cardModifications.getByOriginalCardId(handCard.id);
+                if (hOrigMod && hOrigMod.pti !== null) {
+                  handOrigPti = hOrigMod.pti;
+                  if (hOrigMod.stars !== null) handOrigStars = hOrigMod.stars;
+                } else {
+                  const hOrigCached = getPersonaggioFromCache(oldName);
+                  handOrigPti = hOrigCached?.pti || handCard.pti || 0;
+                  handOrigStars = hOrigCached?.stars || handCard.stars || 1;
+                }
+              }
+
+              let handComputedPti: number;
+              let handComputedStars: number;
+              if (type === 'evolution') {
+                handComputedPti = Math.floor(handOrigPti * 1.5);
+                handComputedStars = Math.floor(handOrigStars * 1.5);
+              } else if (type === 'transformation') {
+                handComputedPti = handOrigPti * 2;
+                handComputedStars = handOrigStars * 2;
+              } else {
+                handComputedPti = Math.floor(handOrigPti * 0.5);
+                handComputedStars = Math.max(1, Math.floor(handOrigStars * 0.5));
+              }
               
               handCard.id = targetCardId;
               handCard.type = targetDeckType as any;
               handCard.frontImage = mod?.imageUrl || newFrontImage;
               handCard.backImage = backImage;
               handCard.name = mod?.name || newName;
-              handCard.pti = mod?.pti ?? handCard.pti;
-              handCard.stars = mod?.stars ?? handCard.stars;
+              handCard.pti = mod?.pti ?? handComputedPti;
+              handCard.stars = mod?.stars ?? handComputedStars;
               handCard.audioUrl = mod?.audioUrl || undefined;
               handCard.youtubeUrl = mod?.youtubeUrl || undefined;
               handCard.effect = mod?.effect || undefined;
@@ -8339,6 +8367,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (fieldIndex >= 0) {
           const mod = jsonStorage.cardModifications.getByOriginalCardId(targetCardId);
           
+          let computedPti: number;
+          let computedStars: number;
+          if (type === 'evolution') {
+            computedPti = Math.floor(originalPti * 1.5);
+            computedStars = Math.floor(originalStars * 1.5);
+          } else if (type === 'transformation') {
+            computedPti = originalPti * 2;
+            computedStars = originalStars * 2;
+          } else {
+            computedPti = Math.floor(originalPti * 0.5);
+            computedStars = Math.max(1, Math.floor(originalStars * 0.5));
+          }
+
           const replacementCard: Card = {
             id: targetCardId,
             type: targetDeckType as any,
@@ -8347,8 +8388,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             owner: activeChar.owner,
             text: '',
             name: mod?.name || newName,
-            pti: mod?.pti ?? originalPti,
-            stars: mod?.stars ?? originalStars,
+            pti: mod?.pti ?? computedPti,
+            stars: mod?.stars ?? computedStars,
             placedBy: activeChar.placedBy || playerName,
             audioUrl: mod?.audioUrl || undefined,
             attackLowAudioUrl: mod?.attackLowAudioUrl || undefined,
@@ -11632,47 +11673,61 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── EVOLUZIONI COLORATE ─────────────────────────────────────────────────
       case 'evoluzione_arcobaleno': {
-        if (!myChar) { emitChat(`⚠️ EVOLUZIONE ARCOBALENO: ${playerName} non ha un personaggio in campo.`); break; }
-        myChar.pti = (myChar.pti || 0) + 200;
-        myChar.stars = Math.min(5, (myChar.stars || 0) + 2);
-        this.updateCardTextWithPTI(myChar);
-        emitChat(`🌈 EVOLUZIONE ARCOBALENO! ${myChar.name || playerName} +200 PTI +2 stelle! (PTI: ${myChar.pti}, Stelle: ${myChar.stars})`);
+        emitChat(`🌈 EVOLUZIONE ARCOBALENO! Tutti i personaggi di ${playerName} evolvono!`);
+        this.handleMultiEvolution(game, gameId, playerName, 'evolution', true);
         emitState(); break;
       }
 
       case 'evoluzione_blu': {
         if (!myChar) { emitChat(`⚠️ EVOLUZIONE BLU: ${playerName} non ha un personaggio in campo.`); break; }
-        myChar.pti = (myChar.pti || 0) + 150;
-        myChar.stars = Math.min(5, (myChar.stars || 0) + 1);
-        this.updateCardTextWithPTI(myChar);
-        emitChat(`🔵 EVOLUZIONE BLU! ${myChar.name || playerName} +150 PTI +1 stella! (PTI: ${myChar.pti}, Stelle: ${myChar.stars})`);
+        this.handleEvolutionTransformation(game, gameId, playerName, 'evolution', myChar.id);
         emitState(); break;
       }
 
-      case 'evoluzione_giallo': {
-        if (!myChar) { emitChat(`⚠️ EVOLUZIONE GIALLO: ${playerName} non ha un personaggio in campo.`); break; }
-        myChar.pti = (myChar.pti || 0) + 150;
-        myChar.stars = Math.min(5, (myChar.stars || 0) + 1);
-        this.updateCardTextWithPTI(myChar);
-        emitChat(`🟡 EVOLUZIONE GIALLO! ${myChar.name || playerName} +150 PTI +1 stella! (PTI: ${myChar.pti}, Stelle: ${myChar.stars})`);
+      case 'evoluzione_gialla': {
+        if (!myChar) { emitChat(`⚠️ EVOLUZIONE GIALLA: ${playerName} non ha un personaggio in campo.`); break; }
+        const giallaDie = Math.floor(Math.random() * 6) + 1;
+        if (io) io.to(gameId).emit('dice-rolled', { result: giallaDie, playerName });
+        if (giallaDie % 2 === 0) {
+          emitChat(`🟡 EVOLUZIONE GIALLA! Dado: ${giallaDie} (PARI) → ${myChar.name || playerName} evolve!`);
+          this.handleEvolutionTransformation(game, gameId, playerName, 'evolution', myChar.id);
+        } else {
+          emitChat(`🟡 EVOLUZIONE GIALLA! Dado: ${giallaDie} (DISPARI) → Nessuna evoluzione!`);
+        }
         emitState(); break;
       }
 
       case 'evoluzione_rossa': {
         if (!myChar) { emitChat(`⚠️ EVOLUZIONE ROSSA: ${playerName} non ha un personaggio in campo.`); break; }
-        myChar.pti = (myChar.pti || 0) + 150;
-        myChar.stars = Math.min(5, (myChar.stars || 0) + 1);
-        this.updateCardTextWithPTI(myChar);
-        emitChat(`🔴 EVOLUZIONE ROSSA! ${myChar.name || playerName} +150 PTI +1 stella! (PTI: ${myChar.pti}, Stelle: ${myChar.stars})`);
+        let rossaOrigPti = (myChar as any).originalPti || 0;
+        if (!rossaOrigPti) {
+          const rossaMod = jsonStorage.cardModifications.getByOriginalCardId(myChar.id);
+          if (rossaMod && rossaMod.pti !== null) {
+            rossaOrigPti = rossaMod.pti;
+          } else {
+            const rossaCached = getPersonaggioFromCache(myChar.name || '');
+            rossaOrigPti = rossaCached?.pti || myChar.pti || 0;
+          }
+        }
+        if ((myChar.pti || 0) >= rossaOrigPti / 2) {
+          emitChat(`🔴 EVOLUZIONE ROSSA! ${myChar.name || playerName} ha almeno il 50% dei PTI originali → evolve!`);
+          this.handleEvolutionTransformation(game, gameId, playerName, 'evolution', myChar.id);
+        } else {
+          emitChat(`🔴 EVOLUZIONE ROSSA! ${myChar.name || playerName} ha meno del 50% dei PTI originali (${myChar.pti}/${rossaOrigPti}) → Nessuna evoluzione!`);
+        }
         emitState(); break;
       }
 
       case 'evoluzione_verde': {
         if (!myChar) { emitChat(`⚠️ EVOLUZIONE VERDE: ${playerName} non ha un personaggio in campo.`); break; }
-        myChar.pti = (myChar.pti || 0) + 150;
-        myChar.stars = Math.min(5, (myChar.stars || 0) + 1);
-        this.updateCardTextWithPTI(myChar);
-        emitChat(`🟢 EVOLUZIONE VERDE! ${myChar.name || playerName} +150 PTI +1 stella! (PTI: ${myChar.pti}, Stelle: ${myChar.stars})`);
+        const verdeDie = Math.floor(Math.random() * 6) + 1;
+        if (io) io.to(gameId).emit('dice-rolled', { result: verdeDie, playerName });
+        if (verdeDie % 2 !== 0) {
+          emitChat(`🟢 EVOLUZIONE VERDE! Dado: ${verdeDie} (DISPARI) → ${myChar.name || playerName} evolve!`);
+          this.handleEvolutionTransformation(game, gameId, playerName, 'evolution', myChar.id);
+        } else {
+          emitChat(`🟢 EVOLUZIONE VERDE! Dado: ${verdeDie} (PARI) → Nessuna evoluzione!`);
+        }
         emitState(); break;
       }
 
