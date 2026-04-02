@@ -13689,6 +13689,43 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
     }
   });
 
+  // POST /api/story-mode/reset - delete all story mode progress for the authenticated user
+  app.post('/api/story-mode/reset', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      await db.transaction(async (tx) => {
+        // Calculate total Rankiard credits earned from completed gym leaders
+        const completedProgress = await tx.select({ gymLeaderId: userGymProgress.gymLeaderId })
+          .from(userGymProgress)
+          .where(eq(userGymProgress.userId, user.userId));
+        let totalCreditsToRemove = 0;
+        if (completedProgress.length > 0) {
+          const completedLeaderIds = completedProgress.map(p => p.gymLeaderId);
+          const rewardRows = await tx.select({ rewardCredits: gymLeaders.rewardCredits })
+            .from(gymLeaders)
+            .where(inArray(gymLeaders.id, completedLeaderIds));
+          totalCreditsToRemove = rewardRows.reduce((sum, r) => sum + (r.rewardCredits || 0), 0);
+        }
+        // Subtract earned credits from puntiRankiard (floor at 0)
+        if (totalCreditsToRemove > 0) {
+          await tx.update(users)
+            .set({ puntiRankiard: sql`GREATEST(${users.puntiRankiard} - ${totalCreditsToRemove}, 0)` })
+            .where(eq(users.id, user.userId));
+        }
+        await tx.delete(userGymProgress).where(eq(userGymProgress.userId, user.userId));
+        await tx.delete(userStoryDeck).where(eq(userStoryDeck.userId, user.userId));
+        await tx.delete(storyCharacterGrowth).where(eq(storyCharacterGrowth.userId, user.userId));
+      });
+      console.log(`[StoryMode] Reset progress for userId=${user.userId}`);
+      res.json({ success: true });
+    } catch (e) {
+      console.error('Error resetting story mode progress:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
   // ============= INJURED PERSONAGGI ENDPOINTS =============
 
   // Returns all injured personaggi for the authenticated user, enriched with card display info

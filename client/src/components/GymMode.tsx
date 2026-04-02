@@ -237,6 +237,9 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const [cardEffects, setCardEffects] = useState<Record<string, string>>({});
   const [defeatMsgVisible, setDefeatMsgVisible] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -584,6 +587,33 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     resumeHomeMusic();
     fetchLeaders();
     setTimeout(() => reset(), 150);
+  };
+
+  const handleReset = async () => {
+    if (!authToken || resetLoading) return;
+    setResetLoading(true);
+    setResetError(null);
+    try {
+      const res = await fetch('/api/story-mode/reset', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCompletedIds([]);
+        setStoryDeckIds([]);
+        setLostLeaderIds([]);
+        setShowResetConfirm(false);
+        fetchUserCredits();
+        setPhase('deck-select');
+      } else {
+        setResetError(data.error || 'Errore durante il reset. Riprova.');
+      }
+    } catch {
+      setResetError('Errore di rete. Controlla la connessione e riprova.');
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   const handleChallengeLeader = (leader: GymLeader) => {
@@ -1249,6 +1279,12 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         >
           <BookOpen className="w-3 h-3" /> Vedi mazzo
         </button>
+        <button
+          onClick={() => setShowResetConfirm(true)}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-900/30 border border-red-500/30 text-red-400 text-[10px] font-bold hover:bg-red-900/50 transition-colors"
+        >
+          ↺ Ricomincia
+        </button>
         <div className="flex-1" />
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-yellow-600/20 border border-yellow-600/30 flex items-center justify-center">
@@ -1772,6 +1808,54 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           </div>
         );
       })()}
+
+      {/* Reset Confirmation Modal */}
+      {showResetConfirm && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-5"
+          onClick={() => { if (!resetLoading) { setShowResetConfirm(false); setResetError(null); } }}
+        >
+          <div
+            className="w-full max-w-sm bg-gray-950 border border-red-500/30 rounded-2xl shadow-2xl p-6 flex flex-col gap-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <div className="text-4xl mb-2">⚠️</div>
+              <h3 className="text-white font-black text-lg mb-1">Ricomincia da capo?</h3>
+              <p className="text-white/60 text-sm leading-relaxed">
+                Perderai tutti i tuoi progressi, il mazzo e le stelle accumulate. Questa operazione è <span className="text-red-400 font-bold">irreversibile</span>.
+              </p>
+              <p className="text-white/40 text-xs mt-2">
+                Vuoi davvero ricominciare?
+              </p>
+            </div>
+            {resetError && (
+              <div className="bg-red-900/40 border border-red-500/40 rounded-xl px-4 py-2 text-red-300 text-xs text-center">
+                {resetError}
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowResetConfirm(false); setResetError(null); }}
+                disabled={resetLoading}
+                className="flex-1 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition-colors disabled:opacity-50"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={handleReset}
+                disabled={resetLoading}
+                className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {resetLoading ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : null}
+                Ricomincia
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
