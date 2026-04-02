@@ -6,7 +6,6 @@ import { GymLeader } from '../types/gym';
 
 export interface StoryWorldMapProps {
   leaders: GymLeader[];
-  completedIds: number[];
   lostLeaderIds: number[];
   storyDeckIds?: number[];
   currentLeader: GymLeader | null;
@@ -36,8 +35,9 @@ const KEY_MAP = [
 const PLAYER_SPEED = 9;
 const MAP_BOUND    = 42;
 
-/* Fixed arena positions for up to 12 leaders */
-const ARENA_POSITIONS: [number, number][] = [
+/* Fixed arena positions for up to 12 leaders.
+   For leaders beyond index 11 a deterministic spiral is generated. */
+const ARENA_POSITIONS_BASE: [number, number][] = [
   [  0,  15 ],   // 1
   [ 12,   6 ],   // 2
   [ 20,  -6 ],   // 3
@@ -51,6 +51,16 @@ const ARENA_POSITIONS: [number, number][] = [
   [ 26, -30 ],   // 11
   [-25, -32 ],   // 12
 ];
+
+function getArenaPosition(idx: number): [number, number] {
+  if (idx < ARENA_POSITIONS_BASE.length) return ARENA_POSITIONS_BASE[idx];
+  /* Deterministic spiral for leaders 13+ (Archimedean spiral, seeded by index) */
+  const t = (idx - ARENA_POSITIONS_BASE.length + 1) * 1.37;
+  const r = 28 + t * 3.5;
+  const x = Math.round(Math.cos(t) * r);
+  const z = Math.round(Math.sin(t) * r);
+  return [Math.max(-38, Math.min(38, x)), Math.max(-40, Math.min(40, z))];
+}
 
 /* Pre-computed tree positions (deterministic, not from Math.random) */
 const TREE_DATA: { x: number; z: number; h: number; r: number }[] = [
@@ -397,8 +407,7 @@ function WorldScene({
     let minId: number | null = null;
 
     leaders.forEach((l, idx) => {
-      if (idx >= ARENA_POSITIONS.length) return;
-      const [ax, az] = ARENA_POSITIONS[idx];
+      const [ax, az] = getArenaPosition(idx);
       const dist = Math.sqrt((px - ax) ** 2 + (pz - az) ** 2);
       if (dist < minDist) { minDist = dist; minId = l.id; }
     });
@@ -432,8 +441,7 @@ function WorldScene({
 
       {/* Arenas */}
       {leaders.map((leader, idx) => {
-        if (idx >= ARENA_POSITIONS.length) return null;
-        const [ax, az] = ARENA_POSITIONS[idx];
+        const [ax, az] = getArenaPosition(idx);
         const status = getLeaderStatus(leader);
         const isNear = leader.id === nearestLeaderId;
         const isCurrent = leader.id === currentLeader?.id;
@@ -512,6 +520,10 @@ export function StoryWorldMap({
   const [nearestLeaderId, setNearestLeaderId] = useState<number | null>(null);
   const [nearestDist, setNearestDist]         = useState(Infinity);
   const [showHint, setShowHint]               = useState(true);
+  /* Show mobile joystick only on touch-capable devices */
+  const [isTouchDevice] = useState(
+    () => typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+  );
 
   /* Derive nearest leader object */
   const nearLeader = useMemo(
@@ -737,21 +749,23 @@ export function StoryWorldMap({
         </div>
       )}
 
-      {/* ── Mobile joystick ── */}
-      <div style={{
-        position: 'absolute', bottom: nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 140 : 14,
-        right: 16,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-        zIndex: 25,
-        transition: 'bottom 0.2s ease',
-      }}>
-        <JoystickBtn label="▲" onStart={() => setJoy(0, -1)} onEnd={() => setJoy(0, 0)} />
-        <div style={{ display: 'flex', gap: 4 }}>
-          <JoystickBtn label="◀" onStart={() => setJoy(-1, 0)} onEnd={() => setJoy(0, 0)} />
-          <JoystickBtn label="▼" onStart={() => setJoy(0, 1)} onEnd={() => setJoy(0, 0)} />
-          <JoystickBtn label="▶" onStart={() => setJoy(1, 0)} onEnd={() => setJoy(0, 0)} />
+      {/* ── Mobile joystick (touch devices only) ── */}
+      {isTouchDevice && (
+        <div style={{
+          position: 'absolute', bottom: nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 140 : 14,
+          right: 16,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+          zIndex: 25,
+          transition: 'bottom 0.2s ease',
+        }}>
+          <JoystickBtn label="▲" onStart={() => setJoy(0, -1)} onEnd={() => setJoy(0, 0)} />
+          <div style={{ display: 'flex', gap: 4 }}>
+            <JoystickBtn label="◀" onStart={() => setJoy(-1, 0)} onEnd={() => setJoy(0, 0)} />
+            <JoystickBtn label="▼" onStart={() => setJoy(0, 1)} onEnd={() => setJoy(0, 0)} />
+            <JoystickBtn label="▶" onStart={() => setJoy(1, 0)} onEnd={() => setJoy(0, 0)} />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -98,90 +98,6 @@ const DIFFICULTY_LABEL: Record<string, { label: string; color: string }> = {
   hard: { label: 'Difficile', color: 'text-red-400' },
 };
 
-/* ── Story-Mode path layout ──────────────────────────────────────── */
-const GYM_PATH_NODE_H = 138;
-const GYM_PATH_TOP_PAD = 14;
-
-const GYM_PATH_STYLES = `
-  @keyframes gymPathDraw {
-    from { stroke-dashoffset: 1600; }
-    to   { stroke-dashoffset: 0; }
-  }
-  @keyframes gymNodePulse {
-    0%,100% { transform: scale(1);    opacity: 0.85; }
-    70%      { transform: scale(1.75); opacity: 0; }
-  }
-  @keyframes gymNodeSpin {
-    to { transform: rotate(360deg); }
-  }
-  @keyframes gymNodePop {
-    0%   { transform: scale(0.45) translateY(10px); opacity: 0; }
-    65%  { transform: scale(1.06) translateY(-2px); }
-    100% { transform: scale(1)    translateY(0);    opacity: 1; }
-  }
-  @keyframes gymCardShimmer {
-    0%   { background-position: -400% center; }
-    100% { background-position:  400% center; }
-  }
-  @keyframes gymBadgeBounce {
-    0%,100% { transform: translateY(0); }
-    50%      { transform: translateY(-2px); }
-  }
-  @keyframes gymNodeGlow {
-    0%,100% { filter: drop-shadow(0 0 6px #f59e0b) drop-shadow(0 0 14px #f59e0b88); }
-    50%      { filter: drop-shadow(0 0 14px #f59e0b) drop-shadow(0 0 28px #f59e0bcc); }
-  }
-  .gym-path-node-pop { animation: gymNodePop 0.42s cubic-bezier(0.34,1.56,0.64,1) both; }
-`;
-
-/* x positions as percentages of container width — must match DOM calc() values */
-const GYM_NODE_PCT_RIGHT = 58; /* even stages → node center at 58% */
-const GYM_NODE_PCT_LEFT  = 42; /* odd  stages → node center at 42% */
-
-function GymPathSVG({ count }: { count: number }) {
-  /* viewBox x: 0-100 (%) so SVG scales with container width.
-     preserveAspectRatio="none" lets x-scale with container while y stays in px. */
-  const totalH = GYM_PATH_TOP_PAD + count * GYM_PATH_NODE_H + 24;
-
-  const pts = Array.from({ length: count }, (_, i) => ({
-    x: i % 2 === 0 ? GYM_NODE_PCT_RIGHT : GYM_NODE_PCT_LEFT,
-    y: GYM_PATH_TOP_PAD + i * GYM_PATH_NODE_H + GYM_PATH_NODE_H / 2,
-  }));
-
-  let d = `M ${pts[0].x} ${pts[0].y}`;
-  for (let i = 1; i < pts.length; i++) {
-    const p = pts[i - 1], n = pts[i];
-    const my = (p.y + n.y) / 2;
-    d += ` C ${p.x} ${my}, ${n.x} ${my}, ${n.x} ${n.y}`;
-  }
-
-  return (
-    <svg
-      width="100%" height={totalH}
-      viewBox={`0 0 100 ${totalH}`}
-      preserveAspectRatio="none"
-      style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 0 }}
-    >
-      <defs>
-        <linearGradient id="gymGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="#4ade80" stopOpacity="0.9" />
-          <stop offset="45%"  stopColor="#f59e0b" stopOpacity="1" />
-          <stop offset="100%" stopColor="#7c3aed" stopOpacity="0.35" />
-        </linearGradient>
-        <filter id="gymGlow">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="b" />
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-      </defs>
-      <path d={d} fill="none" stroke="rgba(245,158,11,0.04)" strokeWidth={8} strokeLinecap="round" />
-      <path
-        d={d} fill="none" stroke="url(#gymGrad)" strokeWidth={1.4}
-        strokeLinecap="round" strokeDasharray="5 3.5" filter="url(#gymGlow)"
-        style={{ animation: 'gymPathDraw 2s ease-out forwards', strokeDashoffset: 1600 }}
-      />
-    </svg>
-  );
-}
 
 export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, onResumeGymGame, onClearPendingGymGame, onLogin }: GymModeProps) {
   const [leaders, setLeaders] = useState<GymLeader[]>([]);
@@ -203,8 +119,6 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [isReplayBattle, setIsReplayBattle] = useState(false);
   const [lostLeaderIds, setLostLeaderIds] = useState<number[]>([]);
   const [showDeckPanel, setShowDeckPanel] = useState(false);
-  const [hoveredLeaderId, setHoveredLeaderId] = useState<number | null>(null);
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const [cardEffects, setCardEffects] = useState<Record<string, string>>({});
   const [defeatMsgVisible, setDefeatMsgVisible] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -215,7 +129,6 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const gameIdRef = useRef<string | null>(null);
   const battleStartingRef = useRef(false);
   const isReplayBattleRef = useRef(false);
-  const mapScrollRef = useRef<HTMLDivElement>(null);
   const expectedCpusRef = useRef(0);
   const cpusAddedRef = useRef(0);
 
@@ -403,14 +316,6 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     return () => clearTimeout(t);
   }, [phase]);
 
-  useEffect(() => {
-    if (phase === 'map' && !loading && mapScrollRef.current) {
-      const node = mapScrollRef.current.querySelector('.current-gym-node') as HTMLElement | null;
-      if (node) {
-        setTimeout(() => node.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
-      }
-    }
-  }, [phase, loading, leaders]);
 
   const startBattle = useCallback(async (leader: GymLeader) => {
     battleStartingRef.current = false;
@@ -1391,7 +1296,6 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
       {/* 3D World Map */}
       <StoryWorldMap
         leaders={activeLeaders}
-        completedIds={completedIds}
         lostLeaderIds={lostLeaderIds}
         currentLeader={currentLeader ?? null}
         pendingGymGame={pendingGymGame}
@@ -1401,64 +1305,6 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         onResumeGame={handleInternalResume}
       />
 
-
-      {/* Boss Tooltip */}
-      {hoveredLeaderId !== null && tooltipPos && (() => {
-        const hLeader = activeLeaders.find(l => l.id === hoveredLeaderId);
-        if (!hLeader) return null;
-        const tipW = 220;
-        const tipH = 180;
-        const vpW = window.innerWidth;
-        const vpH = window.innerHeight;
-        let left = tooltipPos.x + 14;
-        let top = tooltipPos.y - 20;
-        if (left + tipW > vpW - 8) left = tooltipPos.x - tipW - 14;
-        if (top + tipH > vpH - 8) top = vpH - tipH - 8;
-        if (top < 8) top = 8;
-        return (
-          <div
-            style={{
-              position: 'fixed', left, top, width: tipW, zIndex: 9999,
-              pointerEvents: 'none',
-              background: 'rgba(10,5,25,0.97)',
-              border: '1px solid rgba(245,158,11,0.4)',
-              borderRadius: 14,
-              boxShadow: '0 8px 30px rgba(0,0,0,0.8)',
-              padding: '12px',
-            }}
-          >
-            {/* Leader image + name */}
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
-              {hLeader.leaderImageUrl ? (
-                <img src={hLeader.leaderImageUrl} alt={hLeader.name} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(245,158,11,0.5)', flexShrink: 0 }} />
-              ) : (
-                <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(245,158,11,0.1)', border: '2px solid rgba(245,158,11,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Shield style={{ width: 20, height: 20, color: 'rgba(245,158,11,0.5)' }} />
-                </div>
-              )}
-              <div style={{ minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: '#fde68a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hLeader.name}</p>
-                <p style={{ margin: '2px 0 0', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hLeader.gymName}</p>
-              </div>
-            </div>
-            {/* Difficulty + specialty */}
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 6 }}>
-              <span style={{ fontSize: 10, fontWeight: 800, color: hLeader.cpuLevel === 'easy' ? '#4ade80' : hLeader.cpuLevel === 'medium' ? '#facc15' : '#f87171', background: 'rgba(255,255,255,0.06)', borderRadius: 99, padding: '2px 7px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                {hLeader.cpuLevel === 'easy' ? '🟢 Facile' : hLeader.cpuLevel === 'medium' ? '🟡 Medio' : '🔴 Difficile'}
-              </span>
-              <span style={{ fontSize: 10, fontWeight: 800, color: '#fbbf24', background: 'rgba(245,158,11,0.1)', borderRadius: 99, padding: '2px 7px', border: '1px solid rgba(245,158,11,0.2)' }}>
-                ⭐ +{hLeader.rewardCredits}
-              </span>
-            </div>
-            {hLeader.specialty && (
-              <p style={{ margin: 0, fontSize: 10, color: 'rgba(253,230,138,0.7)', lineHeight: 1.4 }}>⚡ {hLeader.specialty}</p>
-            )}
-            {hLeader.description && !hLeader.specialty && (
-              <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.4)', lineHeight: 1.4 }}>{hLeader.description}</p>
-            )}
-          </div>
-        );
-      })()}
 
       {/* Reset Confirmation Modal */}
       {showResetConfirm && (
