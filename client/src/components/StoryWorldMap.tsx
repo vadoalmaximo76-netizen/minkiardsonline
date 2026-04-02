@@ -1116,7 +1116,12 @@ export function StoryWorldMap({
     if (isCollecting) return;
     setIsCollecting(true);
     try {
-      const res = await fetch(`/api/story-mode/collect/${c.id}`, { method: 'POST', credentials: 'include' });
+      const authToken = localStorage.getItem('authToken');
+      const res = await fetch(`/api/story-mode/collect/${c.id}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+      });
       const data = await res.json();
       if (data.success) {
         setLocalCollectedIds(prev => new Set([...prev, c.id]));
