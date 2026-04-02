@@ -14416,6 +14416,28 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
   });
 
   // POST /api/story-mode/reset - delete all story mode progress for the authenticated user
+  // POST /api/football-minigame/award - award credits for football mini-games
+  app.post('/api/football-minigame/award', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const { credits, game } = req.body;
+      const creditAmount = Math.max(0, Math.min(100, parseInt(credits) || 0));
+      if (creditAmount <= 0) return res.json({ success: true, newCredits: 0 });
+      const [currentUser] = await db.select({ puntiRankiard: users.puntiRankiard })
+        .from(users).where(eq(users.id, user.userId));
+      if (!currentUser) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+      const newTotal = (currentUser.puntiRankiard || 0) + creditAmount;
+      await db.update(users).set({ puntiRankiard: newTotal }).where(eq(users.id, user.userId));
+      console.log(`[FootballMinigame] userId=${user.userId} earned ${creditAmount} credits from ${game ?? 'unknown'}, total=${newTotal}`);
+      res.json({ success: true, creditsAwarded: creditAmount, newTotal });
+    } catch (e) {
+      console.error('[FootballMinigame] Error awarding credits:', e);
+      res.status(500).json({ success: false, error: 'Errore interno' });
+    }
+  });
+
   app.post('/api/story-mode/reset', authMiddleware, async (req, res) => {
     try {
       if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });

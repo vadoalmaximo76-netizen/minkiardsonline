@@ -5,6 +5,7 @@ import {
   RuotaDellaFortuna, MemoryGame, SfidaAlDado,
   ReazioneRapida, QuizMinkiard, SassoCartaForbice,
 } from './MiniGames';
+import { FootballMinigames } from './FootballMinigames';
 
 /* ── Interfaces (unchanged) ─────────────────────────────────── */
 export interface StoryLocality {
@@ -387,7 +388,21 @@ const ARENA_COLORS = [
 const LOCALITY_COLORS: Record<string, string> = {
   town: '#f97316', shop: '#3b82f6', inn: '#a855f7',
   forest: '#22c55e', shrine: '#eab308', custom: '#06b6d4',
+  football_field: '#22c55e',
 };
+
+/* ── Football field (static, always present) ──────────────── */
+const FOOTBALL_FIELD_POS = { x: -30, z: 20 } as const;
+const FOOTBALL_FIELD_RADIUS = 9;
+const FOOTBALL_FIELD_LOCALITY = {
+  id: -1,
+  name: 'Campo da Calcio',
+  type: 'football_field',
+  posX: FOOTBALL_FIELD_POS.x,
+  posZ: FOOTBALL_FIELD_POS.z,
+  icon: '⚽',
+  isActive: true,
+} as const;
 
 /* ── Canvas helpers ───────────────────────────────────────────── */
 function rrect(
@@ -492,6 +507,18 @@ function Minimap({ playerRef, arenaPositions, leaders, getLeaderStatus, localiti
         ctx.fillRect(-3, -3, 6, 6);
         ctx.restore();
       });
+
+      /* Football field on minimap */
+      const { x: ffmx, y: ffmy } = toC(FOOTBALL_FIELD_POS.x, FOOTBALL_FIELD_POS.z);
+      ctx.save();
+      ctx.fillStyle = '#22c55e';
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 0.8;
+      ctx.fillRect(ffmx - 4, ffmy - 3, 8, 6);
+      ctx.strokeRect(ffmx - 4, ffmy - 3, 8, 6);
+      ctx.font = '6px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'white';
+      ctx.fillText('⚽', ffmx, ffmy);
+      ctx.restore();
 
       /* Arenas */
       arenaPositions.forEach(([ax, az], idx) => {
@@ -700,6 +727,11 @@ export function StoryWorldMap({
   const lastNearArcadeIdRef  = useRef<string | null>(null);
   const lastNearArcadeDistRef= useRef(Infinity);
   const [userPR, setUserPR] = useState<number>(0);
+
+  /* ── Football field state ───────────────────────────────── */
+  const [nearFootball, setNearFootball] = useState(false);
+  const [showFootballMinigame, setShowFootballMinigame] = useState(false);
+  const lastNearFootballRef = useRef(false);
 
   /* Keep ref in sync with state for game loop reads */
   useEffect(() => { localCollectedIdsRef.current = localCollectedIds; }, [localCollectedIds]);
@@ -1454,6 +1486,15 @@ export function StoryWorldMap({
           }
         }
 
+        /* Football field proximity */
+        const ffDist = Math.sqrt((px - FOOTBALL_FIELD_POS.x) ** 2 + (pz - FOOTBALL_FIELD_POS.z) ** 2);
+        const isNearFF = ffDist <= FOOTBALL_FIELD_RADIUS;
+        if (isNearFF !== lastNearFootballRef.current) {
+          lastNearFootballRef.current = isNearFF;
+          setNearFootball(isNearFF);
+          if (!isNearFF) setShowFootballPanel(false);
+        }
+
         /* Other player proximity (for PvP challenge button) */
         let closestOp: OtherPlayer | null = null;
         let closestDist = 6;
@@ -1789,6 +1830,61 @@ export function StoryWorldMap({
             ctx.fillText(`${loc.icon} ${loc.name}`, lx, ly - 2.5 * TILE - 5);
           }
         });
+      });
+
+      /* ── Football field (static) ─────────────────────────── */
+      sprites.push({
+        z: FOOTBALL_FIELD_POS.z,
+        draw: () => {
+          const [fx, fy] = w2s(FOOTBALL_FIELD_POS.x, FOOTBALL_FIELD_POS.z);
+          const fw = 5.5 * TILE; const fh = 3.8 * TILE;
+          /* Ground: green pitch */
+          ctx.save();
+          ctx.fillStyle = '#1a7a1a';
+          rrect(ctx, fx - fw / 2, fy - fh / 2, fw, fh, 4);
+          ctx.fill();
+          /* Pitch markings */
+          ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.5;
+          /* Perimeter */
+          rrect(ctx, fx - fw / 2 + 3, fy - fh / 2 + 3, fw - 6, fh - 6, 2);
+          ctx.stroke();
+          /* Center line */
+          ctx.beginPath(); ctx.moveTo(fx, fy - fh / 2 + 3); ctx.lineTo(fx, fy + fh / 2 - 3); ctx.stroke();
+          /* Center circle */
+          ctx.beginPath(); ctx.arc(fx, fy, 0.7 * TILE, 0, Math.PI * 2); ctx.stroke();
+          /* Left goal */
+          ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(fx - fw / 2 - 6, fy - fh * 0.22);
+          ctx.lineTo(fx - fw / 2, fy - fh * 0.22);
+          ctx.lineTo(fx - fw / 2, fy + fh * 0.22);
+          ctx.lineTo(fx - fw / 2 - 6, fy + fh * 0.22);
+          ctx.stroke();
+          /* Right goal */
+          ctx.beginPath();
+          ctx.moveTo(fx + fw / 2 + 6, fy - fh * 0.22);
+          ctx.lineTo(fx + fw / 2, fy - fh * 0.22);
+          ctx.lineTo(fx + fw / 2, fy + fh * 0.22);
+          ctx.lineTo(fx + fw / 2 + 6, fy + fh * 0.22);
+          ctx.stroke();
+          /* Proximity pulse */
+          const isNearFF2 = lastNearFootballRef.current;
+          if (isNearFF2) {
+            const pulse = 0.4 + Math.sin(t * 3.5) * 0.2;
+            ctx.beginPath(); ctx.arc(fx, fy, fw * 0.6, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(74,222,128,${pulse})`;
+            ctx.lineWidth = 2.5; ctx.stroke();
+          }
+          /* Label */
+          const labelW = 90;
+          ctx.fillStyle = 'rgba(5,5,20,0.88)';
+          rrect(ctx, fx - labelW / 2, fy - fh / 2 - 22, labelW, 18, 5); ctx.fill();
+          ctx.strokeStyle = 'rgba(74,222,128,0.55)'; ctx.lineWidth = 1; ctx.stroke();
+          ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#4ade80';
+          ctx.fillText('⚽ Campo da Calcio', fx, fy - fh / 2 - 13);
+          ctx.restore();
+        },
       });
 
       /* arenas */
@@ -2623,6 +2719,55 @@ export function StoryWorldMap({
           🎮 {minigameResult.gameName}: {minigameResult.pr > 0 ? `+${minigameResult.pr}` : minigameResult.pr} PR
         </div>
       )}
+
+      {/* Football field proximity panel */}
+      {nearFootball && !showFootballMinigame && !showHistoryPanel && !(nearLeader && nearStatus !== 'locked' && nearestDist <= 9) && !(nearestArcadeId && nearestArcadeDist <= 9) && (
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          background: 'linear-gradient(to top, rgba(0,10,0,0.97) 0%, rgba(0,15,0,0.9) 100%)',
+          borderTop: '2px solid rgba(34,197,94,0.5)',
+          padding: isMobileLandscape ? '8px 16px' : '14px 16px',
+          display: 'flex', alignItems: 'center', gap: isMobileLandscape ? 8 : 14, zIndex: 30,
+        }}>
+          <div style={{ fontSize: isMobileLandscape ? 28 : 40, flexShrink: 0 }}>⚽</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: isMobileLandscape ? 13 : 16, fontWeight: 900, color: '#4ade80' }}>
+              Campo da Calcio
+            </p>
+            <p style={{ margin: '2px 0 0', fontSize: isMobileLandscape ? 11 : 13, color: 'rgba(255,255,255,0.5)' }}>
+              4 mini-giochi · Guadagna Rankiard!
+            </p>
+          </div>
+          <button
+            onClick={() => setShowFootballMinigame(true)}
+            style={{
+              background: 'linear-gradient(135deg,#16a34a,#4ade80)', border: 'none',
+              borderRadius: 10, color: 'white', fontSize: isMobileLandscape ? 13 : 15, fontWeight: 900,
+              padding: isMobileLandscape ? '8px 14px' : '10px 20px', cursor: 'pointer', whiteSpace: 'nowrap',
+              boxShadow: '0 2px 14px rgba(74,222,128,0.4)',
+            }}
+          >
+            🎮 Gioca
+          </button>
+        </div>
+      )}
+
+      {/* Football minigame overlay */}
+      {showFootballMinigame && (
+        <FootballMinigames
+          authToken={authToken ?? null}
+          onClose={() => setShowFootballMinigame(false)}
+          onCreditsEarned={(credits) => {
+            const now = performance.now() / 1000;
+            floatingTextsRef.current.push({
+              text: `+${credits} crediti`,
+              x: FOOTBALL_FIELD_POS.x, z: FOOTBALL_FIELD_POS.z,
+              color: '#4ade80', startTime: now,
+            });
+          }}
+        />
+      )}
+
 
       {/* Coin pickup popup (coins only — cards go to reveal modal) */}
       {nearCollectible && nearCollectible.type === 'coin' && !localCollectedIds.has(nearCollectible.id) && !cardReveal && (
