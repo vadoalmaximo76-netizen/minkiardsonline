@@ -529,21 +529,23 @@ function Minimap({ playerRef, arenaPositions, leaders, getLeaderStatus, localiti
 }
 
 /* ── Mobile joystick button ─────────────────────────────────── */
-interface JoystickBtnProps { label: string; onStart: () => void; onEnd: () => void; }
+interface JoystickBtnProps { label: string; onStart: () => void; onEnd: () => void; size?: number; }
 
-function JoystickBtn({ label, onStart, onEnd }: JoystickBtnProps) {
+function JoystickBtn({ label, onStart, onEnd, size = 64 }: JoystickBtnProps) {
   const [active, setActive] = React.useState(false);
+  const fontSize = size <= 44 ? 18 : 26;
+  const borderRadius = size <= 44 ? 10 : 14;
   return (
     <div
       onPointerDown={(e) => { e.preventDefault(); setActive(true); onStart(); }}
       onPointerUp={() => { setActive(false); onEnd(); }}
       onPointerLeave={() => { setActive(false); onEnd(); }}
       style={{
-        width: 64, height: 64, borderRadius: 14,
+        width: size, height: size, borderRadius,
         background: active ? 'rgba(167,139,250,0.55)' : 'rgba(255,255,255,0.14)',
         border: `2px solid ${active ? 'rgba(167,139,250,0.9)' : 'rgba(255,255,255,0.3)'}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 26, userSelect: 'none', cursor: 'pointer',
+        fontSize, userSelect: 'none', cursor: 'pointer',
         touchAction: 'none', WebkitUserSelect: 'none',
         boxShadow: active ? '0 0 16px rgba(167,139,250,0.5)' : '0 2px 8px rgba(0,0,0,0.3)',
         transition: 'background 0.08s, border-color 0.08s, box-shadow 0.08s',
@@ -625,6 +627,17 @@ export function StoryWorldMap({
   const [isTouchDevice] = useState(
     () => typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
   );
+  const [isLandscape, setIsLandscape] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(orientation: landscape)').matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(orientation: landscape)');
+    const handler = (e: MediaQueryListEvent) => setIsLandscape(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
   const [nearCollectible,    setNearCollectible]    = useState<StoryCollectible | null>(null);
   const [localCollectedIds,  setLocalCollectedIds]  = useState<Set<number>>(new Set());
   const [isCollecting,       setIsCollecting]       = useState(false);
@@ -2008,6 +2021,7 @@ export function StoryWorldMap({
   const nearStatus  = nearLeader ? getLeaderStatus(nearLeader) : null;
   const hasPending  = nearLeader ? pendingGymGame?.gymLeaderId === nearLeader.id && !lostLeaderIds.includes(nearLeader.id) && nearStatus !== 'completed' : false;
   const hasLost     = nearLeader ? lostLeaderIds.includes(nearLeader.id) && nearStatus !== 'completed' : false;
+  const isMobileLandscape = isTouchDevice && isLandscape;
 
   return (
     <div ref={containerRef} style={{ position: 'relative', flex: 1, overflow: 'hidden', minHeight: 0 }}>
@@ -2065,6 +2079,7 @@ export function StoryWorldMap({
 
       {/* Directional compass to next available arena */}
       {(() => {
+        if (isMobileLandscape) return null;
         const nextArena = leaders.find(l => getLeaderStatus(l) === 'available');
         if (!nextArena) return null;
         const idx = leaders.indexOf(nextArena);
@@ -2115,11 +2130,14 @@ export function StoryWorldMap({
           onClick={() => setShowHistoryPanel(true)}
           style={{
             position: 'absolute',
-            bottom: isTouchDevice ? (nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 235 : 185) : 90,
-            left: isTouchDevice ? 188 : 16,
+            bottom: isMobileLandscape
+              ? 8
+              : isTouchDevice ? (nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 235 : 185) : 90,
+            left: isMobileLandscape ? 'auto' : isTouchDevice ? 188 : 16,
+            right: isMobileLandscape ? 160 : 'auto',
             background: 'rgba(3,4,18,0.88)', border: '1.5px solid rgba(74,222,128,0.4)',
-            borderRadius: 10, padding: '7px 12px', color: '#4ade80',
-            fontSize: 12, fontWeight: 800, cursor: 'pointer', zIndex: 35,
+            borderRadius: 10, padding: isMobileLandscape ? '5px 10px' : '7px 12px', color: '#4ade80',
+            fontSize: isMobileLandscape ? 11 : 12, fontWeight: 800, cursor: 'pointer', zIndex: 35,
             display: 'flex', alignItems: 'center', gap: 6,
           }}
         >
@@ -2133,7 +2151,8 @@ export function StoryWorldMap({
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0,
             background: 'rgba(3,4,18,0.97)', borderTop: '2px solid rgba(74,222,128,0.4)',
-            zIndex: 40, padding: '14px 16px', maxHeight: '55%', overflow: 'auto',
+            zIndex: 40, padding: isMobileLandscape ? '8px 16px' : '14px 16px',
+            maxHeight: isMobileLandscape ? '85vh' : '55%', overflow: 'auto',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <span style={{ color: '#4ade80', fontWeight: 900, fontSize: 14 }}>🏆 Storico vittorie</span>
@@ -2218,19 +2237,21 @@ export function StoryWorldMap({
       <div style={{
         position: 'absolute', top: 12, right: 12,
         background: 'rgba(0,0,0,0.65)', border: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: 10, padding: '6px 12px',
+        borderRadius: 10, padding: isMobileLandscape ? '4px 10px' : '6px 12px',
         color: 'rgba(255,255,255,0.60)', fontSize: 11, fontWeight: 700,
         pointerEvents: 'none', zIndex: 20,
         display: 'flex', flexDirection: 'column', gap: 3, textAlign: 'right',
       }}>
-        <span style={{ color: 'rgba(255,255,255,0.45)' }}>WASD / ↑↓←→ — muoviti</span>
-        <span style={{ color: '#4ade80', fontSize: 12 }}>
-          ✓ Stage completati: <strong>{completedCount}/{leaders.length}</strong>
+        {!isMobileLandscape && (
+          <span style={{ color: 'rgba(255,255,255,0.45)' }}>WASD / ↑↓←→ — muoviti</span>
+        )}
+        <span style={{ color: '#4ade80', fontSize: isMobileLandscape ? 10 : 12 }}>
+          ✓ <strong>{completedCount}/{leaders.length}</strong> stage
         </span>
-        <span style={{ color: 'rgba(251,191,36,0.85)' }}>
+        <span style={{ color: 'rgba(251,191,36,0.85)', fontSize: isMobileLandscape ? 10 : 11 }}>
           {nearLeader && nearStatus !== 'locked' && nearestDist <= 9
-            ? `⚡ Stage attivo: ${nearLeader.gymName}`
-            : '📍 Avvicinati ad uno Stage'}
+            ? `⚡ ${nearLeader.gymName}`
+            : '📍 Avvicinati'}
         </span>
       </div>
 
@@ -2253,20 +2274,24 @@ export function StoryWorldMap({
           position: 'absolute', bottom: 0, left: 0, right: 0,
           background: 'linear-gradient(to top, rgba(0,0,0,0.97) 0%, rgba(5,5,20,0.9) 100%)',
           borderTop: `2px solid ${nearStatus === 'completed' ? 'rgba(74,222,128,0.5)' : 'rgba(245,158,11,0.5)'}`,
-          padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14, zIndex: 30,
+          padding: isMobileLandscape ? '8px 16px' : '14px 16px',
+          display: 'flex', alignItems: 'center', gap: isMobileLandscape ? 8 : 14, zIndex: 30,
         }}>
           {nearLeader.leaderImageUrl ? (
             <img src={nearLeader.leaderImageUrl} alt={nearLeader.name} style={{
-              width: 56, height: 56, borderRadius: '50%', objectFit: 'cover',
+              width: isMobileLandscape ? 36 : 56, height: isMobileLandscape ? 36 : 56,
+              borderRadius: '50%', objectFit: 'cover',
               border: `2px solid ${nearStatus === 'completed' ? '#4ade80' : '#fbbf24'}`, flexShrink: 0,
               boxShadow: `0 0 18px ${nearStatus === 'completed' ? '#4ade8055' : '#fbbf2455'}`,
             }} />
           ) : (
             <div style={{
-              width: 56, height: 56, borderRadius: '50%', flexShrink: 0,
+              width: isMobileLandscape ? 36 : 56, height: isMobileLandscape ? 36 : 56,
+              borderRadius: '50%', flexShrink: 0,
               background: nearStatus === 'completed' ? 'rgba(22,101,52,0.6)' : 'rgba(120,53,15,0.6)',
               border: `2px solid ${nearStatus === 'completed' ? '#4ade8055' : '#fbbf2455'}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: isMobileLandscape ? 16 : 22,
             }}>🏋️</div>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -2328,7 +2353,11 @@ export function StoryWorldMap({
       {/* Coin pickup popup (coins only — cards go to reveal modal) */}
       {nearCollectible && nearCollectible.type === 'coin' && !localCollectedIds.has(nearCollectible.id) && !cardReveal && (
         <div style={{
-          position: 'absolute', bottom: isTouchDevice ? 180 : 120, left: '50%', transform: 'translateX(-50%)',
+          position: 'absolute',
+          bottom: isMobileLandscape ? 'auto' : isTouchDevice ? 180 : 120,
+          top: isMobileLandscape ? 8 : 'auto',
+          left: isMobileLandscape ? 8 : '50%',
+          transform: isMobileLandscape ? 'none' : 'translateX(-50%)',
           background: 'rgba(5,5,20,0.92)',
           border: '2px solid rgba(251,191,36,0.7)',
           borderRadius: 14, padding: '14px 24px', zIndex: 50,
@@ -2356,7 +2385,11 @@ export function StoryWorldMap({
       {/* Card proximity hint (show that a card is near without revealing it) */}
       {nearCollectible && nearCollectible.type === 'card' && !localCollectedIds.has(nearCollectible.id) && !cardReveal && (
         <div style={{
-          position: 'absolute', bottom: isTouchDevice ? 180 : 120, left: '50%', transform: 'translateX(-50%)',
+          position: 'absolute',
+          bottom: isMobileLandscape ? 'auto' : isTouchDevice ? 180 : 120,
+          top: isMobileLandscape ? 8 : 'auto',
+          left: isMobileLandscape ? 8 : '50%',
+          transform: isMobileLandscape ? 'none' : 'translateX(-50%)',
           background: 'rgba(5,5,20,0.92)',
           border: `2px solid ${nearCollectible.subtype === 'personaggi' ? 'rgba(129,140,248,0.7)' : nearCollectible.subtype === 'mossa' ? 'rgba(248,113,113,0.7)' : 'rgba(74,222,128,0.7)'}`,
           borderRadius: 14, padding: '14px 24px', zIndex: 50,
@@ -2456,7 +2489,11 @@ export function StoryWorldMap({
       {/* Nearby player interaction banner */}
       {proximityPlayer && !nearLeader && !incomingChallenge && (
         <div style={{
-          position: 'absolute', bottom: isTouchDevice ? 190 : 80, left: '50%', transform: 'translateX(-50%)',
+          position: 'absolute',
+          bottom: isMobileLandscape ? 'auto' : isTouchDevice ? 190 : 80,
+          top: isMobileLandscape ? 8 : 'auto',
+          left: isMobileLandscape ? '50%' : '50%',
+          transform: 'translateX(-50%)',
           background: 'rgba(5,5,30,0.95)',
           border: '2px solid rgba(59,130,246,0.7)',
           borderRadius: 14, padding: '12px 22px', zIndex: 50,
@@ -2560,35 +2597,58 @@ export function StoryWorldMap({
         </div>
       )}
 
-      {/* Mobile d-pad (bottom-left, PlayStation cross layout) */}
+      {/* Mobile d-pad (bottom-left in portrait, bottom-right in landscape) */}
       {isTouchDevice && (
         <div style={{
           position: 'absolute',
-          bottom: nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 130 : 18,
-          left: 16,
+          bottom: isMobileLandscape
+            ? 8
+            : (nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 130 : 18),
+          left: isMobileLandscape ? 'auto' : 16,
+          right: isMobileLandscape ? 8 : 'auto',
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 64px)',
-          gridTemplateRows: 'repeat(3, 64px)',
-          gap: 5,
+          gridTemplateColumns: isMobileLandscape ? 'repeat(3, 44px)' : 'repeat(3, 64px)',
+          gridTemplateRows: isMobileLandscape ? 'repeat(3, 44px)' : 'repeat(3, 64px)',
+          gap: isMobileLandscape ? 3 : 5,
           zIndex: 32,
           transition: 'bottom 0.22s ease',
           filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))',
         }}>
           {/* row 1: empty | up | empty */}
           <div />
-          <JoystickBtn label="▲" onStart={() => setJoy(0, -1)} onEnd={() => setJoy(0, 0)} />
+          <JoystickBtn
+            label="▲"
+            onStart={() => setJoy(0, -1)}
+            onEnd={() => setJoy(0, 0)}
+            size={isMobileLandscape ? 44 : 64}
+          />
           <div />
           {/* row 2: left | center (empty) | right */}
-          <JoystickBtn label="◀" onStart={() => setJoy(-1, 0)} onEnd={() => setJoy(0, 0)} />
+          <JoystickBtn
+            label="◀"
+            onStart={() => setJoy(-1, 0)}
+            onEnd={() => setJoy(0, 0)}
+            size={isMobileLandscape ? 44 : 64}
+          />
           <div style={{
             borderRadius: 10,
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid rgba(255,255,255,0.08)',
           }} />
-          <JoystickBtn label="▶" onStart={() => setJoy(1, 0)} onEnd={() => setJoy(0, 0)} />
+          <JoystickBtn
+            label="▶"
+            onStart={() => setJoy(1, 0)}
+            onEnd={() => setJoy(0, 0)}
+            size={isMobileLandscape ? 44 : 64}
+          />
           {/* row 3: empty | down | empty */}
           <div />
-          <JoystickBtn label="▼" onStart={() => setJoy(0, 1)} onEnd={() => setJoy(0, 0)} />
+          <JoystickBtn
+            label="▼"
+            onStart={() => setJoy(0, 1)}
+            onEnd={() => setJoy(0, 0)}
+            size={isMobileLandscape ? 44 : 64}
+          />
           <div />
         </div>
       )}
