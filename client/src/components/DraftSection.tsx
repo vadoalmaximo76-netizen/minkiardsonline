@@ -141,6 +141,7 @@ export function DraftSection({ onBack, playerName, userId, onGoToTournaments, on
   const [purchases, setPurchases] = useState<CreditPurchaseHistory[]>([]);
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [availablePacks, setAvailablePacks] = useState<PackType[]>([]);
+  const [packsLoadError, setPacksLoadError] = useState<string | null>(null);
   const [ownedCardIds, setOwnedCardIds] = useState<Set<string>>(new Set());
   const [openingPackId, setOpeningPackId] = useState<string | null>(null);
   const [packAnimation, setPackAnimation] = useState<{ pack: PackType; cards: RevealedCard[] } | null>(null);
@@ -376,13 +377,26 @@ export function DraftSection({ onBack, playerName, userId, onGoToTournaments, on
 
 
   const fetchPacks = useCallback(async () => {
+    setPacksLoadError(null);
     try {
       const res = await fetch('/api/draft/packs', { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        if (data.packs) setAvailablePacks(data.packs);
+        if (data.packs && data.packs.length > 0) {
+          setAvailablePacks(data.packs);
+        } else {
+          console.warn('[fetchPacks] Server returned empty packs array:', data);
+          setPacksLoadError('Nessun pacchetto disponibile dal server.');
+        }
+      } else {
+        const errText = await res.text().catch(() => '');
+        console.error('[fetchPacks] HTTP', res.status, res.statusText, errText);
+        setPacksLoadError(`Errore caricamento pacchetti (HTTP ${res.status}) — riprova.`);
       }
-    } catch (e) {}
+    } catch (e: any) {
+      console.error('[fetchPacks] Network error:', e);
+      setPacksLoadError('Errore di rete — controlla la connessione e riprova.');
+    }
   }, []);
 
   const fetchAll = useCallback(async () => {
@@ -2183,6 +2197,18 @@ export function DraftSection({ onBack, playerName, userId, onGoToTournaments, on
               {packError && (
                 <div className="bg-red-900/40 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm text-center">
                   {packError}
+                </div>
+              )}
+
+              {packsLoadError && (
+                <div className="bg-red-900/40 border border-red-500/30 rounded-xl px-4 py-4 flex flex-col items-center gap-3 text-center">
+                  <p className="text-red-300 text-sm">{packsLoadError}</p>
+                  <button
+                    onClick={() => fetchPacks()}
+                    className="px-4 py-1.5 bg-red-500/30 hover:bg-red-500/50 border border-red-400/50 text-red-200 rounded-lg text-xs font-semibold transition-colors"
+                  >
+                    Riprova
+                  </button>
                 </div>
               )}
 

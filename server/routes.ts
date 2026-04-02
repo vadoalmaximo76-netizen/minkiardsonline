@@ -19406,11 +19406,20 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         return res.json({ packs: getPackTypes(), credits: { freeCredits: 0, paidCredits: 0, total: 0 } });
       }
       const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
-      if (!currentUser) return res.status(404).json({ error: 'User not found' });
-      const credits = await getOrCreateDraftCredits(currentUser.id);
-      const total = credits.freeCredits + credits.paidCredits + currentUser.puntiRankiard;
-      res.json({ packs: getPackTypes(), credits: { freeCredits: credits.freeCredits, paidCredits: credits.paidCredits, rankiardPoints: currentUser.puntiRankiard, total } });
+      if (!currentUser) {
+        console.warn('[draft/packs] User not found for email:', user.email, '— returning packs with zero credits');
+        return res.json({ packs: getPackTypes(), credits: { freeCredits: 0, paidCredits: 0, rankiardPoints: 0, total: 0 } });
+      }
+      let credits = { freeCredits: 0, paidCredits: 0 };
+      try {
+        credits = await getOrCreateDraftCredits(currentUser.id);
+      } catch (creditsErr) {
+        console.error('[draft/packs] getOrCreateDraftCredits failed (returning packs with zero credits):', creditsErr);
+      }
+      const total = credits.freeCredits + credits.paidCredits + (currentUser.puntiRankiard ?? 0);
+      res.json({ packs: getPackTypes(), credits: { freeCredits: credits.freeCredits, paidCredits: credits.paidCredits, rankiardPoints: currentUser.puntiRankiard ?? 0, total } });
     } catch (error) {
+      console.error('[draft/packs] Unexpected error:', error);
       res.status(500).json({ error: 'Errore nel recupero pacchetti' });
     }
   });
