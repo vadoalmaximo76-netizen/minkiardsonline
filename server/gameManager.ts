@@ -11707,8 +11707,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (macumbaEnemies.length === 0) { emitChat(`🔮 MACUMBA: nessun avversario.`); emitState(); break; }
 
         // Black characters: can choose turns instead of rolling dice
-        const BLACK_CHARS_MACUMBA = ['kulungu', 'nero-che-beve-la-soda', 'obama', 'real-gee', 'shorty', 'napoletano', 'bello-figo-gu', 'neymar-jr', 'tizio-jamaicano'];
-        const isBlackCharMacumba = myChar && BLACK_CHARS_MACUMBA.some(slug => (myChar.frontImage || '').toLowerCase().includes(slug));
+        const BLACK_CHARS = ['kulungu', 'nero-che-beve-la-soda', 'obama', 'real-gee', 'shorty', 'napoletano', 'bello-figo-gu', 'neymar-jr', 'tizio-jamaicano'];
+        const isBlackCharMacumba = myChar && BLACK_CHARS.some(slug => (myChar.frontImage || '').toLowerCase().includes(slug));
 
         // Collect enemies that have an active character on the field
         const macumbaTargets = macumbaEnemies.filter((p: string) => !!this.getPlayerActiveCharacter(game, p));
@@ -22548,6 +22548,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const game = this.games.get(gameId);
     if (!game || !game.pendingMacumba) {
       console.log(`⚠️ completeMacumbaChoice: no pending macumba for ${playerName}`);
+      return;
+    }
+
+    // Verify ownership: only the player who triggered macumba may complete the choice
+    if (game.pendingMacumba.playerName !== playerName) {
+      console.log(`⚠️ completeMacumbaChoice: ${playerName} is not the macumba owner (${game.pendingMacumba.playerName}) – ignored`);
       return;
     }
 
