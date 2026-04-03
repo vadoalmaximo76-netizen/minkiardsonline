@@ -716,6 +716,9 @@ export function StoryWorldMap({
   /* victory history panel */
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
 
+  /* mobile portrait: chapter banner collapsed state */
+  const [bannerCollapsed, setBannerCollapsed] = useState(true);
+
   /* ── Arcade mini-game state ─────────────────────────────── */
   const [nearestArcadeId,  setNearestArcadeId]  = useState<string | null>(null);
   const [nearestArcadeDist,setNearestArcadeDist]= useState(Infinity);
@@ -2281,6 +2284,7 @@ export function StoryWorldMap({
   const hasPending  = nearLeader ? pendingGymGame?.gymLeaderId === nearLeader.id && !lostLeaderIds.includes(nearLeader.id) && nearStatus !== 'completed' : false;
   const hasLost     = nearLeader ? lostLeaderIds.includes(nearLeader.id) && nearStatus !== 'completed' : false;
   const isMobileLandscape = isTouchDevice && isLandscape;
+  const isMobilePortrait  = isTouchDevice && !isLandscape;
 
   return (
     <div ref={containerRef} style={{ position: 'relative', flex: 1, overflow: 'hidden', minHeight: 0 }}>
@@ -2309,6 +2313,39 @@ export function StoryWorldMap({
         const completed = leaders.filter(l => getLeaderStatus(l) === 'completed').length;
         const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
         const currentChapter = Math.min(completed + 1, total);
+        if (isMobilePortrait) {
+          return (
+            <div
+              onClick={() => setBannerCollapsed(c => !c)}
+              style={{
+                position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+                background: 'rgba(3,4,18,0.92)', border: '1px solid rgba(255,255,255,0.1)',
+                borderTop: 'none', borderRadius: '0 0 10px 10px',
+                padding: bannerCollapsed ? '3px 12px 4px' : '4px 14px 6px',
+                zIndex: 25, minWidth: 180, cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', justifyContent: 'center' }}>
+                <span style={{ fontSize: 9, fontWeight: 800, color: 'rgba(251,191,36,0.9)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  ⚔️ Cap. {currentChapter}/{total}
+                </span>
+                <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>{pct}%</span>
+                <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', marginLeft: 2 }}>{bannerCollapsed ? '▾' : '▴'}</span>
+              </div>
+              {!bannerCollapsed && (
+                <div style={{ width: '100%', height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', borderRadius: 4,
+                    width: `${pct}%`,
+                    background: 'linear-gradient(90deg, #4ade80, #fbbf24)',
+                    transition: 'width 0.5s ease',
+                  }} />
+                </div>
+              )}
+            </div>
+          );
+        }
         return (
           <div style={{
             position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
@@ -2350,35 +2387,52 @@ export function StoryWorldMap({
         const angle = Math.atan2(dz, dx); // angle in world space (x = right, z = down)
         const screenAngle = angle; // canvas uses same convention
         const distLabel = Math.round(dist);
+        const compassSize = isMobilePortrait ? 28 : 36;
         return (
           <div style={{
-            position: 'absolute', bottom: 90, left: 16,
+            position: 'absolute',
+            bottom: isMobilePortrait ? 'auto' : 90,
+            top: isMobilePortrait ? 8 : 'auto',
+            right: 'auto',
+            left: isMobilePortrait ? 12 : 16,
             background: 'rgba(3,4,18,0.88)', border: '1.5px solid rgba(251,191,36,0.5)',
-            borderRadius: 12, padding: '8px 12px', zIndex: 25,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+            borderRadius: isMobilePortrait ? 8 : 12,
+            padding: isMobilePortrait ? '4px 6px' : '8px 12px', zIndex: 25,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobilePortrait ? 2 : 4,
             pointerEvents: 'none',
           }}>
             <div style={{
-              width: 36, height: 36, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: compassSize, height: compassSize, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <div style={{
-                width: 36, height: 36, borderRadius: '50%',
+                width: compassSize, height: compassSize, borderRadius: '50%',
                 border: '2px solid rgba(251,191,36,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <div style={{
                   width: 0, height: 0,
-                  borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderBottom: '18px solid #fbbf24',
+                  borderLeft: `${isMobilePortrait ? 5 : 7}px solid transparent`,
+                  borderRight: `${isMobilePortrait ? 5 : 7}px solid transparent`,
+                  borderBottom: `${isMobilePortrait ? 13 : 18}px solid #fbbf24`,
                   transformOrigin: '50% 75%',
                   transform: `rotate(${screenAngle + Math.PI / 2}rad)`,
                 }} />
               </div>
             </div>
-            <div style={{ fontSize: 9, color: 'rgba(251,191,36,0.8)', fontWeight: 800, textAlign: 'center' }}>
-              Prossima arena
-            </div>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>
-              {distLabel} u.m.
-            </div>
+            {!isMobilePortrait && (
+              <>
+                <div style={{ fontSize: 9, color: 'rgba(251,191,36,0.8)', fontWeight: 800, textAlign: 'center' }}>
+                  Prossima arena
+                </div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>
+                  {distLabel} u.m.
+                </div>
+              </>
+            )}
+            {isMobilePortrait && (
+              <div style={{ fontSize: 8, color: 'rgba(251,191,36,0.7)', fontWeight: 700 }}>
+                {distLabel}u
+              </div>
+            )}
           </div>
         );
       })()}
@@ -2389,18 +2443,25 @@ export function StoryWorldMap({
           onClick={() => setShowHistoryPanel(true)}
           style={{
             position: 'absolute',
-            bottom: isMobileLandscape
-              ? 8
-              : isTouchDevice ? (nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 235 : 185) : 90,
-            left: isMobileLandscape ? 'auto' : isTouchDevice ? 188 : 16,
+            bottom: (() => {
+              if (isMobileLandscape) return 8;
+              if (isMobilePortrait) {
+                const hasLeaderCard = !!(nearLeader && nearStatus !== 'locked' && nearestDist <= 9);
+                const hasArcadeCard = !!(nearestArcadeId && nearestArcadeDist <= 9 && !nearLeader && !activeMinigame);
+                const hasFootballCard = !!(nearFootball && !showFootballMinigame && !hasLeaderCard && !hasArcadeCard);
+                return (hasLeaderCard || hasArcadeCard || hasFootballCard) ? 68 : 16;
+              }
+              return isTouchDevice ? (nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 235 : 185) : 90;
+            })(),
+            left: isMobileLandscape ? 'auto' : isMobilePortrait ? 12 : isTouchDevice ? 188 : 16,
             right: isMobileLandscape ? 160 : 'auto',
             background: 'rgba(3,4,18,0.88)', border: '1.5px solid rgba(74,222,128,0.4)',
-            borderRadius: 10, padding: isMobileLandscape ? '5px 10px' : '7px 12px', color: '#4ade80',
-            fontSize: isMobileLandscape ? 11 : 12, fontWeight: 800, cursor: 'pointer', zIndex: 35,
-            display: 'flex', alignItems: 'center', gap: 6,
+            borderRadius: 10, padding: isMobileLandscape ? '5px 10px' : isMobilePortrait ? '5px 8px' : '7px 12px', color: '#4ade80',
+            fontSize: isMobileLandscape ? 11 : isMobilePortrait ? 11 : 12, fontWeight: 800, cursor: 'pointer', zIndex: 35,
+            display: 'flex', alignItems: 'center', gap: isMobilePortrait ? 4 : 6,
           }}
         >
-          🏆 Storico
+          🏆{isMobilePortrait ? '' : ' Storico'}
         </button>
       )}
 
@@ -2494,20 +2555,22 @@ export function StoryWorldMap({
 
       {/* Top-right HUD */}
       <div style={{
-        position: 'absolute', top: 12, right: 12,
+        position: 'absolute',
+        top: isMobilePortrait ? 8 : 12,
+        right: 12,
         background: 'rgba(0,0,0,0.65)', border: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: 10, padding: isMobileLandscape ? '4px 10px' : '6px 12px',
-        color: 'rgba(255,255,255,0.60)', fontSize: 11, fontWeight: 700,
+        borderRadius: 10, padding: isMobileLandscape ? '4px 10px' : isMobilePortrait ? '3px 8px' : '6px 12px',
+        color: 'rgba(255,255,255,0.60)', fontSize: isMobilePortrait ? 10 : 11, fontWeight: 700,
         pointerEvents: 'none', zIndex: 20,
-        display: 'flex', flexDirection: 'column', gap: 3, textAlign: 'right',
+        display: 'flex', flexDirection: 'column', gap: isMobilePortrait ? 1 : 3, textAlign: 'right',
       }}>
-        {!isMobileLandscape && (
+        {!isMobileLandscape && !isMobilePortrait && (
           <span style={{ color: 'rgba(255,255,255,0.45)' }}>WASD / ↑↓←→ — muoviti</span>
         )}
-        <span style={{ color: '#4ade80', fontSize: isMobileLandscape ? 10 : 12 }}>
+        <span style={{ color: '#4ade80', fontSize: isMobileLandscape || isMobilePortrait ? 10 : 12 }}>
           ✓ <strong>{completedCount}/{leaders.length}</strong> stage
         </span>
-        <span style={{ color: 'rgba(251,191,36,0.85)', fontSize: isMobileLandscape ? 10 : 11 }}>
+        <span style={{ color: 'rgba(251,191,36,0.85)', fontSize: isMobileLandscape || isMobilePortrait ? 10 : 11 }}>
           {nearLeader && nearStatus !== 'locked' && nearestDist <= 9
             ? `⚡ ${nearLeader.gymName}`
             : '📍 Avvicinati'}
@@ -2533,76 +2596,86 @@ export function StoryWorldMap({
           position: 'absolute', bottom: 0, left: 0, right: 0,
           background: 'linear-gradient(to top, rgba(0,0,0,0.97) 0%, rgba(5,5,20,0.9) 100%)',
           borderTop: `2px solid ${nearStatus === 'completed' ? 'rgba(74,222,128,0.5)' : 'rgba(245,158,11,0.5)'}`,
-          padding: isMobileLandscape ? '8px 16px' : '14px 16px',
-          display: 'flex', alignItems: 'center', gap: isMobileLandscape ? 8 : 14, zIndex: 30,
+          padding: isMobileLandscape ? '8px 16px' : isMobilePortrait ? '8px 12px' : '14px 16px',
+          display: 'flex', alignItems: 'center', gap: (isMobileLandscape || isMobilePortrait) ? 8 : 14, zIndex: 30,
         }}>
           {nearLeader.leaderImageUrl ? (
             <img src={nearLeader.leaderImageUrl} alt={nearLeader.name} style={{
-              width: isMobileLandscape ? 36 : 56, height: isMobileLandscape ? 36 : 56,
+              width: isMobileLandscape ? 36 : isMobilePortrait ? 40 : 56,
+              height: isMobileLandscape ? 36 : isMobilePortrait ? 40 : 56,
               borderRadius: '50%', objectFit: 'cover',
               border: `2px solid ${nearStatus === 'completed' ? '#4ade80' : '#fbbf24'}`, flexShrink: 0,
               boxShadow: `0 0 18px ${nearStatus === 'completed' ? '#4ade8055' : '#fbbf2455'}`,
             }} />
           ) : (
             <div style={{
-              width: isMobileLandscape ? 36 : 56, height: isMobileLandscape ? 36 : 56,
+              width: isMobileLandscape ? 36 : isMobilePortrait ? 40 : 56,
+              height: isMobileLandscape ? 36 : isMobilePortrait ? 40 : 56,
               borderRadius: '50%', flexShrink: 0,
               background: nearStatus === 'completed' ? 'rgba(22,101,52,0.6)' : 'rgba(120,53,15,0.6)',
               border: `2px solid ${nearStatus === 'completed' ? '#4ade8055' : '#fbbf2455'}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: isMobileLandscape ? 16 : 22,
+              fontSize: isMobileLandscape ? 16 : isMobilePortrait ? 18 : 22,
             }}>🏋️</div>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 1 }}>
               <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: nearStatus === 'completed' ? '#4ade80' : '#fbbf24' }}>
                 ⚡ Stage {nearLeader.orderIndex}
               </span>
             </div>
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: nearStatus === 'completed' ? '#86efac' : '#fde68a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <p style={{ margin: 0, fontSize: isMobilePortrait ? 13 : 15, fontWeight: 900, color: nearStatus === 'completed' ? '#86efac' : '#fde68a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {nearLeader.gymName}
             </p>
-            <p style={{ margin: '1px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.55)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              👊 {nearLeader.name}
-              {' · '}{nearLeader.cpuLevel === 'easy' ? '🟢' : nearLeader.cpuLevel === 'medium' ? '🟡' : '🔴'}
-              {' · '}❤️ {nearLeader.livesCount}
-              {' · '}⭐ {nearLeader.rewardCredits}
-            </p>
+            {!isMobilePortrait && (
+              <p style={{ margin: '1px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.55)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                👊 {nearLeader.name}
+                {' · '}{nearLeader.cpuLevel === 'easy' ? '🟢' : nearLeader.cpuLevel === 'medium' ? '🟡' : '🔴'}
+                {' · '}❤️ {nearLeader.livesCount}
+                {' · '}⭐ {nearLeader.rewardCredits}
+              </p>
+            )}
+            {isMobilePortrait && (
+              <p style={{ margin: '1px 0 0', fontSize: 10, color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {nearLeader.cpuLevel === 'easy' ? '🟢' : nearLeader.cpuLevel === 'medium' ? '🟡' : '🔴'}
+                {' '}❤️{nearLeader.livesCount}{' '}⭐{nearLeader.rewardCredits}
+              </p>
+            )}
           </div>
           <div style={{ flexShrink: 0 }}>
             {hasPending ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: isMobilePortrait ? 4 : 6 }}>
                 <button onClick={() => onResumeGame(nearLeader, pendingGymGame!.gameId)} style={{
                   background: 'linear-gradient(135deg,#ea580c,#c2410c)', border: 'none',
-                  borderRadius: 10, color: 'white', fontSize: 13, fontWeight: 900,
-                  padding: '8px 14px', cursor: 'pointer', whiteSpace: 'nowrap',
+                  borderRadius: 10, color: 'white', fontSize: isMobilePortrait ? 12 : 13, fontWeight: 900,
+                  padding: isMobilePortrait ? '6px 10px' : '8px 14px', cursor: 'pointer', whiteSpace: 'nowrap',
                   boxShadow: '0 2px 10px rgba(234,88,12,0.4)',
                 }}>⚔️ Riprendi</button>
                 <button onClick={() => onChallengeLeader(nearLeader)} style={{
                   background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-                  borderRadius: 10, color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: 800,
-                  padding: '5px 10px', cursor: 'pointer', whiteSpace: 'nowrap',
+                  borderRadius: 10, color: 'rgba(255,255,255,0.6)', fontSize: isMobilePortrait ? 10 : 11, fontWeight: 800,
+                  padding: isMobilePortrait ? '4px 8px' : '5px 10px', cursor: 'pointer', whiteSpace: 'nowrap',
                 }}>Nuova partita</button>
               </div>
             ) : hasLost ? (
               <button onClick={() => onChallengeLeader(nearLeader)} style={{
                 background: 'linear-gradient(135deg,#dc2626,#9333ea)', border: 'none',
-                borderRadius: 10, color: 'white', fontSize: 14, fontWeight: 900,
-                padding: '10px 18px', cursor: 'pointer', whiteSpace: 'nowrap',
+                borderRadius: 10, color: 'white', fontSize: isMobilePortrait ? 12 : 14, fontWeight: 900,
+                padding: isMobilePortrait ? '7px 12px' : '10px 18px', cursor: 'pointer', whiteSpace: 'nowrap',
                 boxShadow: '0 2px 12px rgba(220,38,38,0.5)',
               }}>⚔️ Riprova</button>
             ) : nearStatus === 'available' ? (
               <button onClick={() => onChallengeLeader(nearLeader)} style={{
                 background: 'linear-gradient(135deg,#9333ea,#f59e0b)', border: 'none',
-                borderRadius: 10, color: 'white', fontSize: 14, fontWeight: 900,
-                padding: '10px 18px', cursor: 'pointer', whiteSpace: 'nowrap',
+                borderRadius: 10, color: 'white', fontSize: isMobilePortrait ? 12 : 14, fontWeight: 900,
+                padding: isMobilePortrait ? '7px 12px' : '10px 18px', cursor: 'pointer', whiteSpace: 'nowrap',
                 boxShadow: '0 2px 14px rgba(147,51,234,0.5)', letterSpacing: '0.04em',
               }}>⚔️ SFIDA!</button>
             ) : nearStatus === 'completed' ? (
               <button onClick={() => onChallengeLeader(nearLeader)} style={{
                 background: 'rgba(74,222,128,0.15)', border: '1.5px solid rgba(74,222,128,0.4)',
-                borderRadius: 10, color: '#86efac', fontSize: 13, fontWeight: 800,
-                padding: '8px 14px', cursor: 'pointer', whiteSpace: 'nowrap',
+                borderRadius: 10, color: '#86efac', fontSize: isMobilePortrait ? 11 : 13, fontWeight: 800,
+                padding: isMobilePortrait ? '6px 10px' : '8px 14px', cursor: 'pointer', whiteSpace: 'nowrap',
               }}>↺ Rigioca</button>
             ) : null}
           </div>
@@ -2619,31 +2692,35 @@ export function StoryWorldMap({
             position: 'absolute', bottom: 0, left: 0, right: 0,
             background: 'linear-gradient(to top, rgba(10,2,30,0.97) 0%, rgba(20,5,50,0.9) 100%)',
             borderTop: `2px solid ${ab.color}88`,
-            padding: isMobileLandscape ? '8px 16px' : '14px 16px',
-            display: 'flex', alignItems: 'center', gap: isMobileLandscape ? 8 : 14, zIndex: 30,
+            padding: isMobileLandscape ? '8px 16px' : isMobilePortrait ? '8px 12px' : '14px 16px',
+            display: 'flex', alignItems: 'center', gap: (isMobileLandscape || isMobilePortrait) ? 8 : 14, zIndex: 30,
           }}>
             <div style={{
-              width: isMobileLandscape ? 36 : 52, height: isMobileLandscape ? 36 : 52, borderRadius: 12, flexShrink: 0,
+              width: isMobileLandscape ? 36 : isMobilePortrait ? 40 : 52,
+              height: isMobileLandscape ? 36 : isMobilePortrait ? 40 : 52,
+              borderRadius: 12, flexShrink: 0,
               background: `linear-gradient(135deg, ${ab.color}44, ${ab.color}22)`,
               border: `2px solid ${ab.color}88`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: isMobileLandscape ? 18 : 26,
+              fontSize: isMobileLandscape ? 18 : isMobilePortrait ? 20 : 26,
               boxShadow: `0 0 18px ${ab.color}44`,
             }}>{ab.emoji}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: ab.color }}>
                 🎮 Arcade
               </div>
-              <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: 'rgba(255,255,255,0.95)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <p style={{ margin: 0, fontSize: isMobilePortrait ? 13 : 15, fontWeight: 900, color: 'rgba(255,255,255,0.95)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {ab.name}
               </p>
-              <p style={{ margin: '1px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
-                {coolText ? `⏳ Cooldown: ${coolText}` : 'Entra e gioca per guadagnare PR!'}
-              </p>
+              {!isMobilePortrait && (
+                <p style={{ margin: '1px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
+                  {coolText ? `⏳ Cooldown: ${coolText}` : 'Entra e gioca per guadagnare PR!'}
+                </p>
+              )}
             </div>
             <div style={{ flexShrink: 0 }}>
               {coolText ? (
-                <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12, fontWeight: 700 }}>⏳ {coolText}</div>
+                <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: isMobilePortrait ? 10 : 12, fontWeight: 700 }}>⏳ {coolText}</div>
               ) : (
                 <button
                   disabled={startingMinigame}
@@ -2670,8 +2747,10 @@ export function StoryWorldMap({
                   }}
                   style={{
                     background: `linear-gradient(135deg, ${ab.color}, ${ab.color}bb)`,
-                    border: 'none', borderRadius: 10, color: 'white', fontSize: 14, fontWeight: 900,
-                    padding: '10px 18px', cursor: startingMinigame ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+                    border: 'none', borderRadius: 10, color: 'white',
+                    fontSize: isMobilePortrait ? 12 : 14, fontWeight: 900,
+                    padding: isMobilePortrait ? '7px 12px' : '10px 18px',
+                    cursor: startingMinigame ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
                     boxShadow: `0 2px 14px ${ab.color}55`, letterSpacing: '0.04em',
                     opacity: startingMinigame ? 0.6 : 1,
                   }}>
@@ -2726,24 +2805,28 @@ export function StoryWorldMap({
           position: 'absolute', bottom: 0, left: 0, right: 0,
           background: 'linear-gradient(to top, rgba(0,10,0,0.97) 0%, rgba(0,15,0,0.9) 100%)',
           borderTop: '2px solid rgba(34,197,94,0.5)',
-          padding: isMobileLandscape ? '8px 16px' : '14px 16px',
-          display: 'flex', alignItems: 'center', gap: isMobileLandscape ? 8 : 14, zIndex: 30,
+          padding: isMobileLandscape ? '8px 16px' : isMobilePortrait ? '8px 12px' : '14px 16px',
+          display: 'flex', alignItems: 'center', gap: (isMobileLandscape || isMobilePortrait) ? 8 : 14, zIndex: 30,
         }}>
-          <div style={{ fontSize: isMobileLandscape ? 28 : 40, flexShrink: 0 }}>⚽</div>
+          <div style={{ fontSize: isMobileLandscape ? 28 : isMobilePortrait ? 30 : 40, flexShrink: 0 }}>⚽</div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: isMobileLandscape ? 13 : 16, fontWeight: 900, color: '#4ade80' }}>
+            <p style={{ margin: 0, fontSize: isMobileLandscape ? 13 : isMobilePortrait ? 13 : 16, fontWeight: 900, color: '#4ade80' }}>
               Campo da Calcio
             </p>
-            <p style={{ margin: '2px 0 0', fontSize: isMobileLandscape ? 11 : 13, color: 'rgba(255,255,255,0.5)' }}>
-              4 mini-giochi · Guadagna Rankiard!
-            </p>
+            {!isMobilePortrait && (
+              <p style={{ margin: '2px 0 0', fontSize: isMobileLandscape ? 11 : 13, color: 'rgba(255,255,255,0.5)' }}>
+                4 mini-giochi · Guadagna Rankiard!
+              </p>
+            )}
           </div>
           <button
             onClick={() => setShowFootballMinigame(true)}
             style={{
               background: 'linear-gradient(135deg,#16a34a,#4ade80)', border: 'none',
-              borderRadius: 10, color: 'white', fontSize: isMobileLandscape ? 13 : 15, fontWeight: 900,
-              padding: isMobileLandscape ? '8px 14px' : '10px 20px', cursor: 'pointer', whiteSpace: 'nowrap',
+              borderRadius: 10, color: 'white',
+              fontSize: isMobileLandscape || isMobilePortrait ? 12 : 15, fontWeight: 900,
+              padding: isMobileLandscape ? '8px 14px' : isMobilePortrait ? '7px 12px' : '10px 20px',
+              cursor: 'pointer', whiteSpace: 'nowrap',
               boxShadow: '0 2px 14px rgba(74,222,128,0.4)',
             }}
           >
