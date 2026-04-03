@@ -8434,6 +8434,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           if (ancestorMod?.transformsInto) { targetCardId = ancestorMod.transformsInto; break; }
         }
       }
+      // NAME-BASED FALLBACK: If still no target, search personaggi_speciali for "super-{baseName}"
+      if (!targetCardId && activeChar.frontImage) {
+        const urlParts = activeChar.frontImage.split('/');
+        const filename = urlParts[urlParts.length - 1];
+        const baseName = decodeURIComponent(filename).replace(/\.(png|jpg|jpeg|gif|webp)$/i, '').toLowerCase();
+        const superName = 'super-' + baseName;
+        const specialiArr = CARD_DATA.personaggi_speciali as readonly string[];
+        const superIdx = specialiArr.findIndex(url => {
+          const fn = url.split('/').pop() || '';
+          return decodeURIComponent(fn).replace(/\.(png|jpg|jpeg|gif|webp)$/i, '').toLowerCase() === superName;
+        });
+        if (superIdx >= 0) {
+          targetCardId = `personaggi_speciali-${superIdx}`;
+          console.log(`🦋 Name-based transformation fallback: ${baseName} → ${superName} (${targetCardId})`);
+        }
+      }
     } else if (type === 'taroccata') {
       targetCardId = activeChar.transformsFrom || activeChar.cheatsInto;
       // LINEAGE FALLBACK: If no cheatsInto/transformsFrom, check ancestor cards from characterLineage
