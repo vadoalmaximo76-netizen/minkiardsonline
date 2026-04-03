@@ -403,6 +403,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     pendingId?: string;
     targetCharName?: string;
   }>({ visible: false, rollingPlayer: '', controllingPlayer: '', controllingCardName: '' });
+  const [macumbaPanel, setMacumbaPanel] = useState<{ visible: boolean }>({ visible: false });
   const [targetSelectionModal, setTargetSelectionModal] = useState<{
     visible: boolean;
     effectType: 'damage' | 'heal';
@@ -1742,6 +1743,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('show-dice-control-panel', handleShowDiceControlPanel);
 
+    // MACUMBA (nero player): show panel to choose 1-6 turns for all enemies
+    const handleShowMacumbaPanel = (_data: { playerName: string }) => {
+      console.log('🔮 show-macumba-panel received – opening choice panel');
+      setMacumbaPanel({ visible: true });
+    };
+    socket.on('show-macumba-panel', handleShowMacumbaPanel);
+
     // TARGET SELECTION: Handle interactive target selection for custom effects
     const handleShowTargetSelection = (data: { 
       effectType: 'damage' | 'heal'; 
@@ -2661,6 +2669,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('show-blocco-player-selection', handleShowBloccoPlayerSelection);
       socket.off('show-scambio-player-selection', handleShowScambioPlayerSelection);
       socket.off('show-dice-control-panel', handleShowDiceControlPanel);
+      socket.off('show-macumba-panel', handleShowMacumbaPanel);
       socket.off('show-target-selection', handleShowTargetSelection);
       socket.off('show-custom-target-selection', handleShowCustomTargetSelection);
       socket.off('cards-revealed', handleCardsRevealed);
@@ -4013,6 +4022,39 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                     setDiceControlPanel({ visible: false, rollingPlayer: '', controllingPlayer: '', controllingCardName: '' });
                   }}
                   className="bg-yellow-600 hover:bg-yellow-500 text-white py-6 text-3xl font-bold"
+                >
+                  {num}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MACUMBA PANEL - Nero player chooses turns 1-6 for all enemies */}
+      {macumbaPanel.visible && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-purple-900 to-black rounded-lg p-6 w-full max-w-md mx-4 border-4 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.5)]">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                🔮 MACUMBA!
+              </h2>
+              <p className="text-purple-200 text-sm mb-1" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                Il tuo personaggio nero usa la macumba!
+              </p>
+              <p className="text-purple-100 font-bold">
+                Scegli tra quanti turni muoiono i nemici:
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {[1, 2, 3, 4, 5, 6].map((num) => (
+                <Button
+                  key={num}
+                  onClick={() => {
+                    socket.emit('macumba-choose-turns', { gameId, selectedTurns: num });
+                    setMacumbaPanel({ visible: false });
+                  }}
+                  className="bg-purple-700 hover:bg-purple-500 text-white py-6 text-3xl font-bold"
                 >
                   {num}
                 </Button>

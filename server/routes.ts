@@ -7657,6 +7657,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // MACUMBA (nero player): player chooses how many turns enemies have left to live
+    socket.on('macumba-choose-turns', ({ gameId, selectedTurns }) => {
+      const playerName = gameManager.getPlayerNameFromSocket(socket.id);
+      if (playerName && typeof selectedTurns === 'number' && selectedTurns >= 1 && selectedTurns <= 6) {
+        console.log(`🔮 macumba-choose-turns: ${playerName} chose ${selectedTurns} turns`);
+        gameManager.completeMacumbaChoice(gameId, playerName, selectedTurns, io);
+      }
+    });
+
     socket.on('open-dice-window', ({ gameId, playerName }) => {
       const playerGameId = gameManager.getPlayerGameId(socket.id);
       if (playerGameId === gameId) {

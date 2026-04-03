@@ -372,6 +372,7 @@ interface GameState {
   barrieraShields: BarrieraShield[]; // BARRIERA shield protection tracking
   delayedDamages: DelayedDamage[]; // Delayed damage effects from defense
   timedEffects: TimedEffect[]; // Generic delayed effects from Wizard cards (trigger after X turns)
+  pendingMacumba?: { targets: string[]; cardId: string; playerName: string; }; // MACUMBA: waiting for nero player to choose turns 1-6
   playerDeathModifiers: Map<string, number>; // Per-player death limit modifiers (+/- deaths)
   playerStats: Map<string, { cardsPlayed: number; mossePlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>; // Per-player game stats
   draftGrowthTracker?: Record<string, Record<string, { consecutiveTurns: number; maxConsecutiveTurns: number; killsThisMatch: number }>>; // Draft mode: per-player per-card growth tracking
@@ -11699,29 +11700,62 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         emitState(); break;
       }
 
-      // ─── MACUMBA: dado 1-6 su personaggio avversario scelto ─────────────────
+      // ─── MACUMBA: ogni avversario lancia il dado → n turni da vivere
+      //   eccezione: personaggio nero sceglie il numero da pannello (1-6) per tutti ─
       case 'macumba': {
         const macumbaEnemies = game.turnOrder.filter((p: string) => p !== playerName);
-        if (macumbaEnemies.length === 0) { emitChat(`🔮 MACUMBA: nessun avversario.`); break; }
-        const macumbaDie = Math.floor(Math.random() * 6) + 1;
-        if (io) io.to(gameId).emit('dice-rolled', { result: macumbaDie, playerName });
-        const macumbaTarget = macumbaEnemies[Math.floor(Math.random() * macumbaEnemies.length)];
-        const macumbaChar = this.getPlayerActiveCharacter(game, macumbaTarget);
-        let macumbaMsg = '';
-        if (macumbaChar) {
-          switch (macumbaDie) {
-            case 1:
-              if (!game.timedEffects) game.timedEffects = [];
-              game.timedEffects.push({ id: `macumba_death_${Date.now()}`, owner: macumbaTarget, turnsLeft: 1, actions: [{ type: 'instant_death', target: 'self_char', value: 0, description: 'Macumba: morte tra 1 turno' }], description: 'Macumba: morte tra 1 turno', cardId: card.id } as any);
-              macumbaMsg = `${macumbaChar.name} muore tra 1 turno!`; break;
-            case 2: macumbaChar.pti = (macumbaChar.pti || 0) - 100; macumbaChar.stars = Math.max(0, (macumbaChar.stars || 0) - 1); this.updateCardTextWithPTI(macumbaChar); macumbaMsg = `${macumbaChar.name} -100 PTI -1 stella`; break;
-            case 3: macumbaChar.stars = 0; macumbaMsg = `${macumbaChar.name} va a 0 stelle!`; break;
-            case 4: macumbaChar.stars = Math.floor((macumbaChar.stars || 0) / 2); macumbaMsg = `${macumbaChar.name} dimezza stelle → ${macumbaChar.stars}`; break;
-            case 5: macumbaChar.pti = (macumbaChar.pti || 0) - 100; this.updateCardTextWithPTI(macumbaChar); macumbaMsg = `${macumbaChar.name} -100 PTI`; break;
-            case 6: macumbaMsg = `Nessun effetto! (6)`; break;
+        if (macumbaEnemies.length === 0) { emitChat(`🔮 MACUMBA: nessun avversario.`); emitState(); break; }
+
+        // Black characters: can choose turns instead of rolling dice
+        const BLACK_CHARS_MACUMBA = ['kulungu', 'nero-che-beve-la-soda', 'obama', 'real-gee', 'shorty', 'napoletano', 'bello-figo-gu', 'neymar-jr', 'tizio-jamaicano'];
+        const isBlackCharMacumba = myChar && BLACK_CHARS_MACUMBA.some(slug => (myChar.frontImage || '').toLowerCase().includes(slug));
+
+        // Collect enemies that have an active character on the field
+        const macumbaTargets = macumbaEnemies.filter((p: string) => !!this.getPlayerActiveCharacter(game, p));
+        if (macumbaTargets.length === 0) { emitChat(`🔮 MACUMBA: nessun avversario con personaggi in campo.`); emitState(); break; }
+
+        const isPlayerCPU = game.players[playerName]?.isCPU;
+
+        if (isBlackCharMacumba && !isPlayerCPU) {
+          // Nero human player: store pending state and show choice panel
+          game.pendingMacumba = { targets: macumbaTargets, cardId: card.id, playerName };
+          const pSocketId = game.players[playerName]?.socketId;
+          if (io && pSocketId) {
+            io.to(pSocketId).emit('show-macumba-panel', { playerName });
           }
-        } else { macumbaMsg = `${macumbaTarget} non ha personaggi in campo.`; }
-        emitChat(`🔮 MACUMBA! Dado: ${macumbaDie} → ${macumbaMsg}`);
+          console.log(`🔮 MACUMBA (nero): ${playerName} – mostra pannello scelta turni`);
+          // Don't emitState yet; completeMacumbaChoice will emit it after the player chooses
+          break;
+        }
+
+        // Normal path: individual dice per enemy, or auto-1 for nero CPU
+        if (!game.timedEffects) game.timedEffects = [];
+        const macumbaMsgs: string[] = [];
+
+        for (const targetPlayer of macumbaTargets) {
+          const targetChar = this.getPlayerActiveCharacter(game, targetPlayer);
+          if (!targetChar) continue;
+
+          const turnsLeft = (isBlackCharMacumba && isPlayerCPU) ? 1 : (Math.floor(Math.random() * 6) + 1);
+          if (io && !isBlackCharMacumba) {
+            // Show dice roll animation for normal characters
+            io.to(gameId).emit('dice-rolled', { result: turnsLeft, playerName: targetPlayer });
+          }
+
+          game.timedEffects.push({
+            id: `macumba_death_${Date.now()}_${targetPlayer}`,
+            owner: targetPlayer,
+            turnsLeft,
+            actions: [{ type: 'instant_death', target: 'self_char', value: 0, description: `Macumba: ${targetChar.name} muore in ${turnsLeft} turni` }],
+            description: `Macumba: ${targetChar.name} muore in ${turnsLeft} turni`,
+            cardId: card.id
+          } as any);
+
+          macumbaMsgs.push(`${targetChar.name} (${targetPlayer}) muore in ${turnsLeft} turni!`);
+        }
+
+        const neroNote = isBlackCharMacumba ? ' (personaggio nero – scelta automatica 1)' : '';
+        emitChat(`🔮 MACUMBA!${neroNote} → ${macumbaMsgs.join(' | ')}`);
         emitState(); break;
       }
 
@@ -22506,6 +22540,49 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         delete (card as any).diceControlOwner;
         break;
       }
+    }
+  }
+
+  // MACUMBA (nero player choice): apply the chosen turns to all pending enemy characters
+  completeMacumbaChoice(gameId: string, playerName: string, chosenTurns: number, io: any): void {
+    const game = this.games.get(gameId);
+    if (!game || !game.pendingMacumba) {
+      console.log(`⚠️ completeMacumbaChoice: no pending macumba for ${playerName}`);
+      return;
+    }
+
+    const { targets, cardId } = game.pendingMacumba;
+    delete game.pendingMacumba;
+
+    if (!game.timedEffects) game.timedEffects = [];
+    const msgs: string[] = [];
+
+    for (const targetPlayer of targets) {
+      const targetChar = this.getPlayerActiveCharacter(game, targetPlayer);
+      if (!targetChar) continue;
+      game.timedEffects.push({
+        id: `macumba_death_${Date.now()}_${targetPlayer}`,
+        owner: targetPlayer,
+        turnsLeft: chosenTurns,
+        actions: [{ type: 'instant_death', target: 'self_char', value: 0, description: `Macumba: ${targetChar.name} muore in ${chosenTurns} turni` }],
+        description: `Macumba: ${targetChar.name} muore in ${chosenTurns} turni`,
+        cardId
+      } as any);
+      msgs.push(`${targetChar.name} (${targetPlayer}) muore in ${chosenTurns} turni!`);
+    }
+
+    const msgText = msgs.length > 0 ? msgs.join(' | ') : 'Nessun bersaglio in campo.';
+    console.log(`🔮 completeMacumbaChoice: ${playerName} sceglie ${chosenTurns} → ${msgText}`);
+
+    if (io) {
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-macumba-choice`,
+        playerName: 'Sistema',
+        message: `🔮 MACUMBA! ${playerName} (personaggio nero) ha scelto ${chosenTurns} turni → ${msgText}`,
+        timestamp: Date.now()
+      });
+      const updatedState = this.getSanitizedGameState(gameId);
+      if (updatedState) io.to(gameId).emit('game-state-update', updatedState);
     }
   }
 
