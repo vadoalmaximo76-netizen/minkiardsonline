@@ -40,6 +40,7 @@ export const OtherPlayersHands: React.FC = () => {
           const isOnline = player.socketId != null;
           const deaths = getDeathCount(name);
           const limit = getDeathLimit(name);
+          const extraLives = (player as any).extraLives || 0;
           const isEliminated = gameState.eliminatedPlayers?.includes(name);
           
           return (
@@ -54,7 +55,7 @@ export const OtherPlayersHands: React.FC = () => {
                     <span className="leading-tight">{name}</span>
                     {!isUnlimited && (
                       <span className={`text-[10px] font-normal leading-tight ${deaths >= limit ? 'text-red-400' : deaths >= limit - 1 ? 'text-yellow-400' : 'text-gray-400'}`}>
-                        💀 {deaths}/{limit}
+                        💀 {deaths}/{limit}{extraLives > 0 && <span className="ml-1 text-pink-400 font-bold">❤️+{extraLives}</span>}
                       </span>
                     )}
                   </span>

@@ -56,6 +56,7 @@ interface Player {
   avatar?: string;
   socketId?: string | null;
   isCPU?: boolean;
+  extraLives?: number;
 }
 
 interface PendingDefense {

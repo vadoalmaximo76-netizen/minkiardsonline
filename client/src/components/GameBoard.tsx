@@ -1301,6 +1301,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('super-dice-rolled', handleSuperDiceRolled);
     socket.on('soros-activated', handleSorosActivation);
 
+    const handlePlayerExtraLivesUpdate = ({ playerName: updatedPlayer, extraLives }: { playerName: string; extraLives: number }) => {
+      const currentState = useGameState.getState().gameState;
+      if (currentState && currentState.players && currentState.players[updatedPlayer]) {
+        const updatedState = {
+          ...currentState,
+          players: {
+            ...currentState.players,
+            [updatedPlayer]: {
+              ...currentState.players[updatedPlayer],
+              extraLives,
+            },
+          },
+        };
+        useGameState.getState().setGameState(updatedState as any);
+      }
+    };
+    socket.on('player-extra-lives-update', handlePlayerExtraLivesUpdate);
+
     // CPU thinking indicator
     const handleCpuThinking = ({ playerName: cpuName }: { playerName: string }) => {
       setCpuThinkingPlayer(cpuName);
@@ -2698,6 +2716,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('second-mossa-available', handleSecondMossaAvailable);
       socket.off('defense:result', handleDefenseResult);
       socket.off('bonus-effect-applied', handleEffectApplied);
+      socket.off('player-extra-lives-update', handlePlayerExtraLivesUpdate);
       if (rewardsTimeoutId) clearTimeout(rewardsTimeoutId);
       if (cardEffectBannerTimerRef.current) clearTimeout(cardEffectBannerTimerRef.current);
     };

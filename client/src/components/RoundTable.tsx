@@ -71,6 +71,9 @@ const RoundTableComponent: React.FC = () => {
   const getDeathLimit = (name: string): number =>
     Math.max(1, baseDeathLimit + (deathModifiers[name] || 0));
 
+  const getExtraLives = (name: string): number =>
+    (gameState?.players?.[name] as any)?.extraLives || 0;
+
   const isPlayerOnline = (name: string): boolean =>
     players[name]?.socketId != null;
 
@@ -457,7 +460,7 @@ const RoundTableComponent: React.FC = () => {
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isPlayerOnline(player) ? 'bg-emerald-400' : 'bg-red-500'}`} />
                   {player}
                   {!isUnlimitedDeaths && (
-                    <span className="text-[9px] opacity-80 ml-0.5">💀{getDeathCount(player)}/{getDeathLimit(player)}</span>
+                    <span className="text-[9px] opacity-80 ml-0.5">💀{getDeathCount(player)}/{getDeathLimit(player)}{getExtraLives(player) > 0 && <span className="ml-0.5 text-pink-400 font-bold">❤️+{getExtraLives(player)}</span>}</span>
                   )}
                 </div>
               </div>
@@ -715,7 +718,7 @@ const RoundTableComponent: React.FC = () => {
                         {player === currentTurnPlayer && <span className="text-[10px] text-cyan-300">⚡</span>}
                         {!isUnlimitedDeaths && (
                           <span className={`text-[10px] font-normal ${getDeathCount(player) >= getDeathLimit(player) ? 'text-red-400' : 'text-emerald-500/80'}`}>
-                            💀{getDeathCount(player)}/{getDeathLimit(player)}
+                            💀{getDeathCount(player)}/{getDeathLimit(player)}{getExtraLives(player) > 0 && <span className="ml-0.5 text-pink-400 font-bold">❤️+{getExtraLives(player)}</span>}
                           </span>
                         )}
                       </h4>

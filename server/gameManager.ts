@@ -3504,6 +3504,7 @@ Rispondi SOLO in JSON:`;
         isCPU: player.isCPU,
         avatar: player.avatar,
         customAvatarUrl: player.customAvatarUrl,
+        extraLives: (player as any).extraLives || 0,
       };
     }
 
@@ -10100,8 +10101,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── MINKIARD N. 400 ─────────────────────────────────────────────────────
       case 'minkiard_n_400': {
-        (game.players[playerName] as any).extraLives = ((game.players[playerName] as any).extraLives || 0) + 1;
-        emitChat(`❤️ MINKIARD N. 400! ${playerName} guadagna una vita extra: può perdere un personaggio in più prima di essere eliminato!`);
+        const newExtraLives = ((game.players[playerName] as any).extraLives || 0) + 1;
+        (game.players[playerName] as any).extraLives = newExtraLives;
+        emitChat(`❤️ MINKIARD N. 400! ${playerName} guadagna una vita extra: può perdere un personaggio in più prima di essere eliminato! (${newExtraLives} vite extra totali)`);
+        const ioMink = (global as any).io;
+        if (ioMink) ioMink.to(gameId).emit('player-extra-lives-update', { playerName, extraLives: newExtraLives });
         emitState(); break;
       }
 
@@ -21762,17 +21766,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const extraLivesEL = (game.players[cardOwner] as any)?.extraLives || 0;
           if (extraLivesEL > 0) {
             (game.players[cardOwner] as any).extraLives = extraLivesEL - 1;
-            // Restore the just-dead character back to the player's hand with 500 PTI
-            const restoredCard = game.graveyard.find((gc: Card) => gc.id === card.id);
-            if (restoredCard) {
-              game.graveyard.splice(game.graveyard.indexOf(restoredCard), 1);
-              restoredCard.pti = 500;
-              restoredCard.stars = 0;
-              this.updateCardTextWithPTI(restoredCard);
-              game.players[cardOwner].hand.push(restoredCard);
-            }
+            // The character stays dead in the graveyard — only the elimination is prevented
             const ioEL = (global as any).io;
-            if (ioEL) ioEL.to(gameId).emit('chat-message', { id: `${Date.now()}-extralives`, playerName: 'Sistema', message: `❤️ MINKIARD N. 400! ${cardOwner} usa una vita extra! Il personaggio torna in vita con 500 PTI! (${extraLivesEL - 1} vite extra rimanenti)`, timestamp: Date.now() });
+            if (ioEL) {
+              ioEL.to(gameId).emit('chat-message', { id: `${Date.now()}-extralives`, playerName: 'Sistema', message: `❤️ MINKIARD N. 400! ${cardOwner} usa una vita extra! Il personaggio rimane nel cimitero. (${extraLivesEL - 1} vite extra rimanenti)`, timestamp: Date.now() });
+              ioEL.to(gameId).emit('player-extra-lives-update', { playerName: cardOwner, extraLives: extraLivesEL - 1 });
+            }
             console.log(`❤️ EXTRA LIFE: ${cardOwner} consumed extra life (${extraLivesEL} → ${extraLivesEL - 1})`);
           } else {
             eliminationCheck = true;
