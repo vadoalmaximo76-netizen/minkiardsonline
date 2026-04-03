@@ -27189,6 +27189,28 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
           return card;
         }
+        if (id.startsWith('scenario-')) {
+          const scenarioParts = id.split('-');
+          const scenarioIndex = parseInt(scenarioParts[scenarioParts.length - 1]);
+          if (isNaN(scenarioIndex) || scenarioIndex < 0 || scenarioIndex >= SCENARIO_CARDS.length) return null;
+          const scenarioImageUrl = SCENARIO_CARDS[scenarioIndex];
+          if (!scenarioImageUrl) return null;
+          const scenarioUrlParts = scenarioImageUrl.split('/');
+          const scenarioFilename = scenarioUrlParts[scenarioUrlParts.length - 1] || '';
+          const scenarioName = decodeURIComponent(scenarioFilename)
+            .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+            .replace(/[-_]/g, ' ')
+            .trim();
+          return {
+            id: `${id}-${Math.random().toString(36).substr(2, 6)}`,
+            type: 'bonus',
+            frontImage: scenarioImageUrl,
+            backImage: (DECK_BACK_IMAGES as any)['bonus'] || '',
+            owner: '',
+            name: scenarioName,
+            isScenario: true,
+          } as any as Card;
+        }
         const parts = id.split('-');
         const index = parseInt(parts[parts.length - 1]);
         if (isNaN(index) || index < 0 || index >= deckUrls.length) return null;
@@ -27247,6 +27269,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     });
     const bonusIds = cardIds.filter(id => {
       if (id.startsWith('bonus')) return true;
+      if (id.startsWith('scenario-')) return true;
       if (id.startsWith('custom-')) {
         const cc = customCardMap.get(id) as any;
         return cc && cc.deckType === 'bonus';
