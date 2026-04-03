@@ -44,7 +44,17 @@ export function getPersonaggioFromCache(cardName: string): { pti: number | null,
       return { pti: value.pti, stars: value.stars };
     }
   }
-  
+
+  // Fuzzy fallback: strip all non-alphanumeric characters (e.g. "&", "'", ".", ",")
+  // so "capello & smith" matches "capello smith" and vice versa
+  const stripped = (s: string) => s.replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+  const strippedNormalized = stripped(normalizedName);
+  for (const [key, value] of entries) {
+    if (stripped(key) === strippedNormalized) {
+      return { pti: value.pti, stars: value.stars };
+    }
+  }
+
   return null;
 }
 
