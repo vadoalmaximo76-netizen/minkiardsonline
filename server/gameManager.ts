@@ -27477,7 +27477,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return cpuName;
   }
 
-  async resolveCardIdsToDecks(cardIds: string[]): Promise<{ personaggi: Card[], mosse: Card[], bonus: Card[] }> {
+  async resolveCardIdsToDecks(cardIds: string[], options?: { shuffle?: boolean }): Promise<{ personaggi: Card[], mosse: Card[], bonus: Card[] }> {
     const allMods = jsonStorage.cardModifications.getAll();
     const modMap = new Map(allMods.map((m: any) => [m.originalCardId, m]));
     const allCustomCards = jsonStorage.customCards.getAll() as any[];
@@ -27610,15 +27610,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const mosseCards = buildCards(mosseIds, 'mosse');
     const bonusCards = buildCards(bonusIds, 'bonus');
 
-    const shuffle = (arr: any[]) => {
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-    };
-    shuffle(personaggiCards);
-    shuffle(mosseCards);
-    shuffle(bonusCards);
+    const shouldShuffle = options?.shuffle !== false;
+    if (shouldShuffle) {
+      const shuffleArr = (arr: any[]) => {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+      };
+      shuffleArr(personaggiCards);
+      shuffleArr(mosseCards);
+      shuffleArr(bonusCards);
+    }
 
     return { personaggi: personaggiCards, mosse: mosseCards, bonus: bonusCards };
   }

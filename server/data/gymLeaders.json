@@ -117,7 +117,8 @@
     "cpuConfigs": [],
     "attackMode": "hunt_human",
     "isActive": true,
-    "createdAt": "2026-03-18T23:43:37.138Z"
+    "createdAt": "2026-03-18T23:43:37.138Z",
+    "useFixedDeckOrder": false
   },
   {
     "id": 4,
@@ -223,7 +224,8 @@
     "cpuConfigs": [],
     "attackMode": "free_for_all",
     "isActive": true,
-    "createdAt": "2026-03-19T00:27:00.741Z"
+    "createdAt": "2026-03-19T00:27:00.741Z",
+    "useFixedDeckOrder": false
   },
   {
     "id": 8,
@@ -349,7 +351,8 @@
     "cpuConfigs": [],
     "attackMode": "free_for_all",
     "isActive": true,
-    "createdAt": "2026-03-26T09:14:31.795Z"
+    "createdAt": "2026-03-26T09:14:31.795Z",
+    "useFixedDeckOrder": false
   },
   {
     "id": 7,
@@ -467,7 +470,8 @@
     "cpuConfigs": [],
     "attackMode": "free_for_all",
     "isActive": true,
-    "createdAt": "2026-03-26T08:59:25.452Z"
+    "createdAt": "2026-03-26T08:59:25.452Z",
+    "useFixedDeckOrder": false
   },
   {
     "id": 10,
@@ -626,7 +630,8 @@
     "cpuConfigs": [],
     "attackMode": "free_for_all",
     "isActive": true,
-    "createdAt": "2026-03-26T10:01:37.278Z"
+    "createdAt": "2026-03-26T10:01:37.278Z",
+    "useFixedDeckOrder": false
   },
   {
     "id": 2,
@@ -746,7 +751,8 @@
     "cpuConfigs": [],
     "attackMode": "free_for_all",
     "isActive": true,
-    "createdAt": "2026-03-14T13:42:06.793Z"
+    "createdAt": "2026-03-14T13:42:06.793Z",
+    "useFixedDeckOrder": false
   },
   {
     "id": 5,
@@ -922,7 +928,8 @@
     ],
     "attackMode": "hunt_human",
     "isActive": true,
-    "createdAt": "2026-03-22T23:47:09.411Z"
+    "createdAt": "2026-03-22T23:47:09.411Z",
+    "useFixedDeckOrder": false
   },
   {
     "id": 9,
@@ -1043,7 +1050,8 @@
     "cpuConfigs": [],
     "attackMode": "free_for_all",
     "isActive": true,
-    "createdAt": "2026-03-26T09:42:29.303Z"
+    "createdAt": "2026-03-26T09:42:29.303Z",
+    "useFixedDeckOrder": false
   },
   {
     "id": 1,
@@ -1143,7 +1151,8 @@
     "cpuConfigs": [],
     "attackMode": "free_for_all",
     "isActive": true,
-    "createdAt": "2026-03-14T12:31:45.216Z"
+    "createdAt": "2026-03-14T12:31:45.216Z",
+    "useFixedDeckOrder": false
   },
   {
     "id": 6,
@@ -1268,6 +1277,7 @@
     "cpuConfigs": [],
     "attackMode": "hunt_human",
     "isActive": true,
-    "createdAt": "2026-03-24T10:26:40.079Z"
+    "createdAt": "2026-03-24T10:26:40.079Z",
+    "useFixedDeckOrder": false
   }
 ]

@@ -65,6 +65,7 @@ interface GymLeader {
   cpuCount: number;
   cpuConfigs: CpuConfig[];
   attackMode: 'free_for_all' | 'hunt_human';
+  useFixedDeckOrder: boolean;
   isActive: boolean;
   createdAt: string;
 }
@@ -105,6 +106,7 @@ const EMPTY_FORM = {
   isActive: true,
   cpuCount: 1,
   attackMode: 'free_for_all' as 'free_for_all' | 'hunt_human',
+  useFixedDeckOrder: false,
   cpuConfigs: [] as CpuConfig[],
 };
 
@@ -365,6 +367,7 @@ export function AdminGymPanel({ onClose }: Props) {
       isActive: leader.isActive,
       cpuCount: leader.cpuCount ?? 1,
       attackMode: leader.attackMode ?? 'free_for_all',
+      useFixedDeckOrder: leader.useFixedDeckOrder ?? false,
       cpuConfigs: Array.isArray(leader.cpuConfigs) ? leader.cpuConfigs : [],
     });
     setCardSearch('');
@@ -830,6 +833,25 @@ export function AdminGymPanel({ onClose }: Props) {
                             ))}
                           </div>
                         </div>
+                        {/* Ordine fisso carte boss */}
+                        <button
+                          type="button"
+                          onClick={() => setForm(f => ({ ...f, useFixedDeckOrder: !f.useFixedDeckOrder }))}
+                          className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border-2 transition-all w-full ${
+                            form.useFixedDeckOrder ? 'border-purple-500 bg-purple-900/30 text-white' : 'border-white/10 bg-white/5 text-white/50'
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                            form.useFixedDeckOrder ? 'border-purple-400 bg-purple-400' : 'border-white/30'
+                          }`}>
+                            {form.useFixedDeckOrder && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </div>
+                          <div className="text-left">
+                            <span className="font-semibold text-sm block">Ordine fisso carte boss</span>
+                            <span className="text-[10px] opacity-60">Il boss pesca le carte nell'ordine esatto definito nel mazzo (no mescolamento)</span>
+                          </div>
+                        </button>
+
                         {/* Messaggi boss principale */}
                         <button
                           type="button"
@@ -1103,33 +1125,104 @@ export function AdminGymPanel({ onClose }: Props) {
                           ) : null;
                         })}
                       </div>
-                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
-                        {selectedCardEntries.map((card, i) => (
-                          <div key={`${card.id}-${i}`} className="relative group">
-                            <div className="w-10 h-14 rounded overflow-hidden border border-white/20 bg-gray-800">
-                              {(card.imageUrl || card.originalImageUrl) ? (
-                                <img
-                                  src={card.imageUrl || card.originalImageUrl}
-                                  alt=""
-                                  className="w-full h-full object-cover"
-                                  onError={e => { (e.currentTarget.style.display = 'none'); }}
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <Shield className="w-3 h-3 text-white/20" />
+
+                      {/* Ordered list view when useFixedDeckOrder is enabled for the boss deck */}
+                      {form.useFixedDeckOrder && deckEditTarget === 'cpu-main' ? (
+                        <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
+                          <p className="text-purple-300 text-[10px] mb-2 flex items-center gap-1">
+                            <span>🎯</span> Ordine fisso attivo — il boss pesca le carte dall'alto verso il basso
+                          </p>
+                          {selectedCardEntries.map((card, i) => {
+                            const deckType = card.deckType;
+                            const dt = DECK_TYPES.find(d => d.value === deckType);
+                            const displayName = card.name || card.originalName;
+                            return (
+                              <div key={`${card.id}-${i}`} className="flex items-center gap-2 bg-gray-700/60 rounded-lg px-2 py-1.5 border border-white/10">
+                                <span className="text-white/30 text-[10px] font-bold w-5 text-right flex-shrink-0">{i + 1}</span>
+                                <div className="w-7 h-10 rounded overflow-hidden border border-white/20 bg-gray-800 flex-shrink-0">
+                                  {(card.imageUrl || card.originalImageUrl) ? (
+                                    <img
+                                      src={card.imageUrl || card.originalImageUrl}
+                                      alt=""
+                                      className="w-full h-full object-cover"
+                                      onError={e => { (e.currentTarget.style.display = 'none'); }}
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <Shield className="w-2.5 h-2.5 text-white/20" />
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-white text-xs font-medium truncate">{displayName}</p>
+                                  {dt && <span className={`text-[9px] px-1 py-0.5 rounded text-white font-bold ${dt.color}`}>{dt.label}</span>}
+                                </div>
+                                <div className="flex flex-col gap-0.5 flex-shrink-0">
+                                  <button
+                                    type="button"
+                                    disabled={i === 0}
+                                    onClick={() => {
+                                      const deck = [...getActiveDeck()];
+                                      [deck[i - 1], deck[i]] = [deck[i], deck[i - 1]];
+                                      setActiveDeck(deck);
+                                    }}
+                                    className="text-white/30 hover:text-white disabled:opacity-20 transition-colors p-0.5"
+                                  >
+                                    <ChevronUp className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={i === selectedCardEntries.length - 1}
+                                    onClick={() => {
+                                      const deck = [...getActiveDeck()];
+                                      [deck[i], deck[i + 1]] = [deck[i + 1], deck[i]];
+                                      setActiveDeck(deck);
+                                    }}
+                                    className="text-white/30 hover:text-white disabled:opacity-20 transition-colors p-0.5"
+                                  >
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeCardFromDeck(card.id)}
+                                  className="p-0.5 text-red-400/50 hover:text-red-400 transition-colors flex-shrink-0"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                          {selectedCardEntries.map((card, i) => (
+                            <div key={`${card.id}-${i}`} className="relative group">
+                              <div className="w-10 h-14 rounded overflow-hidden border border-white/20 bg-gray-800">
+                                {(card.imageUrl || card.originalImageUrl) ? (
+                                  <img
+                                    src={card.imageUrl || card.originalImageUrl}
+                                    alt=""
+                                    className="w-full h-full object-cover"
+                                    onError={e => { (e.currentTarget.style.display = 'none'); }}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Shield className="w-3 h-3 text-white/20" />
+                                  </div>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeCardFromDeck(card.id)}
+                                className="absolute -top-1 -right-1 bg-red-600 rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="w-2.5 h-2.5 text-white" />
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => removeCardFromDeck(card.id)}
-                              className="absolute -top-1 -right-1 bg-red-600 rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <X className="w-2.5 h-2.5 text-white" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1309,6 +1402,9 @@ export function AdminGymPanel({ onClose }: Props) {
                         <span className="text-white/30 text-[10px]">❤️ {leader.livesCount} vite</span>
                         {Array.isArray(leader.customDeck) && leader.customDeck.length > 0 && (
                           <span className="text-yellow-400/60 text-[10px]">🃏 {leader.customDeck.length} carte</span>
+                        )}
+                        {leader.useFixedDeckOrder && (
+                          <span className="text-purple-400/70 text-[10px]">🎯 Ordine fisso</span>
                         )}
                         {leader.specialty && (
                           <span className="text-blue-400/60 text-[10px] truncate max-w-[120px]">⚡ {leader.specialty}</span>

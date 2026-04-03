@@ -59,6 +59,7 @@ interface ExternalGymLeaderRow {
   cpu_count: number;
   cpu_configs: unknown;
   attack_mode: string;
+  use_fixed_deck_order: boolean;
   is_active: boolean;
   created_at: Date;
 }
@@ -97,7 +98,7 @@ async function syncGymLeadersFromExternalDb(targetDb?: typeof db): Promise<numbe
          cpu_level, deck_bias, custom_deck, lives_count, player_starting_deck,
          starter_deck_options, reward_credits, reward_description,
          youtube_music_url, leader_messages, cpu_count, cpu_configs,
-         attack_mode, is_active, created_at)
+         attack_mode, use_fixed_deck_order, is_active, created_at)
       VALUES (
         ${row.id},
         ${row.order_index ?? 1},
@@ -121,6 +122,7 @@ async function syncGymLeadersFromExternalDb(targetDb?: typeof db): Promise<numbe
         ${row.cpu_count ?? 1},
         ${JSON.stringify(row.cpu_configs ?? [])}::jsonb,
         ${row.attack_mode ?? 'free_for_all'},
+        ${row.use_fixed_deck_order ?? false},
         ${row.is_active ?? true},
         ${row.created_at ?? new Date()}
       )
@@ -146,6 +148,7 @@ async function syncGymLeadersFromExternalDb(targetDb?: typeof db): Promise<numbe
         cpu_count          = EXCLUDED.cpu_count,
         cpu_configs        = EXCLUDED.cpu_configs,
         attack_mode        = EXCLUDED.attack_mode,
+        use_fixed_deck_order = EXCLUDED.use_fixed_deck_order,
         is_active          = EXCLUDED.is_active
     `);
   }
@@ -2481,9 +2484,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (!game.playerDraftDecks) game.playerDraftDecks = {};
             const deckIds: string[] = Array.isArray(customDeck) && customDeck.length > 0 ? customDeck : [];
             if (deckIds.length > 0) {
-              const resolvedDeck = await gameManager.resolveCardIdsToDecks(deckIds);
+              // Determine if fixed deck order applies for this gym leader
+              let useFixed = false;
+              if (gymLeaderId) {
+                try {
+                  const [dbLeaderFixed] = await db.select({ useFixedDeckOrder: gymLeaders.useFixedDeckOrder })
+                    .from(gymLeaders)
+                    .where(eq(gymLeaders.id, typeof gymLeaderId === 'number' ? gymLeaderId : parseInt(gymLeaderId)))
+                    .limit(1);
+                  useFixed = dbLeaderFixed?.useFixedDeckOrder === true;
+                } catch (e) {
+                  console.warn(`⚠️ Could not load useFixedDeckOrder for gym leader ${gymLeaderId}:`, e);
+                }
+              }
+
+              // Resolve cards WITHOUT internal shuffle so we can control order ourselves
+              const resolvedDeck = await gameManager.resolveCardIdsToDecks(deckIds, { shuffle: false });
+
+              if (useFixed) {
+                // Reverse so pop() pulls in forward order (first admin-defined card drawn first).
+                // resolvedDeck preserves the admin-defined sequence since shuffle:false was passed.
+                resolvedDeck.personaggi.reverse();
+                resolvedDeck.mosse.reverse();
+                resolvedDeck.bonus.reverse();
+                console.log(`🎯 Gym mode CPU ${cpuName}: using FIXED deck order (${resolvedDeck.personaggi.length}p/${resolvedDeck.mosse.length}m/${resolvedDeck.bonus.length}b cards)`);
+              } else {
+                // Default: shuffle the deck randomly
+                const shuffleArr = <T>(arr: T[]): void => {
+                  for (let i = arr.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [arr[i], arr[j]] = [arr[j], arr[i]];
+                  }
+                };
+                shuffleArr(resolvedDeck.personaggi);
+                shuffleArr(resolvedDeck.mosse);
+                shuffleArr(resolvedDeck.bonus);
+                console.log(`🔀 Gym mode CPU ${cpuName}: using SHUFFLED deck (${resolvedDeck.personaggi.length}p/${resolvedDeck.mosse.length}m/${resolvedDeck.bonus.length}b cards)`);
+              }
+
               game.playerDraftDecks[cpuName] = resolvedDeck;
-              console.log(`🤖 Gym mode CPU ${cpuName} deck: ${resolvedDeck.personaggi.length}p/${resolvedDeck.mosse.length}m/${resolvedDeck.bonus.length}b cards`);
             }
             // Set leader image as custom avatar URL for the CPU player
             if (leaderImageUrl && game.players[cpuName]) {
@@ -13456,7 +13495,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const user = (req as any).user;
       const isAdmin = await checkAdminAccess(user);
       if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
-      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, starterDeckOptions, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive, cpuCount, cpuConfigs, attackMode } = req.body;
+      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, starterDeckOptions, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive, cpuCount, cpuConfigs, attackMode, useFixedDeckOrder } = req.body;
       if (!name || !gymName) return res.status(400).json({ success: false, error: 'name e gymName obbligatori' });
       const [created] = await db.insert(gymLeaders).values({
         name, gymName,
@@ -13486,6 +13525,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         cpuCount: cpuCount ?? 1,
         cpuConfigs: Array.isArray(cpuConfigs) ? cpuConfigs : [],
         attackMode: attackMode || 'free_for_all',
+        useFixedDeckOrder: useFixedDeckOrder === true,
       }).returning();
       res.json({ success: true, gymLeader: created });
     } catch (e) {
@@ -13502,7 +13542,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const isAdmin = await checkAdminAccess(user);
       if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
       const id = parseInt(req.params.id);
-      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, starterDeckOptions, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive, cpuCount, cpuConfigs, attackMode } = req.body;
+      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, starterDeckOptions, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive, cpuCount, cpuConfigs, attackMode, useFixedDeckOrder } = req.body;
       const [updated] = await db.update(gymLeaders).set({
         name, gymName,
         description: description || null,
@@ -13531,6 +13571,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         cpuCount: cpuCount ?? 1,
         cpuConfigs: Array.isArray(cpuConfigs) ? cpuConfigs : [],
         attackMode: attackMode || 'free_for_all',
+        useFixedDeckOrder: useFixedDeckOrder === true,
       }).where(eq(gymLeaders.id, id)).returning();
       if (!updated) return res.status(404).json({ success: false, error: 'Stage non trovato' });
       res.json({ success: true, gymLeader: updated });
