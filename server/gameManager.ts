@@ -32414,7 +32414,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // Extract card name from frontImage URL if name is undefined
       const getCardName = (card: any): string => {
-        if (card.name) return card.name;
+        if (card.name) return card.name.toUpperCase();
         if (card.frontImage) {
           // Extract name from URL like https://i.postimg.cc/xxx/alta-salva.png -> alta salva
           const match = card.frontImage.match(/\/([^\/]+)\.(png|jpg|jpeg|gif)$/i);
