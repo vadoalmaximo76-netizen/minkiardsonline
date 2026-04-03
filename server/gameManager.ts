@@ -11792,10 +11792,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── PORTALE SPECIALE: pesca una carta speciale dal mazzo ────────────────
       case 'portale_speciale': {
-        const psSpecDeck = ((game as any).deck || []) as Card[];
-        const specialIdx = psSpecDeck.findIndex((c: Card) => c.type === 'personaggi_speciali' || c.rarity === 'leggendaria');
-        if (specialIdx >= 0) {
-          const [specCard] = psSpecDeck.splice(specialIdx, 1);
+        const psSpecDeck = game.decks.personaggi_speciali;
+        if (psSpecDeck && psSpecDeck.length > 0) {
+          const randomIdx = Math.floor(Math.random() * psSpecDeck.length);
+          const [specCard] = psSpecDeck.splice(randomIdx, 1);
           if (!game.players[playerName].hand) game.players[playerName].hand = [];
           (game.players[playerName].hand as Card[]).push(specCard);
           emitChat(`🌀 PORTALE SPECIALE! ${playerName} pesca una carta speciale: "${specCard.name || specCard.id}"!`);
