@@ -7661,7 +7661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('macumba-choose-turns', ({ gameId, selectedTurns }) => {
       const playerName = gameManager.getPlayerNameFromSocket(socket.id);
       const playerGameId = gameManager.getPlayerGameId(socket.id);
-      if (playerName && playerGameId === gameId && typeof selectedTurns === 'number' && selectedTurns >= 1 && selectedTurns <= 6) {
+      if (playerName && playerGameId === gameId && Number.isInteger(selectedTurns) && selectedTurns >= 1 && selectedTurns <= 6) {
         console.log(`🔮 macumba-choose-turns: ${playerName} chose ${selectedTurns} turns`);
         gameManager.completeMacumbaChoice(gameId, playerName, selectedTurns, io);
       }
