@@ -598,15 +598,48 @@ export class CPUPlayer {
   private _setWaitingForAttackResolution(value: boolean) {
     this.waitingForAttackResolution = value;
     if (value) {
-      // Start a 15-second safety timer: if attack never resolves, unblock the CPU
+      // Start an 8-second watchdog: if attack never resolves, unblock the CPU and force end-turn
       this._clearAttackSafetyTimer();
       this.attackResolutionSafetyTimer = setTimeout(() => {
         if (this.waitingForAttackResolution) {
-          console.warn(`⚠️ CPU ${this.playerName}: attack resolution safety timer fired — unblocking CPU after 15s`);
+          console.warn(`⚠️ CPU ${this.playerName}: attack resolution watchdog fired — unblocking CPU after 8s and forcing end-turn`);
           this.waitingForAttackResolution = false;
           this.attackResolutionSafetyTimer = null;
+          // Attempt to force-end the turn via gameManager so the game always advances
+          if (this.gameManager && this.socketEmitter && this.gameId) {
+            const gm = this.gameManager;
+            const io = this.socketEmitter;
+            const gameId = this.gameId;
+            const playerName = this.playerName;
+            (async () => {
+              try {
+                const fg = gm.getGameState(gameId);
+                if (!fg) return;
+                const stillMyTurn = fg.turnOrder[fg.currentTurnIndex] === playerName;
+                if (!stillMyTurn) return;
+                console.warn(`⚠️ CPU ${playerName}: watchdog forcing end-turn in game ${gameId}`);
+                io.to(gameId).emit('cpu-done-thinking', { playerName });
+                const next = gm.endTurn(gameId, playerName);
+                if (next) {
+                  io.to(gameId).emit('next-turn', { nextPlayer: next });
+                  const gs = gm.getSanitizedGameState(gameId);
+                  if (gs) io.to(gameId).emit('game-state-update', gs);
+                  const fg2 = gm.getGameState(gameId);
+                  if (fg2?.players[next]?.isCPU) {
+                    await new Promise(r => setTimeout(r, 1500));
+                    const nextAct = await gm.processCPUTurn(gameId, next, io);
+                    if (nextAct) await gm.applyCPUAction(gameId, next, nextAct, io);
+                  } else {
+                    gm.startTurnTimer(gameId, next);
+                  }
+                }
+              } catch (e) {
+                console.error(`❌ CPU ${playerName}: watchdog forceEndTurn failed:`, e);
+              }
+            })();
+          }
         }
-      }, 15000);
+      }, 8000);
     } else {
       this._clearAttackSafetyTimer();
     }
@@ -3945,6 +3978,14 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     if (anyCard) {
       console.log(`🔍 CPU ${this.playerName}: Found fallback action card - returning ${anyCard.type}`);
       return anyCard;
+    }
+
+    // GUARANTEED FALLBACK: If we still have ANY card in hand, play it rather than returning null.
+    // This prevents the CPU from getting stuck with cards in hand but never playing anything.
+    if (hand.length > 0) {
+      const lastResort = hand[0];
+      console.log(`🔍 CPU ${this.playerName}: Last-resort fallback — playing first card in hand (${lastResort.type})`);
+      return lastResort;
     }
     
     console.log(`❌ CPU ${this.playerName}: NO CARD TO PLAY - returning null`);

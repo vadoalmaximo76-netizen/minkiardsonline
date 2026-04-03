@@ -27304,9 +27304,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
       }
 
-      // NULL-ACTION RECOVERY: If takeTurn returned null but no intentional "waiting" state
-      // is active, schedule a 5-second forced end-turn to prevent the game from getting
-      // permanently stuck on this CPU's turn (no safety timer fires when applyCPUAction is skipped).
+      // NULL-ACTION RECOVERY: If takeTurn returned null, schedule a forced end-turn to prevent
+      // the game from getting permanently stuck on this CPU's turn.
+      // - When the CPU is intentionally waiting for attack resolution (isWaitingForAttack=true),
+      //   the attack watchdog in cpuPlayer._setWaitingForAttackResolution (8s) handles recovery.
+      //   We add a 12s safety-net here as a second layer in case the watchdog also fails.
+      // - For all other unexpected nulls (no intentional wait), fire after 5s.
       if (!action && socketEmitter) {
         const isWaitingForAttack = cpuPlayer.cpuInstance.isWaitingForAttack?.() ?? false;
         const isWaitingForResp  = cpuPlayer.cpuInstance.isWaitingForResponse ?? false;
@@ -27315,17 +27318,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const isInDuel = activeDuel?.active && (
           activeDuel.player1 === cpuPlayerName || activeDuel.player2 === cpuPlayerName
         );
-        const isIntentionalNull = isWaitingForAttack || isWaitingForResp || isInDuel;
-        if (!isIntentionalNull) {
-          const gmRef = this;
-          const ioRef = socketEmitter;
-          console.warn(`⚠️ [CPU-NULL-RECOVERY] ${cpuPlayerName} in ${gameId}: unexpected null from takeTurn — scheduling 5s forced end-turn`);
+        const gmRef = this;
+        const ioRef = socketEmitter;
+        const scheduleForceEnd = (delayMs: number, label: string) => {
           setTimeout(async () => {
             const fg = gmRef.games.get(gameId);
             if (!fg) return;
             const stillCpuTurn = fg.turnOrder[fg.currentTurnIndex] === cpuPlayerName;
             if (!stillCpuTurn) return;
-            console.warn(`⚠️ [CPU-NULL-RECOVERY] ${cpuPlayerName}: turn still stuck after 5s — forcing end turn`);
+            const stillWaiting = fg.players[cpuPlayerName]?.cpuInstance?.isWaitingForAttack?.() ?? false;
+            if (label === 'attack-backup' && !stillWaiting) return;
+            console.warn(`⚠️ [CPU-NULL-RECOVERY:${label}] ${cpuPlayerName}: turn still stuck after ${delayMs}ms — forcing end turn`);
             ioRef.to(gameId).emit('cpu-done-thinking', { playerName: cpuPlayerName });
             const next = gmRef.endTurn(gameId, cpuPlayerName);
             if (next) {
@@ -27341,7 +27344,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 gmRef.startTurnTimer(gameId, next);
               }
             }
-          }, 5000);
+          }, delayMs);
+        };
+        if (isWaitingForAttack) {
+          console.warn(`⚠️ [CPU-NULL-RECOVERY] ${cpuPlayerName} in ${gameId}: waiting for attack resolution — scheduling 12s backup forced end-turn`);
+          scheduleForceEnd(12000, 'attack-backup');
+        } else if (!isWaitingForResp && !isInDuel) {
+          console.warn(`⚠️ [CPU-NULL-RECOVERY] ${cpuPlayerName} in ${gameId}: unexpected null from takeTurn — scheduling 5s forced end-turn`);
+          scheduleForceEnd(5000, 'unexpected-null');
         }
       }
 
