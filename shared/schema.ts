@@ -938,3 +938,43 @@ export const pageTooltips = pgTable("page_tooltips", {
 export const insertPageTooltipSchema = createInsertSchema(pageTooltips).omit({ id: true, createdAt: true, updatedAt: true });
 export type PageTooltip = typeof pageTooltips.$inferSelect;
 export type InsertPageTooltip = z.infer<typeof insertPageTooltipSchema>;
+
+// ── In-Game Card Runtime Type ─────────────────────────────────────────────────
+// This interface describes the shape of card objects that exist in memory during
+// an active game session. It is NOT stored in the database as-is (the db stores
+// game state as a JSON blob). It is exported here so client/server code can share
+// a common type reference for game-state card properties.
+export interface GameCard {
+  id: string;
+  type: string;
+  frontImage: string;
+  backImage: string;
+  owner: string;
+  name?: string;
+  text?: string;
+  effect?: string;
+  pti?: number | null;
+  stars?: number | null;
+  faceDown?: boolean;
+  // Identity / ancestry tracking
+  characterLineage?: string[];  // Ordered list of ancestor base card IDs (most-recent first).
+                                 // Populated on clone, fusion, and transformation operations so
+                                 // character-specific MOSSE overrides and evolution targets continue
+                                 // to resolve correctly even after the card changes form.
+  clonedFrom?: string;           // For UOVO and similar: the true-original card ID (deepest ancestor).
+  isClone?: boolean;
+  isFused?: boolean;
+  fusionLeader?: string;
+  fusedWith?: string[];
+  // MOSSE overrides (stored on MOSSE cards, referenced during combat)
+  mosseCharacterOverrides?: Array<{
+    characterId?: string;
+    characterName?: string;
+    usedBy?: { damageValue?: number | null; effect?: string | null };
+    usedOn?: { damageValue?: number | null; effect?: string | null };
+  }> | null;
+  evolvesInto?: string;
+  transformsInto?: string;
+  cheatsInto?: string;
+  [key: string]: unknown; // allow extended runtime properties
+}

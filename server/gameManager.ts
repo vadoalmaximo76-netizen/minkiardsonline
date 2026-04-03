@@ -148,6 +148,8 @@ interface Card {
   doubleMosse?: boolean;
   // BRONX — removes 1 star per 500 PTI of damage dealt
   starDrainPer500?: boolean;
+  // CHARACTER LINEAGE — ancestry chain for clones, transformations, evolutions
+  characterLineage?: string[]; // List of ancestor base card IDs, most recent first
 }
 
 interface Player {
@@ -8053,6 +8055,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return true;
   }
 
+  /** Strip clone/ameeco-clone suffixes to get the canonical base card ID.
+   *  Must check the more-specific `-ameeco-clone-N` pattern first to avoid
+   *  the shorter `-clone-N` pattern eating part of it and leaving `-ameeco`. */
+  private getBaseCardId(id: string): string {
+    return id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, '');
+  }
+
   private getPlayerActiveCharacter(game: GameState, playerName: string): Card | undefined {
     // Find all personaggi belonging to this player on the field
     const playerPersonaggi = game.field.filter(c => 
@@ -8284,6 +8293,71 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return;
     }
 
+    // FUSION TRANSFORMATION: If the active character is part of a fusion, transform each component
+    // individually and then re-fuse the transformed results with summed PTI/stars.
+    if (activeChar.isFused && type !== 'taroccata') {
+      const fusionGroup = this.getFusionGroup(game, activeChar.id);
+      if (fusionGroup.length > 1) {
+        const io2 = (global as any).io;
+        console.log(`🔀 FUSION ${type.toUpperCase()}: Transforming ${fusionGroup.length} fusion components individually`);
+        // Transform each component (temporarily unfuse to avoid recursion)
+        // Restore each component's individual per-card PTI/stars so transformation calculations
+        // use the correct individual stats, not the inflated fused totals.
+        for (const fusedCard of fusionGroup) {
+          fusedCard.isFused = false;
+          fusedCard.fusionLeader = undefined;
+          fusedCard.fusedWith = undefined;
+          // Restore individual PTI: prefer originalPti (set at card placement), fall back to
+          // card-modification stored value, otherwise keep current pti (may still be summed).
+          const componentMod = jsonStorage.cardModifications.getByOriginalCardId(this.getBaseCardId(fusedCard.id));
+          if ((fusedCard as any).originalPti) {
+            fusedCard.pti = (fusedCard as any).originalPti;
+            fusedCard.stars = (fusedCard as any).originalStars || fusedCard.stars;
+          } else if (componentMod && componentMod.pti !== null && componentMod.pti !== undefined) {
+            fusedCard.pti = componentMod.pti;
+            if (componentMod.stars !== null && componentMod.stars !== undefined) fusedCard.stars = componentMod.stars;
+          }
+          // else: keep current (may be inflated, but no better data available)
+        }
+        // Capture field indices before transforming so we can find the replacement cards by slot
+        const fusionFieldIndices = fusionGroup.map(fc => game.field.indexOf(fc));
+        for (const fusedCard of fusionGroup) {
+          this.handleEvolutionTransformation(game, gameId, fusedCard.owner || playerName, type, fusedCard.id);
+        }
+        // Re-collect only the cards that now occupy the original field slots (index-based lookup)
+        const transformedCards = fusionFieldIndices
+          .map(idx => game.field[idx])
+          .filter((c): c is Card => !!c && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && !c.isFused);
+        if (transformedCards.length >= 2) {
+          const fusionLeaderId = transformedCards[0].id;
+          const totalPti = transformedCards.reduce((s, c) => s + (c.pti || 0), 0);
+          const totalStars = transformedCards.reduce((s, c) => s + (c.stars || 0), 0);
+          const allIds = transformedCards.map(c => c.id);
+          // Merge lineages
+          const mergedLineage = Array.from(new Set(
+            transformedCards.flatMap(c => c.characterLineage || [this.getBaseCardId(c.id)])
+          ));
+          for (const c of transformedCards) {
+            c.isFused = true;
+            c.fusionLeader = fusionLeaderId;
+            c.fusedWith = allIds.filter(id => id !== c.id);
+            c.pti = totalPti;
+            c.stars = totalStars;
+            c.characterLineage = mergedLineage;
+            this.updateCardTextWithPTI(c);
+          }
+          if (io2) {
+            io2.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-fusion-${type}`, playerName: 'Sistema',
+              message: `🔀 I personaggi fusi si sono ${type === 'evolution' ? 'evoluti' : 'trasformati'} mantenendo la fusione! PTI totale: ${totalPti}, Stelle: ${totalStars}`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        return;
+      }
+    }
+
     const io = (global as any).io;
     const oldName = activeChar.name || activeChar.id;
     const oldImage = activeChar.frontImage || '';
@@ -8344,10 +8418,34 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     } else if (type === 'evolution') {
       targetCardId = activeChar.evolvesInto;
+      // LINEAGE FALLBACK: If no evolvesInto, check ancestor cards from characterLineage
+      if (!targetCardId && activeChar.characterLineage && activeChar.characterLineage.length > 0) {
+        for (const ancestorId of activeChar.characterLineage) {
+          const ancestorMod = jsonStorage.cardModifications.getByOriginalCardId(ancestorId);
+          if (ancestorMod?.evolvesInto) { targetCardId = ancestorMod.evolvesInto; break; }
+        }
+      }
     } else if (type === 'transformation') {
       targetCardId = activeChar.transformsInto;
+      // LINEAGE FALLBACK: If no transformsInto, check ancestor cards from characterLineage
+      if (!targetCardId && activeChar.characterLineage && activeChar.characterLineage.length > 0) {
+        for (const ancestorId of activeChar.characterLineage) {
+          const ancestorMod = jsonStorage.cardModifications.getByOriginalCardId(ancestorId);
+          if (ancestorMod?.transformsInto) { targetCardId = ancestorMod.transformsInto; break; }
+        }
+      }
     } else if (type === 'taroccata') {
       targetCardId = activeChar.transformsFrom || activeChar.cheatsInto;
+      // LINEAGE FALLBACK: If no cheatsInto/transformsFrom, check ancestor cards from characterLineage
+      if (!targetCardId && activeChar.characterLineage && activeChar.characterLineage.length > 0) {
+        for (const ancestorId of activeChar.characterLineage) {
+          const ancestorMod = jsonStorage.cardModifications.getByOriginalCardId(ancestorId);
+          if (ancestorMod?.transformsFrom || ancestorMod?.cheatsInto) {
+            targetCardId = (ancestorMod.transformsFrom || ancestorMod.cheatsInto) as string;
+            break;
+          }
+        }
+      }
     }
 
     if (targetCardId) {
@@ -8407,6 +8505,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             transformsFrom: mod?.transformsFrom || undefined,
             cheatsInto: mod?.cheatsInto || undefined
           };
+
+          // LINEAGE: Build the new card's characterLineage by prepending the actual pre-transform card ID.
+          // This records the full form-to-form ancestry: e.g. [pre-transform base, older ancestor, ...].
+          // We use the pre-transform card's own ID (stripped of clone suffix) as the most-recent ancestor.
+          const priorCardBaseId = activeChar.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, '');
+          const inheritedLineage = activeChar.characterLineage ? [...activeChar.characterLineage] : [];
+          // Build: [priorCardBaseId, ...any older ancestors], deduplicated and excluding the new target id
+          const lineageWithPrior = [priorCardBaseId, ...inheritedLineage.filter(id => id !== priorCardBaseId)];
+          const newLineage = lineageWithPrior.filter(id => id !== targetCardId);
+          if (newLineage.length > 0) {
+            replacementCard.characterLineage = newLineage;
+          }
 
           if (mod?.specialCategory) {
             (replacementCard as any).specialCategory = mod.specialCategory;
@@ -10022,6 +10132,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const eggOwnerName = myChar.name || playerName;
         const uovoCloneId = `uovo_clone_${Date.now()}_${playerName}`;
         // Phase 1: egg on field — no PTI/stars, egg image
+        const uovoBaseId = myChar.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, '');
+        // For clonedFrom, use the true original identity: deepest ancestor in lineage (or base ID)
+        const uovoOriginalId = (myChar.characterLineage && myChar.characterLineage.length > 0)
+          ? myChar.characterLineage[myChar.characterLineage.length - 1]
+          : uovoBaseId;
         const uovoEgg: any = {
           id: uovoCloneId,
           name: `Uovo di ${eggOwnerName}`,
@@ -10033,11 +10148,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           isClone: true,
           isUovoClone: true,
           uovoPhase: 1,
-          clonedFrom: myChar.id,
+          clonedFrom: uovoOriginalId,
           clonedFromImage: myChar.frontImage || null,
           uovoOriginalPti: eggOriginalPti,
           uovoOriginalStars: eggOriginalStars,
-          text: `Uovo di ${eggOwnerName}\nSi schiuderà tra 3 turni!`
+          text: `Uovo di ${eggOwnerName}\nSi schiuderà tra 3 turni!`,
+          characterLineage: [uovoBaseId, ...(myChar.characterLineage || []).filter(id => id !== uovoBaseId)]
         };
         game.field.push(uovoEgg);
         // Schedule phase 2 after 3 turns
@@ -11311,6 +11427,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           id: `${myChar.id}-clone-${Date.now()}`,
           owner: playerName,
         };
+        // LINEAGE: clone inherits and extends the original's lineage
+        const clonationBaseId = myChar.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, '');
+        cloneCard.characterLineage = [clonationBaseId, ...(myChar.characterLineage || []).filter(id => id !== clonationBaseId)];
         game.field.push(cloneCard);
         emitChat(`🧬 CLONAZIONE! ${myChar.name || playerName} si duplica! Il clone è in campo con ${cloneCard.pti} PTI e ${cloneCard.stars} stelle!`);
         emitState(); break;
@@ -11759,6 +11878,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           myChar.pti = fusedPti; myChar.stars = fusedStars;
           this.updateCardTextWithPTI(myChar);
           const cloneForEnemy: Card = { ...JSON.parse(JSON.stringify(myChar)), id: `${myChar.id}-ameeco-clone-${Date.now()}`, owner: oldOwner };
+          const ameecoBaseId = myChar.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, '');
+          cloneForEnemy.characterLineage = [ameecoBaseId, ...(myChar.characterLineage || []).filter(id => id !== ameecoBaseId)];
           game.field = game.field.filter((c: Card) => c.id !== enemy.id);
           game.field.push(cloneForEnemy);
           emitChat(`🤝 AMEECO! ${myChar.name || playerName} assorbe ${enemy.name || oldOwner} (+${fusedPti} PTI, ${fusedStars} stelle) e il clone va a ${oldOwner}!`);
@@ -13862,6 +13983,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           if (isCapelloSmith && cloneGroupId) {
             clonedCard.capelloSmithCloneGroup = cloneGroupId;
           }
+          // LINEAGE: clone_self inherits parent lineage
+          const cloneSelfBaseId = cloneSelfActiveChar.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, '');
+          clonedCard.characterLineage = [cloneSelfBaseId, ...(cloneSelfActiveChar.characterLineage || []).filter(id => id !== cloneSelfBaseId)];
           game.field.push(clonedCard);
           console.log(`🧬 CLONE SELF: Created clone of ${cloneSelfActiveChar.name} on the field!${isCapelloSmith ? ` (Capello Smith group: ${cloneGroupId})` : ''}`);
         } else {
@@ -14681,6 +14805,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const cloneSource = game.field.find(c => c.id === card.id);
         if (cloneSource) {
           const clonedCard = { ...cloneSource, id: `${cloneSource.id}-clone-${Date.now()}` };
+          const cloneSourceBaseId = cloneSource.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, '');
+          clonedCard.characterLineage = [cloneSourceBaseId, ...(cloneSource.characterLineage || []).filter(id => id !== cloneSourceBaseId)];
           game.players[playerName].hand.push(clonedCard);
           console.log(`👯 Custom effect: Created a CLONE of ${cloneSource.name || cloneSource.id}!`);
         }
@@ -15197,6 +15323,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             stars: splitCard.stars || 1,
             owner: playerName
           };
+          const splitBaseId = splitCard.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, '');
+          clonedCard.characterLineage = [splitBaseId, ...(splitCard.characterLineage || []).filter(id => id !== splitBaseId)];
           game.field.push(clonedCard);
           // Original also loses half PTI
           splitCard.pti = Math.floor((splitCard.pti || 0) / 2);
@@ -17953,6 +18081,67 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
+    // MOSSE CHARACTER OVERRIDES: Check if this MOSSE has special damage/effects for specific characters
+    // Matches by: exact card id, id prefix (for clones), OR characterLineage ancestry
+    if (mosseCard.mosseCharacterOverrides && Array.isArray(mosseCard.mosseCharacterOverrides) && mosseCard.mosseCharacterOverrides.length > 0) {
+      const attackerIds = [
+        attackerCharacter.id,
+        attackerCharacter.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, ''),
+        ...(attackerCharacter.characterLineage || [])
+      ];
+      const targetIds = [
+        targetCard.id,
+        targetCard.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, ''),
+        ...(targetCard.characterLineage || [])
+      ];
+      const normalizeStr = (s: string) => s.toUpperCase().replace(/[_-]/g, ' ').trim();
+      // Separate sets for ID-based matching and name-based matching to avoid cross-contamination
+      const attackerNormedIds = attackerIds.map(normalizeStr);
+      const targetNormedIds = targetIds.map(normalizeStr);
+      // Collect normalized names for the attacker and target
+      const attackerNormedNames = [
+        ...(attackerCharacter.name ? [normalizeStr(attackerCharacter.name)] : []),
+        ...attackerIds.map(normalizeStr)
+      ];
+      const targetNormedNames = [
+        ...(targetCard.name ? [normalizeStr(targetCard.name)] : []),
+        ...targetIds.map(normalizeStr)
+      ];
+      for (const overrideEntry of mosseCard.mosseCharacterOverrides) {
+        const entryId = normalizeStr(overrideEntry.characterId || '');
+        const entryName = normalizeStr(overrideEntry.characterName || '');
+        // Guard: skip entries with no identifying data to prevent empty-string false matches
+        if (!entryId && !entryName) continue;
+        // Priority: exact ID match → exact name match (both directions checked separately)
+        const matchesAttacker = (entryId && attackerNormedIds.includes(entryId)) || (entryName && attackerNormedNames.includes(entryName));
+        const matchesTarget = (entryId && targetNormedIds.includes(entryId)) || (entryName && targetNormedNames.includes(entryName));
+        if (matchesAttacker && overrideEntry.usedBy) {
+          const override = overrideEntry.usedBy;
+          if (override.damageValue !== null && override.damageValue !== undefined) {
+            damageValue = override.damageValue * attackerStars;
+            console.log(`🎯 MOSSE OVERRIDE (usedBy): ${attackerCharacterName} → damage overridden to ${damageValue}`);
+          }
+          if (override.effect) {
+            mosseEffect = override.effect;
+            console.log(`🎯 MOSSE OVERRIDE (usedBy): ${attackerCharacterName} → effect overridden to ${mosseEffect}`);
+          }
+          break;
+        }
+        if (matchesTarget && overrideEntry.usedOn) {
+          const override = overrideEntry.usedOn;
+          if (override.damageValue !== null && override.damageValue !== undefined) {
+            damageValue = override.damageValue * attackerStars;
+            console.log(`🎯 MOSSE OVERRIDE (usedOn): ${targetCardName} → damage overridden to ${damageValue}`);
+          }
+          if (override.effect) {
+            mosseEffect = override.effect;
+            console.log(`🎯 MOSSE OVERRIDE (usedOn): ${targetCardName} → effect overridden to ${mosseEffect}`);
+          }
+          break;
+        }
+      }
+    }
+
     // PRE-CALCULATE SPECIAL MOVE DAMAGE: So defense reflections use the correct enhanced damage
     let finalDamageForDefense = damageValue;
     if (attackerCharacter.type === 'personaggi_speciali') {
@@ -19839,11 +20028,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // Determine the fusion leader (use the leaderCard as the leader)
       const fusionLeaderId = leaderCard.fusionLeader || leaderCardId;
       
+      // LINEAGE: Build merged lineage from all components in the fusion
+      const fusionMergedLineage = Array.from(new Set(
+        allCardsInFusion.flatMap(c => {
+          const baseId = c.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, '');
+          return [baseId, ...(c.characterLineage || [])];
+        })
+      ));
+
       // Update all cards in the merged fusion group
       for (const card of allCardsInFusion) {
         card.isFused = true;
         card.fusionLeader = fusionLeaderId;
         card.fusedWith = allCardIds.filter(id => id !== card.id);
+        card.characterLineage = fusionMergedLineage;
       }
 
       // Merge text notes (PTI and stars) - sum all cards in the fusion
@@ -22744,6 +22942,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         myCharAmeeco.pti = fusedPti; myCharAmeeco.stars = fusedStars;
         this.updateCardTextWithPTI(myCharAmeeco);
         const cloneAmeeco: Card = { ...JSON.parse(JSON.stringify(myCharAmeeco)), id: `${myCharAmeeco.id}-ameeco-clone-${Date.now()}`, owner: oldOwnerAmeeco };
+        const ameecoChoiceBaseId = myCharAmeeco.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, '');
+        cloneAmeeco.characterLineage = [ameecoChoiceBaseId, ...(myCharAmeeco.characterLineage || []).filter(id => id !== ameecoChoiceBaseId)];
         game.field = game.field.filter((c: Card) => c.id !== enemyAmeeco.id);
         game.field.push(cloneAmeeco);
         if (io) {
@@ -23351,6 +23551,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         pti: combinedPti,
         stars: combinedStars,
       };
+      const clonedLeaderBaseId = myChar.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, '');
+      const clonedTargetBaseId2 = targetChar.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, '');
+      // Fused clones carry merged lineage from BOTH components so character-specific effects work for either identity
+      const mergedFusionCloneLineage = Array.from(new Set([
+        clonedLeaderBaseId, ...(myChar.characterLineage || []),
+        clonedTargetBaseId2, ...(targetChar.characterLineage || [])
+      ]));
+      clonedLeader.characterLineage = mergedFusionCloneLineage;
       const clonedTarget: Card = {
         id: `${targetChar.id}-clone-${Date.now()}`,
         type: targetChar.type,
@@ -23365,6 +23573,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         fusionLeader: clonedLeader.id,
         fusedWith: [clonedLeader.id],
       };
+      clonedTarget.characterLineage = mergedFusionCloneLineage;
       clonedLeader.isFused = true;
       clonedLeader.fusionLeader = clonedLeader.id;
       clonedLeader.fusedWith = [clonedTarget.id];
@@ -24162,6 +24371,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           id: `${targetCard.id}-clone-${Date.now()}`
         };
         (clone as any).isClone = true;
+        const appliedCloneBaseId = targetCard.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, '');
+        clone.characterLineage = [appliedCloneBaseId, ...(targetCard.characterLineage || []).filter(id => id !== appliedCloneBaseId)];
         game.field.push(clone);
         console.log(`🎯 Cloned ${targetName}`);
         break;
@@ -25675,6 +25886,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           id: cloneId
         };
         (clonedCard as any).isClone = true;
+        const dupSelfBaseId = sourceCard.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, '');
+        clonedCard.characterLineage = [dupSelfBaseId, ...(sourceCard.characterLineage || []).filter(id => id !== dupSelfBaseId)];
         game.field.push(clonedCard);
         console.log(`🧬 Cloned ${sourceCard.name || 'card'} onto the field`);
         break;
@@ -25687,6 +25900,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           id: cloneId2
         };
         (clonedCard2 as any).isClone = true;
+        const dupCloneBaseId = sourceCard.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, '');
+        clonedCard2.characterLineage = [dupCloneBaseId, ...(sourceCard.characterLineage || []).filter(id => id !== dupCloneBaseId)];
         game.field.push(clonedCard2);
         console.log(`👯 Created clone of ${sourceCard.name || 'card'}`);
         break;
@@ -26496,6 +26711,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             name: `${cardOnField.name} (Clone)`,
             owner: playerName
           };
+          // LINEAGE: clone inherits and extends the original's lineage
+          const activateCloneBaseId = cardOnField.id.replace(/-ameeco-clone-\d+$/, '').replace(/-clone-\d+$/, '');
+          clonedCard.characterLineage = [activateCloneBaseId, ...(cardOnField.characterLineage || []).filter(id => id !== activateCloneBaseId)];
           game.field.push(clonedCard);
           io?.to(gameId).emit('chat-message', {
             id: `${Date.now()}-clone`,
