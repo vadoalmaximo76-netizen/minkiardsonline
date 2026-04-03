@@ -9080,7 +9080,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             if (pName !== winner) this.processEliminationAfterDeath(gameId, pName, io, 'VINCERE_E_VINCEREMO_FORCED');
           }
         } else {
-          emitChat(`🏆 VINCERE E VINCEREMO! Capello Smith non è in campo — nessun effetto.`);
+          emitChat(`🏆 VINCERE E VINCEREMO! Effetto annullato: Capello Smith non è in campo. Per vincere istantaneamente, devi avere Capello Smith come personaggio attivo nel campo di battaglia!`);
         }
         emitState(); break;
       }
@@ -11694,6 +11694,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const types = ['personaggi', 'mosse', 'bonus'];
           const forced = types[Math.floor(Math.random() * types.length)];
           (game as any).majinBuControl = { controller: playerName, target: tgt, forcedType: forced };
+          (game as any).controlledPlayer = tgt;
+          (game as any).controllingPlayer = playerName;
           emitChat(`👹 M DI MAJIN BU! ${playerName} assume il governo del prossimo turno di ${tgt} — dovrà giocare una carta tipo: ${forced}!`);
           emitState();
         } else {
@@ -18411,6 +18413,27 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
+    // CIPOLLA: double Kebab damage if cipolla flag is active for this attacker
+    if ((game as any).cipolla && (game as any).cipolla[attackerName]) {
+      const mosseNameCipolla = mosseCardName.toUpperCase().trim();
+      if (mosseNameCipolla.includes('KEBAB')) {
+        const oldDamageCipolla = finalDamageForDefense;
+        finalDamageForDefense = finalDamageForDefense * 2;
+        damageValue = damageValue * 2;
+        delete (game as any).cipolla[attackerName];
+        console.log(`🧅 CIPOLLA: KEBAB damage doubled ${oldDamageCipolla} → ${finalDamageForDefense}`);
+        const ioCipolla = (global as any).io;
+        if (ioCipolla) {
+          ioCipolla.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-cipolla-kebab`,
+            playerName: 'Sistema',
+            message: `🧅 CIPOLLA! Il danno del KEBAB è raddoppiato: ${oldDamageCipolla} → ${finalDamageForDefense}!`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    }
+
     const defenseCreated = this.setPendingDefense(gameId, {
       attackId,
       attacker: attackerName,
@@ -21452,6 +21475,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       game.graveyard.push(card);
       console.log(`Card ${cardId} moved to graveyard. Owner: ${cardOwner}, RequestedBy: ${playerName}, Killed by: ${attacker || 'Unknown'}`);
 
+      // EREDITÀ: save the PTI of the dying character so the next character can inherit it
+      if (card.type === 'personaggi' || card.type === 'personaggi_speciali') {
+        const inheritPti = card.preMortemPTI ?? card.pti ?? this.extractPTIFromNote(card.text || '');
+        if (!( game as any).lastDeadCharPti) (game as any).lastDeadCharPti = {};
+        (game as any).lastDeadCharPti[cardOwner] = inheritPti;
+        console.log(`💰 EREDITÀ: saved ${inheritPti} PTI for ${cardOwner}'s next character`);
+      }
+
       // REGNO DEGLI INFERI: newly dead personaggi go INTO the dead-deck instead of the normal graveyard
       if (game.activeScenario?.name === 'REGNO DEGLI INFERI' && (card.type === 'personaggi' || card.type === 'personaggi_speciali')) {
         // Remove from graveyard (we just pushed it there)
@@ -23220,6 +23251,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const types = ['personaggi', 'mosse', 'bonus'];
       const forced = types[Math.floor(Math.random() * types.length)];
       (game as any).majinBuControl = { controller: playerName, target: value, forcedType: forced };
+      (game as any).controlledPlayer = value;
+      (game as any).controllingPlayer = playerName;
       if (io) {
         io.to(gameId).emit('chat-message', { id: `${Date.now()}-majin-bu`, playerName: 'Sistema', message: `👹 M DI MAJIN BU! ${playerName} assume il governo del prossimo turno di ${value} — dovrà giocare una carta tipo: ${forced}!`, timestamp: Date.now() });
         io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
@@ -36400,6 +36433,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       timestamp: Date.now()
     });
 
+    // COEVOLUZIONE: propagate PTI delta from mosse damage to the coevoluzione partner
+    if (!isVoodooReflection && !isHandTarget && !isPersistentTick && game) {
+      const ptiDelta = newPTI - currentPTI; // negative (damage taken)
+      if (ptiDelta !== 0) {
+        this.propagateCoevoluzione(gameId, targetOwner, ptiDelta, 0);
+      }
+    }
+
     // BAMBOLA VOODOO: Check if this card is linked and apply damage to linked card too
     // GUARD: Only process voodoo reflection if this is NOT already a reflection (prevent infinite loop)
     if (!isVoodooReflection) {
@@ -36461,6 +36502,38 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     } else {
       console.log(`🔮 BAMBOLA VOODOO: Skipping reflection (this is already a reflected attack)`);
+    }
+
+    // BAMBOLA VOODOO (game.voodoo): Reflect damage dealt to the target back to the attacker
+    if (!isVoodooReflection && !isHandTarget && game && (game as any).voodoo) {
+      const voodooData = (game as any).voodoo[targetOwner];
+      if (voodooData && voodooData.reflect && voodooData.turnsLeft > 0) {
+        const actualDamageDealt = currentPTI - newPTI;
+        if (actualDamageDealt > 0) {
+          const attackerCharVoodoo = this.getPlayerActiveCharacter(game, attackerName);
+          if (attackerCharVoodoo) {
+            const oldAtkPti = attackerCharVoodoo.pti ?? this.extractPTIFromNote(attackerCharVoodoo.text || '');
+            const newAtkPti = Math.max(0, oldAtkPti - actualDamageDealt);
+            attackerCharVoodoo.pti = newAtkPti;
+            this.updateCardTextWithPTI(attackerCharVoodoo);
+            voodooData.turnsLeft--;
+            if (voodooData.turnsLeft <= 0) delete (game as any).voodoo[targetOwner];
+            const ioVoodoo = (global as any).io || io;
+            if (ioVoodoo) {
+              ioVoodoo.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-voodoo-reflect`,
+                playerName: 'Sistema',
+                message: `🪆 BAMBOLA VOODOO! Il danno (${actualDamageDealt}) si riflette su ${attackerName}! PTI: ${oldAtkPti} → ${newAtkPti} (turni rimasti: ${voodooData.turnsLeft})`,
+                timestamp: Date.now()
+              });
+            }
+            console.log(`🪆 BAMBOLA VOODOO: ${actualDamageDealt} damage reflected to attacker ${attackerName} (${oldAtkPti} → ${newAtkPti}), turnsLeft=${voodooData.turnsLeft}`);
+            if (newAtkPti <= 0) {
+              setTimeout(() => { this.killAndCheck(gameId, attackerCharVoodoo.id, attackerName, 'BAMBOLA_VOODOO'); }, 100);
+            }
+          }
+        }
+      }
     }
 
     // PRESERVE: Check if character dies (PTI <= 0) - exact legacy logic
