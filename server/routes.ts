@@ -4244,7 +4244,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         c.owner === targetPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
       );
 
-      if (myField.length === 0 && theirField.length === 0) {
+      // Check positionLocked: if any character in either field is locked, cancel the swap
+      const myLockedChar = myField.find((c: any) => c.positionLocked);
+      const theirLockedChar = theirField.find((c: any) => c.positionLocked);
+      if (myLockedChar || theirLockedChar) {
+        const lockedName = (myLockedChar || theirLockedChar).name || 'un personaggio';
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-scambio-locked`,
+          playerName: 'Sistema',
+          message: `🔄 SCAMBIO annullato! ${lockedName} ha la posizione bloccata (CAPI IO MI MOZZARELLINO QUA) e non può essere spostato!`,
+          timestamp: Date.now(),
+        });
+      } else if (myField.length === 0 && theirField.length === 0) {
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-scambio-empty`,
           playerName: 'Sistema',

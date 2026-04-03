@@ -6702,7 +6702,18 @@ Rispondi SOLO in JSON:`;
       if (customMatch) {
         const customEffectName = customMatch[1];
         console.log(`🎯 [CUSTOM] Dispatching named bonus effect: "${customEffectName}" for card "${card.name || card.id}" (player: ${playerName})`);
+        const gameForCoevo = this.games.get(gameId);
+        const ownerCharBeforeCustom = gameForCoevo ? this.getPlayerActiveCharacter(gameForCoevo, playerName) : null;
+        const ptiBeforeCustom = ownerCharBeforeCustom?.pti ?? 0;
+        const starsBeforeCustom = ownerCharBeforeCustom?.stars ?? 0;
         await this.executeNamedBonusEffect(gameId, customEffectName, card, playerName);
+        const gameForCoevoAfter = this.games.get(gameId);
+        const ownerCharAfterCustom = gameForCoevoAfter ? this.getPlayerActiveCharacter(gameForCoevoAfter, playerName) : null;
+        if (ownerCharAfterCustom) {
+          const ptiDeltaCustom = (ownerCharAfterCustom.pti ?? 0) - ptiBeforeCustom;
+          const starsDeltaCustom = (ownerCharAfterCustom.stars ?? 0) - starsBeforeCustom;
+          this.propagateCoevoluzione(gameId, playerName, ptiDeltaCustom, starsDeltaCustom);
+        }
         (card as any).effectAlreadyApplied = true;
         return {};
       }
@@ -6888,7 +6899,18 @@ Rispondi SOLO in JSON:`;
       for (const [pattern, effectKey] of nameBasedEffects) {
         if (pattern.test(cardDisplayName)) {
           console.log(`🎯 [NAME-MATCH] Card "${cardDisplayName}" matched name-based routing → named effect: "${effectKey}"`);
+          const gameForCoevoNB = this.games.get(gameId);
+          const ownerCharBeforeNB = gameForCoevoNB ? this.getPlayerActiveCharacter(gameForCoevoNB, playerName) : null;
+          const ptiBeforeNB = ownerCharBeforeNB?.pti ?? 0;
+          const starsBeforeNB = ownerCharBeforeNB?.stars ?? 0;
           await this.executeNamedBonusEffect(gameId, effectKey, card, playerName);
+          const gameForCoevoNBAfter = this.games.get(gameId);
+          const ownerCharAfterNB = gameForCoevoNBAfter ? this.getPlayerActiveCharacter(gameForCoevoNBAfter, playerName) : null;
+          if (ownerCharAfterNB) {
+            const ptiDeltaNB = (ownerCharAfterNB.pti ?? 0) - ptiBeforeNB;
+            const starsDeltaNB = (ownerCharAfterNB.stars ?? 0) - starsBeforeNB;
+            this.propagateCoevoluzione(gameId, playerName, ptiDeltaNB, starsDeltaNB);
+          }
           (card as any).effectAlreadyApplied = true;
           return {};
         }
@@ -9542,14 +9564,98 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const removedCount = (game.timedEffects || []).length;
         const hadScenario = !!game.activeScenario;
         const scenarioName = game.activeScenario?.name;
+        if (isGoghi) {
+          // Save effects before clearing so Goghi can choose one character to keep
+          const savedEffects = game.field.map((c: Card) => ({
+            charId: c.id,
+            poisonPerTurn: (c as any).poisonPerTurn,
+            stunnedTurns: (c as any).stunnedTurns,
+            stealth: (c as any).stealth,
+            stealthTurnsLeft: (c as any).stealthTurnsLeft,
+          })).filter(e => e.poisonPerTurn !== undefined || e.stunnedTurns !== undefined || e.stealth !== undefined);
+          const savedTimedEffects = [...(game.timedEffects || [])];
+          const savedScenario = hadScenario ? { ...game.activeScenario } : undefined;
+          // Clear all effects
+          game.timedEffects = [];
+          for (const c of game.field) {
+            delete (c as any).poisonPerTurn; delete (c as any).stunnedTurns; delete (c as any).stealth; delete (c as any).stealthTurnsLeft;
+          }
+          if (hadScenario) this.deactivateScenario(gameId, 'manual');
+          const scenarioPart = hadScenario ? ` + scenario "${scenarioName}" annullato` : '';
+          emitChat(`🔧 WD-40 (GOGHI)! ${removedCount} effetti interrotti${scenarioPart} — Goghi sceglie su quale personaggio mantenere gli effetti...`);
+          // Open target selection for Goghi
+          const wd40FieldChars = game.field.filter((c: Card) =>
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          if (wd40FieldChars.length > 0 && io) {
+            if (!game.pendingTargetSelections) game.pendingTargetSelections = new Map();
+            const wd40SelId = `wd40-goghi-${Date.now()}`;
+            game.pendingTargetSelections.set(wd40SelId, {
+              cardId: card.id,
+              cardName: card.name || 'WD-40',
+              effectText: card.effect || '',
+              owner: playerName,
+              timestamp: Date.now(),
+              customAction: 'wd40_goghi',
+              savedEffects,
+              savedTimedEffects,
+              savedScenario,
+            } as any);
+            const playerSocketId = (game.players[playerName] as any)?.socketId;
+            if (playerSocketId) {
+              io.to(playerSocketId).emit('show-custom-target-selection', {
+                selectionId: wd40SelId,
+                cardId: card.id,
+                cardName: card.name || 'WD-40',
+                owner: playerName,
+                maxSelections: 1,
+                title: '🔧 WD-40 (GOGHI) – Scegli il personaggio',
+                subtitle: 'Scegli UN personaggio su cui mantenere tutti gli effetti attivi',
+                availableTargets: wd40FieldChars.map((c: Card) => ({
+                  id: c.id,
+                  name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+                  owner: c.owner,
+                  frontImage: c.frontImage || '',
+                  pti: c.pti,
+                  stars: c.stars,
+                })),
+              });
+            }
+            // Auto-apply if no choice made within 30 seconds (or if CPU)
+            if (isCPU) {
+              const bestChar = wd40FieldChars.find((c: Card) => c.owner === playerName) || wd40FieldChars[0];
+              setTimeout(async () => {
+                const freshGame = this.games.get(gameId);
+                if (!freshGame || !freshGame.pendingTargetSelections?.has(wd40SelId)) return;
+                await this.processTargetSelection(gameId, wd40SelId, [bestChar.id], playerName, io);
+              }, 500);
+            } else {
+              setTimeout(async () => {
+                const freshGame = this.games.get(gameId);
+                if (!freshGame || !freshGame.pendingTargetSelections?.has(wd40SelId)) return;
+                freshGame.pendingTargetSelections.delete(wd40SelId);
+                const ioFresh = (global as any).io || io;
+                if (ioFresh) {
+                  ioFresh.to(gameId).emit('chat-message', {
+                    id: `${Date.now()}-wd40-goghi-timeout`,
+                    playerName: 'Sistema',
+                    message: `🔧 WD-40 (GOGHI): nessuna scelta effettuata in tempo — tutti gli effetti rimangono azzerati.`,
+                    timestamp: Date.now(),
+                  });
+                  ioFresh.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+                }
+              }, 30000);
+            }
+          }
+          emitState(); break;
+        }
         game.timedEffects = [];
         for (const c of game.field) {
           delete (c as any).poisonPerTurn; delete (c as any).stunnedTurns; delete (c as any).stealth; delete (c as any).stealthTurnsLeft;
         }
         if (hadScenario) this.deactivateScenario(gameId, 'manual');
         const scenarioPart = hadScenario ? ` + scenario "${scenarioName}" annullato` : '';
-        if (isGoghi) emitChat(`🔧 WD-40 (GOGHI)! ${removedCount} effetti interrotti${scenarioPart} — Goghi può decidere su quale personaggio mantenere l'effetto (interfaccia in sviluppo).`);
-        else emitChat(`🔧 WD-40! ${removedCount} effetti attivi interrotti${scenarioPart}!`);
+        emitChat(`🔧 WD-40! ${removedCount} effetti attivi interrotti${scenarioPart}!`);
         emitState(); break;
       }
 
@@ -11526,8 +11632,52 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── COEVOLUZIONE: flag globale – ogni modifica PTI/stelle si applica a tutti
       case 'coevoluzione': {
-        (game as any).coevoluzione = { active: true, owner: playerName };
-        emitChat(`🌱 COEVOLUZIONE! Da ora, ogni bonus o mossa che modifica PTI/stelle di ${playerName} ha effetto su TUTTI i personaggi in campo!`);
+        const coevoFieldChars = game.field.filter((c: Card) =>
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner !== playerName
+        );
+        if (coevoFieldChars.length === 0) {
+          emitChat(`🌱 COEVOLUZIONE! Nessun personaggio avversario in campo su cui applicare la coevoluzione.`);
+          emitState(); break;
+        }
+        if (isCPU || coevoFieldChars.length === 1) {
+          const coevoTarget = coevoFieldChars[0];
+          (game as any).coevoluzione = { active: true, owner: playerName, targetPlayer: coevoTarget.owner, targetCharId: coevoTarget.id };
+          emitChat(`🌱 COEVOLUZIONE! Da ora, ogni modifica PTI/stelle di ${playerName} ha lo stesso effetto anche su ${coevoTarget.name || coevoTarget.id} (${coevoTarget.owner})!`);
+          emitState(); break;
+        }
+        if (!game.pendingTargetSelections) game.pendingTargetSelections = new Map();
+        const coevoSelId = `coevoluzione-${Date.now()}`;
+        game.pendingTargetSelections.set(coevoSelId, {
+          cardId: card.id,
+          cardName: card.name || 'COEVOLUZIONE',
+          effectText: card.effect || '',
+          owner: playerName,
+          timestamp: Date.now(),
+          customAction: 'coevoluzione',
+        });
+        if (io) {
+          const playerSocketId = (game.players[playerName] as any)?.socketId;
+          if (playerSocketId) {
+            io.to(playerSocketId).emit('show-custom-target-selection', {
+              selectionId: coevoSelId,
+              cardId: card.id,
+              cardName: card.name || 'COEVOLUZIONE',
+              owner: playerName,
+              maxSelections: 1,
+              title: '🌱 COEVOLUZIONE – Scegli il bersaglio',
+              subtitle: 'Scegli il personaggio avversario su cui propagare le modifiche PTI/stelle',
+              availableTargets: coevoFieldChars.map((c: Card) => ({
+                id: c.id,
+                name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+                owner: c.owner,
+                frontImage: c.frontImage || '',
+                pti: c.pti,
+                stars: c.stars,
+              })),
+            });
+          }
+        }
+        emitChat(`🌱 COEVOLUZIONE! ${playerName} sta scegliendo il personaggio bersaglio...`);
         emitState(); break;
       }
 
@@ -11564,9 +11714,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // ─── CROSSOVER: ruba un personaggio avversario nel proprio campo ─────────
       case 'crossover': {
         const crossoverEnemies = game.field.filter((c: Card) =>
-          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && !(c as any).positionLocked
         );
+        const crossoverLockedEnemies = game.field.filter((c: Card) =>
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && (c as any).positionLocked
+        );
+        if (crossoverLockedEnemies.length > 0 && crossoverEnemies.length === 0) {
+          const lockedName = crossoverLockedEnemies[0].name || crossoverLockedEnemies[0].id;
+          emitChat(`🔀 CROSSOVER annullato! ${lockedName} ha la posizione bloccata (CAPI IO MI MOZZARELLINO QUA) e non può essere rubato!`);
+          emitState(); break;
+        }
         if (crossoverEnemies.length === 0) { emitChat(`🔀 CROSSOVER: nessun personaggio avversario in campo.`); break; }
+        if (crossoverLockedEnemies.length > 0) {
+          emitChat(`🔀 CROSSOVER: ${crossoverLockedEnemies.map((c: Card) => c.name || c.id).join(', ')} non possono essere rubati (posizione bloccata).`);
+        }
         if (isCPU || crossoverEnemies.length === 1) {
           const stolen = crossoverEnemies[Math.floor(Math.random() * crossoverEnemies.length)];
           const oldOwner = stolen.owner;
@@ -20481,6 +20642,36 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return match ? parseInt(match[1]) : 0;
   }
 
+  // COEVOLUZIONE: propagate PTI/stars delta to the chosen target character
+  private propagateCoevoluzione(gameId: string, ownerPlayerName: string, ptiDelta: number, starsDelta: number): void {
+    if (!ptiDelta && !starsDelta) return;
+    const game = this.games.get(gameId);
+    if (!game) return;
+    const coevo = (game as any).coevoluzione as { active: boolean; owner: string; targetPlayer: string; targetCharId: string } | undefined;
+    if (!coevo || !coevo.active || coevo.owner !== ownerPlayerName) return;
+    const targetChar = game.field.find((c: Card) => c.id === coevo.targetCharId);
+    if (!targetChar) return;
+    const oldPti = targetChar.pti ?? 0;
+    const oldStars = targetChar.stars ?? 0;
+    if (ptiDelta) targetChar.pti = Math.max(0, oldPti + ptiDelta);
+    if (starsDelta) targetChar.stars = Math.max(0, oldStars + starsDelta);
+    this.updateCardTextWithPTI(targetChar);
+    const io = (global as any).io;
+    if (io) {
+      const targetName = targetChar.name || this.getCardNameFromUrl(targetChar.frontImage || '');
+      const parts = [];
+      if (ptiDelta) parts.push(`PTI: ${oldPti} → ${targetChar.pti} (${ptiDelta > 0 ? '+' : ''}${ptiDelta})`);
+      if (starsDelta) parts.push(`Stelle: ${oldStars} → ${targetChar.stars} (${starsDelta > 0 ? '+' : ''}${starsDelta})`);
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-coevoluzione-propagate`,
+        playerName: 'Sistema',
+        message: `🌱 COEVOLUZIONE: ${targetName} riceve lo stesso effetto! ${parts.join(', ')}`,
+        timestamp: Date.now(),
+      });
+    }
+    console.log(`🌱 COEVOLUZIONE propagated to ${targetChar.name || coevo.targetCharId}: ptiDelta=${ptiDelta}, starsDelta=${starsDelta}`);
+  }
+
   /**
    * CPU target-selection heuristic for enemy characters.
    * Picks the enemy with the lowest PTI (closest to being killed).
@@ -21640,6 +21831,31 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
           // Disable the effect after first kill
           (game as any).killTriggerBlock = undefined;
+        }
+      }
+      // HO STATO IO: block the killer for N turns (or Zio Michele if activatedBy)
+      if (game) {
+        const hsi = (game as any).hoStatoIo as { active: boolean; blockTurns: number; activatedBy: string } | undefined;
+        if (hsi && hsi.active && attacker && attacker !== 'SELF_DAMAGE' && attacker !== 'EFFETTO_CASUALE') {
+          // Determine who to block: if activatedBy is Zio Michele, block the activator; otherwise block the killer
+          const activatorPlayer = hsi.activatedBy;
+          const isZioMichele = (() => {
+            const activatorChar = this.getPlayerActiveCharacter(game, activatorPlayer);
+            return /zio.?michele/i.test(activatorPlayer) || /zio.?michele/i.test(activatorChar?.name || '') || /zio.?michele/i.test(activatorChar?.frontImage || '');
+          })();
+          const playerToBlock = isZioMichele ? activatorPlayer : attacker;
+          if (!game.skipTurnPlayers) game.skipTurnPlayers = [];
+          for (let i = 0; i < hsi.blockTurns; i++) game.skipTurnPlayers.push(playerToBlock);
+          console.log(`🙈 HO STATO IO: ${playerToBlock} bloccato per ${hsi.blockTurns} turni (killer: ${attacker}, activatedBy: ${activatorPlayer}, isZioMichele: ${isZioMichele})`);
+          const ioHsi = (global as any).io;
+          if (ioHsi) {
+            ioHsi.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-ho-stato-io-kill`, playerName: 'Sistema',
+              message: `🙈 HO STATO IO! ${playerToBlock} resta bloccato per ${hsi.blockTurns} turni dopo l'eliminazione!`,
+              timestamp: Date.now(),
+            });
+          }
+          (game as any).hoStatoIo = undefined;
         }
       }
       // EMIS KILLA: gains +1 star on kill — only when EMIS KILLA is the active attacking character
@@ -23018,11 +23234,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       delete (game as any).pendingCrossover;
       const stolenCross = game.field.find((c: Card) => c.id === value);
       if (stolenCross) {
-        const oldOwnerCross = stolenCross.owner;
-        stolenCross.owner = playerName;
-        if (io) {
-          io.to(gameId).emit('chat-message', { id: `${Date.now()}-crossover`, playerName: 'Sistema', message: `🔀 CROSSOVER! ${playerName} ruba ${stolenCross.name || stolenCross.id} da ${oldOwnerCross}!`, timestamp: Date.now() });
-          io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+        if ((stolenCross as any).positionLocked) {
+          const lockedName = stolenCross.name || stolenCross.id;
+          if (io) {
+            io.to(gameId).emit('chat-message', { id: `${Date.now()}-crossover-locked`, playerName: 'Sistema', message: `🔀 CROSSOVER annullato! ${lockedName} ha la posizione bloccata (CAPI IO MI MOZZARELLINO QUA) e non può essere rubato!`, timestamp: Date.now() });
+            io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+          }
+        } else {
+          const oldOwnerCross = stolenCross.owner;
+          stolenCross.owner = playerName;
+          if (io) {
+            io.to(gameId).emit('chat-message', { id: `${Date.now()}-crossover`, playerName: 'Sistema', message: `🔀 CROSSOVER! ${playerName} ruba ${stolenCross.name || stolenCross.id} da ${oldOwnerCross}!`, timestamp: Date.now() });
+            io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+          }
         }
       }
       return true;
@@ -24084,6 +24308,79 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const gameState = this.getSanitizedGameState(gameId);
       io.to(gameId).emit('game-state-update', gameState);
       return { success: true, message: `Dividi applicato a ${targetCharName}!` };
+    }
+
+    // ============ COEVOLUZIONE HANDLER ============
+    if (selectionId.startsWith('coevoluzione-') || (selection as any).customAction === 'coevoluzione') {
+      const targetChar = targetCards[0];
+      if (!targetChar) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Nessun bersaglio selezionato per la coevoluzione' };
+      }
+      (game as any).coevoluzione = {
+        active: true,
+        owner: playerName,
+        targetPlayer: targetChar.owner,
+        targetCharId: targetChar.id,
+      };
+      const coevoTargetName = targetChar.name || this.getCardNameFromUrl(targetChar.frontImage || '');
+      console.log(`🌱 COEVOLUZIONE: ${playerName} sceglie ${coevoTargetName} (${targetChar.owner}) come bersaglio`);
+      if (io) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-coevoluzione-target`,
+          playerName: 'Sistema',
+          message: `🌱 COEVOLUZIONE! ${playerName} ha scelto ${coevoTargetName} (${targetChar.owner}) come bersaglio. Da ora, ogni modifica PTI/stelle di ${playerName} si applica anche a ${coevoTargetName}!`,
+          timestamp: Date.now(),
+        });
+        io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      }
+      game.pendingTargetSelections.delete(selectionId);
+      return { success: true, message: `Coevoluzione attivata su ${coevoTargetName}!` };
+    }
+
+    // ============ WD-40 GOGHI HANDLER ============
+    if (selectionId.startsWith('wd40-goghi-') || (selection as any).customAction === 'wd40_goghi') {
+      const targetChar = targetCards[0];
+      game.pendingTargetSelections.delete(selectionId);
+      const savedEffects = (selection as any).savedEffects as { charId: string; poisonPerTurn?: number; stunnedTurns?: number; stealth?: boolean; stealthTurnsLeft?: number }[] || [];
+      const savedTimedEffects = (selection as any).savedTimedEffects || [];
+      const savedScenario = (selection as any).savedScenario;
+      if (targetChar) {
+        const targetCharName = targetChar.name || this.getCardNameFromUrl(targetChar.frontImage || '');
+        const charEffects = savedEffects.find(e => e.charId === targetChar.id);
+        if (charEffects) {
+          if (charEffects.poisonPerTurn !== undefined) (targetChar as any).poisonPerTurn = charEffects.poisonPerTurn;
+          if (charEffects.stunnedTurns !== undefined) (targetChar as any).stunnedTurns = charEffects.stunnedTurns;
+          if (charEffects.stealth !== undefined) (targetChar as any).stealth = charEffects.stealth;
+          if (charEffects.stealthTurnsLeft !== undefined) (targetChar as any).stealthTurnsLeft = charEffects.stealthTurnsLeft;
+        }
+        const keptTimedEffects = savedTimedEffects.filter((te: any) => te.targetCardId === targetChar.id || te.activatedBy === targetChar.owner);
+        game.timedEffects = keptTimedEffects;
+        if (savedScenario) {
+          game.activeScenario = savedScenario;
+        }
+        console.log(`🔧 WD-40 GOGHI: kept effects on ${targetCharName}`);
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-wd40-goghi-kept`,
+            playerName: 'Sistema',
+            message: `🔧 WD-40 (GOGHI)! Tutti gli effetti azzerati tranne quelli di ${targetCharName}!`,
+            timestamp: Date.now(),
+          });
+          io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+        }
+      } else {
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-wd40-goghi-none`,
+            playerName: 'Sistema',
+            message: `🔧 WD-40 (GOGHI)! Tutti gli effetti azzerati.`,
+            timestamp: Date.now(),
+          });
+          io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+        }
+      }
+      return { success: true };
     }
 
     // ============ CORRUZIONE HANDLER ============
