@@ -248,9 +248,16 @@
 }
 
 @keyframes soros-black-screen {
-  0% { opacity: 0; }
-  5% { opacity: 1; }
-  80% { opacity: 1; }
+  0%   { opacity: 0; }
+  10%  { opacity: 1; }
+  30%  { opacity: 0.25; }
+  55%  { opacity: 1; }
+  75%  { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+
+@keyframes soros-black-screen-phase2 {
+  0%   { opacity: 0.85; }
   100% { opacity: 0; }
 }
 
@@ -284,7 +291,11 @@
 }
 
 .soros-black-screen {
-  animation: soros-black-screen 4s ease-in-out forwards;
+  animation: soros-black-screen 3s ease-in-out forwards;
+}
+
+.soros-black-screen-phase2 {
+  animation: soros-black-screen-phase2 5s ease-in-out forwards;
 }
 
 .soros-flames {
@@ -292,7 +303,7 @@
 }
 
 .soros-card-appear {
-  animation: soros-card-appear 3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: soros-card-appear 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 .zoom-in-50 {
