@@ -67,6 +67,7 @@ interface GymLeader {
   attackMode: 'free_for_all' | 'hunt_human';
   useFixedDeckOrder: boolean;
   isActive: boolean;
+  requiredFaction?: string | null;
   createdAt: string;
 }
 
@@ -108,6 +109,7 @@ const EMPTY_FORM = {
   attackMode: 'free_for_all' as 'free_for_all' | 'hunt_human',
   useFixedDeckOrder: false,
   cpuConfigs: [] as CpuConfig[],
+  requiredFaction: '' as string,
 };
 
 const CPU_LEVELS = [
@@ -369,6 +371,7 @@ export function AdminGymPanel({ onClose }: Props) {
       attackMode: leader.attackMode ?? 'free_for_all',
       useFixedDeckOrder: leader.useFixedDeckOrder ?? false,
       cpuConfigs: Array.isArray(leader.cpuConfigs) ? leader.cpuConfigs : [],
+      requiredFaction: leader.requiredFaction ?? '',
     });
     setCardSearch('');
     setCardDeckFilter('personaggi');
@@ -604,6 +607,21 @@ export function AdminGymPanel({ onClose }: Props) {
                     {form.isActive ? <Eye className="w-4 h-4 text-green-400" /> : <EyeOff className="w-4 h-4" />}
                     <span className="font-semibold text-sm">{form.isActive ? 'Visibile ai giocatori' : 'Nascosto'}</span>
                   </button>
+                </div>
+
+                {/* Fazione richiesta */}
+                <div className="md:col-span-2">
+                  <label className="block text-white/60 text-xs font-semibold mb-1.5 uppercase tracking-wider">⚔️ Fazione richiesta</label>
+                  <select
+                    value={form.requiredFaction}
+                    onChange={e => setForm(f => ({ ...f, requiredFaction: e.target.value }))}
+                    className="w-full bg-gray-700 text-white rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  >
+                    <option value="">Nessuna (visibile a tutti)</option>
+                    <option value="horsy">Scuderia Horsy</option>
+                    <option value="bullox">Armata Bullox</option>
+                  </select>
+                  <p className="text-white/30 text-xs mt-1">Se impostata, solo i giocatori di quella fazione vedranno questo boss</p>
                 </div>
 
                 {/* Nome Stage */}

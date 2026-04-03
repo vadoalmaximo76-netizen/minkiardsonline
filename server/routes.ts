@@ -13495,7 +13495,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const user = (req as any).user;
       const isAdmin = await checkAdminAccess(user);
       if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
-      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, starterDeckOptions, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive, cpuCount, cpuConfigs, attackMode, useFixedDeckOrder } = req.body;
+      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, starterDeckOptions, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive, cpuCount, cpuConfigs, attackMode, useFixedDeckOrder, requiredFaction } = req.body;
       if (!name || !gymName) return res.status(400).json({ success: false, error: 'name e gymName obbligatori' });
       const [created] = await db.insert(gymLeaders).values({
         name, gymName,
@@ -13526,6 +13526,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         cpuConfigs: Array.isArray(cpuConfigs) ? cpuConfigs : [],
         attackMode: attackMode || 'free_for_all',
         useFixedDeckOrder: useFixedDeckOrder === true,
+        requiredFaction: requiredFaction || null,
       }).returning();
       res.json({ success: true, gymLeader: created });
     } catch (e) {
@@ -13542,7 +13543,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const isAdmin = await checkAdminAccess(user);
       if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
       const id = parseInt(req.params.id);
-      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, starterDeckOptions, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive, cpuCount, cpuConfigs, attackMode, useFixedDeckOrder } = req.body;
+      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, starterDeckOptions, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive, cpuCount, cpuConfigs, attackMode, useFixedDeckOrder, requiredFaction } = req.body;
       const [updated] = await db.update(gymLeaders).set({
         name, gymName,
         description: description || null,
@@ -13572,6 +13573,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         cpuConfigs: Array.isArray(cpuConfigs) ? cpuConfigs : [],
         attackMode: attackMode || 'free_for_all',
         useFixedDeckOrder: useFixedDeckOrder === true,
+        requiredFaction: requiredFaction || null,
       }).where(eq(gymLeaders.id, id)).returning();
       if (!updated) return res.status(404).json({ success: false, error: 'Stage non trovato' });
       res.json({ success: true, gymLeader: updated });
@@ -13622,12 +13624,21 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         .where(or(eq(gymLeaders.isActive, true), isNull(gymLeaders.isActive)))
         .orderBy(gymLeaders.orderIndex);
       let completedIds: number[] = [];
+      let chosenFaction: string | null = null;
       if (user?.userId) {
         const progress = await db.select().from(userGymProgress)
           .where(eq(userGymProgress.userId, user.userId));
         completedIds = progress.map(p => p.gymLeaderId);
+        const storyRows = await db.select().from(userStoryDeck)
+          .where(eq(userStoryDeck.userId, user.userId)).limit(1);
+        if (storyRows.length > 0) chosenFaction = storyRows[0].chosenFaction ?? null;
       }
-      res.json({ success: true, gymLeaders: list, completedIds });
+      // Filter out faction-specific bosses that don't match the player's faction.
+      // If the player has no faction (null), show all bosses (backward-compatible).
+      const filtered = chosenFaction
+        ? list.filter(l => !l.requiredFaction || l.requiredFaction === chosenFaction)
+        : list;
+      res.json({ success: true, gymLeaders: filtered, completedIds });
     } catch (e) {
       handle402(e);
       console.error('Error fetching gym leaders:', e);
@@ -14053,7 +14064,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
       const user = (req as any).user;
       if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
-      const { gymLeaderId, optionIndex } = req.body;
+      const { gymLeaderId, optionIndex, factionKey } = req.body;
       const rows = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, user.userId)).limit(1);
       if (rows.length > 0 && (rows[0].cardIds as string[]).length > 0) {
         return res.json({ success: true, cardIds: rows[0].cardIds, alreadyInitialized: true });
@@ -14076,10 +14087,16 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
             }
           }
           if (startingCards.length > 0) {
+            // Derive faction: use explicit factionKey, or fall back to index-based derivation
+            const resolvedFaction: string | null = factionKey
+              ? String(factionKey)
+              : typeof optionIndex === 'number'
+                ? (optionIndex === 0 ? 'horsy' : optionIndex === 1 ? 'bullox' : null)
+                : null;
             if (rows.length === 0) {
-              await db.insert(userStoryDeck).values({ userId: user.userId, cardIds: startingCards });
+              await db.insert(userStoryDeck).values({ userId: user.userId, cardIds: startingCards, chosenFaction: resolvedFaction });
             } else {
-              await db.update(userStoryDeck).set({ cardIds: startingCards, updatedAt: new Date() }).where(eq(userStoryDeck.userId, user.userId));
+              await db.update(userStoryDeck).set({ cardIds: startingCards, chosenFaction: resolvedFaction, updatedAt: new Date() }).where(eq(userStoryDeck.userId, user.userId));
             }
             return res.json({ success: true, cardIds: startingCards });
           }

@@ -6,6 +6,7 @@ export interface StarterDeckOption {
   imageUrl: string;
   glowColor: string;
   cardIds: string[];
+  factionKey?: string;
 }
 
 interface Props {
@@ -45,10 +46,12 @@ export function StarterDeckSelection({ options, playerName, gymLeaderId, authTok
     setLoading(true);
 
     try {
+      const chosenOption = options[idx];
+      const factionKey = chosenOption?.factionKey ?? (idx === 0 ? 'horsy' : idx === 1 ? 'bullox' : undefined);
       const res = await fetch('/api/story-mode/deck/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ gymLeaderId, optionIndex: idx }),
+        body: JSON.stringify({ gymLeaderId, optionIndex: idx, factionKey }),
       });
       const data = await res.json();
       const cardIds: string[] = data.cardIds || options[idx]?.cardIds || [];

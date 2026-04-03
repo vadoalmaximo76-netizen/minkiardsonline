@@ -32,4 +32,5 @@ export interface GymLeader {
   cpuConfigs: CpuConfig[];
   attackMode: 'free_for_all' | 'hunt_human';
   isActive?: boolean;
+  requiredFaction?: string | null;
 }
