@@ -2323,7 +2323,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           isCurrentPlayer: isMe,
         });
       }, 420);
-      /* 3. When banner completes (~3s total), restore colour — handled by onComplete */
+      /* 3. Safety: restore colour after 4s regardless of banner onComplete */
+      setTimeout(() => setTekkenMode(false), 4000);
     };
 
     const handleGameVictory = ({ winner, lastAction, matchDuration, playerStats, teamVictoryData: tvd }: { winner: string; lastAction?: any; matchDuration?: number; playerStats?: Record<string, any>; teamVictoryData?: any }) => {

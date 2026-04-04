@@ -7998,15 +7998,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           gameManager.markCardTypeAsUsed(gameId, mosseCard.frontImage, attackerName);
         }
         
-        // RIFUGIO: Break protection when a player's protected character uses MOSSE
-        // Find attacker's characters that are protected by RIFUGIO and break their protection
-        const gameStateForRifugio = gameManager.getSanitizedGameState(gameId);
-        const attackerProtectedChars = gameStateForRifugio?.field?.filter(
-          (c: any) => c.owner === attackerName && c.protectedByRifugio
-        ) || [];
-        for (const protectedChar of attackerProtectedChars) {
-          gameManager.breakRifugioProtection(gameId, protectedChar.id, io);
-        }
+        // RIFUGIO: protection persists even when the character uses a MOSSE — no break
 
         // CHECK: If the MOSSE card has a timed effect registered, defer damage instead of attacking now
         const fullGame = gameManager.getGameState(gameId);

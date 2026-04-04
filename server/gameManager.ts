@@ -9020,10 +9020,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       case 'scudo_stealth': {
         if (!myChar) { emitChat(`⚠️ SCUDO: ${playerName} non ha un personaggio in campo — effetto non attivato.`); break; }
         (myChar as any).stealth = true;
-        (myChar as any).stealthTurnsLeft = 1;
+        (myChar as any).stealthTurnsLeft = 2;
         if (!game.timedEffects) game.timedEffects = [];
         game.timedEffects.push({
-          id: `scudo_${Date.now()}_${playerName}`, owner: playerName, turnsLeft: 1,
+          id: `scudo_${Date.now()}_${playerName}`, owner: playerName, turnsLeft: 2,
           actions: [{ type: 'remove_stealth', target: 'self_char', value: 0, description: 'Scudo scaduto' }],
           description: `Scudo: immune al bersaglio per 1 turno`, cardId: card.id
         } as any);
@@ -27709,7 +27709,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           console.warn(`⚠️ [CPU-NULL-RECOVERY] ${cpuPlayerName} in ${gameId}: waiting for attack resolution — scheduling 12s backup forced end-turn`);
           scheduleForceEnd(12000, 'attack-backup');
         } else if (!isWaitingForResp && !isInDuel) {
-          console.warn(`⚠️ [CPU-NULL-RECOVERY] ${cpuPlayerName} in ${gameId}: unexpected null from takeTurn — scheduling 5s forced end-turn`);
+          console.warn(`⚠️ [CPU-NULL-RECOVERY] ${cpuPlayerName} in ${gameId}: unexpected null from takeTurn — clearing thinking indicator now, forcing end turn in 5s`);
+          socketEmitter.to(gameId).emit('cpu-done-thinking', { playerName: cpuPlayerName });
           scheduleForceEnd(5000, 'unexpected-null');
         }
       }
