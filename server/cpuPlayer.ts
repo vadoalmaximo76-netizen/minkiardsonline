@@ -1073,6 +1073,9 @@ export class CPUPlayer {
       if (humanEnemies.length > 0) {
         enemies = humanEnemies;
         console.log(`🎯 [hunt_human] CPU ${this.playerName} targeting human-only (${humanEnemies.length} targets)`);
+      } else {
+        console.log(`🎯 [hunt_human] CPU ${this.playerName}: no human character on field — skipping attack`);
+        return null;
       }
     }
 
@@ -1256,11 +1259,26 @@ export class CPUPlayer {
       (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
       !c.eliminatedBy && !c.faceDown
     );
-    const enemies = allChars.filter((c: any) => c.owner !== this.playerName && isAttackable(c));
+    let enemies = allChars.filter((c: any) => c.owner !== this.playerName && isAttackable(c));
+
+    if (this.attackMode === 'hunt_human') {
+      const humanEnemies = enemies.filter((c: any) => {
+        const player = gameState.players?.[c.owner];
+        return player && !player.isCPU;
+      });
+      if (humanEnemies.length > 0) {
+        enemies = humanEnemies;
+      } else {
+        console.log(`🎯 [hunt_human] CPU ${this.playerName} pickMultipleTargets: no human targets — returning empty pool`);
+        return [];
+      }
+    }
 
     let pool: any[] = [];
     if (mode === 'all_enemies') pool = enemies;
-    else if (mode === 'all_characters') pool = allChars;
+    else if (mode === 'all_characters') pool = allChars.filter((c: any) =>
+      c.owner === this.playerName || enemies.some((e: any) => e.id === c.id)
+    );
     else if (mode === 'specific_count') {
       // pick the N best enemy targets
       const sorted = [...enemies].sort((a, b) => {
@@ -3963,9 +3981,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       
       // CRITICAL FIX: If hunt_human mode has no valid human enemies left, still play cards
       if (!isDead && effectiveEnemies.length === 0 && enemies.length > 0 && this.attackMode === 'hunt_human') {
-        console.log(`🤖 CPU ${this.playerName}: hunt_human mode - no human enemies left, falling back to playing any card`);
+        console.log(`🤖 CPU ${this.playerName}: hunt_human mode - no human enemies on field, only bonus cards allowed (no mosse attack)`);
         if (bestBonus) return bestBonus;
-        if (bestMosse) return bestMosse;
       }
       
       if (!isDead && bestBonus) {
