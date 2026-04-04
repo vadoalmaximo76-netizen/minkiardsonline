@@ -88,19 +88,12 @@ const STAR_DATA: { sx: number; sy: number; r: number; twinkle: number }[] = (() 
   return stars;
 })();
 
-const ARENA_POSITIONS_BASE: [number, number][] = [
-  [  0,  68 ], [ 40,  52 ], [ 68,  18 ], [ 58, -20 ],
-  [ 28, -58 ], [ -5, -74 ], [-44, -56 ], [-70, -18 ],
-  [-64,  26 ], [-38,  60 ], [  8,  78 ], [ 48,  68 ],
-];
+const CIRCLE_ARENA_RADIUS = 62;
 
-function getArenaPosition(idx: number): [number, number] {
-  if (idx < ARENA_POSITIONS_BASE.length) return ARENA_POSITIONS_BASE[idx];
-  const t = (idx - ARENA_POSITIONS_BASE.length + 1) * 1.37;
-  const r = 50 + t * 4;
-  const x = Math.round(Math.cos(t) * r);
-  const z = Math.round(Math.sin(t) * r);
-  return [Math.max(-72, Math.min(72, x)), Math.max(-76, Math.min(76, z))];
+function getArenaPosition(idx: number, total = 12): [number, number] {
+  const n = Math.max(total, 1);
+  const angle = -Math.PI / 2 + idx * (2 * Math.PI / n);
+  return [Math.round(Math.cos(angle) * CIRCLE_ARENA_RADIUS), Math.round(Math.sin(angle) * CIRCLE_ARENA_RADIUS)];
 }
 
 const TREE_DATA: { x: number; z: number; h: number; r: number }[] = [
@@ -491,9 +484,9 @@ function Minimap({ playerRef, arenaPositions, leaders, getLeaderStatus, localiti
       ctx.lineWidth = 3;
       ctx.lineCap = 'round';
       ctx.beginPath();
-      for (let i = 0; i < Math.min(leaders.length, ARENA_POSITIONS_BASE.length) - 1; i++) {
-        const [ax, az] = arenaPositions[i] ?? getArenaPosition(i);
-        const [bx, bz] = arenaPositions[i+1] ?? getArenaPosition(i+1);
+      for (let i = 0; i < leaders.length - 1; i++) {
+        const [ax, az] = arenaPositions[i] ?? getArenaPosition(i, leaders.length);
+        const [bx, bz] = arenaPositions[i+1] ?? getArenaPosition(i+1, leaders.length);
         const a = toC(ax, az); const b = toC(bx, bz);
         ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
       }
@@ -741,7 +734,7 @@ export function StoryWorldMap({
 
   /* ── Arena positions (memoized) ────────────────────────── */
   const arenaPositions = useMemo(
-    () => leaders.map((_, idx) => getArenaPosition(idx)),
+    () => leaders.map((_, idx) => getArenaPosition(idx, leaders.length)),
     [leaders]
   );
   const arenaPositionsRef = useRef(arenaPositions);
@@ -1295,9 +1288,9 @@ export function StoryWorldMap({
       ctx.fillText(iconEmoji, cx, iconY);
 
       /* boss name label pill */
-      const labelText = leader.name.length > 14 ? leader.name.slice(0, 13) + '…' : leader.name;
-      const diffIcon = leader.cpuLevel === 'easy' ? '🟢' : leader.cpuLevel === 'medium' ? '🟡' : '🔴';
-      const fullLabel = `${diffIcon} ${labelText}`;
+      const rawName = status === 'locked' ? '???' : (leader.name.length > 14 ? leader.name.slice(0, 13) + '…' : leader.name);
+      const diffIcon = status === 'locked' ? '🔒' : leader.cpuLevel === 'easy' ? '🟢' : leader.cpuLevel === 'medium' ? '🟡' : '🔴';
+      const fullLabel = `${diffIcon} ${rawName}`;
       ctx.font = 'bold 9px sans-serif';
       const textW = ctx.measureText(fullLabel).width;
       const pillX = cx - textW / 2 - 7;
@@ -1598,14 +1591,14 @@ export function StoryWorldMap({
       }
 
       /* 2. Sand paths between arenas */
-      const nArenas = Math.min(leadersRef.current.length, ARENA_POSITIONS_BASE.length);
+      const nArenas = leadersRef.current.length;
       if (nArenas > 1) {
         ctx.strokeStyle = sandPatRef.current ?? '#c8a853';
         ctx.lineWidth = 3.5 * TILE;
         ctx.lineCap = 'round'; ctx.lineJoin = 'round';
         for (let i = 0; i < nArenas - 1; i++) {
-          const [ax, az] = arenaPositionsRef.current[i] ?? getArenaPosition(i);
-          const [bx, bz] = arenaPositionsRef.current[i+1] ?? getArenaPosition(i+1);
+          const [ax, az] = arenaPositionsRef.current[i] ?? getArenaPosition(i, nArenas);
+          const [bx, bz] = arenaPositionsRef.current[i+1] ?? getArenaPosition(i+1, nArenas);
           const [asx, asy] = w2s(ax, az);
           const [bsx, bsy] = w2s(bx, bz);
           ctx.beginPath(); ctx.moveTo(asx, asy); ctx.lineTo(bsx, bsy); ctx.stroke();
@@ -1615,8 +1608,8 @@ export function StoryWorldMap({
         ctx.lineWidth = 3.5 * TILE + 3;
         ctx.globalAlpha = 0.12;
         for (let i = 0; i < nArenas - 1; i++) {
-          const [ax, az] = arenaPositionsRef.current[i] ?? getArenaPosition(i);
-          const [bx, bz] = arenaPositionsRef.current[i+1] ?? getArenaPosition(i+1);
+          const [ax, az] = arenaPositionsRef.current[i] ?? getArenaPosition(i, nArenas);
+          const [bx, bz] = arenaPositionsRef.current[i+1] ?? getArenaPosition(i+1, nArenas);
           const [asx, asy] = w2s(ax, az);
           const [bsx, bsy] = w2s(bx, bz);
           ctx.beginPath(); ctx.moveTo(asx, asy); ctx.lineTo(bsx, bsy); ctx.stroke();
@@ -2531,14 +2524,14 @@ export function StoryWorldMap({
             {tooltip.status === 'completed' ? '🏆 Completato' : tooltip.status === 'available' ? '⚔️ Disponibile' : '🔒 Bloccato'}
           </div>
           <div style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 800, fontSize: 13, marginBottom: 3 }}>
-            {tooltip.leader.gymName}
+            {tooltip.status === 'locked' ? '???' : tooltip.leader.gymName}
           </div>
           <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11, marginBottom: 2 }}>
-            👊 {tooltip.leader.name}
+            {tooltip.status === 'locked' ? '🔒 ???' : `👊 ${tooltip.leader.name}`}
           </div>
           <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, marginBottom: 2 }}>
-            {tooltip.leader.cpuLevel === 'easy' ? '🟢 Facile' : tooltip.leader.cpuLevel === 'medium' ? '🟡 Medio' : '🔴 Difficile'}
-            {' · '}❤️ {tooltip.leader.livesCount}
+            {tooltip.status === 'locked' ? '— —' : (tooltip.leader.cpuLevel === 'easy' ? '🟢 Facile' : tooltip.leader.cpuLevel === 'medium' ? '🟡 Medio' : '🔴 Difficile')}
+            {tooltip.status !== 'locked' && <>{' · '}❤️ {tooltip.leader.livesCount}</>}
           </div>
           {tooltip.status === 'available' && (
             <div style={{ color: 'rgba(251,191,36,0.7)', fontSize: 10, marginTop: 4, fontStyle: 'italic' }}>

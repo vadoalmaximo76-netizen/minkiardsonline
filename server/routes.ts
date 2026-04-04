@@ -13631,14 +13631,26 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         completedIds = progress.map(p => p.gymLeaderId);
         const storyRows = await db.select().from(userStoryDeck)
           .where(eq(userStoryDeck.userId, user.userId)).limit(1);
-        if (storyRows.length > 0) chosenFaction = storyRows[0].chosenFaction ?? null;
+        if (storyRows.length > 0) {
+          chosenFaction = storyRows[0].chosenFaction ?? null;
+          // Fallback: infer faction from card IDs when chosen_faction is not stored
+          if (!chosenFaction && Array.isArray(storyRows[0].cardIds)) {
+            const ids = storyRows[0].cardIds as string[];
+            if (ids.includes('custom-2')) chosenFaction = 'bullox';
+            else if (ids.includes('personaggi-80')) chosenFaction = 'horsy';
+            // Persist the inferred faction so future calls are faster
+            if (chosenFaction) {
+              await db.update(userStoryDeck).set({ chosenFaction }).where(eq(userStoryDeck.userId, user.userId)).catch(() => {});
+            }
+          }
+        }
       }
       // Filter out faction-specific bosses that don't match the player's faction.
       // If the player has no faction (null), show all bosses (backward-compatible).
       const filtered = chosenFaction
         ? list.filter(l => !l.requiredFaction || l.requiredFaction === chosenFaction)
         : list;
-      res.json({ success: true, gymLeaders: filtered, completedIds });
+      res.json({ success: true, gymLeaders: filtered, completedIds, chosenFaction });
     } catch (e) {
       handle402(e);
       console.error('Error fetching gym leaders:', e);
