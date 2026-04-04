@@ -11798,6 +11798,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (psSpecDeck && psSpecDeck.length > 0) {
           const randomIdx = Math.floor(Math.random() * psSpecDeck.length);
           const [specCard] = psSpecDeck.splice(randomIdx, 1);
+          specCard.owner = playerName;
           if (!game.players[playerName].hand) game.players[playerName].hand = [];
           (game.players[playerName].hand as Card[]).push(specCard);
           emitChat(`🌀 PORTALE SPECIALE! ${playerName} pesca una carta speciale: "${specCard.name || specCard.id}"!`);
@@ -17314,6 +17315,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
     const mosseCard = game.field.find(c => 
       c.id === mosseCardId && c.owner === attackerName && 
+      (c.type === 'mosse' || (isDuelAttack && c.type === 'bonus'))
+    ) || (game.graveyard || []).find((c: Card) =>
+      c.id === mosseCardId && c.owner === attackerName &&
       (c.type === 'mosse' || (isDuelAttack && c.type === 'bonus'))
     );
     if (!mosseCard) {

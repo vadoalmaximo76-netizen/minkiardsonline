@@ -3847,6 +3847,9 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
             const handCharName = this.getCardNameFromUrl(bestHandChar.frontImage || '');
             console.log(`⭐ CPU ${this.playerName}: swapping to ${handCharName} (+${starDiff} stelle, +${damageGain} danno stimato, threshold=${gainThreshold})`);
             this.sendChatMessage(`Cambio personaggio per massimizzare il danno con ${handCharName}!`);
+            if (this.gameManager) {
+              this.gameManager.returnToHand(this.gameId, myCharacter.id, this.playerName);
+            }
             return bestHandChar;
           }
         }
