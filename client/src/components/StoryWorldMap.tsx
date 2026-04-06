@@ -69,8 +69,8 @@ type LeafParticle = {
 type FireflyParticle = { wx: number; wz: number; phase: number; speed: number; size: number; orbitR: number };
 
 /* ── World constants ─────────────────────────────────────────── */
-const PLAYER_SPEED = 11;
-const MAP_BOUND    = 80;
+const PLAYER_SPEED = 22;
+const MAP_BOUND    = 200;
 
 /* ── Pre-computed star field (deterministic, no Math.random in render) ── */
 const STAR_DATA: { sx: number; sy: number; r: number; twinkle: number }[] = (() => {
@@ -88,255 +88,285 @@ const STAR_DATA: { sx: number; sy: number; r: number; twinkle: number }[] = (() 
   return stars;
 })();
 
-const CIRCLE_ARENA_RADIUS = 62;
+/* ── City stage positions (progressive south→north scatter) ───── */
+const CITY_STAGE_POSITIONS: [number, number][] = [
+  [0, 170],       //  1 Piazza d'Ingresso
+  [-65, 140],     //  2 Quartiere Residenziale Sud
+  [80, 112],      //  3 Porto Sud
+  [-100, 75],     //  4 Zona Industriale
+  [60, 55],       //  5 Mercato Commerciale Est
+  [0, 10],        //  6 Centro Città
+  [-110, -10],    //  7 Distretto Ovest
+  [100, -35],     //  8 Distretto Est
+  [-55, -75],     //  9 Parco Grande
+  [65, -100],     // 10 Università
+  [-100, -140],   // 11 Porto Nord
+  [35, -155],     // 12 Distretto Nord-Est
+  [-25, -178],    // 13 Quartiere Storico
+  [0, -190],      // 14 Torre Finale
+];
 
-function getArenaPosition(idx: number, total = 12): [number, number] {
-  const n = Math.max(total, 1);
-  const angle = -Math.PI / 2 + idx * (2 * Math.PI / n);
-  return [Math.round(Math.cos(angle) * CIRCLE_ARENA_RADIUS), Math.round(Math.sin(angle) * CIRCLE_ARENA_RADIUS)];
+function getCityStagePosition(idx: number, _total?: number): [number, number] {
+  if (idx < CITY_STAGE_POSITIONS.length) return CITY_STAGE_POSITIONS[idx];
+  const extra = idx - CITY_STAGE_POSITIONS.length;
+  const angle = (extra * 2.399963) % (Math.PI * 2);
+  return [Math.round(Math.cos(angle) * 130), Math.round(Math.sin(angle) * 130)];
+}
+
+function getArenaPosition(idx: number, total?: number): [number, number] {
+  return getCityStagePosition(idx, total);
 }
 
 const TREE_DATA: { x: number; z: number; h: number; r: number }[] = [
-  // NW dense forest
-  { x:-50, z:-32, h:2.5, r:0.95 }, { x:-56, z:-28, h:2.2, r:0.85 },
-  { x:-48, z:-42, h:2.6, r:1.0  }, { x:-60, z:-40, h:2.0, r:0.8  },
-  { x:-42, z:-30, h:2.3, r:0.9  }, { x:-58, z:-36, h:2.1, r:0.7  },
-  { x:-66, z:-50, h:2.4, r:0.85 }, { x:-44, z:-62, h:2.5, r:0.95 },
-  { x:-52, z:-68, h:2.2, r:0.8  }, { x:-36, z:-66, h:2.6, r:1.0  },
-  { x:-62, z:-62, h:2.0, r:0.75 }, { x:-54, z:-44, h:2.4, r:0.9  },
-  // NE forest
-  { x: 38, z:-38, h:2.4, r:0.9  }, { x: 46, z:-44, h:2.1, r:0.75 },
-  { x: 52, z:-32, h:2.6, r:0.95 }, { x: 30, z:-44, h:2.2, r:0.85 },
-  { x: 42, z:-55, h:2.0, r:0.8  }, { x: 55, z:-48, h:2.4, r:0.9  },
-  { x: 62, z:-52, h:2.2, r:0.8  }, { x: 48, z:-62, h:2.5, r:0.9  },
-  // Central woods
-  { x:-18, z:  2, h:2.3, r:0.85 }, { x:-26, z:-14, h:2.1, r:0.75 },
-  { x: 18, z: -8, h:2.5, r:0.9  }, { x: -9, z:-22, h:2.2, r:0.8  },
-  { x: 25, z: 10, h:2.0, r:0.75 }, { x: -4, z:  8, h:2.3, r:0.85 },
-  { x: 32, z: -2, h:2.1, r:0.75 }, { x:-32, z: -2, h:2.2, r:0.8  },
-  // Eastern border trees
-  { x: 72, z: 36, h:2.4, r:0.85 }, { x: 76, z: 52, h:2.2, r:0.8  },
-  { x: 70, z:-10, h:2.6, r:0.95 }, { x: 78, z:-28, h:2.1, r:0.75 },
-  { x: 74, z: 10, h:2.4, r:0.9  }, { x: 76, z:-50, h:2.2, r:0.8  },
-  // Western border trees
-  { x:-72, z: 12, h:2.5, r:0.9  }, { x:-78, z: -5, h:2.3, r:0.85 },
-  { x:-74, z: 40, h:2.0, r:0.75 }, { x:-76, z: 55, h:2.4, r:0.9  },
-  { x:-76, z:-22, h:2.2, r:0.8  }, { x:-74, z: -8, h:2.5, r:0.9  },
-  // South area palms/trees
-  { x: 20, z: 55, h:2.2, r:0.8  }, { x:-15, z: 52, h:2.5, r:0.9  },
-  { x:-22, z: 45, h:2.1, r:0.75 }, { x: 56, z: 60, h:2.3, r:0.85 },
-  { x:-56, z: 62, h:2.0, r:0.8  }, { x: 62, z: 70, h:2.4, r:0.9  },
-  { x: 75, z: 65, h:2.2, r:0.8  }, { x:-70, z: 68, h:2.5, r:0.9  },
-  // North mountain trees
-  { x:  8, z:-55, h:2.6, r:0.95 }, { x: -5, z:-62, h:2.2, r:0.8  },
-  { x: 18, z:-68, h:2.4, r:0.9  }, { x:-22, z:-52, h:2.1, r:0.75 },
-  { x: 14, z:-78, h:2.3, r:0.85 }, { x:-15, z:-78, h:2.5, r:0.9  },
-  // Interior scattered
-  { x: 45, z: 32, h:2.1, r:0.75 }, { x:-48, z: 42, h:2.5, r:0.9  },
-  { x:-62, z: 10, h:2.3, r:0.85 }, { x: 35, z: 18, h:2.2, r:0.8  },
+  // Corso Principale (x≈0) street trees
+  { x: 5, z: 150, h:2.2, r:0.60 }, { x:-5, z:140, h:2.0, r:0.55 },
+  { x: 5, z: 130, h:2.1, r:0.58 }, { x:-5, z:118, h:2.2, r:0.60 },
+  { x: 5, z:  70, h:2.0, r:0.55 }, { x:-5, z: 60, h:2.1, r:0.58 },
+  { x: 5, z:  50, h:2.2, r:0.60 }, { x:-5, z: 40, h:2.0, r:0.55 },
+  { x: 5, z:  30, h:2.1, r:0.58 }, { x:-5, z: 20, h:2.2, r:0.60 },
+  { x: 5, z:  -5, h:2.0, r:0.55 }, { x:-5, z:-20, h:2.1, r:0.58 },
+  { x: 5, z: -35, h:2.2, r:0.60 }, { x:-5, z:-55, h:2.0, r:0.55 },
+  { x: 5, z: -80, h:2.1, r:0.58 }, { x:-5, z:-95, h:2.2, r:0.60 },
+  { x: 5, z:-115, h:2.0, r:0.55 }, { x:-5, z:-135, h:2.1, r:0.58 },
+  { x: 5, z:-155, h:2.2, r:0.60 }, { x:-5, z:-175, h:2.0, r:0.55 },
+  // Viale Est (x=90) street trees
+  { x:96, z:140, h:2.0, r:0.55 }, { x:84, z:128, h:2.1, r:0.58 },
+  { x:96, z:112, h:2.2, r:0.60 }, { x:84, z: 96, h:2.0, r:0.55 },
+  { x:96, z: 78, h:2.1, r:0.58 }, { x:84, z: 58, h:2.2, r:0.60 },
+  { x:96, z: 35, h:2.0, r:0.55 }, { x:84, z:  5, h:2.1, r:0.58 },
+  { x:96, z:-22, h:2.2, r:0.60 }, { x:84, z:-48, h:2.0, r:0.55 },
+  // Viale Ovest (x=-90) street trees
+  { x:-96, z:140, h:2.0, r:0.55 }, { x:-84, z:128, h:2.1, r:0.58 },
+  { x:-96, z:110, h:2.2, r:0.60 }, { x:-84, z: 95, h:2.0, r:0.55 },
+  { x:-96, z: 72, h:2.1, r:0.58 }, { x:-84, z: 55, h:2.2, r:0.60 },
+  { x:-96, z: 28, h:2.0, r:0.55 }, { x:-84, z:  5, h:2.1, r:0.58 },
+  { x:-96, z:-22, h:2.2, r:0.60 }, { x:-84, z:-48, h:2.0, r:0.55 },
+  // Parco Grande (x: -80 to 0, z: -80 to -130) park cluster
+  { x:-25, z: -85, h:2.8, r:1.05 }, { x:-45, z: -90, h:2.6, r:0.95 },
+  { x:-65, z: -88, h:2.9, r:1.05 }, { x:-35, z: -98, h:2.7, r:0.95 },
+  { x:-55, z:-102, h:2.5, r:0.90 }, { x:-72, z:-100, h:2.8, r:1.00 },
+  { x:-28, z:-110, h:2.6, r:0.92 }, { x:-48, z:-115, h:2.8, r:1.00 },
+  { x:-68, z:-118, h:2.5, r:0.90 }, { x:-30, z:-122, h:2.7, r:0.95 },
+  { x:-50, z:-128, h:2.6, r:0.92 }, { x:-70, z:-125, h:2.8, r:1.00 },
+  { x:-20, z: -95, h:2.4, r:0.85 }, { x:-60, z:-108, h:2.6, r:0.92 },
+  // Via Sud Grande (z=160) plaza trees
+  { x:-50, z:155, h:2.0, r:0.55 }, { x: 50, z:155, h:2.0, r:0.55 },
+  { x:-30, z:165, h:2.1, r:0.58 }, { x: 30, z:165, h:2.1, r:0.58 },
+  // Centro piazza trees
+  { x: 35, z:-50, h:2.3, r:0.70 }, { x: 45, z:-55, h:2.1, r:0.65 },
+  { x:-35, z:-50, h:2.3, r:0.70 }, { x:-45, z:-55, h:2.1, r:0.65 },
+  // Far north trees
+  { x:-30, z:-165, h:2.2, r:0.65 }, { x: 30, z:-165, h:2.2, r:0.65 },
+  { x:-60, z:-155, h:2.0, r:0.60 }, { x: 60, z:-155, h:2.0, r:0.60 },
+  // Scattered residential+port trees
+  { x:-165, z: 55, h:2.0, r:0.60 }, { x:-155, z: 45, h:2.1, r:0.55 },
+  { x: 155, z: 95, h:2.0, r:0.60 }, { x: 145, z: 80, h:2.1, r:0.55 },
+  { x: 155, z: 42, h:2.0, r:0.58 }, { x:-155, z:-15, h:2.1, r:0.55 },
 ];
 
 const WATER_DATA: { x: number; z: number; r: number }[] = [
-  { x: 10, z: -4,  r: 7.0 },   // central lake
-  { x:-12, z: 20,  r: 4.0 },   // NW pond
-  { x: 26, z:-26,  r: 3.5 },   // NE pond
-  { x:-32, z:-38,  r: 3.0 },   // NW lake
-  { x: 65, z:  8,  r: 6.5 },   // east coast sea
-  { x: 55, z: 48,  r: 4.5 },   // SE bay
-  { x:-58, z: 40,  r: 5.5 },   // west harbor
-  { x:  5, z: 85,  r: 14.0 },  // south sea
-  { x: 38, z:-46,  r: 3.5 },   // north lake
-  { x:-36, z: 36,  r: 3.5 },   // SW pond
-  { x:-68, z:-52,  r: 4.0 },   // far NW lake
-  { x: 22, z: 75,  r: 5.0 },   // SE coast
-  { x: 68, z:-42,  r: 3.0 },   // NE lake
-  { x:-15, z:-70,  r: 4.5 },   // north polar lake
+  { x: 152, z: 50,  r: 6.0 },  // Porto marina
+  { x: 155, z: 72,  r: 5.5 },  // Porto basin
+  { x: 150, z: 92,  r: 7.0 },  // Porto main dock
+  { x: 140, z:155,  r: 5.0 },  // Porto Nord access
+  { x:   0, z:  0,  r: 2.5 },  // Centro piazza fountain
+  { x:   0, z:-58,  r: 2.0 },  // Cathedral fountain
+  { x: -90, z:160,  r: 2.0 },  // Ingresso fountain ovest
+  { x:  90, z:160,  r: 2.0 },  // Ingresso fountain est
+  { x: -50, z:-105, r: 5.5 },  // Parco Grande pond
+  { x:-140, z:-130, r: 4.5 },  // Porto Nord basin
 ];
 
-const HEDGE_DATA: { x:number; z:number; ry:number; n:number }[] = [
-  { x:-14, z:  6, ry: 0,           n: 8 }, { x: 10, z:-42, ry: 0,           n: 6 },
-  { x:-18, z: 16, ry: Math.PI / 2, n: 7 }, { x: -5, z:-18, ry: Math.PI / 2, n: 6 },
-  { x: 28, z:  8, ry: Math.PI / 2, n: 5 }, { x:-22, z: -6, ry: 0.2,         n: 6 },
-  { x: 15, z:-40, ry: 0,           n: 5 }, { x:-30, z: 30, ry: Math.PI / 2, n: 6 },
-  { x:  2, z: 22, ry: 0.5,         n: 5 }, { x: 20, z:-32, ry: 0.2,         n: 4 },
-  { x: 44, z: 28, ry: 0,           n: 7 }, { x:-44, z: 24, ry: Math.PI / 2, n: 5 },
-  { x: 38, z:-12, ry: 0.4,         n: 6 }, { x:-35, z:-20, ry: 0,           n: 5 },
-  { x: 60, z: 36, ry: Math.PI / 2, n: 4 }, { x:-60, z: 55, ry: 0.3,         n: 5 },
-  { x: 18, z: 40, ry: 0,           n: 6 }, { x:-18, z: 40, ry: Math.PI / 2, n: 4 },
-  { x: 55, z:-10, ry: 0.2,         n: 5 }, { x:-50, z:-14, ry: 0,           n: 4 },
-  { x: 32, z: 60, ry: 0,           n: 6 }, { x:-30, z: 70, ry: Math.PI / 2, n: 5 },
-  { x: 48, z:-32, ry: 0.6,         n: 5 }, { x:-48, z: 60, ry: 0.4,         n: 6 },
-];
-const HEDGE_PIECES: { x:number; z:number; dark:boolean }[] = HEDGE_DATA.flatMap((row) =>
-  Array.from({ length: row.n }, (_, i) => {
-    const offset = (i - (row.n - 1) / 2) * 1.3;
-    return { x: row.x + Math.sin(row.ry) * offset, z: row.z + Math.cos(row.ry) * offset, dark: i % 2 === 0 };
-  })
-);
-
-const BOULDER_DATA: { x:number; z:number; sy:number; sx:number; twin:boolean }[] = [
-  { x:-14, z: -6, sy:1.5, sx:1.2, twin:true  }, { x: 20, z:-22, sy:1.0, sx:0.9, twin:false },
-  { x: -9, z: 17, sy:1.2, sx:1.1, twin:true  }, { x:  6, z:-16, sy:1.8, sx:1.4, twin:false },
-  { x:-26, z:  9, sy:1.0, sx:0.8, twin:true  }, { x: 19, z: 29, sy:1.3, sx:1.0, twin:false },
-  { x:-32, z: -4, sy:1.6, sx:1.3, twin:true  }, { x: 11, z:-31, sy:1.1, sx:0.9, twin:false },
-  { x:-17, z: 26, sy:1.0, sx:1.0, twin:true  }, { x: 32, z: 14, sy:0.9, sx:0.8, twin:false },
-  { x: -8, z:-26, sy:1.4, sx:1.2, twin:true  }, { x: 26, z:-38, sy:1.1, sx:0.9, twin:false },
-  { x:-40, z: 20, sy:1.2, sx:1.0, twin:true  }, { x: 38, z: 22, sy:1.0, sx:0.8, twin:false },
-  { x: 18, z:-40, sy:0.9, sx:1.1, twin:true  }, { x:-18, z:-40, sy:1.3, sx:1.0, twin:false },
-  { x: 36, z:-32, sy:1.1, sx:0.9, twin:true  }, { x:-38, z:-28, sy:1.0, sx:1.2, twin:false },
-  // Mountain boulders (north)
-  { x: 15, z:-62, sy:2.0, sx:1.8, twin:true  }, { x: 22, z:-70, sy:2.2, sx:2.0, twin:false },
-  { x:  5, z:-68, sy:1.8, sx:1.6, twin:true  }, { x:-10, z:-60, sy:2.0, sx:1.8, twin:false },
-  { x: 30, z:-65, sy:1.6, sx:1.4, twin:true  }, { x:-24, z:-65, sy:1.8, sx:1.6, twin:false },
-  { x: 38, z:-72, sy:2.2, sx:2.0, twin:true  }, { x:-32, z:-72, sy:2.0, sx:1.8, twin:false },
-  // Western ruins boulders
-  { x:-58, z:-10, sy:1.5, sx:1.3, twin:true  }, { x:-65, z:-28, sy:1.8, sx:1.5, twin:false },
-  { x:-72, z: -5, sy:1.4, sx:1.2, twin:true  }, { x:-60, z: 15, sy:1.0, sx:0.9, twin:false },
-  // East coast boulders
-  { x: 62, z: 32, sy:1.2, sx:1.0, twin:true  }, { x: 70, z:-22, sy:1.5, sx:1.3, twin:false },
-  { x: 72, z: 55, sy:1.0, sx:0.9, twin:false }, { x: 55, z: 70, sy:1.2, sx:1.0, twin:true  },
-  // Scattered large rocks
-  { x: 45, z: -5, sy:1.4, sx:1.2, twin:true  }, { x:-45, z: -8, sy:1.3, sx:1.1, twin:false },
-  { x: 28, z: 42, sy:1.1, sx:0.9, twin:true  }, { x:-28, z: 45, sy:1.2, sx:1.0, twin:false },
-];
-
+/* ── City park flower beds (only in park + plaza areas) ─────── */
 const FLOWER_DATA: { x:number; z:number; r:number; color:string }[] = [
-  { x:  8, z: 18, r:2.5, color:'#ff6b9d' }, { x:-20, z:  5, r:2.0, color:'#fbbf24' },
-  { x: 16, z: -6, r:1.8, color:'#a78bfa' }, { x: -9, z: 28, r:2.2, color:'#34d399' },
-  { x: 28, z: 10, r:1.6, color:'#f97316' }, { x:-28, z:-30, r:2.0, color:'#60a5fa' },
-  { x:  5, z:-20, r:1.5, color:'#fbbf24' }, { x:-16, z: 35, r:1.8, color:'#ff6b9d' },
-  { x: 20, z:-40, r:2.2, color:'#a78bfa' }, { x:-35, z: 30, r:1.6, color:'#34d399' },
-  { x: -2, z:  8, r:1.4, color:'#f97316' }, { x: 33, z:-18, r:1.8, color:'#60a5fa' },
-  { x:-10, z:-15, r:1.6, color:'#ff6b9d' }, { x: 22, z: 14, r:1.5, color:'#fbbf24' },
-  { x: 48, z: 10, r:2.0, color:'#f97316' }, { x:-45, z:  8, r:1.8, color:'#ff6b9d' },
-  { x: 15, z: 35, r:1.6, color:'#34d399' }, { x:-18, z: 55, r:2.0, color:'#fbbf24' },
-  { x: 42, z: 60, r:1.8, color:'#a78bfa' }, { x:-42, z: 70, r:1.6, color:'#60a5fa' },
-  { x: 72, z: 28, r:2.0, color:'#ff6b9d' }, { x:-72, z: 28, r:1.8, color:'#34d399' },
-  { x: 35, z:-30, r:1.5, color:'#fbbf24' }, { x:-38, z:-15, r:2.0, color:'#f97316' },
-  { x: -2, z:-35, r:1.8, color:'#60a5fa' }, { x: 55, z:-32, r:1.6, color:'#a78bfa' },
-  { x: 22, z: 36, r:1.4, color:'#ff6b9d' }, { x:-20, z: 35, r:1.6, color:'#fbbf24' },
-  { x: 60, z: 50, r:2.0, color:'#34d399' }, { x:-55, z: 48, r:1.8, color:'#60a5fa' },
+  // Parco Grande flower beds
+  { x:-28, z: -88, r:2.0, color:'#ff6b9d' }, { x:-48, z: -95, r:1.8, color:'#fbbf24' },
+  { x:-62, z:-100, r:2.2, color:'#a78bfa' }, { x:-35, z:-112, r:1.6, color:'#34d399' },
+  { x:-55, z:-120, r:2.0, color:'#60a5fa' }, { x:-25, z:-105, r:1.8, color:'#f97316' },
+  { x:-70, z:-110, r:2.0, color:'#ff6b9d' }, { x:-42, z:-125, r:1.6, color:'#fbbf24' },
+  // Centro plaza flower beds
+  { x:  5, z:  -5, r:1.4, color:'#ff6b9d' }, { x: -5, z:  -5, r:1.4, color:'#fbbf24' },
+  { x: -5, z: -62, r:1.4, color:'#a78bfa' }, { x:  5, z: -62, r:1.4, color:'#34d399' },
+  // Ingresso plaza beds
+  { x:-12, z: 165, r:1.6, color:'#60a5fa' }, { x: 12, z: 165, r:1.6, color:'#f97316' },
+  // University garden
+  { x: 48, z: -88, r:1.8, color:'#4ade80' }, { x: 65, z: -92, r:1.6, color:'#fbbf24' },
 ];
 
 const LAMP_DATA: { x:number; z:number }[] = [
-  // Path lights following arena route
-  { x:  8, z: 64 }, { x: 20, z: 58 }, { x: 32, z: 52 }, { x: 40, z: 44 },
-  { x: 50, z: 34 }, { x: 58, z: 24 }, { x: 62, z: 12 }, { x: 60, z:  0 },
-  { x: 58, z:-12 }, { x: 48, z:-22 }, { x: 38, z:-38 }, { x: 28, z:-48 },
-  { x: 12, z:-60 }, { x: -2, z:-68 }, { x:-14, z:-62 }, { x:-28, z:-54 },
-  { x:-42, z:-44 }, { x:-55, z:-32 }, { x:-62, z:-18 }, { x:-66, z: -6 },
-  { x:-65, z:  8 }, { x:-62, z: 20 }, { x:-54, z: 32 }, { x:-44, z: 48 },
-  { x:-36, z: 58 }, { x:-20, z: 68 }, { x: -8, z: 74 }, { x:  8, z: 74 },
-  // Town squares
-  { x:  5, z: 55 }, { x: -5, z: 55 }, { x: 45, z: 65 }, { x: 30, z: 44 },
-  { x:-30, z: 58 }, { x:-18, z: 62 }, { x: 65, z: 20 }, { x: 70, z: 28 },
+  // Corso Principale (x=0) — alternating sides
+  { x: 3, z:180 }, { x:-3, z:175 }, { x: 3, z:165 }, { x:-3, z:155 },
+  { x: 3, z:140 }, { x:-3, z:130 }, { x: 3, z:115 }, { x:-3, z:100 },
+  { x: 3, z: 85 }, { x:-3, z: 70 }, { x: 3, z: 55 }, { x:-3, z: 40 },
+  { x: 3, z: 25 }, { x:-3, z: 10 }, { x: 3, z: -5 }, { x:-3, z:-20 },
+  { x: 3, z:-35 }, { x:-3, z:-50 }, { x: 3, z:-65 }, { x:-3, z:-80 },
+  { x: 3, z:-100}, { x:-3, z:-120}, { x: 3, z:-140}, { x:-3, z:-160},
+  { x: 3, z:-180}, { x:-3, z:-195},
+  // Viale Est (x=90)
+  { x: 85, z:150 }, { x: 95, z:135 }, { x: 85, z:120 }, { x: 95, z:100 },
+  { x: 85, z: 80 }, { x: 95, z: 60 }, { x: 85, z: 40 }, { x: 95, z: 20 },
+  { x: 85, z:  0 }, { x: 95, z:-20 }, { x: 85, z:-45 }, { x: 95, z:-70 },
+  // Viale Ovest (x=-90)
+  { x:-85, z:150 }, { x:-95, z:135 }, { x:-85, z:118 }, { x:-95, z: 98 },
+  { x:-85, z: 78 }, { x:-95, z: 58 }, { x:-85, z: 38 }, { x:-95, z: 18 },
+  { x:-85, z: -2 }, { x:-95, z:-22 }, { x:-85, z:-48 }, { x:-95, z:-72 },
+  // Via del Centro (z=15)
+  { x:-160, z:11 }, { x:-140, z:19 }, { x:-120, z:11 }, { x:-100, z:19 },
+  { x: -60, z:11 }, { x: -40, z:19 }, { x: -20, z:11 }, { x:  20, z:19 },
+  { x:  40, z:11 }, { x:  60, z:19 }, { x: 100, z:11 }, { x: 120, z:19 },
+  { x: 140, z:11 }, { x: 160, z:19 },
+  // Via Sud Grande (z=160)
+  { x:-80, z:156 }, { x:-60, z:164 }, { x:-40, z:156 }, { x:-20, z:164 },
+  { x: 20, z:156 }, { x: 40, z:164 }, { x: 60, z:156 }, { x: 80, z:164 },
+  // Via Nord (z=-60)
+  { x:-160, z:-56 }, { x:-140, z:-64 }, { x:-120, z:-56 }, { x:-100, z:-64 },
+  { x: -60, z:-56 }, { x: -40, z:-64 }, { x: -20, z:-56 }, { x:  20, z:-64 },
+  { x:  40, z:-56 }, { x:  60, z:-64 }, { x: 100, z:-56 }, { x: 120, z:-64 },
+  { x: 140, z:-56 }, { x: 160, z:-64 },
 ];
 
-const WALL_DATA: { x:number; z:number; ry:number; n:number }[] = [
-  { x: 16, z:  7, ry: 0.1,         n: 5 }, { x: -4, z:-11, ry: Math.PI / 2, n: 5 },
-  { x:-28, z:-17, ry: 0.3,         n: 6 }, { x:  9, z:-28, ry:-0.2,         n: 4 },
-  { x:-19, z: 31, ry: 0.5,         n: 5 }, { x: 30, z:-28, ry: 1.2,         n: 4 },
-  // West ruins walls
-  { x:-62, z:-14, ry: 0.2,         n: 7 }, { x:-68, z:-28, ry: Math.PI / 2, n: 6 },
-  { x:-58, z: -4, ry: 1.1,         n: 5 }, { x:-72, z: -8, ry: 0.3,         n: 4 },
-  // North fortress walls
-  { x: 50, z:-28, ry: 0,           n: 8 }, { x: 62, z:-18, ry: Math.PI / 2, n: 6 },
-  { x: 55, z:-35, ry: 0.4,         n: 5 },
-  // South town walls
-  { x:-10, z: 62, ry: 0,           n: 6 }, { x: 10, z: 62, ry: 0,           n: 6 },
-  { x: 35, z: 55, ry: Math.PI / 2, n: 5 }, { x:-35, z: 55, ry: Math.PI / 2, n: 5 },
-  // Additional perimeter
-  { x: 70, z: 35, ry: Math.PI / 2, n: 6 }, { x:-70, z: 35, ry: Math.PI / 2, n: 5 },
-  { x: 25, z:-75, ry: 0,           n: 7 }, { x:-20, z:-75, ry: 0,           n: 6 },
-];
-const WALL_PIECES: { x:number; z:number; alt:boolean }[] = WALL_DATA.flatMap((wall) =>
-  Array.from({ length: wall.n }, (_, i) => {
-    const offset = (i - (wall.n - 1) / 2) * 1.2;
-    return { x: wall.x + Math.sin(wall.ry) * offset, z: wall.z + Math.cos(wall.ry) * offset, alt: i % 2 === 0 };
-  })
-);
-
-const _sr = (seed: number) => { const x = Math.sin(seed + 1) * 10000; return x - Math.floor(x); };
-const TALLGRASS_PATCHES = [
-  { cx: -3,  cz: 14,  n: 22 }, { cx: 10,  cz: -6,  n: 18 }, { cx:-25,  cz:  0,  n: 16 },
-  { cx: 18,  cz:-20,  n: 16 }, { cx:-14,  cz:-14,  n: 14 }, { cx: -8,  cz: 36,  n: 12 },
-  { cx: 35,  cz: -5,  n: 16 }, { cx:-35,  cz: -5,  n: 14 }, { cx: 50,  cz: 42,  n: 12 },
-  { cx:-50,  cz: 50,  n: 10 }, { cx: 18,  cz: 62,  n: 14 }, { cx:-25,  cz: 62,  n: 12 },
-  { cx: 42,  cz:-25,  n: 10 }, { cx:-40,  cz:-38,  n: 12 }, { cx:  0,  cz:-45,  n: 10 },
-  { cx: 60,  cz: 20,  n: 8  }, { cx:-60,  cz: 20,  n: 8  }, { cx: 30,  cz: 30,  n: 12 },
-  { cx:-30,  cz: 38,  n: 10 }, { cx: 55,  cz:-24,  n: 8  }, { cx:-55,  cz:-24,  n: 8  },
-].map((patch, pi) => ({
-  cx: patch.cx, cz: patch.cz,
-  blades: Array.from({ length: patch.n }, (_, i) => ({
-    dx: (_sr(pi * 200 + i * 4)     - 0.5) * 5.5,
-    dz: (_sr(pi * 200 + i * 4 + 1) - 0.5) * 5.5,
-    h:  0.5 + _sr(pi * 200 + i * 4 + 2) * 0.55,
-    ry: _sr(pi * 200 + i * 4 + 3) * Math.PI * 2,
-  })),
-}));
-
-/* ── Buildings ───────────────────────────────────────────────── */
+/* ── City buildings ──────────────────────────────────────────── */
 type BuildingType = 'house' | 'shop' | 'inn' | 'tower' | 'ruin' | 'church' | 'arcade';
 const BUILDING_DATA: { x: number; z: number; type: BuildingType; w: number; h: number }[] = [
-  // South starting town (arena 1: 0,68)
-  { x:  8, z: 58, type:'house',  w:2.2, h:1.8 }, { x: -9, z: 58, type:'house',  w:2.0, h:1.8 },
-  { x: 14, z: 62, type:'inn',    w:2.8, h:2.2 }, { x:-14, z: 54, type:'shop',   w:2.4, h:1.8 },
-  { x:  6, z: 50, type:'house',  w:2.0, h:1.6 }, { x: -4, z: 50, type:'house',  w:1.8, h:1.6 },
-  { x: -2, z: 62, type:'church', w:2.8, h:2.4 }, { x: 18, z: 54, type:'house',  w:1.8, h:1.6 },
-  // SE village (arena 2: 40,52)
-  { x: 30, z: 46, type:'house',  w:2.2, h:1.8 }, { x: 44, z: 46, type:'house',  w:2.0, h:1.8 },
-  { x: 36, z: 56, type:'shop',   w:2.4, h:1.8 }, { x: 50, z: 56, type:'house',  w:1.8, h:1.6 },
-  { x: 28, z: 56, type:'inn',    w:2.4, h:2.0 },
-  // East port (arena 3: 68,18)
-  { x: 62, z: 22, type:'house',  w:2.2, h:1.8 }, { x: 72, z: 24, type:'house',  w:2.0, h:1.8 },
-  { x: 64, z: 14, type:'inn',    w:2.6, h:2.0 }, { x: 74, z: 14, type:'shop',   w:2.0, h:1.6 },
-  { x: 60, z: 30, type:'house',  w:1.8, h:1.6 },
-  // NE fort (arena 4: 58,-20)
-  { x: 50, z:-14, type:'house',  w:2.0, h:1.6 }, { x: 60, z:-26, type:'ruin',   w:2.2, h:2.0 },
-  { x: 65, z:-14, type:'tower',  w:1.8, h:3.0 }, { x: 52, z:-28, type:'ruin',   w:2.0, h:1.6 },
-  // North snowfield (arena 5: 28,-58)
-  { x: 20, z:-52, type:'house',  w:2.0, h:1.6 }, { x: 30, z:-56, type:'house',  w:1.8, h:1.6 },
-  { x: 24, z:-64, type:'inn',    w:2.4, h:2.0 },
-  // Far north ruins (arena 6: -5,-74)
-  { x: -5, z:-68, type:'ruin',   w:2.4, h:1.8 }, { x:-14, z:-76, type:'tower',  w:1.8, h:2.8 },
-  { x:  4, z:-78, type:'ruin',   w:2.0, h:1.6 },
-  // NW forest village (arena 7: -44,-56)
-  { x:-35, z:-48, type:'house',  w:2.0, h:1.8 }, { x:-46, z:-50, type:'house',  w:2.2, h:1.8 },
-  { x:-40, z:-64, type:'church', w:2.6, h:2.2 }, { x:-50, z:-60, type:'ruin',   w:2.0, h:1.6 },
-  // West ruins (arena 8: -70,-18)
-  { x:-62, z:-10, type:'ruin',   w:2.8, h:2.0 }, { x:-72, z:-22, type:'tower',  w:2.0, h:3.0 },
-  { x:-60, z:-28, type:'ruin',   w:2.4, h:1.8 }, { x:-74, z:-10, type:'ruin',   w:2.0, h:1.6 },
-  // West harbor (arena 9: -64,26)
-  { x:-56, z: 22, type:'house',  w:2.2, h:1.8 }, { x:-66, z: 28, type:'house',  w:2.0, h:1.8 },
-  { x:-70, z: 20, type:'inn',    w:2.8, h:2.0 }, { x:-62, z: 32, type:'shop',   w:2.4, h:1.8 },
-  { x:-72, z: 32, type:'house',  w:1.8, h:1.6 },
-  // SW coastal town (arena 10: -38,60)
-  { x:-28, z: 55, type:'house',  w:2.2, h:1.8 }, { x:-40, z: 55, type:'house',  w:2.0, h:1.8 },
-  { x:-32, z: 65, type:'inn',    w:2.6, h:2.0 }, { x:-20, z: 65, type:'shop',   w:2.4, h:1.8 },
-  { x:-44, z: 65, type:'church', w:2.4, h:2.0 }, { x:-48, z: 55, type:'house',  w:1.8, h:1.6 },
-  // SE tower arena 12 (48,68)
-  { x: 42, z: 62, type:'house',  w:2.0, h:1.8 }, { x: 54, z: 62, type:'shop',   w:2.2, h:1.8 },
-  { x: 48, z: 74, type:'tower',  w:2.0, h:2.8 }, { x: 58, z: 72, type:'house',  w:1.8, h:1.6 },
-  // Center village
-  { x:  0, z: 12, type:'house',  w:2.0, h:1.8 }, { x:  8, z:  6, type:'shop',   w:2.4, h:1.8 },
-  { x: -8, z:  6, type:'house',  w:2.0, h:1.8 }, { x: 12, z: -8, type:'ruin',   w:2.2, h:1.8 },
-  { x:-18, z: -4, type:'house',  w:1.8, h:1.6 }, { x:-10, z:  0, type:'inn',    w:2.2, h:1.8 },
-  // Scattered farmhouses & landmarks
-  { x: 22, z: 32, type:'house',  w:1.8, h:1.6 }, { x:-12, z: 34, type:'house',  w:1.8, h:1.6 },
-  { x: 42, z:-28, type:'house',  w:1.8, h:1.6 }, { x:-28, z:-28, type:'church', w:2.2, h:2.0 },
-  { x: 18, z:-38, type:'house',  w:1.8, h:1.6 }, { x:-50, z: 10, type:'house',  w:1.8, h:1.6 },
-  { x: 50, z: 35, type:'house',  w:1.8, h:1.6 }, { x:-25, z: 20, type:'inn',    w:2.4, h:2.0 },
-  { x: 35, z: -3, type:'house',  w:1.8, h:1.6 }, { x:-40, z: -8, type:'house',  w:1.8, h:1.6 },
-  { x: 65, z:-32, type:'tower',  w:2.0, h:3.0 }, { x:-65, z: 55, type:'church', w:2.4, h:2.2 },
-  { x: 48, z: 18, type:'house',  w:1.8, h:1.6 }, { x:-48, z: 25, type:'house',  w:1.8, h:1.6 },
+  // ── INGRESSO DISTRICT (z: 120-200) ──────────────────────────────
+  { x:-22, z:185, type:'church', w:3.5, h:3.2 }, { x: 22, z:185, type:'tower',  w:2.5, h:3.5 },
+  { x:-42, z:182, type:'house',  w:2.8, h:2.0 }, { x: 42, z:182, type:'house',  w:2.8, h:2.0 },
+  { x:-62, z:178, type:'shop',   w:2.4, h:1.8 }, { x: 62, z:178, type:'shop',   w:2.4, h:1.8 },
+  { x:-15, z:170, type:'inn',    w:3.2, h:2.5 }, { x: 15, z:170, type:'shop',   w:2.8, h:2.0 },
+  { x:-38, z:168, type:'house',  w:2.2, h:2.2 }, { x: 38, z:168, type:'house',  w:2.2, h:2.2 },
+  { x:-58, z:165, type:'house',  w:2.0, h:1.8 }, { x: 58, z:165, type:'house',  w:2.0, h:1.8 },
+  { x:-72, z:162, type:'shop',   w:2.2, h:1.8 }, { x: 72, z:162, type:'shop',   w:2.2, h:1.8 },
+  { x:-46, z:172, type:'church', w:2.5, h:2.4 }, { x: 46, z:172, type:'inn',    w:2.5, h:2.2 },
+  { x:-22, z:155, type:'house',  w:2.5, h:2.2 }, { x: 22, z:155, type:'house',  w:2.5, h:2.2 },
+  { x:-40, z:150, type:'shop',   w:2.4, h:1.8 }, { x: 40, z:150, type:'shop',   w:2.4, h:1.8 },
+  { x:-62, z:148, type:'house',  w:2.0, h:1.8 }, { x: 62, z:148, type:'house',  w:2.0, h:1.8 },
+  { x: -5, z:145, type:'inn',    w:2.8, h:2.2 }, { x: 76, z:145, type:'ruin',   w:2.2, h:1.6 },
+  { x:-76, z:145, type:'house',  w:2.0, h:1.8 },
+  { x:-22, z:135, type:'house',  w:2.2, h:2.0 }, { x: 22, z:135, type:'house',  w:2.2, h:2.0 },
+  { x:-42, z:132, type:'shop',   w:2.4, h:1.8 }, { x: 42, z:132, type:'shop',   w:2.4, h:1.8 },
+  { x:-62, z:130, type:'house',  w:2.0, h:1.8 }, { x: 62, z:130, type:'house',  w:2.0, h:1.8 },
+  { x:  0, z:127, type:'church', w:3.0, h:2.6 },
+  // ── RESIDENZIALE (x: -170 to -10, z: 30-120) ────────────────────
+  { x:-100, z:112, type:'house',  w:3.0, h:3.5 }, { x:-122, z:108, type:'house',  w:2.8, h:3.2 },
+  { x: -82, z:108, type:'house',  w:2.5, h:2.8 }, { x:-142, z:105, type:'shop',   w:2.4, h:2.0 },
+  { x:-160, z:100, type:'house',  w:2.2, h:2.0 }, { x:-110, z: 98, type:'inn',    w:2.8, h:2.5 },
+  { x: -98, z: 88, type:'house',  w:2.5, h:3.0 }, { x:-118, z: 85, type:'house',  w:2.5, h:3.2 },
+  { x:-138, z: 82, type:'church', w:2.8, h:2.6 }, { x:-158, z: 80, type:'house',  w:2.2, h:2.0 },
+  { x: -78, z: 78, type:'shop',   w:2.4, h:1.8 }, { x:-145, z: 70, type:'house',  w:2.5, h:2.8 },
+  { x:-125, z: 68, type:'house',  w:2.5, h:3.0 }, { x:-105, z: 65, type:'inn',    w:2.8, h:2.2 },
+  { x: -88, z: 62, type:'house',  w:2.2, h:2.0 }, { x:-162, z: 60, type:'shop',   w:2.4, h:1.8 },
+  { x:-108, z: 50, type:'house',  w:2.8, h:3.2 }, { x:-128, z: 48, type:'house',  w:2.5, h:2.8 },
+  { x:-148, z: 45, type:'church', w:2.6, h:2.4 }, { x:-165, z: 42, type:'house',  w:2.2, h:2.0 },
+  { x: -85, z: 42, type:'shop',   w:2.4, h:1.8 }, { x:-120, z: 35, type:'house',  w:2.5, h:3.0 },
+  { x:-140, z: 32, type:'inn',    w:2.8, h:2.2 }, { x:-155, z: 30, type:'house',  w:2.2, h:2.0 },
+  { x: -32, z:108, type:'house',  w:2.2, h:2.5 }, { x: -48, z:100, type:'house',  w:2.2, h:2.5 },
+  { x: -30, z: 90, type:'shop',   w:2.4, h:1.8 }, { x: -50, z: 82, type:'house',  w:2.2, h:2.2 },
+  { x: -28, z: 72, type:'inn',    w:2.6, h:2.0 }, { x: -52, z: 65, type:'house',  w:2.0, h:2.0 },
+  { x: -32, z: 55, type:'house',  w:2.2, h:2.2 }, { x: -50, z: 48, type:'shop',   w:2.2, h:1.8 },
+  { x: -28, z: 40, type:'house',  w:2.0, h:2.0 }, { x: -52, z: 35, type:'house',  w:2.2, h:2.2 },
+  { x: -15, z: 75, type:'house',  w:2.0, h:2.2 }, { x: -15, z: 55, type:'shop',   w:2.2, h:1.8 },
+  { x: -15, z: 40, type:'house',  w:2.0, h:2.0 },
+  // ── PORTO EST (x: 30-170, z: 0-150) ─────────────────────────────
+  { x: 100, z:140, type:'house',  w:2.8, h:2.0 }, { x: 120, z:138, type:'ruin',   w:3.2, h:1.8 },
+  { x: 140, z:135, type:'ruin',   w:3.5, h:1.6 }, { x: 160, z:130, type:'ruin',   w:3.0, h:1.8 },
+  { x: 108, z:122, type:'inn',    w:2.8, h:2.2 }, { x: 128, z:118, type:'shop',   w:2.6, h:1.8 },
+  { x: 148, z:115, type:'house',  w:2.4, h:1.8 }, { x: 168, z:112, type:'ruin',   w:2.8, h:1.6 },
+  { x: 100, z:105, type:'shop',   w:2.6, h:1.8 }, { x: 118, z:100, type:'house',  w:2.4, h:2.0 },
+  { x: 138, z: 98, type:'inn',    w:2.8, h:2.2 }, { x: 158, z: 95, type:'shop',   w:2.4, h:1.8 },
+  { x: 108, z: 82, type:'house',  w:2.5, h:2.0 }, { x: 128, z: 78, type:'house',  w:2.5, h:2.0 },
+  { x: 148, z: 75, type:'ruin',   w:3.0, h:1.8 }, { x: 165, z: 72, type:'house',  w:2.2, h:1.8 },
+  { x: 102, z: 62, type:'church', w:2.8, h:2.4 }, { x: 122, z: 58, type:'shop',   w:2.5, h:1.8 },
+  { x: 142, z: 55, type:'house',  w:2.4, h:2.0 }, { x: 162, z: 52, type:'ruin',   w:2.8, h:1.6 },
+  { x: 105, z: 42, type:'inn',    w:2.8, h:2.2 }, { x: 125, z: 38, type:'house',  w:2.4, h:2.0 },
+  { x: 145, z: 35, type:'shop',   w:2.4, h:1.8 }, { x: 165, z: 32, type:'house',  w:2.2, h:1.8 },
+  { x: 108, z: 22, type:'house',  w:2.5, h:2.0 }, { x: 128, z: 18, type:'shop',   w:2.5, h:1.8 },
+  { x: 148, z: 15, type:'house',  w:2.4, h:2.0 }, { x: 168, z: 12, type:'ruin',   w:2.8, h:1.6 },
+  { x: 102, z:  5, type:'house',  w:2.4, h:2.0 }, { x: 122, z:  2, type:'shop',   w:2.4, h:1.8 },
+  { x:  45, z:130, type:'house',  w:2.2, h:2.0 }, { x:  60, z:125, type:'shop',   w:2.4, h:1.8 },
+  { x:  45, z:108, type:'inn',    w:2.5, h:2.2 }, { x:  62, z:100, type:'house',  w:2.2, h:2.0 },
+  { x:  45, z: 85, type:'house',  w:2.2, h:2.0 }, { x:  62, z: 78, type:'shop',   w:2.4, h:1.8 },
+  // ── CENTRO (x: -80 to 80, z: -70 to 30) ────────────────────────
+  { x:-18, z: 22, type:'tower',  w:3.0, h:5.0 }, { x: 18, z: 22, type:'tower',  w:3.0, h:5.0 },
+  { x:-38, z: 18, type:'tower',  w:2.8, h:4.0 }, { x: 38, z: 18, type:'tower',  w:2.8, h:4.0 },
+  { x:-58, z: 15, type:'shop',   w:2.8, h:2.5 }, { x: 58, z: 15, type:'shop',   w:2.8, h:2.5 },
+  { x:-72, z: 12, type:'house',  w:2.4, h:2.2 }, { x: 72, z: 12, type:'house',  w:2.4, h:2.2 },
+  { x:-20, z:  5, type:'tower',  w:2.8, h:4.5 }, { x: 20, z:  5, type:'tower',  w:2.8, h:4.5 },
+  { x:-42, z:  2, type:'shop',   w:2.6, h:2.5 }, { x: 42, z:  2, type:'shop',   w:2.6, h:2.5 },
+  { x:-62, z: -2, type:'inn',    w:2.8, h:2.5 }, { x: 62, z: -2, type:'inn',    w:2.8, h:2.5 },
+  { x:-75, z: -5, type:'shop',   w:2.4, h:2.0 }, { x: 75, z: -5, type:'shop',   w:2.4, h:2.0 },
+  { x:-22, z:-12, type:'tower',  w:3.0, h:5.5 }, { x: 22, z:-12, type:'tower',  w:3.0, h:5.5 },
+  { x:-44, z:-15, type:'church', w:3.0, h:3.5 }, { x: 44, z:-15, type:'shop',   w:2.8, h:2.5 },
+  { x:-65, z:-18, type:'shop',   w:2.6, h:2.2 }, { x: 65, z:-18, type:'inn',    w:2.6, h:2.5 },
+  { x:-78, z:-22, type:'house',  w:2.2, h:2.0 }, { x: 78, z:-22, type:'house',  w:2.2, h:2.0 },
+  { x:-20, z:-28, type:'tower',  w:2.8, h:4.0 }, { x: 20, z:-28, type:'tower',  w:2.8, h:4.0 },
+  { x:-42, z:-32, type:'shop',   w:2.6, h:2.5 }, { x: 42, z:-32, type:'shop',   w:2.6, h:2.5 },
+  { x:-62, z:-35, type:'inn',    w:2.8, h:2.5 }, { x: 62, z:-35, type:'inn',    w:2.8, h:2.5 },
+  { x:-75, z:-42, type:'shop',   w:2.4, h:2.0 }, { x: 75, z:-42, type:'shop',   w:2.4, h:2.0 },
+  { x:-22, z:-50, type:'tower',  w:3.0, h:5.0 }, { x: 22, z:-50, type:'tower',  w:3.0, h:5.0 },
+  { x:-44, z:-52, type:'shop',   w:2.6, h:2.2 }, { x: 44, z:-52, type:'shop',   w:2.6, h:2.2 },
+  { x:-65, z:-55, type:'house',  w:2.4, h:2.2 }, { x: 65, z:-55, type:'house',  w:2.4, h:2.2 },
+  { x:  0, z:-60, type:'church', w:4.0, h:4.0 },
+  { x:-78, z:-62, type:'ruin',   w:2.2, h:1.8 }, { x: 78, z:-62, type:'ruin',   w:2.2, h:1.8 },
+  // ── INDUSTRIALE (x: -170 to -80, z: -70 to 30) ─────────────────
+  { x: -95, z: 22, type:'ruin',  w:4.0, h:2.0 }, { x:-115, z: 18, type:'ruin',  w:4.5, h:1.8 },
+  { x:-138, z: 15, type:'ruin',  w:4.0, h:2.0 }, { x:-158, z: 12, type:'house', w:2.4, h:1.8 },
+  { x: -95, z:  5, type:'tower', w:3.5, h:2.5 }, { x:-115, z:  2, type:'ruin',  w:4.5, h:2.0 },
+  { x:-138, z: -2, type:'ruin',  w:4.0, h:1.8 }, { x:-162, z: -5, type:'ruin',  w:3.5, h:1.8 },
+  { x: -98, z:-12, type:'ruin',  w:4.5, h:2.2 }, { x:-120, z:-15, type:'tower', w:3.0, h:3.0 },
+  { x:-142, z:-18, type:'ruin',  w:4.0, h:1.8 }, { x:-162, z:-22, type:'ruin',  w:3.5, h:1.8 },
+  { x: -98, z:-30, type:'ruin',  w:4.5, h:2.0 }, { x:-118, z:-32, type:'ruin',  w:4.0, h:1.8 },
+  { x:-140, z:-35, type:'tower', w:3.0, h:3.5 }, { x:-162, z:-38, type:'ruin',  w:3.5, h:1.8 },
+  { x:-100, z:-48, type:'ruin',  w:4.0, h:2.0 }, { x:-120, z:-50, type:'ruin',  w:4.5, h:1.8 },
+  { x:-142, z:-52, type:'ruin',  w:4.0, h:1.8 }, { x:-162, z:-55, type:'ruin',  w:3.5, h:1.6 },
+  { x:-100, z:-62, type:'house', w:2.4, h:1.8 }, { x:-120, z:-64, type:'ruin',  w:4.0, h:1.8 },
+  { x:-145, z:-62, type:'tower', w:3.0, h:2.8 }, { x:-165, z:-65, type:'ruin',  w:3.2, h:1.8 },
+  // ── DISTRETTO NORD (x: -170 to 170, z: -200 to -70) ────────────
+  { x: -45, z: -82, type:'house',  w:1.6, h:1.4 }, { x: -65, z: -88, type:'shop',   w:1.8, h:1.5 },
+  { x: -30, z: -95, type:'house',  w:1.6, h:1.4 }, { x: -55, z:-105, type:'house',  w:1.6, h:1.4 },
+  { x:  40, z: -92, type:'church', w:3.5, h:3.5 }, { x:  62, z: -95, type:'tower',  w:3.0, h:4.0 },
+  { x:  42, z:-110, type:'house',  w:3.0, h:2.8 }, { x:  65, z:-112, type:'shop',   w:2.8, h:2.5 },
+  { x:  40, z:-128, type:'inn',    w:3.0, h:2.5 }, { x:  62, z:-130, type:'house',  w:2.8, h:2.8 },
+  { x:  78, z:-100, type:'house',  w:2.5, h:2.5 }, { x:  78, z:-120, type:'shop',   w:2.5, h:2.2 },
+  { x:-100, z:-125, type:'house',  w:2.5, h:2.0 }, { x:-122, z:-128, type:'ruin',   w:3.0, h:1.8 },
+  { x:-142, z:-130, type:'house',  w:2.5, h:2.0 }, { x:-162, z:-128, type:'ruin',   w:3.0, h:1.8 },
+  { x:-102, z:-142, type:'shop',   w:2.5, h:1.8 }, { x:-122, z:-145, type:'house',  w:2.5, h:2.0 },
+  { x:-145, z:-148, type:'inn',    w:2.8, h:2.2 }, { x:-165, z:-145, type:'house',  w:2.2, h:2.0 },
+  { x: -22, z:-162, type:'church', w:3.0, h:3.5 }, { x:  22, z:-162, type:'tower',  w:2.8, h:4.5 },
+  { x: -42, z:-165, type:'house',  w:2.5, h:2.5 }, { x:  42, z:-165, type:'house',  w:2.5, h:2.5 },
+  { x: -60, z:-168, type:'shop',   w:2.5, h:2.2 }, { x:  60, z:-168, type:'shop',   w:2.5, h:2.2 },
+  { x: -18, z:-178, type:'house',  w:2.5, h:2.8 }, { x:  18, z:-178, type:'house',  w:2.5, h:2.8 },
+  { x: -40, z:-180, type:'inn',    w:2.5, h:2.2 }, { x:  40, z:-180, type:'inn',    w:2.5, h:2.2 },
+  { x: -58, z:-182, type:'ruin',   w:2.5, h:1.8 }, { x:  58, z:-182, type:'ruin',   w:2.5, h:1.8 },
+  { x:   0, z:-192, type:'tower',  w:4.0, h:6.0 },
+  { x: -90, z: -82, type:'house',  w:2.5, h:2.2 }, { x:  90, z: -82, type:'house',  w:2.5, h:2.2 },
+  { x:-108, z: -90, type:'shop',   w:2.5, h:2.0 }, { x: 108, z: -90, type:'shop',   w:2.5, h:2.0 },
+  { x:-128, z: -92, type:'house',  w:2.5, h:2.2 }, { x: 128, z: -92, type:'house',  w:2.5, h:2.2 },
+  { x:-148, z: -88, type:'ruin',   w:3.0, h:2.0 }, { x: 148, z: -88, type:'tower',  w:2.8, h:3.5 },
+  { x:-165, z: -92, type:'house',  w:2.2, h:2.0 }, { x: 165, z: -92, type:'shop',   w:2.4, h:2.0 },
+  { x: -88, z:-108, type:'house',  w:2.5, h:2.2 }, { x:  88, z:-108, type:'house',  w:2.5, h:2.2 },
+  { x:-108, z:-115, type:'shop',   w:2.5, h:2.0 }, { x: 108, z:-115, type:'inn',    w:2.8, h:2.5 },
+  { x:-130, z:-112, type:'house',  w:2.5, h:2.5 }, { x: 130, z:-112, type:'house',  w:2.5, h:2.5 },
+  { x:-150, z:-110, type:'church', w:2.8, h:2.8 }, { x: 150, z:-110, type:'tower',  w:2.8, h:3.8 },
+  { x:-165, z:-115, type:'house',  w:2.2, h:2.0 }, { x: 165, z:-115, type:'house',  w:2.2, h:2.0 },
+  { x: -90, z:-132, type:'house',  w:2.5, h:2.2 }, { x:  90, z:-132, type:'house',  w:2.5, h:2.2 },
+  { x:-115, z:-138, type:'inn',    w:2.8, h:2.5 }, { x: 115, z:-138, type:'shop',   w:2.5, h:2.0 },
+  { x:-135, z:-142, type:'house',  w:2.5, h:2.2 }, { x: 135, z:-142, type:'church', w:2.8, h:3.0 },
+  { x:-155, z:-140, type:'ruin',   w:3.0, h:1.8 }, { x: 155, z:-140, type:'house',  w:2.5, h:2.2 },
+  { x: -90, z:-155, type:'house',  w:2.5, h:2.5 }, { x:  90, z:-155, type:'house',  w:2.5, h:2.5 },
+  { x:-112, z:-160, type:'shop',   w:2.5, h:2.0 }, { x: 112, z:-160, type:'shop',   w:2.5, h:2.0 },
+  { x:-135, z:-162, type:'tower',  w:2.8, h:3.5 }, { x: 135, z:-162, type:'inn',    w:2.8, h:2.5 },
+  { x:-158, z:-160, type:'house',  w:2.2, h:2.0 }, { x: 158, z:-160, type:'house',  w:2.2, h:2.0 },
+  { x: -80, z:-175, type:'house',  w:2.5, h:2.2 }, { x:  80, z:-175, type:'house',  w:2.5, h:2.2 },
+  { x:-100, z:-180, type:'ruin',   w:3.0, h:1.8 }, { x: 100, z:-180, type:'tower',  w:2.8, h:3.5 },
+  { x:-122, z:-178, type:'house',  w:2.5, h:2.0 }, { x: 122, z:-178, type:'house',  w:2.5, h:2.0 },
 ];
 
 const BUILDING_COLORS: Record<BuildingType, { body: string; roof: string }> = {
-  house:  { body: '#d4a96a', roof: '#a0522d' },
+  house:  { body: '#c8a87a', roof: '#8b5e3c' },
   shop:   { body: '#b8d4f0', roof: '#4a80c0' },
   inn:    { body: '#d4c88a', roof: '#8b6020' },
-  tower:  { body: '#9a9a9a', roof: '#555555' },
-  ruin:   { body: '#8a8070', roof: '#5a5040' },
+  tower:  { body: '#9a9a9a', roof: '#444' },
+  ruin:   { body: '#7a7060', roof: '#4a4030' },
   church: { body: '#f0e8d0', roof: '#c04040' },
   arcade: { body: '#2d1a4e', roof: '#7c3aed' },
 };
@@ -352,21 +382,92 @@ interface ArcadeBuilding {
 }
 
 const ARCADE_BUILDINGS: ArcadeBuilding[] = [
-  { id: 'ruota',    name: 'Ruota della Fortuna', emoji: '🎡', x:  20, z: 22,  color: '#a855f7' },
-  { id: 'memory',   name: 'Memory delle Carte',  emoji: '🃏', x: -30, z:-8,   color: '#818cf8' },
-  { id: 'dado',     name: 'Sfida al Dado',        emoji: '🎲', x:  55, z:-45,  color: '#f97316' },
-  { id: 'reazione', name: 'Reazione Rapida',      emoji: '⚡', x: -52, z:-35,  color: '#fbbf24' },
-  { id: 'quiz',     name: 'Quiz del Minkiard',    emoji: '❓', x: -20, z: 44,  color: '#06b6d4' },
-  { id: 'rps',      name: 'Sasso Carta Forbice',  emoji: '✂️', x:  36, z:-76,  color: '#ec4899' },
+  { id: 'ruota',    name: 'Ruota della Fortuna', emoji: '🎡', x:  22, z:160,  color: '#a855f7' },
+  { id: 'memory',   name: 'Memory delle Carte',  emoji: '🃏', x: -58, z: 85,  color: '#818cf8' },
+  { id: 'dado',     name: 'Sfida al Dado',        emoji: '🎲', x: 125, z:-12,  color: '#f97316' },
+  { id: 'reazione', name: 'Reazione Rapida',      emoji: '⚡', x:-125, z:-15,  color: '#fbbf24' },
+  { id: 'quiz',     name: 'Quiz del Minkiard',    emoji: '❓', x: -45, z:-100, color: '#06b6d4' },
+  { id: 'rps',      name: 'Sasso Carta Forbice',  emoji: '✂️', x:  55, z:-130, color: '#ec4899' },
 ];
 
-/* ── Bridge positions ────────────────────────────────────────── */
+/* ── City roads ──────────────────────────────────────────────── */
+const ROAD_DATA: { x1:number; z1:number; x2:number; z2:number; w:number }[] = [
+  // Main avenues (vertical N-S)
+  { x1:  0, z1:-200, x2:  0, z2:200, w:6   },  // Corso Principale
+  { x1: 90, z1:-160, x2: 90, z2:160, w:5   },  // Viale Est
+  { x1:-90, z1:-160, x2:-90, z2:160, w:5   },  // Viale Ovest
+  { x1:150, z1: -80, x2:150, z2:180, w:4   },  // Via del Porto
+  { x1:-150,z1: -80, x2:-150,z2:100, w:4   },  // Via Industriale
+  // Cross streets (horizontal E-W)
+  { x1:-90, z1:160, x2: 90, z2:160, w:5.5 },   // Via Sud Grande
+  { x1:-160,z1: 90, x2: 90, z2: 90, w:5   },   // Via Commerciale Ovest
+  { x1: 90, z1: 90, x2:170, z2: 90, w:4   },   // Via Commerciale Est
+  { x1:-170,z1: 15, x2:170, z2: 15, w:6   },   // Via del Centro
+  { x1:-170,z1:-60, x2:170, z2:-60, w:5   },   // Via Nord
+  { x1:-150,z1:-120,x2:170, z2:-120,w:4.5 },   // Via Parco
+  { x1:-90, z1:-170,x2: 90, z2:-170,w:4   },   // Via Finale
+  // Secondary streets
+  { x1:-90, z1:  0, x2:  0, z2:  0, w:3   },
+  { x1:  0, z1:  0, x2: 90, z2:  0, w:3   },
+  { x1:-170,z1:-30, x2:-90, z2:-30, w:3   },
+  { x1:-90, z1:-90, x2:  0, z2:-90, w:3.5 },
+  { x1:  0, z1:-90, x2: 90, z2:-90, w:3.5 },
+  { x1: 90, z1:-60, x2:170, z2:-60, w:3.5 },
+  { x1:-90, z1: 45, x2:  0, z2: 45, w:3   },
+  { x1:  0, z1: 45, x2: 90, z2: 45, w:3   },
+  { x1: 30, z1: 15, x2: 30, z2: 90, w:3   },   // Via del Mercato
+  { x1:-30, z1: 15, x2:-30, z2:120, w:3   },   // Via Residenziale
+  { x1:-90, z1:120, x2:-30, z2:120, w:3   },
+  { x1:-30, z1:120, x2:  0, z2:120, w:3   },
+  { x1:  0, z1:-120,x2:  0, z2:-60, w:3.5 },
+  { x1:  0, z1:-170,x2:  0, z2:-120,w:3.5 },
+  { x1:-90, z1:-145,x2:  0, z2:-145,w:3.5 },
+  { x1:  0, z1:-145,x2: 90, z2:-145,w:3.5 },
+];
+
+/* ── Animated city cars ──────────────────────────────────────── */
+interface CarDef { axis:'x'|'z'; fixed:number; from:number; to:number; speed:number; phase:number; color:string; len:number; wid:number }
+const CAR_DATA: CarDef[] = [
+  { axis:'z', fixed: 2.5, from:-200, to: 200, speed:0.055, phase:0.00, color:'#e74c3c', len:3.2, wid:1.4 },
+  { axis:'z', fixed:-2.5, from: 200, to:-200, speed:0.048, phase:0.50, color:'#3498db', len:3.2, wid:1.4 },
+  { axis:'x', fixed: 12,  from:-170, to: 170, speed:0.040, phase:0.20, color:'#2ecc71', len:3.2, wid:1.4 },
+  { axis:'x', fixed: 18,  from: 170, to:-170, speed:0.035, phase:0.70, color:'#f39c12', len:3.2, wid:1.4 },
+  { axis:'z', fixed: 92,  from:-160, to: 160, speed:0.042, phase:0.30, color:'#9b59b6', len:3.0, wid:1.3 },
+  { axis:'z', fixed: 88,  from: 160, to:-160, speed:0.038, phase:0.80, color:'#1abc9c', len:3.0, wid:1.3 },
+  { axis:'z', fixed:-88,  from:-160, to: 160, speed:0.040, phase:0.15, color:'#e67e22', len:3.0, wid:1.3 },
+  { axis:'z', fixed:-92,  from: 160, to:-160, speed:0.036, phase:0.65, color:'#c0392b', len:3.0, wid:1.3 },
+  { axis:'x', fixed: 87,  from:-160, to:  90, speed:0.048, phase:0.40, color:'#f1c40f', len:3.0, wid:1.3 },
+  { axis:'x', fixed: 93,  from:  90, to:-160, speed:0.043, phase:0.90, color:'#34495e', len:3.0, wid:1.3 },
+  { axis:'x', fixed:-63,  from:-170, to: 170, speed:0.052, phase:0.55, color:'#ff6b6b', len:2.8, wid:1.3 },
+  { axis:'x', fixed:-57,  from: 170, to:-170, speed:0.047, phase:0.05, color:'#4ecdc4', len:2.8, wid:1.3 },
+];
+
+/* ── Traffic lights at intersections ────────────────────────── */
+const TRAFFIC_LIGHT_DATA: { x:number; z:number }[] = [
+  { x:  4, z: 12 }, { x: -4, z: 12 }, { x:  4, z: 18 }, { x: -4, z: 18 },
+  { x: 86, z: 12 }, { x: 94, z: 12 }, { x: 86, z: 18 }, { x: 94, z: 18 },
+  { x:-86, z: 12 }, { x:-94, z: 12 }, { x:-86, z: 18 }, { x:-94, z: 18 },
+  { x:  4, z:-63 }, { x: -4, z:-63 }, { x:  4, z:-57 }, { x: -4, z:-57 },
+  { x:  4, z: 87 }, { x: -4, z: 87 }, { x:  4, z: 93 }, { x: -4, z: 93 },
+  { x:  4, z:157 }, { x: -4, z:157 }, { x:  4, z:163 }, { x: -4, z:163 },
+];
+
+/* ── District zones for background coloring ─────────────────── */
+const DISTRICT_DATA: { x1:number; z1:number; x2:number; z2:number; color:string }[] = [
+  { x1: -92, z1: 112, x2:  92, z2:200, color:'#253a28' },  // INGRESSO
+  { x1:-172, z1:  18, x2: -12, z2:112, color:'#1e2a3a' },  // RESIDENZIALE
+  { x1:  18, z1: -12, x2: 172, z2:162, color:'#1a2235' },  // PORTO EST
+  { x1: -92, z1: -72, x2:  92, z2: 18, color:'#282828' },  // CENTRO
+  { x1:-172, z1: -72, x2: -92, z2: 18, color:'#221a10' },  // INDUSTRIALE
+  { x1: -82, z1:-135, x2:   5, z2:-72, color:'#1a2e1a' },  // PARCO GRANDE
+  { x1:-172, z1:-200, x2: 172, z2:-72, color:'#1e1e30' },  // NORD
+];
+
+/* ── Bridge decorations ──────────────────────────────────────── */
 const BRIDGE_DATA: { x: number; z: number; ry: number }[] = [
-  { x:  6, z:  1, ry: 0.15 },   // central lake
-  { x: 65, z:  5, ry: 1.05 },   // east coast
-  { x:-58, z: 42, ry: 0.85 },   // west harbor
-  { x:-12, z: 22, ry: 0.35 },   // NW pond
-  { x: 26, z:-24, ry: 0.2  },   // NE pond
+  { x:  5, z:   0, ry: 0.1 },  // Centro fountain bridge
+  { x:148, z:  70, ry: 1.5 },  // Porto marina bridge
+  { x:-50, z:-103, ry: 0.3 },  // Park pond bridge
 ];
 
 /* ── 2D Canvas rendering constants ───────────────────────────── */
@@ -384,8 +485,8 @@ const LOCALITY_COLORS: Record<string, string> = {
   football_field: '#22c55e',
 };
 
-/* ── Football field (static, always present) ──────────────── */
-const FOOTBALL_FIELD_POS = { x: -30, z: 20 } as const;
+/* ── Football field (near Parco Grande) ──────────────────────── */
+const FOOTBALL_FIELD_POS = { x: -45, z: -145 } as const;
 const FOOTBALL_FIELD_RADIUS = 9;
 const FOOTBALL_FIELD_LOCALITY = {
   id: -1,
@@ -449,12 +550,12 @@ function Minimap({ playerRef, arenaPositions, leaders, getLeaderStatus, localiti
   useEffect(() => {
     const SIZE  = 180;
     const PAD   = 8;
-    const WORLD = 160;
+    const WORLD = 400;
     const scale = (SIZE - PAD * 2) / WORLD;
 
     const toC = (wx: number, wz: number) => ({
-      x: PAD + (wx + 80) * scale,
-      y: PAD + (wz + 80) * scale,
+      x: PAD + (wx + 200) * scale,
+      y: PAD + (wz + 200) * scale,
     });
 
     const draw = () => {
@@ -627,8 +728,8 @@ export function StoryWorldMap({
   const sizeRef      = useRef<{ w: number; h: number }>({ w: 800, h: 600 });
 
   /* ── Game state refs (no re-render on change) ──────────── */
-  const playerRef = useRef<{ x: number; z: number }>({ x: 0, z: 72 });
-  const camRef    = useRef<{ x: number; z: number }>({ x: 0, z: 72 });
+  const playerRef = useRef<{ x: number; z: number }>({ x: 0, z: 185 });
+  const camRef    = useRef<{ x: number; z: number }>({ x: 0, z: 185 });
   const keysRef   = useRef<Set<string>>(new Set());
   const joyRef    = useRef<{ x: number; z: number }>({ x: 0, z: 0 });
   const timeRef   = useRef(0);
@@ -1422,21 +1523,6 @@ export function StoryWorldMap({
             }
           }
         });
-        /* AABB collision: large boulders (axis-min-penetration slide) */
-        BOULDER_DATA.forEach(b => {
-          if (b.sx <= 1.3) return;
-          const BHW = b.sx * 0.72 + PR;
-          const BHD = b.sx * 0.72 + PR;
-          const oX = BHW - Math.abs(playerRef.current.x - b.x);
-          const oZ = BHD - Math.abs(playerRef.current.z - b.z);
-          if (oX > 0 && oZ > 0) {
-            if (oX < oZ) {
-              playerRef.current.x += playerRef.current.x < b.x ? -oX : oX;
-            } else {
-              playerRef.current.z += playerRef.current.z < b.z ? -oZ : oZ;
-            }
-          }
-        });
       }
 
       /* ── Camera: player always centered ────────────── */
@@ -1546,13 +1632,15 @@ export function StoryWorldMap({
       const camX = playerRef.current.x, camZ = playerRef.current.z;
       ensurePatterns(ctx, camX, camZ);
 
-      /* 1. Grass background */
-      if (grassPatRef.current) {
-        ctx.fillStyle = grassPatRef.current;
-      } else {
-        ctx.fillStyle = '#3db03d';
-      }
+      /* 1. City background: concrete base + district zones */
+      ctx.fillStyle = '#2e2e2e';
       ctx.fillRect(0, 0, w, h);
+      DISTRICT_DATA.forEach(d => {
+        const [x1s, y1s] = w2s(d.x1, d.z1);
+        const [x2s, y2s] = w2s(d.x2, d.z2);
+        ctx.fillStyle = d.color;
+        ctx.fillRect(Math.min(x1s, x2s), Math.min(y1s, y2s), Math.abs(x2s - x1s), Math.abs(y2s - y1s));
+      });
 
       /* 1b. Day/night cycle: compute atmosphere values (applied post-render) */
       const _dayP = (t / 300) % 1;
@@ -1590,32 +1678,35 @@ export function StoryWorldMap({
         _skyR = 8; _skyG = 14; _skyB = 48; _skyA = 0.52;
       }
 
-      /* 2. Sand paths between arenas */
-      const nArenas = leadersRef.current.length;
-      if (nArenas > 1) {
-        ctx.strokeStyle = sandPatRef.current ?? '#c8a853';
-        ctx.lineWidth = 3.5 * TILE;
-        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        for (let i = 0; i < nArenas - 1; i++) {
-          const [ax, az] = arenaPositionsRef.current[i] ?? getArenaPosition(i, nArenas);
-          const [bx, bz] = arenaPositionsRef.current[i+1] ?? getArenaPosition(i+1, nArenas);
-          const [asx, asy] = w2s(ax, az);
-          const [bsx, bsy] = w2s(bx, bz);
-          ctx.beginPath(); ctx.moveTo(asx, asy); ctx.lineTo(bsx, bsy); ctx.stroke();
+      /* 2. City roads */
+      ROAD_DATA.forEach(road => {
+        const isVert = road.x1 === road.x2;
+        let sx1: number, sy1: number, sx2: number, sy2: number;
+        if (isVert) {
+          [sx1, sy1] = w2s(road.x1 - road.w / 2, Math.min(road.z1, road.z2));
+          [sx2, sy2] = w2s(road.x1 + road.w / 2, Math.max(road.z1, road.z2));
+        } else {
+          [sx1, sy1] = w2s(Math.min(road.x1, road.x2), road.z1 - road.w / 2);
+          [sx2, sy2] = w2s(Math.max(road.x1, road.x2), road.z1 + road.w / 2);
         }
-        /* Sand borders */
-        ctx.strokeStyle = '#b8943d';
-        ctx.lineWidth = 3.5 * TILE + 3;
-        ctx.globalAlpha = 0.12;
-        for (let i = 0; i < nArenas - 1; i++) {
-          const [ax, az] = arenaPositionsRef.current[i] ?? getArenaPosition(i, nArenas);
-          const [bx, bz] = arenaPositionsRef.current[i+1] ?? getArenaPosition(i+1, nArenas);
-          const [asx, asy] = w2s(ax, az);
-          const [bsx, bsy] = w2s(bx, bz);
-          ctx.beginPath(); ctx.moveTo(asx, asy); ctx.lineTo(bsx, bsy); ctx.stroke();
-        }
-        ctx.globalAlpha = 1;
-      }
+        const rw = Math.abs(sx2 - sx1), rh = Math.abs(sy2 - sy1);
+        const rx = Math.min(sx1, sx2), ry = Math.min(sy1, sy2);
+        /* sidewalk curb */
+        const curbW = 4;
+        ctx.fillStyle = '#5a5a5a';
+        ctx.fillRect(rx - curbW, ry - curbW, rw + curbW * 2, rh + curbW * 2);
+        /* road surface */
+        ctx.fillStyle = '#333';
+        ctx.fillRect(rx, ry, rw, rh);
+        /* center dashes */
+        const [mx1, my1] = isVert ? w2s(road.x1, Math.min(road.z1, road.z2)) : w2s(Math.min(road.x1, road.x2), road.z1);
+        const [mx2, my2] = isVert ? w2s(road.x1, Math.max(road.z1, road.z2)) : w2s(Math.max(road.x1, road.x2), road.z1);
+        ctx.strokeStyle = 'rgba(255,255,220,0.18)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([TILE * 1.5, TILE]);
+        ctx.beginPath(); ctx.moveTo(mx1, my1); ctx.lineTo(mx2, my2); ctx.stroke();
+        ctx.setLineDash([]);
+      });
 
       /* 3. Water patches (animated ripples + rotating shimmers) */
       WATER_DATA.forEach((wd) => {
@@ -1685,42 +1776,7 @@ export function StoryWorldMap({
         }
       });
 
-      /* 5. Stone walls */
-      WALL_PIECES.forEach((p) => {
-        const [wx, wy] = w2s(p.x, p.z);
-        ctx.fillStyle = p.alt ? '#8a7a6a' : '#7a6a5a';
-        rrect(ctx, wx - 0.5 * TILE, wy - 0.45 * TILE, TILE, 0.9 * TILE, 3); ctx.fill();
-        ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 1; ctx.stroke();
-      });
-
-      /* 6. Hedges */
-      HEDGE_PIECES.forEach((p) => {
-        const [hx, hy] = w2s(p.x, p.z);
-        const hr = 0.58 * TILE;
-        ctx.fillStyle = p.dark ? '#1a5c1a' : '#236b23';
-        ctx.fillRect(hx - hr * 0.95, hy - hr * 0.88, hr * 1.9, hr * 1.1);
-        ctx.beginPath(); ctx.arc(hx, hy - hr * 0.62, hr * 0.7, 0, Math.PI * 2);
-        ctx.fillStyle = '#2d7a2d'; ctx.fill();
-      });
-
-      /* 7. Boulders (with directional shadow) */
-      const [bSunX, bSunZ] = getSunVec(t);
-      BOULDER_DATA.forEach((b, i) => {
-        const [bx, by] = w2s(b.x, b.z);
-        const br = b.sx * 0.82 * TILE;
-        /* directional cast shadow */
-        ctx.beginPath();
-        ctx.ellipse(bx + bSunX * br * 0.7, by + br * 0.25 + bSunZ * br * 0.28, br * 1.15, br * 0.42, 0, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0,0,0,0.20)'; ctx.fill();
-        /* boulder body */
-        ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2);
-        ctx.fillStyle = i % 3 === 0 ? '#8a8a8a' : i % 3 === 1 ? '#9a9080' : '#7a7878'; ctx.fill();
-        ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1; ctx.stroke();
-        if (b.twin) {
-          ctx.beginPath(); ctx.arc(bx + br * 0.6, by - br * 0.3, br * 0.55, 0, Math.PI * 2);
-          ctx.fillStyle = '#7a7870'; ctx.fill();
-        }
-      });
+      /* 5-7. (walls/hedges/boulders replaced by city roads and buildings) */
 
       /* 8. Lamp posts (enhanced night glow) */
       const lampDayP = (t / 300) % 1;
@@ -1757,19 +1813,7 @@ export function StoryWorldMap({
         ctx.fillStyle = `rgba(255,240,120,${glow + lampNightA * 0.12})`; ctx.fill();
       });
 
-      /* 9. Tall grass */
-      TALLGRASS_PATCHES.forEach((patch) => {
-        patch.blades.forEach((blade, bi) => {
-          const [gx, gy] = w2s(patch.cx + blade.dx, patch.cz + blade.dz);
-          const bh = blade.h * TILE * 0.7;
-          const sway = Math.sin(t * 1.2 + blade.dx * 0.4) * 1.5;
-          ctx.strokeStyle = bi % 3 === 0 ? '#3aaa3a' : bi % 3 === 1 ? '#2e8c2e' : '#4dc44d';
-          ctx.lineWidth = 2; ctx.lineCap = 'round';
-          ctx.beginPath(); ctx.moveTo(gx, gy);
-          ctx.quadraticCurveTo(gx + sway * 1.5, gy - bh * 0.5, gx + sway * 2, gy - bh);
-          ctx.stroke();
-        });
-      });
+      /* 9. (tall grass removed — city world) */
 
       /* 10. Wooden bridges */
       BRIDGE_DATA.forEach(br => {
@@ -1796,6 +1840,64 @@ export function StoryWorldMap({
       /* trees */
       TREE_DATA.forEach(tree => {
         sprites.push({ z: tree.z, draw: () => drawTree(ctx, tree, t) });
+      });
+
+      /* animated city cars */
+      CAR_DATA.forEach((car) => {
+        const progress = ((t * car.speed + car.phase) % 1 + 1) % 1;
+        const pos = car.from + (car.to - car.from) * progress;
+        const wx = car.axis === 'z' ? car.fixed : pos;
+        const wz = car.axis === 'x' ? car.fixed : pos;
+        sprites.push({ z: wz, draw: () => {
+          const [csx, csy] = w2s(wx, wz);
+          const cW = car.len * TILE; const cH = car.wid * TILE;
+          const isHoriz = car.axis === 'x';
+          ctx.save();
+          ctx.translate(csx, csy);
+          if (isHoriz) ctx.rotate(Math.PI / 2);
+          /* shadow */
+          ctx.beginPath();
+          ctx.ellipse(2, cW * 0.12, cW * 0.45, cH * 0.3, 0, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fill();
+          /* body */
+          rrect(ctx, -cW / 2, -cH / 2, cW, cH, 5);
+          ctx.fillStyle = car.color; ctx.fill();
+          /* windshield */
+          ctx.fillStyle = 'rgba(180,220,255,0.55)';
+          ctx.fillRect(-cW * 0.22, -cH * 0.46, cW * 0.44, cH * 0.42);
+          /* headlights */
+          const hDir = car.to > car.from ? 1 : -1;
+          ctx.fillStyle = 'rgba(255,255,200,0.85)';
+          ctx.fillRect(-cH * 0.38, hDir > 0 ? -cW / 2 : cW / 2 - 5, cH * 0.3, 5);
+          /* taillights */
+          ctx.fillStyle = 'rgba(255,50,50,0.85)';
+          ctx.fillRect(-cH * 0.38, hDir > 0 ? cW / 2 - 5 : -cW / 2, cH * 0.3, 5);
+          ctx.restore();
+        }});
+      });
+
+      /* traffic lights */
+      const lightCycle = (t / 18) % 1;
+      const isRed = lightCycle < 0.46;
+      const isYellow = lightCycle >= 0.46 && lightCycle < 0.54;
+      const lightColor = isRed ? '#ef4444' : isYellow ? '#fbbf24' : '#22c55e';
+      TRAFFIC_LIGHT_DATA.forEach(tl => {
+        sprites.push({ z: tl.z, draw: () => {
+          const [tlx, tly] = w2s(tl.x, tl.z);
+          ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(tlx, tly + 6); ctx.lineTo(tlx, tly - 18); ctx.stroke();
+          ctx.fillStyle = '#111';
+          rrect(ctx, tlx - 4, tly - 18, 8, 14, 2); ctx.fill();
+          const lY = isRed ? tly - 15 : isYellow ? tly - 11 : tly - 7;
+          ctx.beginPath(); ctx.arc(tlx, lY, 3, 0, Math.PI * 2);
+          ctx.fillStyle = lightColor; ctx.fill();
+          if (_nightAlpha > 0.05 || true) {
+            const glGrd = ctx.createRadialGradient(tlx, lY, 0, tlx, lY, 9);
+            glGrd.addColorStop(0, lightColor + '55'); glGrd.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.beginPath(); ctx.arc(tlx, lY, 9, 0, Math.PI * 2);
+            ctx.fillStyle = glGrd; ctx.fill();
+          }
+        }});
       });
 
       /* localities */
