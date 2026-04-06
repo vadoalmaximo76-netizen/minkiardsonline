@@ -370,7 +370,7 @@ export function AdminGymPanel({ onClose }: Props) {
       cpuCount: leader.cpuCount ?? 1,
       attackMode: leader.attackMode ?? 'free_for_all',
       useFixedDeckOrder: leader.useFixedDeckOrder ?? false,
-      cpuConfigs: Array.isArray(leader.cpuConfigs) ? leader.cpuConfigs : [],
+      cpuConfigs: syncCpuConfigs(leader.cpuCount ?? 1, Array.isArray(leader.cpuConfigs) ? leader.cpuConfigs : []),
       requiredFaction: leader.requiredFaction ?? '',
     });
     setCardSearch('');
