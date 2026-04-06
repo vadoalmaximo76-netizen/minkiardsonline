@@ -2162,40 +2162,9 @@ export function StoryWorldMap({
 
       /* 5-7. (walls/hedges/boulders replaced by city roads and buildings) */
 
-      /* 8. Lamp posts (enhanced night glow) */
+      /* 8. Lamp posts — pre-compute night alpha here for use in sprites */
       const lampDayP = (t / 300) % 1;
       const lampNightA = lampDayP >= 0.87 ? 1 : lampDayP < 0.15 ? 1 : lampDayP > 0.75 ? (lampDayP - 0.75) / 0.12 : 0;
-      LAMP_DATA.forEach((l) => {
-        const [lx, ly] = w2s(l.x, l.z);
-        const lampGlX = lx + 0.6 * TILE; const lampGlY = ly - 1.8 * TILE;
-        /* large night pool of light (draw first, under pole) */
-        if (lampNightA > 0.05) {
-          const poolR = 2.8 * TILE;
-          const poolGrad = ctx.createRadialGradient(lampGlX, lampGlY, 0, lampGlX, lampGlY, poolR);
-          const poolInt = lampNightA * 0.18;
-          poolGrad.addColorStop(0, `rgba(255,235,120,${poolInt * 1.8})`);
-          poolGrad.addColorStop(0.4, `rgba(255,210,80,${poolInt})`);
-          poolGrad.addColorStop(1, 'rgba(255,190,40,0)');
-          ctx.beginPath(); ctx.arc(lampGlX, lampGlY, poolR, 0, Math.PI * 2);
-          ctx.fillStyle = poolGrad; ctx.fill();
-        }
-        /* pole */
-        ctx.strokeStyle = '#1e1e2e'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(lx, ly + 0.5 * TILE); ctx.lineTo(lx, ly - 1.8 * TILE); ctx.stroke();
-        /* arm */
-        ctx.beginPath(); ctx.moveTo(lx, ly - 1.8 * TILE); ctx.lineTo(lampGlX, lampGlY); ctx.stroke();
-        /* globe glow gradient */
-        const glow = 0.10 + Math.sin(t * 0.8 + l.x) * 0.04;
-        const gg = ctx.createRadialGradient(lampGlX, lampGlY, 0, lampGlX, lampGlY, 0.3 * TILE);
-        gg.addColorStop(0, 'rgba(255,255,210,0.98)'); gg.addColorStop(1, 'rgba(255,220,60,0)');
-        ctx.beginPath(); ctx.arc(lampGlX, lampGlY, 0.3 * TILE, 0, Math.PI * 2);
-        ctx.fillStyle = gg; ctx.fill();
-        ctx.beginPath(); ctx.arc(lampGlX, lampGlY, 0.16 * TILE, 0, Math.PI * 2);
-        ctx.fillStyle = '#fff8e8'; ctx.fill();
-        /* close halo */
-        ctx.beginPath(); ctx.arc(lampGlX, lampGlY, 1.1 * TILE, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,240,120,${glow + lampNightA * 0.12})`; ctx.fill();
-      });
 
       /* 9. (tall grass removed — city world) */
 
@@ -2299,6 +2268,41 @@ export function StoryWorldMap({
           ctx.strokeStyle = '#8b7355'; ctx.lineWidth = 1.5;
           ctx.beginPath(); ctx.moveTo(0, -bW * 0.35); ctx.lineTo(0, -bW * 0.85); ctx.stroke();
           ctx.restore();
+        }});
+      });
+
+      /* lamp posts (Z-sorted) */
+      LAMP_DATA.forEach((l) => {
+        sprites.push({ z: l.z, draw: () => {
+          const [lx, ly] = w2s(l.x, l.z);
+          const lampGlX = lx + 0.6 * TILE; const lampGlY = ly - 1.8 * TILE;
+          /* large night pool of light */
+          if (lampNightA > 0.05) {
+            const poolR = 2.8 * TILE;
+            const poolGrad = ctx.createRadialGradient(lampGlX, lampGlY, 0, lampGlX, lampGlY, poolR);
+            const poolInt = lampNightA * 0.18;
+            poolGrad.addColorStop(0, `rgba(255,235,120,${poolInt * 1.8})`);
+            poolGrad.addColorStop(0.4, `rgba(255,210,80,${poolInt})`);
+            poolGrad.addColorStop(1, 'rgba(255,190,40,0)');
+            ctx.beginPath(); ctx.arc(lampGlX, lampGlY, poolR, 0, Math.PI * 2);
+            ctx.fillStyle = poolGrad; ctx.fill();
+          }
+          /* pole */
+          ctx.strokeStyle = '#1e1e2e'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.moveTo(lx, ly + 0.5 * TILE); ctx.lineTo(lx, ly - 1.8 * TILE); ctx.stroke();
+          /* arm */
+          ctx.beginPath(); ctx.moveTo(lx, ly - 1.8 * TILE); ctx.lineTo(lampGlX, lampGlY); ctx.stroke();
+          /* globe glow gradient */
+          const glow = 0.10 + Math.sin(t * 0.8 + l.x) * 0.04;
+          const gg = ctx.createRadialGradient(lampGlX, lampGlY, 0, lampGlX, lampGlY, 0.3 * TILE);
+          gg.addColorStop(0, 'rgba(255,255,210,0.98)'); gg.addColorStop(1, 'rgba(255,220,60,0)');
+          ctx.beginPath(); ctx.arc(lampGlX, lampGlY, 0.3 * TILE, 0, Math.PI * 2);
+          ctx.fillStyle = gg; ctx.fill();
+          ctx.beginPath(); ctx.arc(lampGlX, lampGlY, 0.16 * TILE, 0, Math.PI * 2);
+          ctx.fillStyle = '#fff8e8'; ctx.fill();
+          /* close halo */
+          ctx.beginPath(); ctx.arc(lampGlX, lampGlY, 1.1 * TILE, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,240,120,${glow + lampNightA * 0.12})`; ctx.fill();
         }});
       });
 
