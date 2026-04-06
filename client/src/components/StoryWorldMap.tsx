@@ -69,7 +69,7 @@ type LeafParticle = {
 type FireflyParticle = { wx: number; wz: number; phase: number; speed: number; size: number; orbitR: number };
 
 /* ── World constants ─────────────────────────────────────────── */
-const PLAYER_SPEED = 22;
+const PLAYER_SPEED = 6;
 const MAP_BOUND    = 200;
 
 /* ── Pre-computed star field (deterministic, no Math.random in render) ── */
@@ -162,6 +162,18 @@ const TREE_DATA: { x: number; z: number; h: number; r: number }[] = [
   { x:-165, z: 55, h:2.0, r:0.60 }, { x:-155, z: 45, h:2.1, r:0.55 },
   { x: 155, z: 95, h:2.0, r:0.60 }, { x: 145, z: 80, h:2.1, r:0.55 },
   { x: 155, z: 42, h:2.0, r:0.58 }, { x:-155, z:-15, h:2.1, r:0.55 },
+  // Extra Parco Grande cluster (denser interior)
+  { x:-32, z: -95, h:2.7, r:1.00 }, { x:-58, z: -88, h:2.5, r:0.92 },
+  { x:-75, z:-108, h:2.9, r:1.05 }, { x:-22, z:-118, h:2.6, r:0.95 },
+  { x:-65, z:-132, h:2.8, r:1.00 }, { x:-38, z:-105, h:2.4, r:0.85 },
+  { x:-55, z:-115, h:2.6, r:0.95 }, { x:-75, z: -90, h:2.7, r:1.00 },
+  { x:-15, z:-130, h:2.5, r:0.88 }, { x:-42, z: -82, h:2.4, r:0.90 },
+  // Nord district additional trees
+  { x:-50, z:-175, h:2.3, r:0.70 }, { x: 50, z:-175, h:2.3, r:0.70 },
+  { x:-100, z:-160, h:2.2, r:0.68 }, { x: 100, z:-160, h:2.2, r:0.68 },
+  { x:-130, z:-145, h:2.0, r:0.62 }, { x: 130, z:-145, h:2.0, r:0.62 },
+  { x: -80, z:-185, h:2.4, r:0.72 }, { x:  80, z:-185, h:2.4, r:0.72 },
+  { x:-155, z:-170, h:2.1, r:0.65 }, { x: 155, z:-170, h:2.1, r:0.65 },
 ];
 
 const WATER_DATA: { x: number; z: number; r: number }[] = [
@@ -191,6 +203,43 @@ const FLOWER_DATA: { x:number; z:number; r:number; color:string }[] = [
   { x:-12, z: 165, r:1.6, color:'#60a5fa' }, { x: 12, z: 165, r:1.6, color:'#f97316' },
   // University garden
   { x: 48, z: -88, r:1.8, color:'#4ade80' }, { x: 65, z: -92, r:1.6, color:'#fbbf24' },
+];
+
+/* ── Park benches (Z-sorted sprites) ────────────────────────── */
+const BENCH_DATA: { x:number; z:number; rot:number }[] = [
+  // Parco Grande benches (along park paths and clearings)
+  { x:-30, z: -88, rot: 0.0 }, { x:-52, z: -92, rot: 1.5 },
+  { x:-68, z:-105, rot: 0.0 }, { x:-38, z:-115, rot: 1.5 },
+  { x:-58, z:-122, rot: 0.0 }, { x:-25, z:-100, rot: 1.5 },
+  { x:-45, z:-130, rot: 0.0 }, { x:-72, z:-118, rot: 1.5 },
+  { x:-20, z:-108, rot: 0.0 }, { x:-60, z: -98, rot: 0.0 },
+  // Centro plaza benches (around fountain and piazza)
+  { x:  8, z:   2, rot: 0.0 }, { x: -8, z:   2, rot: 0.0 },
+  { x:  8, z:  -8, rot: 1.5 }, { x: -8, z:  -8, rot: 1.5 },
+  { x:  5, z: -62, rot: 0.0 }, { x: -5, z: -62, rot: 0.0 },
+  // Ingresso plaza benches
+  { x:-18, z: 168, rot: 0.0 }, { x: 18, z: 168, rot: 0.0 },
+  { x:  0, z: 175, rot: 1.5 },
+  // Residenziale area benches
+  { x:-110, z: 55, rot: 0.0 }, { x:-130, z: 72, rot: 1.5 },
+  { x:-105, z: 85, rot: 0.0 }, { x:-125, z: 95, rot: 1.5 },
+  // Via Commerciale benches
+  { x:-50, z: 95, rot: 0.0 }, { x:-70, z: 95, rot: 0.0 },
+  { x: 40, z: 95, rot: 0.0 }, { x: 60, z: 95, rot: 0.0 },
+];
+
+/* ── Park paths / gravel trails (drawn before sprites) ───────── */
+const PARK_PATH_DATA: { x1:number; z1:number; x2:number; z2:number; w:number }[] = [
+  // Main park trail (N-S spine)
+  { x1:-45, z1: -78, x2:-45, z2:-135, w: 2.5 },
+  // Cross trails
+  { x1:-80, z1:-100, x2:-10, z2:-100, w: 2.0 },
+  { x1:-80, z1:-120, x2:-10, z2:-120, w: 2.0 },
+  // Loop path (diagonal cuts)
+  { x1:-45, z1: -90, x2:-25, z2: -90, w: 2.0 },
+  { x1:-45, z1:-110, x2:-65, z2:-110, w: 2.0 },
+  // Football field access
+  { x1:-45, z1:-130, x2:-45, z2:-145, w: 2.5 },
 ];
 
 const LAMP_DATA: { x:number; z:number }[] = [
@@ -1572,18 +1621,71 @@ export function StoryWorldMap({
         playerRef.current.z = Math.max(-MAP_BOUND, Math.min(MAP_BOUND, playerRef.current.z + dz * PLAYER_SPEED * dt));
         walkRef.current += dt;
       }
-      /* AABB collision: arena buildings */
+      /* ── Full collision system ──────────────────────── */
+      const PR = 0.45; // player collision radius
       {
-        const ARENA_HW = 1.85; const ARENA_HD = 2.05; const PR = 0.58;
+        /* Arena buildings (AABB sliding) */
+        const ARENA_HW = 1.85; const ARENA_HD = 2.05;
         arenaPositionsRef.current.forEach(([ax, az]) => {
           const oX = ARENA_HW + PR - Math.abs(playerRef.current.x - ax);
           const oZ = ARENA_HD + PR - Math.abs(playerRef.current.z - az);
           if (oX > 0 && oZ > 0) {
-            if (oX < oZ) {
-              playerRef.current.x += playerRef.current.x < ax ? -oX : oX;
-            } else {
-              playerRef.current.z += playerRef.current.z < az ? -oZ : oZ;
-            }
+            if (oX < oZ) { playerRef.current.x += playerRef.current.x < ax ? -oX : oX; }
+            else          { playerRef.current.z += playerRef.current.z < az ? -oZ : oZ; }
+          }
+        });
+        /* City buildings (AABB sliding) */
+        BUILDING_DATA.forEach(bld => {
+          const hw = bld.w / 2 + PR;
+          const hd = bld.h / 2 + PR;
+          const oX = hw - Math.abs(playerRef.current.x - bld.x);
+          const oZ = hd - Math.abs(playerRef.current.z - bld.z);
+          if (oX > 0 && oZ > 0) {
+            if (oX < oZ) { playerRef.current.x += playerRef.current.x < bld.x ? -oX : oX; }
+            else          { playerRef.current.z += playerRef.current.z < bld.z ? -oZ : oZ; }
+          }
+        });
+        /* Tree trunks (circular blocking) */
+        const TRUNK_R = 0.35;
+        TREE_DATA.forEach(tr => {
+          const combR = TRUNK_R + PR;
+          const dx2 = playerRef.current.x - tr.x;
+          const dz2 = playerRef.current.z - tr.z;
+          const dist2 = Math.sqrt(dx2 * dx2 + dz2 * dz2);
+          if (dist2 < combR && dist2 > 0.001) {
+            const push = combR - dist2;
+            playerRef.current.x += (dx2 / dist2) * push;
+            playerRef.current.z += (dz2 / dist2) * push;
+          }
+        });
+        /* Water bodies (circular blocking) */
+        WATER_DATA.forEach(wd => {
+          const combR = wd.r + PR;
+          const dx2 = playerRef.current.x - wd.x;
+          const dz2 = playerRef.current.z - wd.z;
+          const dist2 = Math.sqrt(dx2 * dx2 + dz2 * dz2);
+          if (dist2 < combR && dist2 > 0.001) {
+            const push = combR - dist2;
+            playerRef.current.x += (dx2 / dist2) * push;
+            playerRef.current.z += (dz2 / dist2) * push;
+          }
+        });
+        /* Canal strips (AABB blocking) */
+        CANAL_DATA.forEach(canal => {
+          const isVert = canal.x1 === canal.x2;
+          let cx: number, cz: number, chw: number, chd: number;
+          if (isVert) {
+            cx = canal.x1; chw = canal.w / 2;
+            cz = (canal.z1 + canal.z2) / 2; chd = Math.abs(canal.z2 - canal.z1) / 2;
+          } else {
+            cz = canal.z1; chd = canal.w / 2;
+            cx = (canal.x1 + canal.x2) / 2; chw = Math.abs(canal.x2 - canal.x1) / 2;
+          }
+          const oX = chw + PR - Math.abs(playerRef.current.x - cx);
+          const oZ = chd + PR - Math.abs(playerRef.current.z - cz);
+          if (oX > 0 && oZ > 0) {
+            if (oX < oZ) { playerRef.current.x += playerRef.current.x < cx ? -oX : oX; }
+            else          { playerRef.current.z += playerRef.current.z < cz ? -oZ : oZ; }
           }
         });
       }
@@ -1695,14 +1797,123 @@ export function StoryWorldMap({
       const camX = playerRef.current.x, camZ = playerRef.current.z;
       ensurePatterns(ctx, camX, camZ);
 
-      /* 1. City background: concrete base + district zones */
-      ctx.fillStyle = '#2e2e2e';
+      /* 1. City background: concrete base + district zones with distinct visual styles */
+      ctx.fillStyle = '#2a2a2a';
       ctx.fillRect(0, 0, w, h);
-      DISTRICT_DATA.forEach(d => {
+
+      /* District style config: [base, accent, grid] */
+      const DISTRICT_STYLES = [
+        /* 0 INGRESSO    */ { base:'#c4a97d', accent:'#b8946a', grid:'rgba(0,0,0,0.08)', pattern:'cobble' },
+        /* 1 RESIDENZIALE*/ { base:'#8b5e3c', accent:'#7a5232', grid:'rgba(0,0,0,0.10)', pattern:'brick'  },
+        /* 2 PORTO EST   */ { base:'#4a5568', accent:'#3d4a5c', grid:'rgba(0,0,0,0.12)', pattern:'dock'   },
+        /* 3 CENTRO      */ { base:'#7a7570', accent:'#6e6b65', grid:'rgba(0,0,0,0.08)', pattern:'stone'  },
+        /* 4 INDUSTRIALE */ { base:'#3a3530', accent:'#2d2a26', grid:'rgba(0,0,0,0.14)', pattern:'cement' },
+        /* 5 PARCO GRANDE*/ { base:'#3d7a32', accent:'#2e6024', grid:'rgba(0,0,0,0.06)', pattern:'grass'  },
+        /* 6 NORD        */ { base:'#5a6070', accent:'#4a5060', grid:'rgba(0,0,0,0.10)', pattern:'stone'  },
+      ];
+      DISTRICT_DATA.forEach((d, di) => {
         const [x1s, y1s] = w2s(d.x1, d.z1);
         const [x2s, y2s] = w2s(d.x2, d.z2);
-        ctx.fillStyle = d.color;
-        ctx.fillRect(Math.min(x1s, x2s), Math.min(y1s, y2s), Math.abs(x2s - x1s), Math.abs(y2s - y1s));
+        const rx = Math.min(x1s, x2s), ry = Math.min(y1s, y2s);
+        const rw2 = Math.abs(x2s - x1s), rh2 = Math.abs(y2s - y1s);
+        const sty = DISTRICT_STYLES[di] ?? { base:'#3a3a3a', accent:'#333', grid:'rgba(0,0,0,0.1)', pattern:'stone' };
+        /* base fill */
+        ctx.fillStyle = sty.base;
+        ctx.fillRect(rx, ry, rw2, rh2);
+        /* pattern overlay */
+        ctx.save();
+        ctx.beginPath(); ctx.rect(rx, ry, rw2, rh2);
+        ctx.clip();
+        if (sty.pattern === 'cobble') {
+          /* Cobblestone: irregular small tiles */
+          ctx.fillStyle = sty.accent;
+          const ts = TILE * 0.55;
+          for (let gx = rx - ts; gx < rx + rw2 + ts; gx += ts) {
+            for (let gy = ry - ts; gy < ry + rh2 + ts; gy += ts) {
+              const off = ((Math.round(gy / ts)) % 2) * ts * 0.5;
+              ctx.fillRect(gx + off + 1, gy + 1, ts - 2, ts - 2);
+            }
+          }
+          ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 1;
+          for (let gx = rx - ts; gx < rx + rw2 + ts; gx += ts) {
+            for (let gy = ry - ts; gy < ry + rh2 + ts; gy += ts) {
+              const off = ((Math.round(gy / ts)) % 2) * ts * 0.5;
+              ctx.strokeRect(gx + off + 1, gy + 1, ts - 2, ts - 2);
+            }
+          }
+        } else if (sty.pattern === 'brick') {
+          /* Brick: horizontal staggered rows */
+          ctx.fillStyle = sty.accent;
+          const bw = TILE * 1.2, bh = TILE * 0.5;
+          for (let gy = ry - bh; gy < ry + rh2 + bh; gy += bh) {
+            const row = Math.round(gy / bh);
+            const off = (row % 2) * bw * 0.5;
+            for (let gx = rx - bw + off; gx < rx + rw2 + bw; gx += bw) {
+              ctx.fillRect(gx + 1, gy + 1, bw - 2, bh - 2);
+            }
+          }
+          ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 0.8;
+          for (let gy = ry - bh; gy < ry + rh2 + bh; gy += bh) {
+            const row = Math.round(gy / bh);
+            const off = (row % 2) * bw * 0.5;
+            for (let gx = rx - bw + off; gx < rx + rw2 + bw; gx += bw) {
+              ctx.strokeRect(gx + 1, gy + 1, bw - 2, bh - 2);
+            }
+          }
+        } else if (sty.pattern === 'dock') {
+          /* Dock: horizontal planks */
+          ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 1;
+          const plankH = TILE * 0.65;
+          for (let gy = ry; gy < ry + rh2; gy += plankH) {
+            ctx.beginPath(); ctx.moveTo(rx, gy); ctx.lineTo(rx + rw2, gy); ctx.stroke();
+          }
+          /* vertical bolt lines */
+          ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+          for (let gx = rx; gx < rx + rw2; gx += TILE * 3) {
+            ctx.beginPath(); ctx.moveTo(gx, ry); ctx.lineTo(gx, ry + rh2); ctx.stroke();
+          }
+        } else if (sty.pattern === 'stone') {
+          /* Large stone flags */
+          ctx.strokeStyle = 'rgba(0,0,0,0.14)'; ctx.lineWidth = 1;
+          const fs = TILE * 1.8;
+          for (let gx = rx - fs; gx < rx + rw2 + fs; gx += fs) {
+            for (let gy = ry - fs; gy < ry + rh2 + fs; gy += fs) {
+              const off = ((Math.round(gy / fs)) % 2) * fs * 0.5;
+              ctx.strokeRect(gx + off + 1, gy + 1, fs - 2, fs - 2);
+            }
+          }
+        } else if (sty.pattern === 'cement') {
+          /* Cement: subtle crack lines */
+          ctx.strokeStyle = 'rgba(0,0,0,0.16)'; ctx.lineWidth = 1;
+          const cg = TILE * 2.5;
+          for (let gx = rx; gx < rx + rw2; gx += cg) {
+            ctx.beginPath(); ctx.moveTo(gx, ry); ctx.lineTo(gx, ry + rh2); ctx.stroke();
+          }
+          for (let gy = ry; gy < ry + rh2; gy += cg) {
+            ctx.beginPath(); ctx.moveTo(rx, gy); ctx.lineTo(rx + rw2, gy); ctx.stroke();
+          }
+          /* stain overlay */
+          ctx.fillStyle = 'rgba(0,0,0,0.04)';
+          for (let i = 0; i < 6; i++) {
+            const sx2 = rx + ((i * 37) % rw2); const sy2 = ry + ((i * 53) % rh2);
+            ctx.fillRect(sx2, sy2, TILE * 1.2, TILE * 0.8);
+          }
+        } else if (sty.pattern === 'grass') {
+          /* Grass: light texture lines */
+          ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 0.8;
+          const gg = TILE * 0.85;
+          for (let gy = ry; gy < ry + rh2; gy += gg) {
+            ctx.beginPath(); ctx.moveTo(rx, gy); ctx.lineTo(rx + rw2, gy); ctx.stroke();
+          }
+          /* brighter highlight patches */
+          ctx.fillStyle = 'rgba(100,200,70,0.12)';
+          for (let i = 0; i < 8; i++) {
+            const px2 = rx + ((i * 41 + 7) % rw2); const py2 = ry + ((i * 29 + 3) % rh2);
+            ctx.beginPath(); ctx.ellipse(px2, py2, TILE * 2.5, TILE * 1.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        ctx.restore();
       });
 
       /* 1b. Day/night cycle: compute atmosphere values (applied post-render) */
@@ -1741,7 +1952,8 @@ export function StoryWorldMap({
         _skyR = 8; _skyG = 14; _skyB = 48; _skyA = 0.52;
       }
 
-      /* 2. City roads */
+      /* 2. City roads with proper sidewalks */
+      const SIDEWALK_W = 1.8 * TILE; /* world units 1.8 → screen pixels */
       ROAD_DATA.forEach(road => {
         const isVert = road.x1 === road.x2;
         let sx1: number, sy1: number, sx2: number, sy2: number;
@@ -1754,17 +1966,37 @@ export function StoryWorldMap({
         }
         const rw = Math.abs(sx2 - sx1), rh = Math.abs(sy2 - sy1);
         const rx = Math.min(sx1, sx2), ry = Math.min(sy1, sy2);
-        /* sidewalk curb */
-        const curbW = 4;
-        ctx.fillStyle = '#5a5a5a';
-        ctx.fillRect(rx - curbW, ry - curbW, rw + curbW * 2, rh + curbW * 2);
-        /* road surface */
-        ctx.fillStyle = '#333';
+        /* outer sidewalk strip: light stone/concrete */
+        ctx.fillStyle = '#b0a898';
+        ctx.fillRect(rx - SIDEWALK_W, ry - SIDEWALK_W, rw + SIDEWALK_W * 2, rh + SIDEWALK_W * 2);
+        /* sidewalk flagstone hints */
+        ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 0.8;
+        if (isVert) {
+          for (let ty = ry - SIDEWALK_W; ty < ry + rh + SIDEWALK_W; ty += TILE * 1.2) {
+            ctx.beginPath(); ctx.moveTo(rx - SIDEWALK_W, ty); ctx.lineTo(rx, ty); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(rx + rw, ty); ctx.lineTo(rx + rw + SIDEWALK_W, ty); ctx.stroke();
+          }
+        } else {
+          for (let tx = rx - SIDEWALK_W; tx < rx + rw + SIDEWALK_W; tx += TILE * 1.2) {
+            ctx.beginPath(); ctx.moveTo(tx, ry - SIDEWALK_W); ctx.lineTo(tx, ry); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(tx, ry + rh); ctx.lineTo(tx, ry + rh + SIDEWALK_W); ctx.stroke();
+          }
+        }
+        /* curb edge (dark line between sidewalk and road) */
+        ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1.5;
+        ctx.strokeRect(rx, ry, rw, rh);
+        /* road surface (asphalt) */
+        ctx.fillStyle = '#2d2d2d';
         ctx.fillRect(rx, ry, rw, rh);
+        /* asphalt surface graininess */
+        ctx.fillStyle = 'rgba(255,255,255,0.02)';
+        for (let gi = 0; gi < 4; gi++) {
+          ctx.fillRect(rx + ((gi * 37) % rw), ry + ((gi * 29) % rh), rw * 0.18, rh * 0.22);
+        }
         /* center dashes */
         const [mx1, my1] = isVert ? w2s(road.x1, Math.min(road.z1, road.z2)) : w2s(Math.min(road.x1, road.x2), road.z1);
         const [mx2, my2] = isVert ? w2s(road.x1, Math.max(road.z1, road.z2)) : w2s(Math.max(road.x1, road.x2), road.z1);
-        ctx.strokeStyle = 'rgba(255,255,220,0.18)';
+        ctx.strokeStyle = 'rgba(255,255,220,0.22)';
         ctx.lineWidth = 1.5;
         ctx.setLineDash([TILE * 1.5, TILE]);
         ctx.beginPath(); ctx.moveTo(mx1, my1); ctx.lineTo(mx2, my2); ctx.stroke();
@@ -1898,6 +2130,34 @@ export function StoryWorldMap({
           ctx.beginPath(); ctx.arc(fx + dx, fy + dy, 3, 0, Math.PI * 2);
           ctx.fillStyle = f.color; ctx.fill();
         }
+      });
+
+      /* 4b. Park gravel paths */
+      PARK_PATH_DATA.forEach(pp => {
+        const isVert = Math.abs(pp.x2 - pp.x1) < 0.1;
+        let ppx1: number, ppy1: number, ppx2: number, ppy2: number;
+        if (isVert) {
+          [ppx1, ppy1] = w2s(pp.x1 - pp.w / 2, Math.min(pp.z1, pp.z2));
+          [ppx2, ppy2] = w2s(pp.x1 + pp.w / 2, Math.max(pp.z1, pp.z2));
+        } else {
+          [ppx1, ppy1] = w2s(Math.min(pp.x1, pp.x2), pp.z1 - pp.w / 2);
+          [ppx2, ppy2] = w2s(Math.max(pp.x1, pp.x2), pp.z1 + pp.w / 2);
+        }
+        const ppw = Math.abs(ppx2 - ppx1), pph = Math.abs(ppy2 - ppy1);
+        const pprx = Math.min(ppx1, ppx2), ppry = Math.min(ppy1, ppy2);
+        /* gravel base */
+        ctx.fillStyle = '#c8b98a';
+        ctx.fillRect(pprx, ppry, ppw, pph);
+        /* gravel texture dots */
+        ctx.fillStyle = 'rgba(100,80,50,0.18)';
+        for (let gi = 0; gi < 5; gi++) {
+          const gx2 = pprx + ((gi * 17 + 3) % Math.max(1, ppw));
+          const gy2 = ppry + ((gi * 13 + 7) % Math.max(1, pph));
+          ctx.beginPath(); ctx.arc(gx2, gy2, 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+        /* edge */
+        ctx.strokeStyle = 'rgba(80,60,30,0.35)'; ctx.lineWidth = 1;
+        ctx.strokeRect(pprx, ppry, ppw, pph);
       });
 
       /* 5-7. (walls/hedges/boulders replaced by city roads and buildings) */
@@ -2039,6 +2299,37 @@ export function StoryWorldMap({
           ctx.strokeStyle = '#8b7355'; ctx.lineWidth = 1.5;
           ctx.beginPath(); ctx.moveTo(0, -bW * 0.35); ctx.lineTo(0, -bW * 0.85); ctx.stroke();
           ctx.restore();
+        }});
+      });
+
+      /* park benches (Z-sorted) */
+      BENCH_DATA.forEach((bench) => {
+        sprites.push({ z: bench.z, draw: () => {
+          const [bx, by] = w2s(bench.x, bench.z);
+          const isHoriz = bench.rot > 0.5;
+          const bW = isHoriz ? TILE * 0.55 : TILE * 1.4;
+          const bH = isHoriz ? TILE * 1.4 : TILE * 0.55;
+          /* shadow */
+          ctx.fillStyle = 'rgba(0,0,0,0.18)';
+          ctx.fillRect(bx - bW / 2 + 2, by - bH / 2 + 3, bW, bH);
+          /* seat */
+          ctx.fillStyle = '#8b6914';
+          ctx.fillRect(bx - bW / 2, by - bH / 2, bW, bH * 0.55);
+          /* slats lines */
+          ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 0.8;
+          const slats = 3;
+          for (let sl = 1; sl < slats; sl++) {
+            const lx2 = bx - bW / 2 + (bW / slats) * sl;
+            ctx.beginPath(); ctx.moveTo(lx2, by - bH / 2); ctx.lineTo(lx2, by - bH / 2 + bH * 0.55); ctx.stroke();
+          }
+          /* backrest */
+          ctx.fillStyle = '#a07820';
+          ctx.fillRect(bx - bW / 2, by + bH * 0.05, bW, bH * 0.28);
+          /* legs */
+          ctx.fillStyle = '#5a4010';
+          const legH = bH * 0.22;
+          ctx.fillRect(bx - bW / 2 + 2, by + bH * 0.33, 3, legH);
+          ctx.fillRect(bx + bW / 2 - 5, by + bH * 0.33, 3, legH);
         }});
       });
 
