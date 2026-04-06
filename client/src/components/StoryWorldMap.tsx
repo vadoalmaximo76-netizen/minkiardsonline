@@ -1817,7 +1817,8 @@ export function StoryWorldMap({
         if (lrs2.length > 0) {
           const [lastAx, lastAz] = getArenaPosition(lrs2.length - 1);
           const distToLast = Math.sqrt((px2 - lastAx) ** 2 + (pz2 - lastAz) ** 2);
-          if (!ambushActiveRef.current && distToLast <= 50) {
+          const allRegularDone = lrs2.every(l => getLeaderStatusRef.current(l) === 'completed');
+          if (!ambushActiveRef.current && distToLast <= 50 && allRegularDone) {
             ambushActiveRef.current = true;
             ghostFigsRef.current = [
               { id: 0, x: lastAx + 65, z: lastAz },

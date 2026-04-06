@@ -702,20 +702,19 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     }, 800);
 
     // Add additional CPUs with 400ms spacing
-    if (totalCpus > 1 && Array.isArray(leader.cpuConfigs)) {
+    if (totalCpus > 1) {
       for (let i = 0; i < totalCpus - 1; i++) {
-        const cfg = leader.cpuConfigs[i];
-        if (!cfg) continue;
+        const cfg = Array.isArray(leader.cpuConfigs) ? leader.cpuConfigs[i] : undefined;
         const delay = 800 + (i + 1) * 500;
         setTimeout(() => {
           socket.emit('add-training-cpu', {
             gameId: newGameId,
             isGymMode: true,
-            customDeck: cfg.customDeck && cfg.customDeck.length > 0 ? cfg.customDeck : undefined,
-            cpuLevel: cfg.cpuLevel || 'medium',
-            leaderName: cfg.name || `CPU ${i + 2}`,
-            leaderImageUrl: cfg.imageUrl || undefined,
-            leaderMessages: cfg.leaderMessages || undefined,
+            customDeck: cfg?.customDeck && cfg.customDeck.length > 0 ? cfg.customDeck : (leader.customDeck && leader.customDeck.length > 0 ? leader.customDeck : undefined),
+            cpuLevel: cfg?.cpuLevel || leader.cpuLevel || 'hard',
+            leaderName: cfg?.name || `${leader.name} ${['II','III','IV','V','VI'][i] || (i+2)}`,
+            leaderImageUrl: cfg?.imageUrl || leader.leaderImageUrl || undefined,
+            leaderMessages: cfg?.leaderMessages || undefined,
             attackMode,
           });
         }, delay);
