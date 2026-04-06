@@ -425,6 +425,24 @@ const ROAD_DATA: { x1:number; z1:number; x2:number; z2:number; w:number }[] = [
   { x1:  0, z1:-145,x2: 90, z2:-145,w:3.5 },
 ];
 
+/* ── Pedestrian crosswalks at major intersections ───────────── */
+const CROSSWALK_DATA: { x: number; z: number; horiz: boolean }[] = [
+  // Corso Principale (x=0) crossings
+  { x:  0, z:  15, horiz: true  }, { x:  0, z:  15, horiz: false },
+  { x:  0, z:  90, horiz: true  }, { x:  0, z:  90, horiz: false },
+  { x:  0, z: 160, horiz: true  }, { x:  0, z: 160, horiz: false },
+  { x:  0, z: -60, horiz: true  }, { x:  0, z: -60, horiz: false },
+  { x:  0, z:-120, horiz: true  }, { x:  0, z:-120, horiz: false },
+  // Viale Est (x=90) crossings
+  { x: 90, z:  15, horiz: true  }, { x: 90, z:  15, horiz: false },
+  { x: 90, z:  90, horiz: true  }, { x: 90, z:  90, horiz: false },
+  { x: 90, z: 160, horiz: true  }, { x: 90, z: 160, horiz: false },
+  // Viale Ovest (x=-90) crossings
+  { x:-90, z:  15, horiz: true  }, { x:-90, z:  15, horiz: false },
+  { x:-90, z:  90, horiz: true  }, { x:-90, z:  90, horiz: false },
+  { x:-90, z: 160, horiz: true  }, { x:-90, z: 160, horiz: false },
+];
+
 /* ── Animated city cars ──────────────────────────────────────── */
 interface CarDef { axis:'x'|'z'; fixed:number; from:number; to:number; speed:number; phase:number; color:string; len:number; wid:number }
 const CAR_DATA: CarDef[] = [
@@ -580,18 +598,33 @@ function Minimap({ playerRef, arenaPositions, leaders, getLeaderStatus, localiti
       ctx.textAlign = 'center';
       ctx.fillText('MAPPA', SIZE / 2, 14);
 
-      /* Path */
-      ctx.strokeStyle = 'rgba(200,168,83,0.45)';
-      ctx.lineWidth = 3;
+      /* City districts */
+      const districtColors: Record<string, string> = {
+        '#253a28': 'rgba(37,58,40,0.7)',
+        '#1e2a3a': 'rgba(30,42,58,0.7)',
+        '#1a2235': 'rgba(26,34,53,0.7)',
+        '#282828': 'rgba(40,40,40,0.7)',
+        '#221a10': 'rgba(34,26,16,0.7)',
+        '#1a2e1a': 'rgba(26,46,26,0.7)',
+        '#1e1e30': 'rgba(30,30,48,0.7)',
+      };
+      DISTRICT_DATA.forEach(d => {
+        const a = toC(d.x1, d.z1);
+        const b = toC(d.x2, d.z2);
+        ctx.fillStyle = districtColors[d.color] ?? 'rgba(30,30,50,0.5)';
+        ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+      });
+
+      /* Road network */
       ctx.lineCap = 'round';
-      ctx.beginPath();
-      for (let i = 0; i < leaders.length - 1; i++) {
-        const [ax, az] = arenaPositions[i] ?? getArenaPosition(i, leaders.length);
-        const [bx, bz] = arenaPositions[i+1] ?? getArenaPosition(i+1, leaders.length);
-        const a = toC(ax, az); const b = toC(bx, bz);
-        ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
-      }
-      ctx.stroke();
+      ROAD_DATA.forEach(road => {
+        const a = toC(road.x1, road.z1);
+        const b = toC(road.x2, road.z2);
+        const wPx = road.w * scale;
+        ctx.strokeStyle = 'rgba(80,80,95,0.85)';
+        ctx.lineWidth = Math.max(1, wPx);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      });
 
       /* Localities */
       localities.forEach(loc => {
@@ -1708,6 +1741,28 @@ export function StoryWorldMap({
         ctx.setLineDash([]);
       });
 
+      /* Pedestrian crosswalks (zebra stripes at major intersections) */
+      ctx.fillStyle = 'rgba(255,255,255,0.42)';
+      CROSSWALK_DATA.forEach(cw => {
+        const [cwx, cwz] = [cw.x, cw.z];
+        const stripeW = TILE * 0.85;
+        const stripeH = TILE * 0.32;
+        const count = 5;
+        if (cw.horiz) {
+          /* horizontal crosswalk (pedestrians cross the road N-S) */
+          const [startX, startY] = w2s(cwx - TILE * 3.5, cwz + TILE * 3.5);
+          for (let s = 0; s < count; s++) {
+            ctx.fillRect(startX + s * (stripeW + TILE * 0.18), startY, stripeW, stripeH);
+          }
+        } else {
+          /* vertical crosswalk (pedestrians cross the road E-W) */
+          const [startX2, startY2] = w2s(cwx - TILE * 3.5, cwz - TILE * 3.5);
+          for (let s = 0; s < count; s++) {
+            ctx.fillRect(startX2, startY2 + s * (stripeH + TILE * 0.18), stripeW, stripeH);
+          }
+        }
+      });
+
       /* 3. Water patches (animated ripples + rotating shimmers) */
       WATER_DATA.forEach((wd) => {
         const [wcx, wcy] = w2s(wd.x, wd.z);
@@ -1891,7 +1946,7 @@ export function StoryWorldMap({
           const lY = isRed ? tly - 15 : isYellow ? tly - 11 : tly - 7;
           ctx.beginPath(); ctx.arc(tlx, lY, 3, 0, Math.PI * 2);
           ctx.fillStyle = lightColor; ctx.fill();
-          if (_nightAlpha > 0.05 || true) {
+          if (_nightAlpha > 0.05) {
             const glGrd = ctx.createRadialGradient(tlx, lY, 0, tlx, lY, 9);
             glGrd.addColorStop(0, lightColor + '55'); glGrd.addColorStop(1, 'rgba(0,0,0,0)');
             ctx.beginPath(); ctx.arc(tlx, lY, 9, 0, Math.PI * 2);
