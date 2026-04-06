@@ -382,6 +382,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const expectedCpusRef = useRef(0);
   const cpusAddedRef = useRef(0);
   const mapScrollRef = useRef<HTMLDivElement | null>(null);
+  const quadratoAutoTriggeredRef = useRef(false);
 
   const isLandscape = useIsLandscape();
 
@@ -507,6 +508,27 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
       setPhase('deck-select');
     }
   }, [loading, leaders, storyDeckIds, phase, deckFetchStatus]);
+
+  // 2D mode: auto-trigger Quadrato after all regular leaders are complete
+  useEffect(() => {
+    if (phase !== 'map') return;
+    if (storyViewMode !== '2d') return;
+    if (loading) return;
+    const qLeader = leaders.find(l => l.isHidden && l.name === 'Quadrato') ?? null;
+    if (!qLeader) return;
+    if (completedIds.includes(qLeader.id)) { quadratoAutoTriggeredRef.current = false; return; }
+    if (quadratoAutoTriggeredRef.current) return;
+    const regular = leaders.filter(l => !l.isHidden && l.isActive);
+    if (regular.length === 0) return;
+    const allDone = regular.every(l => completedIds.includes(l.id));
+    if (!allDone) return;
+    quadratoAutoTriggeredRef.current = true;
+    setTimeout(() => {
+      setSelectedLeader(qLeader);
+      selectedLeaderRef.current = qLeader;
+      setPhase('intro');
+    }, 800);
+  }, [phase, storyViewMode, loading, leaders, completedIds]);
 
   useEffect(() => {
     selectedLeaderRef.current = selectedLeader;
@@ -816,8 +838,12 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     return 'locked';
   };
 
-  const currentLeader = leaders.find(l => getLeaderStatus(l) === 'available');
-  const activeLeaders = leaders.filter(l => l.isActive).sort((a, b) => a.orderIndex - b.orderIndex);
+  const regularLeaders = leaders.filter(l => !l.isHidden);
+  const quadratoLeader = leaders.find(l => l.isHidden && l.name === 'Quadrato') ?? null;
+  const quadratoCompleted = quadratoLeader ? completedIds.includes(quadratoLeader.id) : false;
+
+  const currentLeader = regularLeaders.find(l => getLeaderStatus(l) === 'available');
+  const activeLeaders = regularLeaders.filter(l => l.isActive).sort((a, b) => a.orderIndex - b.orderIndex);
 
   // ── INJURED DISCLAIMER — shown at root level regardless of current phase ───
   if (pendingBattle) {
@@ -1664,6 +1690,15 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           username={playerName}
           authToken={authToken}
           onCardCollected={fetchStoryDeck}
+          quadratoLeader={quadratoLeader}
+          quadratoCompleted={quadratoCompleted}
+          onTriggerQuadrato={() => {
+            if (!quadratoLeader) return;
+            quadratoAutoTriggeredRef.current = true;
+            setSelectedLeader(quadratoLeader);
+            selectedLeaderRef.current = quadratoLeader;
+            setPhase('intro');
+          }}
           onStartPvp={(pvpGameId, opponentUsername, _yourDeck, _opponentDeck, yourRole) => {
             const syntheticLeader: GymLeader = {
               id: -1,

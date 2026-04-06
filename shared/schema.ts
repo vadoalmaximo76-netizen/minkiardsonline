@@ -830,6 +830,7 @@ export const gymLeaders = pgTable("gym_leaders", {
   attackMode: text("attack_mode").notNull().default("free_for_all"),
   useFixedDeckOrder: boolean("use_fixed_deck_order").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
+  isHidden: boolean("is_hidden").notNull().default(false),
   requiredFaction: text("required_faction"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

@@ -49,6 +49,10 @@ export interface StoryWorldMapProps {
   authToken?: string | null;
   onStartPvp?: (gameId: string, opponentUsername: string, yourDeck: number[], opponentDeck: number[], yourRole: 'challenger' | 'target') => void;
   onCardCollected?: (cardId: string) => void;
+  /* Quadrato hidden boss */
+  quadratoLeader?: GymLeader | null;
+  quadratoCompleted?: boolean;
+  onTriggerQuadrato?: () => void;
 }
 
 interface OtherPlayer {
@@ -832,6 +836,9 @@ export function StoryWorldMap({
   authToken,
   onStartPvp,
   onCardCollected,
+  quadratoLeader = null,
+  quadratoCompleted = false,
+  onTriggerQuadrato,
 }: StoryWorldMapProps) {
 
   /* ── Canvas + container refs ────────────────────────────── */
@@ -865,6 +872,21 @@ export function StoryWorldMap({
   useEffect(() => { onChallengeLeaderRef.current = onChallengeLeader; }, [onChallengeLeader]);
   useEffect(() => { localitiesRef.current = localities; }, [localities]);
   useEffect(() => { collectiblesRef.current = collectibles; }, [collectibles]);
+
+  /* ── Quadrato ghost-ambush refs ──────────────────────────── */
+  interface GhostFig { id: number; x: number; z: number; }
+  const ghostFigsRef        = useRef<GhostFig[]>([]);
+  const ambushActiveRef     = useRef(false);
+  const quadratoTriggeredRef = useRef(false);
+  const quadratoLeaderRef   = useRef<typeof quadratoLeader>(quadratoLeader);
+  const quadratoCompletedRef = useRef(quadratoCompleted);
+  const onTriggerQuadratoRef = useRef(onTriggerQuadrato);
+  useEffect(() => { quadratoLeaderRef.current = quadratoLeader; }, [quadratoLeader]);
+  useEffect(() => {
+    quadratoCompletedRef.current = quadratoCompleted;
+    if (quadratoCompleted) { ambushActiveRef.current = false; ghostFigsRef.current = []; }
+  }, [quadratoCompleted]);
+  useEffect(() => { onTriggerQuadratoRef.current = onTriggerQuadrato; }, [onTriggerQuadrato]);
 
   /* ── Detect arena unlocks → trigger animation ───────────────── */
   useEffect(() => {
@@ -1768,6 +1790,45 @@ export function StoryWorldMap({
         }
       }
 
+      /* ── Quadrato ghost-ambush movement ─────────────── */
+      if (quadratoLeaderRef.current && !quadratoCompletedRef.current && !quadratoTriggeredRef.current) {
+        const px2 = playerRef.current.x, pz2 = playerRef.current.z;
+        const lrs2 = leadersRef.current;
+        if (lrs2.length > 0) {
+          const [lastAx, lastAz] = getArenaPosition(lrs2.length - 1);
+          const distToLast = Math.sqrt((px2 - lastAx) ** 2 + (pz2 - lastAz) ** 2);
+          if (!ambushActiveRef.current && distToLast <= 50) {
+            ambushActiveRef.current = true;
+            ghostFigsRef.current = [
+              { id: 0, x: lastAx + 65, z: lastAz },
+              { id: 1, x: lastAx - 65, z: lastAz },
+              { id: 2, x: lastAx,      z: lastAz + 65 },
+              { id: 3, x: lastAx,      z: lastAz - 65 },
+            ];
+          }
+          if (ambushActiveRef.current) {
+            const GHOST_SPEED = 9;
+            let triggered = false;
+            ghostFigsRef.current = ghostFigsRef.current.map(gf => {
+              const gdx = px2 - gf.x;
+              const gdz = pz2 - gf.z;
+              const gdist = Math.sqrt(gdx * gdx + gdz * gdz);
+              if (gdist < 1.8) { triggered = true; return gf; }
+              if (gdist > 0.01) {
+                return { ...gf, x: gf.x + (gdx / gdist) * GHOST_SPEED * dt, z: gf.z + (gdz / gdist) * GHOST_SPEED * dt };
+              }
+              return gf;
+            });
+            if (triggered) {
+              quadratoTriggeredRef.current = true;
+              ambushActiveRef.current = false;
+              ghostFigsRef.current = [];
+              onTriggerQuadratoRef.current?.();
+            }
+          }
+        }
+      }
+
       /* Throttled move emit (every ~100ms) */
       if (userId && authToken) {
         moveEmitTimer.current += dt;
@@ -2607,6 +2668,39 @@ export function StoryWorldMap({
           ctx.fillStyle = '#e0f2fe';
           ctx.fillText(op.username, osx, labelY);
           ctx.restore();
+        }});
+      });
+
+      /* Quadrato ghost figures */
+      ghostFigsRef.current.forEach((gf, gi) => {
+        sprites.push({ z: gf.z, draw: () => {
+          const [gsx, gsy] = w2s(gf.x, gf.z);
+          const wobble = Math.sin(t * 3.5 + gi * 1.7) * 2.5;
+          const bW = 0.62 * TILE; const bH = 0.9 * TILE;
+          /* aura glow */
+          const glowR = bH * 1.05;
+          const glowGrad = ctx.createRadialGradient(gsx, gsy - bH * 0.5 + wobble, 0, gsx, gsy - bH * 0.3 + wobble, glowR);
+          glowGrad.addColorStop(0, 'rgba(120,0,30,0.38)');
+          glowGrad.addColorStop(0.5, 'rgba(60,0,15,0.18)');
+          glowGrad.addColorStop(1, 'rgba(20,0,5,0)');
+          ctx.beginPath();
+          ctx.ellipse(gsx, gsy - bH * 0.3 + wobble, glowR * 0.75, glowR, 0, 0, Math.PI * 2);
+          ctx.fillStyle = glowGrad; ctx.fill();
+          /* shadow */
+          ctx.beginPath(); ctx.ellipse(gsx, gsy + 5, bW * 0.5, 5, 0, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(0,0,0,0.38)'; ctx.fill();
+          /* body silhouette */
+          ctx.fillStyle = 'rgba(8,0,12,0.93)';
+          rrect(ctx, gsx - bW / 2, gsy - bH + 4 + wobble, bW, bH, 6); ctx.fill();
+          /* head */
+          const hr = 0.30 * TILE;
+          ctx.beginPath(); ctx.arc(gsx, gsy - bH + 4 + wobble - hr * 0.4, hr, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(8,0,12,0.96)'; ctx.fill();
+          /* pulsing red eyes */
+          const eyeA = 0.45 + Math.sin(t * 4 + gi * 1.3) * 0.35;
+          ctx.fillStyle = `rgba(210,0,30,${eyeA})`;
+          ctx.beginPath(); ctx.arc(gsx - 3.5, gsy - bH + 3 + wobble - hr * 0.4, 2.8, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(gsx + 3.5, gsy - bH + 3 + wobble - hr * 0.4, 2.8, 0, Math.PI * 2); ctx.fill();
         }});
       });
 

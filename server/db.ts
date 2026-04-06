@@ -324,6 +324,7 @@ export async function probeAndSwitchIfNeeded(): Promise<void> {
     const inlineMigrations: Array<{ sql: ReturnType<typeof drizzleSql>; label: string }> = [
       { sql: drizzleSql`ALTER TABLE user_draft_credits ADD COLUMN IF NOT EXISTS last_daily_card_claim TIMESTAMP`, label: 'user_draft_credits.last_daily_card_claim' },
       { sql: drizzleSql`ALTER TABLE draft_pack_openings ADD COLUMN IF NOT EXISTS duplicates_credits INTEGER NOT NULL DEFAULT 0`, label: 'draft_pack_openings.duplicates_credits' },
+      { sql: drizzleSql`ALTER TABLE gym_leaders ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN NOT NULL DEFAULT false`, label: 'gym_leaders.is_hidden' },
     ];
     for (const { sql: migSql, label } of inlineMigrations) {
       try {

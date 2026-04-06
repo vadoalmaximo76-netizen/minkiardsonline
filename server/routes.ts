@@ -1380,6 +1380,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (inactiveLeaders > 0) {
         console.warn(`⚠️ [startup] ${inactiveLeaders} gym leader hanno is_active=false e non sono visibili nella Story Mode.`);
       }
+      // Ensure "Quadrato" hidden boss exists
+      try {
+        const quadratoRows = await db.select({ id: gymLeaders.id }).from(gymLeaders).where(eq(gymLeaders.name, 'Quadrato'));
+        if (quadratoRows.length === 0) {
+          await db.insert(gymLeaders).values({
+            orderIndex: 11,
+            name: 'Quadrato',
+            gymName: 'Il Quadrato',
+            description: "Quattro figure nell'ombra ti bloccano la strada. Devono essere affrontate tutte insieme.",
+            specialty: "Caccia all'uomo",
+            leaderImageUrl: null,
+            badgeImageUrl: null,
+            backgroundImageUrl: null,
+            cpuLevel: 'hard',
+            deckBias: { personaggi: 3, mosse: 4, bonus: 3 } as any,
+            customDeck: [] as any,
+            livesCount: 1,
+            playerStartingDeck: [] as any,
+            starterDeckOptions: [] as any,
+            rewardCredits: 200,
+            rewardDescription: 'Hai sconfitto il Quadrato. La città è tua.',
+            youtubeMusicUrl: null,
+            leaderMessages: {
+              gameStart: ['Non puoi scappare da noi.', 'Siamo quattro. Tu sei solo uno.'],
+              gameWin: ['Impossibile... non può essere.', 'Questo non è finita.'],
+              gameLose: ['Il Quadrato non sbaglia mai.', 'Era già deciso.'],
+            } as any,
+            cpuCount: 4,
+            cpuConfigs: [] as any,
+            attackMode: 'hunt_human',
+            useFixedDeckOrder: false,
+            isActive: true,
+            isHidden: true,
+          });
+          console.log('✅ [startup] Boss segreto "Quadrato" inserito automaticamente');
+        }
+      } catch (quadErr: any) {
+        console.warn('⚠️ [startup] Quadrato boss insert fallito:', quadErr?.message?.slice(0, 200));
+      }
     } catch (diagErr) {
       console.error('⚠️ [startup] Error checking gym leaders:', diagErr);
     }
