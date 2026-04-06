@@ -53,6 +53,10 @@ export interface StoryWorldMapProps {
   quadratoLeader?: GymLeader | null;
   quadratoCompleted?: boolean;
   onTriggerQuadrato?: () => void;
+  /* Wizard reward */
+  chosenFaction?: string | null;
+  wizardCardReceived?: boolean;
+  onWizardCard?: () => void;
 }
 
 interface OtherPlayer {
@@ -839,6 +843,9 @@ export function StoryWorldMap({
   quadratoLeader = null,
   quadratoCompleted = false,
   onTriggerQuadrato,
+  chosenFaction = null,
+  wizardCardReceived = false,
+  onWizardCard,
 }: StoryWorldMapProps) {
 
   /* ── Canvas + container refs ────────────────────────────── */
@@ -887,6 +894,19 @@ export function StoryWorldMap({
     if (quadratoCompleted) { ambushActiveRef.current = false; ghostFigsRef.current = []; }
   }, [quadratoCompleted]);
   useEffect(() => { onTriggerQuadratoRef.current = onTriggerQuadrato; }, [onTriggerQuadrato]);
+
+  /* ── Wizard reward figure ────────────────────────────────── */
+  type WizardState = 'walking-to' | 'dialogue' | 'walking-away' | 'done';
+  interface WizardFig { x: number; z: number; state: WizardState; dialogueTimer: number; }
+  const wizardRef         = useRef<WizardFig | null>(null);
+  const wizardDoneRef     = useRef(wizardCardReceived);
+  const onWizardCardRef   = useRef(onWizardCard);
+  const [wizardDialogue, setWizardDialogue] = useState(false);
+  useEffect(() => {
+    wizardDoneRef.current = wizardCardReceived;
+    if (wizardCardReceived) { wizardRef.current = null; setWizardDialogue(false); }
+  }, [wizardCardReceived]);
+  useEffect(() => { onWizardCardRef.current = onWizardCard; }, [onWizardCard]);
 
   /* ── Detect arena unlocks → trigger animation ───────────────── */
   useEffect(() => {
@@ -1634,7 +1654,7 @@ export function StoryWorldMap({
       if (keys.has('ArrowLeft')  || keys.has('KeyA') || joy.x < -0.3) dx -= 1;
       if (keys.has('ArrowRight') || keys.has('KeyD') || joy.x >  0.3) dx += 1;
 
-      const moving = dx !== 0 || dz !== 0;
+      const moving = (dx !== 0 || dz !== 0) && !wizardDialogue;
       movingRef.current = moving;
       if (moving) {
         const len = Math.sqrt(dx * dx + dz * dz);
@@ -1824,6 +1844,47 @@ export function StoryWorldMap({
               ambushActiveRef.current = false;
               ghostFigsRef.current = [];
               onTriggerQuadratoRef.current?.();
+            }
+          }
+        }
+      }
+
+      /* ── Wizard reward figure movement ─────────────── */
+      if (quadratoCompletedRef.current && !wizardDoneRef.current) {
+        const px3 = playerRef.current.x, pz3 = playerRef.current.z;
+        const lrs3 = leadersRef.current;
+        if (lrs3.length > 0) {
+          const [lastAx3, lastAz3] = getArenaPosition(lrs3.length - 1);
+          const distToLast3 = Math.sqrt((px3 - lastAx3) ** 2 + (pz3 - lastAz3) ** 2);
+          if (!wizardRef.current && distToLast3 <= 25) {
+            /* Spawn from last arena side, walking toward player */
+            wizardRef.current = { x: lastAx3 + 3, z: lastAz3 - 4, state: 'walking-to', dialogueTimer: 0 };
+          }
+          if (wizardRef.current) {
+            const wiz = wizardRef.current;
+            if (wiz.state === 'walking-to') {
+              const dx3 = px3 - wiz.x, dz3 = pz3 - wiz.z;
+              const d3 = Math.sqrt(dx3 * dx3 + dz3 * dz3);
+              if (d3 < 2.5) {
+                wiz.state = 'dialogue';
+                setWizardDialogue(true);
+              } else if (d3 > 0.01) {
+                const WSPD = 4;
+                wiz.x += (dx3 / d3) * WSPD * dt;
+                wiz.z += (dz3 / d3) * WSPD * dt;
+              }
+            } else if (wiz.state === 'walking-away') {
+              /* Walk away from player */
+              const dx3 = wiz.x - px3, dz3 = wiz.z - pz3;
+              const d3 = Math.sqrt(dx3 * dx3 + dz3 * dz3);
+              if (d3 > 35) {
+                wiz.state = 'done';
+                wizardDoneRef.current = true;
+                wizardRef.current = null;
+              } else if (d3 > 0.01) {
+                wiz.x += (dx3 / d3) * 3 * dt;
+                wiz.z += (dz3 / d3) * 3 * dt;
+              }
             }
           }
         }
@@ -2704,6 +2765,72 @@ export function StoryWorldMap({
         }});
       });
 
+      /* Wizard reward figure */
+      if (wizardRef.current && wizardRef.current.state !== 'done') {
+        const wiz = wizardRef.current;
+        sprites.push({ z: wiz.z, draw: () => {
+          const [wx, wy] = w2s(wiz.x, wiz.z);
+          const bob = Math.sin(t * 2.5) * (wiz.state === 'dialogue' ? 1 : 2.5);
+          const bW = 0.55 * TILE; const bH = 0.92 * TILE;
+          /* mystical aura */
+          const aG = ctx.createRadialGradient(wx, wy - bH * 0.4 + bob, 0, wx, wy - bH * 0.3 + bob, bH * 1.15);
+          aG.addColorStop(0, 'rgba(100,20,220,0.40)');
+          aG.addColorStop(0.5, 'rgba(60,0,160,0.18)');
+          aG.addColorStop(1, 'rgba(20,0,80,0)');
+          ctx.beginPath();
+          ctx.ellipse(wx, wy - bH * 0.35 + bob, bH * 0.85, bH * 1.05, 0, 0, Math.PI * 2);
+          ctx.fillStyle = aG; ctx.fill();
+          /* shadow */
+          ctx.beginPath(); ctx.ellipse(wx, wy + 4, bW * 0.44, 5, 0, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(0,0,0,0.33)'; ctx.fill();
+          /* robe body */
+          ctx.fillStyle = 'rgba(38,0,88,0.96)';
+          rrect(ctx, wx - bW / 2, wy - bH + 4 + bob, bW, bH, 9); ctx.fill();
+          /* robe trim */
+          ctx.strokeStyle = 'rgba(160,90,255,0.55)'; ctx.lineWidth = 1.5;
+          rrect(ctx, wx - bW / 2, wy - bH + 4 + bob, bW, bH, 9); ctx.stroke();
+          /* head */
+          const hr = 0.27 * TILE;
+          const headY = wy - bH + 4 + bob - hr * 0.3;
+          ctx.beginPath(); ctx.arc(wx, headY, hr, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(32,15,44,0.97)'; ctx.fill();
+          /* pointy hat */
+          const hatW = bW * 0.82; const hatH = bH * 0.55;
+          const hatTopY = headY - hr - hatH;
+          ctx.beginPath();
+          ctx.moveTo(wx - hatW / 2, headY - hr * 0.55);
+          ctx.lineTo(wx, hatTopY);
+          ctx.lineTo(wx + hatW / 2, headY - hr * 0.55);
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(38,0,100,0.96)'; ctx.fill();
+          ctx.strokeStyle = 'rgba(160,90,255,0.45)'; ctx.lineWidth = 1;
+          ctx.stroke();
+          /* hat brim */
+          ctx.beginPath(); ctx.ellipse(wx, headY - hr * 0.55, hatW * 0.58, 4, 0, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(55,0,130,0.9)'; ctx.fill();
+          /* glowing eyes */
+          const eg = 0.7 + Math.sin(t * 3.2) * 0.28;
+          ctx.fillStyle = `rgba(140,220,255,${eg})`;
+          ctx.beginPath(); ctx.arc(wx - 3.5, headY, 2.4, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(wx + 3.5, headY, 2.4, 0, Math.PI * 2); ctx.fill();
+          /* staff */
+          const sway = (wiz.state === 'walking-to' || wiz.state === 'walking-away') ? Math.sin(t * 2.5) * 3 : 0;
+          const staffX = wx + bW * 0.42 + sway;
+          ctx.strokeStyle = 'rgba(120,60,200,0.8)'; ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(staffX, wy + 4 + bob);
+          ctx.lineTo(staffX, hatTopY - 4);
+          ctx.stroke();
+          /* staff crystal */
+          const cg = 0.65 + Math.sin(t * 4.5) * 0.30;
+          ctx.fillStyle = `rgba(180,80,255,${cg})`;
+          ctx.beginPath(); ctx.arc(staffX, hatTopY - 7, 3.8, 0, Math.PI * 2); ctx.fill();
+          /* crystal inner glow */
+          ctx.fillStyle = `rgba(230,180,255,${cg * 0.7})`;
+          ctx.beginPath(); ctx.arc(staffX - 0.8, hatTopY - 8.5, 1.5, 0, Math.PI * 2); ctx.fill();
+        }});
+      }
+
       /* player */
       sprites.push({ z: playerRef.current.z, draw: () => drawPlayer(ctx, t, movingRef.current) });
 
@@ -3164,6 +3291,39 @@ export function StoryWorldMap({
           </div>
         );
       })()}
+
+      {/* Wizard dialogue overlay */}
+      {wizardDialogue && (
+        <div
+          className="absolute inset-x-0 bottom-24 flex justify-center items-end px-4 z-50 pointer-events-none"
+        >
+          <div
+            className="relative max-w-sm w-full pointer-events-auto"
+            style={{ background: 'rgba(10,0,30,0.94)', border: '1.5px solid rgba(160,90,255,0.6)', borderRadius: 16, padding: '14px 18px 18px', boxShadow: '0 0 32px rgba(100,0,200,0.45)' }}
+          >
+            {/* wizard icon top-left */}
+            <div className="absolute -top-5 left-4 w-10 h-10 rounded-full flex items-center justify-center text-xl"
+              style={{ background: 'rgba(38,0,88,0.97)', border: '1.5px solid rgba(160,90,255,0.5)', boxShadow: '0 0 12px rgba(100,20,220,0.5)' }}>
+              🧙
+            </div>
+            <p className="text-purple-200 font-black text-xs mb-2 mt-1 opacity-70 tracking-wider uppercase">Lo Stregone</p>
+            <p className="text-white font-semibold text-sm leading-relaxed">
+              "Tieni, prendi questa carta... Usala bene e, con un po' di fortuna, scoprirai la forza di cui hai bisogno."
+            </p>
+            <button
+              className="mt-4 w-full py-2 rounded-xl font-black text-sm transition-all active:scale-95"
+              style={{ background: 'rgba(100,20,220,0.85)', color: 'white', border: '1px solid rgba(160,90,255,0.5)' }}
+              onClick={() => {
+                setWizardDialogue(false);
+                if (wizardRef.current) wizardRef.current.state = 'walking-away';
+                onWizardCardRef.current?.();
+              }}
+            >
+              Prendi la carta
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Tooltip overlay */}
       {tooltip && (

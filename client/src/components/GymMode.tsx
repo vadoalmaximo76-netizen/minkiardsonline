@@ -361,6 +361,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [isReplayBattle, setIsReplayBattle] = useState(false);
   const [lostLeaderIds, setLostLeaderIds] = useState<number[]>([]);
   const [showDeckPanel, setShowDeckPanel] = useState(false);
+  const [chosenFaction, setChosenFaction] = useState<string | null>(null);
+  const [showWizardCardReveal, setShowWizardCardReveal] = useState(false);
   const [cardEffects, setCardEffects] = useState<Record<string, string>>({});
   const [defeatMsgVisible, setDefeatMsgVisible] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -405,6 +407,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         console.log(`[GymMode] fetchLeaders: ${data.gymLeaders?.length ?? 0} leader caricati, ${data.completedIds?.length ?? 0} completati`);
         setLeaders(data.gymLeaders || []);
         setCompletedIds(data.completedIds || []);
+        if (data.chosenFaction) setChosenFaction(data.chosenFaction);
       } else {
         console.error('[GymMode] fetchLeaders: risposta non success:', data);
       }
@@ -841,6 +844,31 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const regularLeaders = leaders.filter(l => !l.isHidden);
   const quadratoLeader = leaders.find(l => l.isHidden && l.name === 'Quadrato') ?? null;
   const quadratoCompleted = quadratoLeader ? completedIds.includes(quadratoLeader.id) : false;
+
+  /* Wizard reward card: Bullox → bonus-51 (Evoluzione gialla), Horsy → bonus-53 (Evoluzione verde) */
+  const wizardCardId   = chosenFaction === 'bullox' ? 'bonus-51' : 'bonus-53';
+  const wizardCardImg  = chosenFaction === 'bullox'
+    ? 'https://i.postimg.cc/nzwGjs2N/evoluzione-giallo.png'
+    : 'https://i.postimg.cc/J0f3x99q/evoluzione-verde.png';
+  const wizardCardName = chosenFaction === 'bullox' ? 'Evoluzione Gialla' : 'Evoluzione Verde';
+  const wizardCardReceived = storyDeckIds.includes(wizardCardId);
+
+  const handleWizardCard = useCallback(async () => {
+    if (!authToken || wizardCardReceived) return;
+    try {
+      const res = await fetch('/api/story-mode/deck/add-card', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ cardId: wizardCardId }),
+      });
+      if (res.ok) {
+        setStoryDeckIds(prev => [...prev, wizardCardId]);
+        setShowWizardCardReveal(true);
+      }
+    } catch (e) {
+      console.error('[GymMode] wizard card add failed:', e);
+    }
+  }, [authToken, wizardCardId, wizardCardReceived]);
 
   const currentLeader = regularLeaders.find(l => getLeaderStatus(l) === 'available');
   const activeLeaders = regularLeaders.filter(l => l.isActive).sort((a, b) => a.orderIndex - b.orderIndex);
@@ -1692,6 +1720,9 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           onCardCollected={fetchStoryDeck}
           quadratoLeader={quadratoLeader}
           quadratoCompleted={quadratoCompleted}
+          chosenFaction={chosenFaction}
+          wizardCardReceived={wizardCardReceived}
+          onWizardCard={handleWizardCard}
           onTriggerQuadrato={() => {
             if (!quadratoLeader) return;
             quadratoAutoTriggeredRef.current = true;
@@ -2018,6 +2049,32 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             );
           })()}
         </>
+      )}
+
+      {/* Wizard Card Reveal Overlay */}
+      {showWizardCardReveal && (
+        <div
+          className="fixed inset-0 z-[110] flex flex-col items-center justify-center bg-black/90"
+          onClick={() => setShowWizardCardReveal(false)}
+        >
+          <div className="flex flex-col items-center gap-6 animate-fade-in">
+            <p className="text-yellow-300 font-black text-2xl text-center drop-shadow-lg px-6">
+              Hai ricevuto una nuova carta!
+            </p>
+            <div className="relative">
+              <div className="absolute inset-0 rounded-2xl blur-xl opacity-60"
+                style={{ background: chosenFaction === 'bullox' ? 'radial-gradient(circle, #fbbf24 0%, transparent 70%)' : 'radial-gradient(circle, #34d399 0%, transparent 70%)' }} />
+              <img
+                src={wizardCardImg}
+                alt={wizardCardName}
+                className="relative w-52 rounded-2xl shadow-2xl border-2"
+                style={{ borderColor: chosenFaction === 'bullox' ? '#fbbf24' : '#34d399' }}
+              />
+            </div>
+            <p className="text-white/80 font-bold text-lg">{wizardCardName}</p>
+            <p className="text-white/40 text-sm mt-2">Tocca per continuare</p>
+          </div>
+        </div>
       )}
 
       {/* Reset Confirmation Modal */}
