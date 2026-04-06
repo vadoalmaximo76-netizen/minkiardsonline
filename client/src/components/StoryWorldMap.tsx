@@ -1634,10 +1634,10 @@ export function StoryWorldMap({
             else          { playerRef.current.z += playerRef.current.z < az ? -oZ : oZ; }
           }
         });
-        /* City buildings (AABB sliding) */
+        /* City buildings (AABB sliding — w/h are full extents used as half-dims) */
         BUILDING_DATA.forEach(bld => {
-          const hw = bld.w / 2 + PR;
-          const hd = bld.h / 2 + PR;
+          const hw = bld.w + PR;
+          const hd = bld.h + PR;
           const oX = hw - Math.abs(playerRef.current.x - bld.x);
           const oZ = hd - Math.abs(playerRef.current.z - bld.z);
           if (oX > 0 && oZ > 0) {
