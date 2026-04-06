@@ -1814,10 +1814,12 @@ export function StoryWorldMap({
       if (quadratoLeaderRef.current && !quadratoCompletedRef.current && !quadratoTriggeredRef.current) {
         const px2 = playerRef.current.x, pz2 = playerRef.current.z;
         const lrs2 = leadersRef.current;
-        if (lrs2.length > 0) {
-          const [lastAx, lastAz] = getArenaPosition(lrs2.length - 1);
+        const baseLeaders2 = lrs2.filter(l => !l.requiredFaction);
+        if (baseLeaders2.length > 0) {
+          const lastBaseIdx = lrs2.indexOf(baseLeaders2[baseLeaders2.length - 1]);
+          const [lastAx, lastAz] = getArenaPosition(lastBaseIdx >= 0 ? lastBaseIdx : lrs2.length - 1);
           const distToLast = Math.sqrt((px2 - lastAx) ** 2 + (pz2 - lastAz) ** 2);
-          const allRegularDone = lrs2.every(l => getLeaderStatusRef.current(l) === 'completed');
+          const allRegularDone = baseLeaders2.every(l => getLeaderStatusRef.current(l) === 'completed');
           if (!ambushActiveRef.current && distToLast <= 50 && allRegularDone) {
             ambushActiveRef.current = true;
             ghostFigsRef.current = [

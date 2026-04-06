@@ -521,7 +521,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     if (!qLeader) return;
     if (completedIds.includes(qLeader.id)) { quadratoAutoTriggeredRef.current = false; return; }
     if (quadratoAutoTriggeredRef.current) return;
-    const regular = leaders.filter(l => !l.isHidden && l.isActive);
+    const regular = leaders.filter(l => !l.isHidden && l.isActive && !l.requiredFaction);
     if (regular.length === 0) return;
     const allDone = regular.every(l => completedIds.includes(l.id));
     if (!allDone) return;
