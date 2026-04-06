@@ -425,6 +425,26 @@ const ROAD_DATA: { x1:number; z1:number; x2:number; z2:number; w:number }[] = [
   { x1:  0, z1:-145,x2: 90, z2:-145,w:3.5 },
 ];
 
+/* ── Urban canal / river strips ─────────────────────────────── */
+const CANAL_DATA: { x1:number; z1:number; x2:number; z2:number; w:number }[] = [
+  // Porto canal running N-S along east edge
+  { x1: 148, z1:-80, x2: 148, z2: 180, w: 8  },
+  // Small inner-city channel connecting porto basins
+  { x1: 100, z1: 90, x2: 148, z2:  90, w: 5  },
+];
+
+/* ── Porto boats (pre-computed paths like cars) ──────────────── */
+interface BoatDef { axis:'x'|'z'; fixed:number; from:number; to:number; speed:number; phase:number; color:string; len:number; wid:number }
+const BOAT_DATA: BoatDef[] = [
+  // Porto canal N-S traffic
+  { axis:'z', fixed: 146, from: -70, to: 175, speed:0.012, phase:0.00, color:'#d4a843', len:4.5, wid:2.0 },
+  { axis:'z', fixed: 150, from: 175, to: -70, speed:0.009, phase:0.45, color:'#8b5e3c', len:5.0, wid:2.2 },
+  { axis:'z', fixed: 144, from:  30, to: 170, speed:0.011, phase:0.25, color:'#e8d5a3', len:3.8, wid:1.8 },
+  // Porto basins moored boats (very slow drift)
+  { axis:'x', fixed:  72, from: 100, to: 148, speed:0.006, phase:0.60, color:'#c47c5a', len:4.0, wid:1.8 },
+  { axis:'x', fixed:  88, from: 148, to: 100, speed:0.008, phase:0.20, color:'#5b8fa8', len:3.5, wid:1.7 },
+];
+
 /* ── Pedestrian crosswalks at major intersections ───────────── */
 const CROSSWALK_DATA: { x: number; z: number; horiz: boolean }[] = [
   // Corso Principale (x=0) crossings
@@ -623,6 +643,16 @@ function Minimap({ playerRef, arenaPositions, leaders, getLeaderStatus, localiti
         const wPx = road.w * scale;
         ctx.strokeStyle = 'rgba(80,80,95,0.85)';
         ctx.lineWidth = Math.max(1, wPx);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      });
+
+      /* Urban canals on minimap */
+      CANAL_DATA.forEach(canal => {
+        const a = toC(canal.x1, canal.z1);
+        const b = toC(canal.x2, canal.z2);
+        const wPx = canal.w * scale;
+        ctx.strokeStyle = 'rgba(55,140,220,0.75)';
+        ctx.lineWidth = Math.max(2, wPx);
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
       });
 
@@ -1763,7 +1793,46 @@ export function StoryWorldMap({
         }
       });
 
-      /* 3. Water patches (animated ripples + rotating shimmers) */
+      /* 3a. Urban canals / river strips */
+      CANAL_DATA.forEach(canal => {
+        const isVert = canal.x1 === canal.x2;
+        let cx1: number, cy1: number, cx2: number, cy2: number;
+        if (isVert) {
+          [cx1, cy1] = w2s(canal.x1 - canal.w / 2, Math.min(canal.z1, canal.z2));
+          [cx2, cy2] = w2s(canal.x1 + canal.w / 2, Math.max(canal.z1, canal.z2));
+        } else {
+          [cx1, cy1] = w2s(Math.min(canal.x1, canal.x2), canal.z1 - canal.w / 2);
+          [cx2, cy2] = w2s(Math.max(canal.x1, canal.x2), canal.z1 + canal.w / 2);
+        }
+        const cw = Math.abs(cx2 - cx1), ch = Math.abs(cy2 - cy1);
+        const crx = Math.min(cx1, cx2), cry = Math.min(cy1, cy2);
+        /* canal water with animated ripple */
+        const cWave = Math.sin(t * 1.1 + canal.x1 * 0.05) * 0.04;
+        const cGrd = ctx.createLinearGradient(crx, cry, crx + cw, cry + ch);
+        cGrd.addColorStop(0, `rgba(26,120,216,${0.80 + cWave})`);
+        cGrd.addColorStop(0.5, `rgba(55,160,240,${0.75 + cWave})`);
+        cGrd.addColorStop(1, `rgba(26,120,216,${0.80 + cWave})`);
+        ctx.fillStyle = cGrd;
+        ctx.fillRect(crx, cry, cw, ch);
+        /* canal edge lines */
+        ctx.strokeStyle = 'rgba(90,140,200,0.55)'; ctx.lineWidth = 1;
+        ctx.strokeRect(crx, cry, cw, ch);
+        /* animated shimmer lines */
+        ctx.strokeStyle = 'rgba(140,210,255,0.22)'; ctx.lineWidth = 1;
+        if (isVert) {
+          const shimY = cry + ((t * 0.4 * TILE) % ch);
+          ctx.setLineDash([TILE * 0.5, TILE * 0.8]);
+          ctx.beginPath(); ctx.moveTo(crx + cw * 0.3, shimY); ctx.lineTo(crx + cw * 0.7, shimY + ch * 0.12); ctx.stroke();
+          ctx.setLineDash([]);
+        } else {
+          const shimX = crx + ((t * 0.4 * TILE) % cw);
+          ctx.setLineDash([TILE * 0.5, TILE * 0.8]);
+          ctx.beginPath(); ctx.moveTo(shimX, cry + ch * 0.3); ctx.lineTo(shimX + cw * 0.12, cry + ch * 0.7); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      });
+
+      /* 3b. Water patches (animated ripples + rotating shimmers) */
       WATER_DATA.forEach((wd) => {
         const [wcx, wcy] = w2s(wd.x, wd.z);
         const sr = wd.r * TILE;
@@ -1927,6 +1996,48 @@ export function StoryWorldMap({
           /* taillights */
           ctx.fillStyle = 'rgba(255,50,50,0.85)';
           ctx.fillRect(-cH * 0.38, hDir > 0 ? cW / 2 - 5 : -cW / 2, cH * 0.3, 5);
+          ctx.restore();
+        }});
+      });
+
+      /* Porto canal boats */
+      BOAT_DATA.forEach((boat) => {
+        const bProgress = ((t * boat.speed + boat.phase) % 1 + 1) % 1;
+        const bPos = boat.from + (boat.to - boat.from) * bProgress;
+        const bwx = boat.axis === 'z' ? boat.fixed : bPos;
+        const bwz = boat.axis === 'x' ? boat.fixed : bPos;
+        sprites.push({ z: bwz, draw: () => {
+          const [bsx, bsy] = w2s(bwx, bwz);
+          const bW = boat.len * TILE; const bH = boat.wid * TILE;
+          const isHoriz = boat.axis === 'x';
+          ctx.save();
+          ctx.translate(bsx, bsy);
+          if (isHoriz) ctx.rotate(Math.PI / 2);
+          /* water wake */
+          const wakeDir = boat.to > boat.from ? 1 : -1;
+          const wakeGrd = ctx.createLinearGradient(0, -bW / 2, 0, -bW / 2 - bW * 0.8);
+          wakeGrd.addColorStop(0, 'rgba(120,200,255,0.35)'); wakeGrd.addColorStop(1, 'rgba(120,200,255,0)');
+          ctx.beginPath();
+          ctx.moveTo(-bH * 0.5, -bW / 2 * wakeDir);
+          ctx.lineTo( bH * 0.5, -bW / 2 * wakeDir);
+          ctx.lineTo(0, -bW / 2 * wakeDir - bW * 0.8 * wakeDir);
+          ctx.closePath();
+          ctx.fillStyle = wakeGrd; ctx.fill();
+          /* hull */
+          ctx.beginPath();
+          ctx.moveTo(-bH * 0.45, -bW / 2);
+          ctx.lineTo( bH * 0.45, -bW / 2);
+          ctx.lineTo( bH * 0.4,  bW / 2);
+          ctx.lineTo(-bH * 0.4,  bW / 2);
+          ctx.closePath();
+          ctx.fillStyle = boat.color; ctx.fill();
+          ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+          /* cabin */
+          ctx.fillStyle = 'rgba(255,255,255,0.7)';
+          ctx.fillRect(-bH * 0.15, -bW * 0.3, bH * 0.3, bW * 0.45);
+          /* mast */
+          ctx.strokeStyle = '#8b7355'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(0, -bW * 0.35); ctx.lineTo(0, -bW * 0.85); ctx.stroke();
           ctx.restore();
         }});
       });
