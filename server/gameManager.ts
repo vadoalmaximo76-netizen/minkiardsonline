@@ -16500,14 +16500,29 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           let totalDamage = 0;
           const attackDetails: string[] = [];
           for (const pName of game.turnOrder) {
-            if (!game.eliminatedPlayers.has(pName)) {
+            if (pName !== targetChar.owner && !game.eliminatedPlayers.has(pName)) {
               const attackerChar = this.getPlayerActiveCharacter(game, pName);
               if (attackerChar) {
-                const stars = attackerChar.stars || this.extractStarsFromNote(attackerChar.text || '');
-                const damage = stars * 50;
-                totalDamage += damage;
-                attackDetails.push(`${attackerChar.name} (${pName}): ${damage}`);
-                console.log(`🎯 ALL ATTACK: ${attackerChar.name} (${pName}) attacks ${targetChar.name} for ${damage}`);
+                const stars = attackerChar.stars || this.extractStarsFromNote(attackerChar.text || '') || 1;
+                const fieldMossa = game.field.find(c => c.owner === pName && c.type === 'mosse');
+                const playerHand = game.players[pName]?.hand || [];
+                const mosseInHand = playerHand.filter(c => c.type === 'mosse' && c.mosseDamageValue != null);
+                const activeMossaDeck = (game.isDraftMode || game.isGymMode || game.isDailyChallenge) && game.playerDraftDecks?.[pName]
+                  ? game.playerDraftDecks[pName].mosse
+                  : game.decks.mosse;
+                const activeMossa: Card | null = fieldMossa
+                  ?? (mosseInHand.length > 0
+                    ? mosseInHand.reduce((best, c) => (c.mosseDamageValue ?? 0) > (best.mosseDamageValue ?? 0) ? c : best)
+                    : activeMossaDeck.length > 0 ? activeMossaDeck[activeMossaDeck.length - 1] : null);
+                const baseDmg = activeMossa?.mosseDamageValue ?? 0;
+                if (baseDmg > 0) {
+                  const damage = baseDmg * stars;
+                  totalDamage += damage;
+                  attackDetails.push(`${attackerChar.name} (${pName}): "${activeMossa?.name || '?'}" ${baseDmg}×${stars}⭐=${damage} PTI`);
+                  console.log(`🎯 ALL ATTACK: ${attackerChar.name} (${pName}) usa "${activeMossa?.name || 'mossa'}" → ${baseDmg}×${stars} stelle = ${damage} PTI su ${targetChar.name}`);
+                } else {
+                  console.log(`🎯 ALL ATTACK: ${attackerChar.name} (${pName}) non ha mosse disponibili → 0 PTI`);
+                }
               }
             }
           }
@@ -16520,7 +16535,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               ioAll.to(gameId).emit('chat-message', {
                 id: `${Date.now()}-all-attack`,
                 playerName: 'Sistema',
-                message: `🎯 ATTACCO SIMULTANEO su ${targetChar.name || 'bersaglio'}! Tutti i personaggi attaccano! Danno totale: ${totalDamage} PTI!`,
+                message: `🎯 ATTACCO SIMULTANEO su ${targetChar.name || 'bersaglio'}! Tutti i giocatori usano le loro mosse! Danno totale: ${totalDamage} PTI! (${attackDetails.join(' | ')})`,
                 timestamp: Date.now()
               });
               const gameState = this.getSanitizedGameState(gameId);
@@ -24085,14 +24100,31 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         return { success: false, message: 'Il bersaglio non è più in campo' };
       }
       let totalDamage = 0;
+      const attackDetails2: string[] = [];
       for (const pName of game.turnOrder) {
-        if (!game.eliminatedPlayers.has(pName)) {
+        if (pName !== attackTarget.owner && !game.eliminatedPlayers.has(pName)) {
           const attackerChar = this.getPlayerActiveCharacter(game, pName);
           if (attackerChar) {
-            const stars = attackerChar.stars || this.extractStarsFromNote(attackerChar.text || '');
-            const damage = stars * 50;
-            totalDamage += damage;
-            console.log(`🎯 ALL ATTACK: ${attackerChar.name} (${pName}) attacks ${attackTarget.name} for ${damage}`);
+            const stars = attackerChar.stars || this.extractStarsFromNote(attackerChar.text || '') || 1;
+            const fieldMossa2 = game.field.find((c: Card) => c.owner === pName && c.type === 'mosse');
+            const playerHand2 = game.players[pName]?.hand || [];
+            const mosseInHand2 = playerHand2.filter((c: Card) => c.type === 'mosse' && c.mosseDamageValue != null);
+            const activeMossaDeck2 = (game.isDraftMode || game.isGymMode || game.isDailyChallenge) && game.playerDraftDecks?.[pName]
+              ? game.playerDraftDecks[pName].mosse
+              : game.decks.mosse;
+            const activeMossa2: Card | null = fieldMossa2
+              ?? (mosseInHand2.length > 0
+                ? mosseInHand2.reduce((best: Card, c: Card) => (c.mosseDamageValue ?? 0) > (best.mosseDamageValue ?? 0) ? c : best)
+                : activeMossaDeck2.length > 0 ? activeMossaDeck2[activeMossaDeck2.length - 1] : null);
+            const baseDmg2 = activeMossa2?.mosseDamageValue ?? 0;
+            if (baseDmg2 > 0) {
+              const damage = baseDmg2 * stars;
+              totalDamage += damage;
+              attackDetails2.push(`${attackerChar.name} (${pName}): "${activeMossa2?.name || '?'}" ${baseDmg2}×${stars}⭐=${damage} PTI`);
+              console.log(`🎯 ALL ATTACK: ${attackerChar.name} (${pName}) usa "${activeMossa2?.name || 'mossa'}" → ${baseDmg2}×${stars} stelle = ${damage} PTI su ${attackTarget.name}`);
+            } else {
+              console.log(`🎯 ALL ATTACK: ${attackerChar.name} (${pName}) non ha mosse disponibili → 0 PTI`);
+            }
           }
         }
       }
@@ -24103,7 +24135,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-all-attack`,
           playerName: 'Sistema',
-          message: `🎯 ATTACCO SIMULTANEO su ${targetName}! Danno totale: ${totalDamage} PTI!`,
+          message: `🎯 ATTACCO SIMULTANEO su ${targetName}! Tutti i giocatori usano le loro mosse! Danno totale: ${totalDamage} PTI! (${attackDetails2.join(' | ')})`,
           timestamp: Date.now()
         });
         if (attackTarget.pti <= 0) {
@@ -24970,13 +25002,30 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       case 'all_attack_target': {
         let totalDamage = 0;
+        const attackDetails3: string[] = [];
         for (const pName of game.turnOrder) {
           if (pName !== targetCard.owner && !game.eliminatedPlayers.has(pName)) {
             const attackerChar = this.getPlayerActiveCharacter(game, pName);
             if (attackerChar) {
-              const stars = attackerChar.stars || this.extractStarsFromNote(attackerChar.text || '');
-              const damage = stars * 50;
-              totalDamage += damage;
+              const stars = attackerChar.stars || this.extractStarsFromNote(attackerChar.text || '') || 1;
+              const fieldMossa3 = game.field.find((c: Card) => c.owner === pName && c.type === 'mosse');
+              const playerHand3 = game.players[pName]?.hand || [];
+              const mosseInHand3 = playerHand3.filter((c: Card) => c.type === 'mosse' && c.mosseDamageValue != null);
+              const activeMossaDeck3 = (game.isDraftMode || game.isGymMode || game.isDailyChallenge) && game.playerDraftDecks?.[pName]
+                ? game.playerDraftDecks[pName].mosse
+                : game.decks.mosse;
+              const activeMossa3: Card | null = fieldMossa3
+                ?? (mosseInHand3.length > 0
+                  ? mosseInHand3.reduce((best: Card, c: Card) => (c.mosseDamageValue ?? 0) > (best.mosseDamageValue ?? 0) ? c : best)
+                  : activeMossaDeck3.length > 0 ? activeMossaDeck3[activeMossaDeck3.length - 1] : null);
+              const baseDmg3 = activeMossa3?.mosseDamageValue ?? 0;
+              if (baseDmg3 > 0) {
+                const damage = baseDmg3 * stars;
+                totalDamage += damage;
+                attackDetails3.push(`${attackerChar.name} (${pName}): "${activeMossa3?.name || '?'}" ${baseDmg3}×${stars}⭐=${damage} PTI`);
+              } else {
+                console.log(`🎯 ALL ATTACK: ${attackerChar.name} (${pName}) non ha mosse disponibili → 0 PTI`);
+              }
             }
           }
         }
@@ -24987,7 +25036,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           io?.to?.(gameId)?.emit?.('chat-message', {
             id: `${Date.now()}-all-attack`,
             playerName: 'Sistema',
-            message: `🎯 Tutti attaccano ${targetName}! Danno totale: ${totalDamage} PTI!`,
+            message: `🎯 ATTACCO SIMULTANEO su ${targetName}! Tutti i giocatori usano le loro mosse! Danno totale: ${totalDamage} PTI! (${attackDetails3.join(' | ')})`,
             timestamp: Date.now()
           });
           if (targetCard.pti <= 0) {
