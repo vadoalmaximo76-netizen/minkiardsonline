@@ -1349,6 +1349,40 @@ export class CPUPlayer {
     };
   }
 
+  // ATTACCO COMBINATO: pick enemy field character with highest PTI
+  pickHighestPTIEnemyTarget(): { cardId: string; owner: string; name: string } | null {
+    if (!this.gameManager) return null;
+    const gameState = this.gameManager.getGameState(this.gameId);
+    if (!gameState) return null;
+
+    const enemies = (gameState.field || []).filter((c: any) => {
+      if (c.type !== 'personaggi' && c.type !== 'personaggi_speciali') return false;
+      if (c.owner === this.playerName) return false;
+      if (c.eliminatedBy || c.faceDown || c.stealth || c.immuneToAttacks || c.isProtected) return false;
+      return true;
+    });
+
+    if (enemies.length === 0) return null;
+
+    // Sort by PTI descending; pick the character with the most HP to absorb max combo damage
+    let bestEnemy = enemies[0];
+    let bestPTI = bestEnemy.pti ?? 0;
+    for (const enemy of enemies) {
+      const pti = enemy.pti ?? 0;
+      if (pti > bestPTI) {
+        bestPTI = pti;
+        bestEnemy = enemy;
+      }
+    }
+
+    console.log(`💥 CPU ${this.playerName}: ATTACCO COMBINATO target → ${bestEnemy.name || bestEnemy.owner} (${bestPTI} PTI)`);
+    return {
+      cardId: bestEnemy.id,
+      owner: bestEnemy.owner,
+      name: bestEnemy.name || this.getCardNameFromUrl(bestEnemy.frontImage || '')
+    };
+  }
+
   canEndTurn(): boolean {
     return this.turnState.executedThisTurn && this.turnState.phase === 'turn_end';
   }
@@ -3011,6 +3045,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         
         // Check if this is ATTACCO DISONESTO (index 6 in mosse array)
         const isAtcaccoDisonesto = cardToPlay.frontImage === 'https://i.ibb.co/PZR61NhJ/attacco-disonesto.png';
+        // Check if this is ATTACCO COMBINATO (self-damage + combined damage to chosen enemy)
+        const isAttaccoCombinatoCard = (cardToPlay.frontImage || '').toLowerCase().includes('attacco-combinato');
         
         // NOW emit the attack immediately after card is on field
         let target;
@@ -3020,6 +3056,18 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           if (!target) {
             console.log(`🎯 CPU ${this.playerName}: ATTACCO DISONESTO - no hand targets found`);
             this.sendChatMessage(`Ho giocato la mossa "${cardName}" ma non ci sono personaggi nemici in mano da colpire.`);
+          }
+        } else if (isAttaccoCombinatoCard) {
+          // ATTACCO COMBINATO: target the enemy with the highest PTI (most impactful hit)
+          console.log(`💥 CPU ${this.playerName}: ATTACCO COMBINATO detected - targeting highest-PTI enemy`);
+          target = this.pickHighestPTIEnemyTarget();
+          if (!target) {
+            target = this.pickEnemyTarget(cardToPlay);
+          }
+          if (!target) {
+            const reason = this.whyNoTarget(gameState);
+            console.log(`💥 CPU ${this.playerName}: ATTACCO COMBINATO - no target found: ${reason}`);
+            this.sendChatMessage(reason);
           }
         } else {
           target = this.pickEnemyTarget(cardToPlay);
