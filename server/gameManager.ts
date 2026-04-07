@@ -32832,6 +32832,67 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return true;
   }
 
+  // Process the next queued multi-attack target (called from processMosseDamage and processDefenseResponse)
+  private async processNextMultiAttackTarget(gameId: string, io: any): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game) return;
+    const queue = (game as any).pendingMultiAttackQueue as Array<any> | undefined;
+    if (!queue || queue.length === 0) return;
+
+    const next = queue.shift();
+    const { attackerName, targetCardId, damageValue, mosseCardId, starsToRemove, mosseEffect } = next;
+
+    const targetCard = game.field.find((c: Card) => c.id === targetCardId);
+    if (!targetCard) {
+      console.log(`🎯🎯 MULTI ATTACK (queue): Target ${targetCardId} no longer on field — skipping`);
+      await this.processNextMultiAttackTarget(gameId, io); // try next
+      return;
+    }
+
+    const targetOwnerName = targetCard.owner || '';
+    const targetName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '');
+
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-multi-attack-extra`,
+      playerName: 'Sistema',
+      message: `🎯🎯 ATTACCO MULTIPLO! Anche ${targetName} viene attaccato!`,
+      timestamp: Date.now()
+    });
+
+    const attackId = `multi-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    const mosseCard = game.field.find((c: Card) => c.id === mosseCardId);
+
+    const attackerChar = this.getPlayerActiveCharacter(game, attackerName);
+    let attackerStars = attackerChar?.stars ?? 1;
+    if (attackerChar?.text) {
+      const m = attackerChar.text.match(/[Ss]telle[:\s]*(\d+)/i);
+      if (m) attackerStars = parseInt(m[1]);
+    }
+
+    const defenseCreated = this.setPendingDefense(gameId, {
+      attackId,
+      attacker: attackerName,
+      defender: targetOwnerName,
+      damage: damageValue,
+      targetCardId,
+      mosseCardId,
+      isHandTarget: false,
+      deckType: 'mosse',
+      starsToRemove: starsToRemove || 0,
+      isFurtoAttack: false,
+      mosseEffect: mosseEffect || undefined,
+      mosseCanBeCountered: (mosseCard as any)?.mosseCanBeCountered === true,
+      mosseDamageValue: (mosseCard as any)?.mosseDamageValue ?? null,
+      attackerStars,
+      originalMosseDamage: damageValue
+    });
+
+    if (defenseCreated) {
+      console.log(`🎯🎯 MULTI ATTACK (queue): Pending defense created for ${targetOwnerName} — emitting defense:request`);
+      await this.emitDefenseRequest(gameId, io);
+    }
+  }
+
   getPendingDefense(gameId: string): PendingDefense | undefined {
     const game = this.games.get(gameId);
     return game?.pendingDefense;
@@ -33930,6 +33991,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       gameId, attackId, defends, resolveSource, attacker, defender, 
       timestamp: new Date().toISOString()
     });
+
+    // Chain next queued multi-attack target if any
+    await this.processNextMultiAttackTarget(gameId, io);
 
     return true;
 
@@ -36818,18 +36882,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         const extraTargets = otherEnemies.slice(0, remainingTargets);
         
-        for (const extraTarget of extraTargets) {
-          const extraName = extraTarget.name || this.getCardNameFromUrl(extraTarget.frontImage || '');
-          console.log(`🎯🎯 MULTI ATTACK: Applying ${damageValue} damage to ${extraName} via processMosseDamage pipeline`);
-          
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-multi-attack-extra`,
-            playerName: 'Sistema',
-            message: `🎯🎯 ATTACCO MULTIPLO! ${extraName} viene attaccato anche!`,
-            timestamp: Date.now()
-          });
-          
-          await this.processMosseDamage(gameId, attackerName, extraTarget.id, damageValue, mosseCardId, io, false, false, false, false, starsToRemove);
+        if (extraTargets.length > 0) {
+          // Queue extra targets for sequential defense processing (each gets a proper defense:request)
+          if (!(game as any).pendingMultiAttackQueue) (game as any).pendingMultiAttackQueue = [];
+          for (const extraTarget of extraTargets) {
+            console.log(`🎯🎯 MULTI ATTACK: Queuing attack on ${extraTarget.name || extraTarget.id} (owner: ${extraTarget.owner})`);
+            (game as any).pendingMultiAttackQueue.push({
+              attackerName,
+              targetCardId: extraTarget.id,
+              damageValue,
+              mosseCardId,
+              starsToRemove: starsToRemove || 0,
+              mosseEffect: mosseEffect || undefined
+            });
+          }
+          // Kick off the first queued target immediately (sequential chain via processDefenseResponse)
+          await this.processNextMultiAttackTarget(gameId, io);
         }
       }
     }

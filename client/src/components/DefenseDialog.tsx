@@ -42,6 +42,7 @@ interface DefenseRequest {
   mosseCanBeCountered?: boolean;
   mosseDamageValue?: number;
   attackerStars?: number;
+  isCounterAttackDefense?: boolean;
 }
 
 interface GameCard {
@@ -178,11 +179,12 @@ export const DefenseDialog: React.FC = () => {
   };
 
   // Check if a card is a defense BONUS
+  // When isCounterAttackDefense=true, only pure DEFENSE_BONUS_CARDS are allowed (no delay cards)
   const isDefenseBonusCard = (card: GameCard): boolean => {
     if (card.type !== 'bonus') return false;
     const cardName = card.frontImage ? getCardName(card.frontImage) : '';
     if (DEFENSE_BONUS_CARDS.some(dc => cardName.includes(dc))) return true;
-    if (isDelayDefenseCard(card)) return true;
+    if (!defenseRequest?.isCounterAttackDefense && isDelayDefenseCard(card)) return true;
     return false;
   };
 
