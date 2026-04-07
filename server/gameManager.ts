@@ -199,6 +199,7 @@ interface PendingDefense {
   attackerStars?: number; // Attacker's current stars (for auto-calc)
   originalMosseDamage?: number; // Raw MOSSE damage before special move enhancement (for range checks)
   isCounterAttackDefense?: boolean; // Whether this defense was created from a counter-attack (BONUS only, no re-counter)
+  isMultiAttackQueuedTarget?: boolean; // Whether this defense is part of a multi-attack queue (chains next target on resolve)
   createdAt: Date;
   timeoutId?: NodeJS.Timeout;
 }
@@ -32562,7 +32563,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       // CPU: Check for custom BONUS cards with delay defense pattern
-      if (!bonusInHand) {
+      // Skip delay defense entirely for counter-attack defense (only named respinta bonuses allowed)
+      if (!bonusInHand && !(pendingDefense as any).isCounterAttackDefense) {
         const delayDefensePattern = /ritard[ai].*dann[oi]|dann[oi].*ritardat[oi]|(?:dopo|tra)\s+\d+\s+turni?.*dann[oi]|assorb[ei].*dann[oi].*(?:dopo|tra)\s+\d+/i;
         const delayBonus = defender.hand.find((c: any) => {
           if (c.type !== 'bonus') return false;
@@ -32884,7 +32886,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       mosseCanBeCountered: (mosseCard as any)?.mosseCanBeCountered === true,
       mosseDamageValue: (mosseCard as any)?.mosseDamageValue ?? null,
       attackerStars,
-      originalMosseDamage: damageValue
+      originalMosseDamage: damageValue,
+      isMultiAttackQueuedTarget: true
     });
 
     if (defenseCreated) {
@@ -33992,8 +33995,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       timestamp: new Date().toISOString()
     });
 
-    // Chain next queued multi-attack target if any
-    await this.processNextMultiAttackTarget(gameId, io);
+    // Chain next queued multi-attack target only when this defense was itself a queued target
+    // (avoids double-kickoff: processMosseDamage already kicks off the first queued target)
+    if ((pendingDefense as any).isMultiAttackQueuedTarget) {
+      await this.processNextMultiAttackTarget(gameId, io);
+    }
 
     return true;
 

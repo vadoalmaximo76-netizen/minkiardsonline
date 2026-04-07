@@ -933,7 +933,17 @@ export const DefenseDialog: React.FC = () => {
           {/* Cards Grid */}
           {playerHand.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
-              {playerHand.filter(card => !isDefenseCardDisabled(card)).map((card) => {
+              {playerHand.filter(card => {
+                // Show MOSSE only when counter-attack is eligible for this card and this attack
+                if (card.type === 'mosse') {
+                  return defenseRequest?.mosseCanBeCountered === true && card.mosseCanCounter === true;
+                }
+                // Show bonus only if it's in the named defense list and not disabled
+                if (card.type === 'bonus') {
+                  return isDefenseBonusCard(card) && !isDefenseCardDisabled(card);
+                }
+                return false;
+              }).map((card) => {
                 const cardNameStr = card.frontImage ? getCardName(card.frontImage) : '';
                 const isBonusDef = isDefenseBonusCard(card);
                 const isMosseCard = card.type === 'mosse';
