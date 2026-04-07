@@ -4752,7 +4752,7 @@ Rispondi SOLO in JSON:`;
       const cardName = card.name || this.getCardNameFromUrl(card.frontImage);
       const cardsWithAnimations = [
         'BAMBOLA VOODOO', 'BAMBOLA-VOODOO', 'UNA TEMPESTA BABY', 'ACCETTATA',
-        'ACCHIAPPT CHESSA', 'AGO DI PINO', 'ATTACCO KAMIKAZE', 'BOMBA SENZA DETONATORE',
+        'ACCHIAPPT CHESSA', 'AGO DI PINO', 'ATTACCO COMBINATO', 'ATTACCO KAMIKAZE', 'BOMBA SENZA DETONATORE',
         'BOMBA', 'CANZONE NEOMELODICA', 'CIAVATTA', 'DUELLO', 'ESPLOSIONE ATOMICA',
         'FUCILE A POMPA', 'FURTO', 'INFLUENZA', 'LU TRATTORE', 'MAZZA DA BASEBALL',
         'MINA VAGANTE', 'MOTOSEGA', 'OMBELICO LANCIAFIAMME', 'ONDA ENERGETICA',
@@ -8717,7 +8717,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
             const cardsWithAnimations = [
               'BAMBOLA VOODOO', 'BAMBOLA-VOODOO', 'UNA TEMPESTA BABY', 'ACCETTATA',
-              'ACCHIAPPT CHESSA', 'AGO DI PINO', 'ATTACCO KAMIKAZE', 'BOMBA SENZA DETONATORE',
+              'ACCHIAPPT CHESSA', 'AGO DI PINO', 'ATTACCO COMBINATO', 'ATTACCO KAMIKAZE', 'BOMBA SENZA DETONATORE',
               'BOMBA', 'CANZONE NEOMELODICA', 'CIAVATTA', 'DUELLO', 'ESPLOSIONE ATOMICA',
               'FUCILE A POMPA', 'FURTO', 'INFLUENZA', 'LU TRATTORE', 'MAZZA DA BASEBALL',
               'MINA VAGANTE', 'MOTOSEGA', 'OMBELICO LANCIAFIAMME', 'ONDA ENERGETICA',
@@ -17526,6 +17526,45 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             timestamp: Date.now()
           });
         }
+      }
+    }
+
+    // ATTACCO COMBINATO: every attacker's character on field loses 30 PTI; sum of PTI lost × sum of their stars = damage to chosen target
+    if (!isHandTarget && !isDuelAttack && mosseCard && (mosseCard.frontImage || '').toLowerCase().includes('attacco-combinato')) {
+      const myCharsAC = game.field.filter((c: Card) => c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+      if (myCharsAC.length > 0) {
+        // Read stars BEFORE applying self-damage so dying characters still contribute
+        const starsBefore: number[] = myCharsAC.map((c: Card) => c.stars ?? this.extractStarsFromNote(c.text || ''));
+        let totalPTILost = 0;
+        const detailParts: string[] = [];
+        for (let i = 0; i < myCharsAC.length; i++) {
+          const ch = myCharsAC[i];
+          const currentPTI = ch.pti ?? this.extractPTIFromNote(ch.text || '');
+          const ptiLost = Math.min(30, currentPTI);
+          totalPTILost += ptiLost;
+          const newPTI = currentPTI - ptiLost;
+          ch.pti = newPTI;
+          this.updateCardTextWithPTI(ch);
+          detailParts.push(`${ch.name || ch.owner} (${starsBefore[i]}★) -${ptiLost} PTI${newPTI === 0 ? ' 💀' : ''}`);
+          if (newPTI === 0) {
+            this.killAndCheck(gameId, ch.id, ch.owner, attackerName);
+          }
+        }
+        const totalStarsAC = starsBefore.reduce((a, b) => a + b, 0);
+        const combinedDamage = totalPTILost * totalStarsAC;
+        damageValue = combinedDamage;
+        console.log(`💥 ATTACCO COMBINATO: ${myCharsAC.length} personaggi → ${totalPTILost} PTI persi × ${totalStarsAC} stelle = ${combinedDamage} danno`);
+        const ioAC2 = (global as any).io;
+        if (ioAC2) {
+          ioAC2.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-attacco-combinato`, playerName: 'Sistema',
+            message: `💥 ATTACCO COMBINATO! ${detailParts.join(' | ')} → ${totalPTILost} PTI × ${totalStarsAC}★ = ${combinedDamage} danno!`,
+            timestamp: Date.now()
+          });
+        }
+        // Update game state for all players to see self-damage immediately
+        const updatedStateAC = this.getSanitizedGameState(gameId);
+        if (ioAC2) ioAC2.to(gameId).emit('game-state-update', updatedStateAC);
       }
     }
 
