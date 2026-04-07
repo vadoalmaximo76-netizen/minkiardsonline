@@ -32471,7 +32471,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       console.log(`🤖 CPU ${pendingDefense.defender} hand:`, defender.hand.map((c: any) => ({ type: c.type, name: getCardName(c) })));
       
       // NEW: CPU COUNTER-ATTACK LOGIC - Check if attack can be countered with MOSSE
-      if ((pendingDefense as any).mosseCanBeCountered) {
+      if (pendingDefense.mosseCanBeCountered) {
         console.log(`🤖 CPU ${pendingDefense.defender}: Attack CAN be countered - evaluating counter options`);
         
         // Get CPU's target card (the one being attacked) to calculate stars
@@ -32564,7 +32564,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // CPU: Check for custom BONUS cards with delay defense pattern
       // Skip delay defense entirely for counter-attack defense (only named respinta bonuses allowed)
-      if (!bonusInHand && !(pendingDefense as any).isCounterAttackDefense) {
+      if (!bonusInHand && !pendingDefense.isCounterAttackDefense) {
         const delayDefensePattern = /ritard[ai].*dann[oi]|dann[oi].*ritardat[oi]|(?:dopo|tra)\s+\d+\s+turni?.*dann[oi]|assorb[ei].*dann[oi].*(?:dopo|tra)\s+\d+/i;
         const delayBonus = defender.hand.find((c: any) => {
           if (c.type !== 'bonus') return false;
@@ -32963,11 +32963,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return false;
     }
     (game as any)._defenseBeingResolved = true;
+    let _isQueuedMultiTarget = false; // captured outside try so finally can read it
 
     try {
 
     // ATOMIC GUARD: Get pending defense and validate
     const pendingDefense = game.pendingDefense;
+    _isQueuedMultiTarget = pendingDefense?.isMultiAttackQueuedTarget === true;
     if (!pendingDefense || pendingDefense.attackId !== attackId) {
       console.warn(`[DEFENSE-RESOLVE] No matching pending defense found`, {
         gameId, attackId, defends, resolveSource, 
@@ -33995,17 +33997,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       timestamp: new Date().toISOString()
     });
 
-    // Chain next queued multi-attack target only when this defense was itself a queued target
-    // (avoids double-kickoff: processMosseDamage already kicks off the first queued target)
-    if ((pendingDefense as any).isMultiAttackQueuedTarget) {
-      await this.processNextMultiAttackTarget(gameId, io);
-    }
-
     return true;
 
     } finally {
       // MUTEX RELEASE: Always release the defense mutex, even on error
       (game as any)._defenseBeingResolved = false;
+      // Chain next queued multi-attack target from ALL exit paths (clash, normal, etc.)
+      // Must run AFTER mutex release so CPU auto-resolve in next defense can proceed
+      if (_isQueuedMultiTarget) {
+        try {
+          await this.processNextMultiAttackTarget(gameId, io);
+        } catch (err) {
+          console.error('[MULTI-ATTACK] Error processing next queued target:', err);
+        }
+      }
     }
   }
 
@@ -34028,7 +34033,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
     
     // SECURITY: Validate counter-attack eligibility
-    const attackCanBeCountered = (pendingDefense as any).mosseCanBeCountered === true;
+    const attackCanBeCountered = pendingDefense.mosseCanBeCountered === true;
     if (!attackCanBeCountered) {
       console.warn(`[COUNTER-ATTACK] Attack cannot be countered: mosseCanBeCountered is not true`);
       return { success: false, error: 'This attack cannot be countered' };
