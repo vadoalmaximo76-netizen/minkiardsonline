@@ -182,6 +182,27 @@ const TREE_DATA: { x: number; z: number; h: number; r: number }[] = [
   { x:-130, z:-145, h:2.0, r:0.62 }, { x: 130, z:-145, h:2.0, r:0.62 },
   { x: -80, z:-185, h:2.4, r:0.72 }, { x:  80, z:-185, h:2.4, r:0.72 },
   { x:-155, z:-170, h:2.1, r:0.65 }, { x: 155, z:-170, h:2.1, r:0.65 },
+  // Parco Grande extended (new southern section)
+  { x:-12, z:-138, h:2.6, r:0.92 }, { x:-30, z:-142, h:2.8, r:1.00 },
+  { x:-60, z:-140, h:2.7, r:0.95 }, { x:-78, z:-138, h:2.5, r:0.90 },
+  // Giardino Ovest (x:-172 to -110, z:32 to 98)
+  { x:-165, z: 42, h:2.5, r:0.92 }, { x:-148, z: 52, h:2.7, r:0.98 },
+  { x:-132, z: 46, h:2.4, r:0.88 }, { x:-158, z: 65, h:2.8, r:1.00 },
+  { x:-138, z: 70, h:2.6, r:0.92 }, { x:-120, z: 60, h:2.4, r:0.85 },
+  { x:-165, z: 78, h:2.7, r:0.95 }, { x:-148, z: 85, h:2.5, r:0.90 },
+  { x:-128, z: 82, h:2.8, r:1.00 }, { x:-118, z: 92, h:2.4, r:0.85 },
+  { x:-155, z: 92, h:2.6, r:0.92 }, { x:-142, z: 38, h:2.5, r:0.88 },
+  // Giardino Est (x:108 to 172, z:-78 to -8)
+  { x: 115, z:-68, h:2.5, r:0.90 }, { x: 135, z:-58, h:2.7, r:0.95 },
+  { x: 158, z:-52, h:2.4, r:0.88 }, { x: 122, z:-42, h:2.8, r:1.00 },
+  { x: 148, z:-38, h:2.6, r:0.92 }, { x: 165, z:-28, h:2.4, r:0.85 },
+  { x: 118, z:-22, h:2.7, r:0.95 }, { x: 140, z:-16, h:2.5, r:0.90 },
+  { x: 160, z:-68, h:2.6, r:0.92 }, { x: 112, z:-75, h:2.4, r:0.88 },
+  // Parco Ingresso (x:-42 to 42, z:118 to 160)
+  { x:-35, z:125, h:2.2, r:0.80 }, { x:-20, z:135, h:2.4, r:0.85 },
+  { x:  0, z:128, h:2.3, r:0.82 }, { x: 20, z:138, h:2.4, r:0.85 },
+  { x: 35, z:125, h:2.2, r:0.80 }, { x:-30, z:148, h:2.5, r:0.88 },
+  { x: 30, z:150, h:2.5, r:0.88 }, { x: -5, z:155, h:2.3, r:0.82 },
 ];
 
 const WATER_DATA: { x: number; z: number; r: number }[] = [
@@ -211,6 +232,17 @@ const FLOWER_DATA: { x:number; z:number; r:number; color:string }[] = [
   { x:-12, z: 165, r:1.6, color:'#60a5fa' }, { x: 12, z: 165, r:1.6, color:'#f97316' },
   // University garden
   { x: 48, z: -88, r:1.8, color:'#4ade80' }, { x: 65, z: -92, r:1.6, color:'#fbbf24' },
+  // Giardino Ovest flower beds
+  { x:-162, z: 48, r:1.8, color:'#f97316' }, { x:-145, z: 62, r:2.0, color:'#a78bfa' },
+  { x:-128, z: 75, r:1.6, color:'#ff6b9d' }, { x:-158, z: 85, r:1.8, color:'#fbbf24' },
+  { x:-138, z: 92, r:1.6, color:'#34d399' }, { x:-122, z: 52, r:2.0, color:'#60a5fa' },
+  // Giardino Est flower beds
+  { x: 118, z:-65, r:1.8, color:'#ff6b9d' }, { x: 145, z:-42, r:2.0, color:'#fbbf24' },
+  { x: 162, z:-22, r:1.6, color:'#a78bfa' }, { x: 128, z:-28, r:1.8, color:'#34d399' },
+  { x: 150, z:-62, r:1.6, color:'#f97316' }, { x: 115, z:-18, r:2.0, color:'#60a5fa' },
+  // Parco Ingresso flower beds
+  { x:-32, z:128, r:1.6, color:'#ff6b9d' }, { x: 32, z:132, r:1.6, color:'#fbbf24' },
+  { x: -8, z:148, r:1.8, color:'#a78bfa' }, { x:  8, z:148, r:1.8, color:'#4ade80' },
 ];
 
 /* ── Park benches (Z-sorted sprites) ────────────────────────── */
@@ -234,6 +266,17 @@ const BENCH_DATA: { x:number; z:number; rot:number }[] = [
   // Via Commerciale benches
   { x:-50, z: 95, rot: 0.0 }, { x:-70, z: 95, rot: 0.0 },
   { x: 40, z: 95, rot: 0.0 }, { x: 60, z: 95, rot: 0.0 },
+  // Giardino Ovest benches
+  { x:-162, z: 58, rot: 0.0 }, { x:-145, z: 70, rot: 1.5 },
+  { x:-158, z: 82, rot: 0.0 }, { x:-130, z: 88, rot: 1.5 },
+  { x:-120, z: 56, rot: 0.0 }, { x:-148, z: 95, rot: 1.5 },
+  // Giardino Est benches
+  { x: 118, z:-60, rot: 0.0 }, { x: 145, z:-48, rot: 1.5 },
+  { x: 162, z:-30, rot: 0.0 }, { x: 130, z:-22, rot: 1.5 },
+  { x: 112, z:-35, rot: 0.0 }, { x: 155, z:-68, rot: 1.5 },
+  // Parco Ingresso benches
+  { x:-32, z:135, rot: 0.0 }, { x: 32, z:138, rot: 0.0 },
+  { x: -5, z:152, rot: 1.5 }, { x:  5, z:145, rot: 1.5 },
 ];
 
 /* ── Park paths / gravel trails (drawn before sprites) ───────── */
@@ -248,6 +291,18 @@ const PARK_PATH_DATA: { x1:number; z1:number; x2:number; z2:number; w:number }[]
   { x1:-45, z1:-110, x2:-65, z2:-110, w: 2.0 },
   // Football field access
   { x1:-45, z1:-130, x2:-45, z2:-145, w: 2.5 },
+  // Giardino Ovest paths
+  { x1:-165, z1: 40, x2:-112, z2: 40, w: 2.0 },
+  { x1:-140, z1: 40, x2:-140, z2: 98, w: 2.5 },
+  { x1:-165, z1: 70, x2:-112, z2: 70, w: 2.0 },
+  // Giardino Est paths
+  { x1: 110, z1:-75, x2: 170, z2:-75, w: 2.0 },
+  { x1: 140, z1:-75, x2: 140, z2: -8, w: 2.5 },
+  { x1: 110, z1:-40, x2: 170, z2:-40, w: 2.0 },
+  // Parco Ingresso paths
+  { x1:-40, z1:122, x2: 40, z2:122, w: 2.0 },
+  { x1:  0, z1:122, x2:  0, z2:158, w: 2.5 },
+  { x1:-40, z1:150, x2: 40, z2:150, w: 2.0 },
 ];
 
 const LAMP_DATA: { x:number; z:number }[] = [
@@ -554,8 +609,12 @@ const DISTRICT_DATA: { x1:number; z1:number; x2:number; z2:number; color:string 
   { x1:  18, z1: -12, x2: 172, z2:162, color:'#1a2235' },  // PORTO EST
   { x1: -92, z1: -72, x2:  92, z2: 18, color:'#282828' },  // CENTRO
   { x1:-172, z1: -72, x2: -92, z2: 18, color:'#221a10' },  // INDUSTRIALE
-  { x1: -82, z1:-135, x2:   5, z2:-72, color:'#1a2e1a' },  // PARCO GRANDE
+  { x1: -82, z1:-145, x2:   5, z2:-72, color:'#1a2e1a' },  // PARCO GRANDE (expanded)
   { x1:-172, z1:-200, x2: 172, z2:-72, color:'#1e1e30' },  // NORD
+  // ── Giardini sovrapposti ai distretti urbani ───────────────────
+  { x1:-172, z1:  32, x2:-110, z2:  98, color:'#183518' },  // GIARDINO OVEST (sopra industriale)
+  { x1: 108, z1: -78, x2: 172, z2:  -8, color:'#1c3820' },  // GIARDINO EST (sopra porto)
+  { x1: -42, z1: 118, x2:  42, z2: 160, color:'#253a28' },  // PARCO INGRESSO (centro ingresso)
 ];
 
 /* ── Bridge decorations ──────────────────────────────────────── */
@@ -684,6 +743,8 @@ function Minimap({ playerRef, arenaPositions, leaders, getLeaderStatus, localiti
         '#221a10': 'rgba(34,26,16,0.7)',
         '#1a2e1a': 'rgba(26,46,26,0.7)',
         '#1e1e30': 'rgba(30,30,48,0.7)',
+        '#183518': 'rgba(24,53,24,0.85)',
+        '#1c3820': 'rgba(28,56,32,0.85)',
       };
       DISTRICT_DATA.forEach(d => {
         const a = toC(d.x1, d.z1);
@@ -1928,13 +1989,16 @@ export function StoryWorldMap({
 
       /* District style config: [base, accent, grid] */
       const DISTRICT_STYLES = [
-        /* 0 INGRESSO    */ { base:'#c4a97d', accent:'#b8946a', grid:'rgba(0,0,0,0.08)', pattern:'cobble' },
-        /* 1 RESIDENZIALE*/ { base:'#8b5e3c', accent:'#7a5232', grid:'rgba(0,0,0,0.10)', pattern:'brick'  },
-        /* 2 PORTO EST   */ { base:'#4a5568', accent:'#3d4a5c', grid:'rgba(0,0,0,0.12)', pattern:'dock'   },
-        /* 3 CENTRO      */ { base:'#7a7570', accent:'#6e6b65', grid:'rgba(0,0,0,0.08)', pattern:'stone'  },
-        /* 4 INDUSTRIALE */ { base:'#3a3530', accent:'#2d2a26', grid:'rgba(0,0,0,0.14)', pattern:'cement' },
-        /* 5 PARCO GRANDE*/ { base:'#3d7a32', accent:'#2e6024', grid:'rgba(0,0,0,0.06)', pattern:'grass'  },
-        /* 6 NORD        */ { base:'#5a6070', accent:'#4a5060', grid:'rgba(0,0,0,0.10)', pattern:'stone'  },
+        /* 0 INGRESSO      */ { base:'#c4a97d', accent:'#b8946a', grid:'rgba(0,0,0,0.08)', pattern:'cobble' },
+        /* 1 RESIDENZIALE  */ { base:'#8b5e3c', accent:'#7a5232', grid:'rgba(0,0,0,0.10)', pattern:'brick'  },
+        /* 2 PORTO EST     */ { base:'#4a5568', accent:'#3d4a5c', grid:'rgba(0,0,0,0.12)', pattern:'dock'   },
+        /* 3 CENTRO        */ { base:'#7a7570', accent:'#6e6b65', grid:'rgba(0,0,0,0.08)', pattern:'stone'  },
+        /* 4 INDUSTRIALE   */ { base:'#3a3530', accent:'#2d2a26', grid:'rgba(0,0,0,0.14)', pattern:'cement' },
+        /* 5 PARCO GRANDE  */ { base:'#3d7a32', accent:'#2e6024', grid:'rgba(0,0,0,0.06)', pattern:'grass'  },
+        /* 6 NORD          */ { base:'#5a6070', accent:'#4a5060', grid:'rgba(0,0,0,0.10)', pattern:'stone'  },
+        /* 7 GIARDINO OVEST*/ { base:'#2e6e28', accent:'#245a1f', grid:'rgba(0,0,0,0.06)', pattern:'grass'  },
+        /* 8 GIARDINO EST  */ { base:'#306830', accent:'#265825', grid:'rgba(0,0,0,0.06)', pattern:'grass'  },
+        /* 9 PARCO INGRESSO*/ { base:'#3a7a35', accent:'#2e6428', grid:'rgba(0,0,0,0.06)', pattern:'grass'  },
       ];
       DISTRICT_DATA.forEach((d, di) => {
         const [x1s, y1s] = w2s(d.x1, d.z1);
@@ -2321,36 +2385,116 @@ export function StoryWorldMap({
       });
 
       /* animated city cars */
+      const px_c = playerRef.current.x, pz_c = playerRef.current.z;
       CAR_DATA.forEach((car) => {
         const progress = ((t * car.speed + car.phase) % 1 + 1) % 1;
         const pos = car.from + (car.to - car.from) * progress;
         const wx = car.axis === 'z' ? car.fixed : pos;
         const wz = car.axis === 'x' ? car.fixed : pos;
+        const carDist = Math.sqrt((wx - px_c) ** 2 + (wz - pz_c) ** 2);
+        const isHonking = carDist < 9;
         sprites.push({ z: wz, draw: () => {
           const [csx, csy] = w2s(wx, wz);
           const cW = car.len * TILE; const cH = car.wid * TILE;
           const isHoriz = car.axis === 'x';
+          const hDir = car.to > car.from ? 1 : -1;
           ctx.save();
           ctx.translate(csx, csy);
           if (isHoriz) ctx.rotate(Math.PI / 2);
-          /* shadow */
+
+          /* shadow (offset slightly in travel direction) */
           ctx.beginPath();
-          ctx.ellipse(2, cW * 0.12, cW * 0.45, cH * 0.3, 0, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fill();
-          /* body */
-          rrect(ctx, -cW / 2, -cH / 2, cW, cH, 5);
-          ctx.fillStyle = car.color; ctx.fill();
-          /* windshield */
-          ctx.fillStyle = 'rgba(180,220,255,0.55)';
-          ctx.fillRect(-cW * 0.22, -cH * 0.46, cW * 0.44, cH * 0.42);
-          /* headlights */
-          const hDir = car.to > car.from ? 1 : -1;
-          ctx.fillStyle = 'rgba(255,255,200,0.85)';
-          ctx.fillRect(-cH * 0.38, hDir > 0 ? -cW / 2 : cW / 2 - 5, cH * 0.3, 5);
-          /* taillights */
-          ctx.fillStyle = 'rgba(255,50,50,0.85)';
-          ctx.fillRect(-cH * 0.38, hDir > 0 ? cW / 2 - 5 : -cW / 2, cH * 0.3, 5);
+          ctx.ellipse(hDir * 3, cW * 0.1, cW * 0.48, cH * 0.28, 0, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill();
+
+          /* body gradient */
+          const bodyGrd = ctx.createLinearGradient(-cW / 2, 0, cW / 2, 0);
+          const [cr, cg, cb] = hexToRgb(car.color);
+          bodyGrd.addColorStop(0,   `rgb(${Math.max(0,cr-30)},${Math.max(0,cg-30)},${Math.max(0,cb-30)})`);
+          bodyGrd.addColorStop(0.35, car.color);
+          bodyGrd.addColorStop(0.65, `rgb(${Math.min(255,cr+30)},${Math.min(255,cg+30)},${Math.min(255,cb+30)})`);
+          bodyGrd.addColorStop(1,   `rgb(${Math.max(0,cr-20)},${Math.max(0,cg-20)},${Math.max(0,cb-20)})`);
+          rrect(ctx, -cW / 2, -cH / 2, cW, cH, 6);
+          ctx.fillStyle = bodyGrd; ctx.fill();
+          ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+
+          /* roof / cabin (darker inset rectangle — visible from above) */
+          const roofW = cW * 0.52, roofH = cH * 0.72;
+          const roofX = -roofW / 2, roofY = -roofH / 2;
+          ctx.fillStyle = `rgba(${Math.max(0,cr-55)},${Math.max(0,cg-55)},${Math.max(0,cb-55)},0.82)`;
+          rrect(ctx, roofX, roofY, roofW, roofH, 3);
+          ctx.fill();
+
+          /* windshield (front glass) */
+          const frontZ = hDir > 0 ? roofY : roofY + roofH;
+          ctx.fillStyle = 'rgba(160,215,255,0.65)';
+          rrect(ctx, roofX + 2, frontZ + (hDir > 0 ? 0 : -roofH * 0.36), roofW - 4, roofH * 0.36, 3);
+          ctx.fill();
+
+          /* rear window */
+          const rearZ = hDir > 0 ? roofY + roofH - roofH * 0.3 : roofY;
+          ctx.fillStyle = 'rgba(100,170,220,0.45)';
+          rrect(ctx, roofX + 3, rearZ, roofW - 6, roofH * 0.28, 2);
+          ctx.fill();
+
+          /* wheel arches (4 corners) */
+          const archR = cH * 0.38;
+          const wOffs = cW * 0.32;
+          ctx.fillStyle = 'rgba(30,30,30,0.75)';
+          [[-wOffs, -cH * 0.42], [wOffs, -cH * 0.42], [-wOffs, cH * 0.42], [wOffs, cH * 0.42]].forEach(([ax, az]) => {
+            ctx.beginPath(); ctx.arc(ax as number, az as number, archR, 0, Math.PI * 2); ctx.fill();
+          });
+          /* wheel shine */
+          ctx.fillStyle = 'rgba(180,180,180,0.35)';
+          [[-wOffs, -cH * 0.42], [wOffs, -cH * 0.42], [-wOffs, cH * 0.42], [wOffs, cH * 0.42]].forEach(([ax, az]) => {
+            ctx.beginPath(); ctx.arc((ax as number) - archR * 0.15, (az as number) - archR * 0.15, archR * 0.4, 0, Math.PI * 2); ctx.fill();
+          });
+
+          /* headlights (front) — round, bright */
+          const frontEdge = hDir > 0 ? -cW / 2 + 3 : cW / 2 - 3;
+          ctx.fillStyle = 'rgba(255,255,210,0.95)';
+          [[-cH * 0.28], [cH * 0.28]].forEach(([side]) => {
+            ctx.beginPath(); ctx.arc(frontEdge, side as number, cH * 0.16, 0, Math.PI * 2); ctx.fill();
+          });
+          /* headlight inner glow */
+          ctx.fillStyle = 'rgba(255,255,255,0.7)';
+          [[-cH * 0.28], [cH * 0.28]].forEach(([side]) => {
+            ctx.beginPath(); ctx.arc(frontEdge, side as number, cH * 0.07, 0, Math.PI * 2); ctx.fill();
+          });
+
+          /* taillights (back) — red */
+          const rearEdge = hDir > 0 ? cW / 2 - 3 : -cW / 2 + 3;
+          ctx.fillStyle = 'rgba(220,40,40,0.9)';
+          [[-cH * 0.26], [cH * 0.26]].forEach(([side]) => {
+            ctx.beginPath(); ctx.arc(rearEdge, side as number, cH * 0.13, 0, Math.PI * 2); ctx.fill();
+          });
+
           ctx.restore();
+
+          /* honk bubble — drawn in world space, not rotated */
+          if (isHonking) {
+            const bubbleX = csx;
+            const bubbleY = csy - cH * 0.9 - TILE * 0.4;
+            const pulse = 0.9 + Math.sin(t * 10) * 0.1;
+            ctx.save();
+            ctx.translate(bubbleX, bubbleY);
+            ctx.scale(pulse, pulse);
+            /* bubble bg */
+            rrect(ctx, -22, -14, 44, 20, 8);
+            ctx.fillStyle = 'rgba(255,255,240,0.92)'; ctx.fill();
+            ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 1.5; ctx.stroke();
+            /* tail */
+            ctx.beginPath();
+            ctx.moveTo(-5, 5); ctx.lineTo(5, 5); ctx.lineTo(0, 14); ctx.closePath();
+            ctx.fillStyle = 'rgba(255,255,240,0.92)'; ctx.fill();
+            ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 1; ctx.stroke();
+            /* text */
+            ctx.fillStyle = '#92400e';
+            ctx.font = 'bold 9px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('📯 BEEP!', 0, 0);
+            ctx.restore();
+          }
         }});
       });
 
