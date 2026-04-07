@@ -36895,7 +36895,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         if (extraTargets.length > 0) {
           // Queue extra targets for sequential defense processing (each gets a proper defense:request)
-          if (!(game as any).pendingMultiAttackQueue) (game as any).pendingMultiAttackQueue = [];
+          // Always reset the queue at attack-start to avoid stale entries from aborted flows
+          (game as any).pendingMultiAttackQueue = [];
           for (const extraTarget of extraTargets) {
             console.log(`🎯🎯 MULTI ATTACK: Queuing attack on ${extraTarget.name || extraTarget.id} (owner: ${extraTarget.owner})`);
             (game as any).pendingMultiAttackQueue.push({
