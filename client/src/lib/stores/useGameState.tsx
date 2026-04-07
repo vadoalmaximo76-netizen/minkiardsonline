@@ -131,6 +131,7 @@ interface GameStateStore {
   prSpentThisGame: number;
   handModalOpen: boolean;
   showAttackTargetSelectCardId: string | null;
+  isAdmin: boolean;
   
   setGameState: (state: GameState) => void;
   setPlayerName: (name: string) => void;
@@ -151,6 +152,7 @@ interface GameStateStore {
   resetPRSpent: () => void;
   setHandModalOpen: (open: boolean) => void;
   setShowAttackTargetSelectCardId: (cardId: string | null) => void;
+  setIsAdmin: (isAdmin: boolean) => void;
 }
 
 export const useGameState = create<GameStateStore>()(
@@ -242,6 +244,7 @@ export const useGameState = create<GameStateStore>()(
         prSpentThisGame: 0,
         handModalOpen: false,
         showAttackTargetSelectCardId: null,
+        isAdmin: false,
         
         setGameState: (gameState) => set({ gameState }),
         setPlayerName: (playerName) => set({ playerName }),
@@ -266,6 +269,7 @@ export const useGameState = create<GameStateStore>()(
         setPickedCard: (pickedCard) => set({ pickedCard }),
         setHandModalOpen: (handModalOpen) => set({ handModalOpen }),
         setShowAttackTargetSelectCardId: (showAttackTargetSelectCardId) => set({ showAttackTargetSelectCardId }),
+        setIsAdmin: (isAdmin) => set({ isAdmin }),
         
         generateSessionId: () => {
           const sessionId = 'session-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now();

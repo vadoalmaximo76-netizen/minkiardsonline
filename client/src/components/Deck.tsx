@@ -11,7 +11,7 @@ interface DeckProps {
 }
 
 const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
-  const { gameState, playerName } = useGameState();
+  const { gameState, playerName, isAdmin } = useGameState();
   const [showBrowser, setShowBrowser] = useState(false);
   const [selectedCardForZoom, setSelectedCardForZoom] = useState<any>(null);
   const [isShuffling, setIsShuffling] = useState(false);
@@ -240,13 +240,15 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
         </div>
       </div>
 
-      <Button
-        onClick={handleChooseCard}
-        className="bg-green-600 hover:bg-green-700 text-white font-bold px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 text-[8px] sm:text-[10px] md:text-xs rounded w-full"
-        style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
-      >
-        SCEGLI
-      </Button>
+      {isAdmin && (
+        <Button
+          onClick={handleChooseCard}
+          className="bg-green-600 hover:bg-green-700 text-white font-bold px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 text-[8px] sm:text-[10px] md:text-xs rounded w-full"
+          style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+        >
+          SCEGLI
+        </Button>
+      )}
 
       {/* Deck Browser Modal - Portal to Body for Top Z-Index */}
       {showBrowser && createPortal(

@@ -101,6 +101,7 @@ interface AuthUser {
   email: string | null;
   avatar: string | null;
   puntiRankiard?: number;
+  isAdmin?: boolean;
 }
 
 interface GameBoardProps {
@@ -570,7 +571,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     timestamp: number;
     cardType: string;
   }>>([]);
-    const { selectedCard, setSelectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, addPRSpent, prSpentThisGame, resetPRSpent, clearSession } = useGameState();
+    const { selectedCard, setSelectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, addPRSpent, prSpentThisGame, resetPRSpent, clearSession, setIsAdmin } = useGameState();
   const fantaTournamentId = (gameState as any)?.fantaTournamentId as string | null | undefined;
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated, playMyTurn, playDeckShuffle, playEffectActivate, playHostageApplied, playHostageReleased, playPersonaggioEnter, playCardReveal, playErrorSound, playPlayerEliminated, playSorosActivation, playFusionSound, playCardPlayedToField, playVictory, playDefeat, playButtonClick, playPanelOpen, playPanelClose, playModalOpen, playModalClose, playConfirm } = useAudio();
 
@@ -736,6 +737,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setUserRankiardPoints(authenticatedUser.puntiRankiard);
     }
   }, [authenticatedUser?.puntiRankiard, setUserRankiardPoints]);
+
+  // Sync isAdmin flag to the store
+  useEffect(() => {
+    const adminByFlag = authenticatedUser?.isAdmin === true;
+    const adminByEmail = authenticatedUser?.email === 'lucaforte94@gmail.com';
+    setIsAdmin(adminByFlag || adminByEmail);
+  }, [authenticatedUser?.isAdmin, authenticatedUser?.email, setIsAdmin]);
 
   // Reset PR spent when starting a new game
   useEffect(() => {

@@ -296,6 +296,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     removeShakingCard,
     showAttackTargetSelectCardId,
     setShowAttackTargetSelectCardId,
+    isAdmin,
   } = useGameState();
   const showAttackTargetSelect = showAttackTargetSelectCardId === card.id;
   const setShowAttackTargetSelect = (show: boolean) => setShowAttackTargetSelectCardId(show ? card.id : null);
@@ -1914,7 +1915,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
             onChange={handleTextChange}
             placeholder="Add note..."
             className={`w-20 sm:w-20 md:w-20 lg:w-24 h-18 sm:h-18 md:h-18 text-[8px] sm:text-[9px] md:text-[10px] p-1 rounded resize-none neon-text-area neon-${card.type} leading-tight`}
-            disabled={!isOwner && location === 'hand'}
+            disabled={(!isOwner && location === 'hand') || !isAdmin}
           />
         </div>
       )}

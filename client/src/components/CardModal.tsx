@@ -22,7 +22,7 @@ export const CardModal: React.FC = () => {
   const [showPowerSelect, setShowPowerSelect] = useState(false);
   const [showSkinPanel, setShowSkinPanel] = useState(false);
   const [appliedSkinUrl, setAppliedSkinUrl] = useState<string | null>(null);
-  const { selectedCard, setSelectedCard, playerName, gameState, gameId, setSelectedMosseCard, userRankiardPoints, prSpentThisGame, addPRSpent, setHandModalOpen, setShowAttackTargetSelectCardId } = useGameState();
+  const { selectedCard, setSelectedCard, playerName, gameState, gameId, setSelectedMosseCard, userRankiardPoints, prSpentThisGame, addPRSpent, setHandModalOpen, setShowAttackTargetSelectCardId, isAdmin } = useGameState();
   const { playFusionSound, playModalOpen, playModalClose, playButtonClick } = useAudio();
   
   // Calculate available Rankiard points (total from authenticated user minus spent this game)
@@ -474,26 +474,30 @@ export const CardModal: React.FC = () => {
                 MAZZO
               </Button>
               
-              <Button
-                onClick={handleMoveToGraveyard}
-                className="aspect-square bg-sky-blue hover:bg-sky-blue/80 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
-              >
-                ⚰️
-                CIMITERO
-              </Button>
+              {isAdmin && (
+                <Button
+                  onClick={handleMoveToGraveyard}
+                  className="aspect-square bg-sky-blue hover:bg-sky-blue/80 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                >
+                  ⚰️
+                  CIMITERO
+                </Button>
+              )}
 
               {/* CEDI button for field cards */}
-              <Button
-                onClick={() => setShowTransferSelect(true)}
-                className="aspect-square bg-green-600 hover:bg-green-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
-                disabled={players.length === 0}
-              >
-                🎁
-                CEDI
-              </Button>
+              {isAdmin && (
+                <Button
+                  onClick={() => setShowTransferSelect(true)}
+                  className="aspect-square bg-green-600 hover:bg-green-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                  disabled={players.length === 0}
+                >
+                  🎁
+                  CEDI
+                </Button>
+              )}
                 
               {/* SCAMBIA button for all card types */}
-              {(selectedCard.type === 'personaggi' || selectedCard.type === 'bonus' || selectedCard.type === 'mosse' || selectedCard.type === 'personaggi_speciali') && (
+              {isAdmin && (selectedCard.type === 'personaggi' || selectedCard.type === 'bonus' || selectedCard.type === 'mosse' || selectedCard.type === 'personaggi_speciali') && (
                 <Button
                   onClick={() => setShowSwapSelect(true)}
                   className="aspect-square bg-yellow-600 hover:bg-yellow-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
@@ -530,14 +534,16 @@ export const CardModal: React.FC = () => {
               {(selectedCard.type === 'personaggi' || selectedCard.type === 'personaggi_speciali') && (
                 <>
                   {/* FONDI button - always available for UNLIMITED FUSION */}
-                  <Button
-                    onClick={handleFusion}
-                    className="aspect-square bg-purple-600 hover:bg-purple-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
-                    disabled={getAllFusableCards().length === 0}
-                  >
-                    🔗
-                    FONDI
-                  </Button>
+                  {isAdmin && (
+                    <Button
+                      onClick={handleFusion}
+                      className="aspect-square bg-purple-600 hover:bg-purple-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                      disabled={getAllFusableCards().length === 0}
+                    >
+                      🔗
+                      FONDI
+                    </Button>
+                  )}
 
                     {/* SEPARA button - show only if card IS fused */}
                     {selectedCard.isFused && (
@@ -551,22 +557,26 @@ export const CardModal: React.FC = () => {
                     )}
 
                     {/* DUPLICA button - always available for PERSONAGGI and PERSONAGGI_SPECIALI cards */}
-                    <Button
-                      onClick={handleDuplicate}
-                      className="aspect-square bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
-                    >
-                      📋
-                      DUPLICA
-                    </Button>
+                    {isAdmin && (
+                      <Button
+                        onClick={handleDuplicate}
+                        className="aspect-square bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                      >
+                        📋
+                        DUPLICA
+                      </Button>
+                    )}
 
                     {/* MODIFICA STATISTICHE button */}
-                    <Button
-                      onClick={handleAddPTI}
-                      className="aspect-square bg-cyan-600 hover:bg-cyan-700 text-white font-bold p-2 flex flex-col items-center justify-center text-[9px] leading-tight"
-                    >
-                      📊
-                      PUNTI E STELLE
-                    </Button>
+                    {isAdmin && (
+                      <Button
+                        onClick={handleAddPTI}
+                        className="aspect-square bg-cyan-600 hover:bg-cyan-700 text-white font-bold p-2 flex flex-col items-center justify-center text-[9px] leading-tight"
+                      >
+                        📊
+                        PUNTI E STELLE
+                      </Button>
+                    )}
 
                     {/* AGGIUNGI PR button */}
                     <Button
@@ -643,17 +653,19 @@ export const CardModal: React.FC = () => {
               </Button>
 
               {/* CEDI button for hand cards */}
-              <Button
-                onClick={() => setShowTransferSelect(true)}
-                className="aspect-square bg-green-600 hover:bg-green-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
-                disabled={players.length === 0}
-              >
-                🎁
-                CEDI
-              </Button>
+              {isAdmin && (
+                <Button
+                  onClick={() => setShowTransferSelect(true)}
+                  className="aspect-square bg-green-600 hover:bg-green-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                  disabled={players.length === 0}
+                >
+                  🎁
+                  CEDI
+                </Button>
+              )}
               
               {/* SCAMBIA button for all card types in hand */}
-              {(selectedCard.type === 'personaggi' || selectedCard.type === 'bonus' || selectedCard.type === 'mosse' || selectedCard.type === 'personaggi_speciali') && (
+              {isAdmin && (selectedCard.type === 'personaggi' || selectedCard.type === 'bonus' || selectedCard.type === 'mosse' || selectedCard.type === 'personaggi_speciali') && (
                 <Button
                   onClick={() => setShowSwapSelect(true)}
                   className="aspect-square bg-yellow-600 hover:bg-yellow-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
@@ -674,7 +686,7 @@ export const CardModal: React.FC = () => {
               </Button>
 
               {/* DUPLICA button for PERSONAGGI and PERSONAGGI_SPECIALI cards in hand */}
-              {(selectedCard.type === 'personaggi' || selectedCard.type === 'personaggi_speciali') && (
+              {isAdmin && (selectedCard.type === 'personaggi' || selectedCard.type === 'personaggi_speciali') && (
                 <Button
                   onClick={handleDuplicate}
                   className="aspect-square bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
