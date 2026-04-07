@@ -1666,36 +1666,103 @@ export function StoryWorldMap({
     const drawPlayer = (ctx: CanvasRenderingContext2D, time: number, moving: boolean) => {
       const [sx, sy] = w2s(playerRef.current.x, playerRef.current.z);
       const bob = moving ? Math.sin(time * 8) * 1.5 : 0;
+      const walkCycle = time * 8;
+      const legSwing  = moving ? Math.sin(walkCycle) * 4 : 0;
+      const armSwing  = moving ? Math.sin(walkCycle + Math.PI) * 5 : 0;
 
-      /* directional shadow */
+      /* ── ground shadow (radial gradient) ── */
       const [pSunX, pSunZ] = getSunVec(time);
-      ctx.beginPath(); ctx.ellipse(sx + pSunX * 7, sy + 7 + pSunZ * 3, 9, 3.5, 0, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fill();
+      const shGrd = ctx.createRadialGradient(sx + pSunX * 6, sy + 9 + pSunZ * 3, 0, sx + pSunX * 6, sy + 9 + pSunZ * 3, 17);
+      shGrd.addColorStop(0, 'rgba(0,0,0,0.38)');
+      shGrd.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.beginPath(); ctx.ellipse(sx + pSunX * 6, sy + 9 + pSunZ * 3, 17, 7, 0, 0, Math.PI * 2);
+      ctx.fillStyle = shGrd; ctx.fill();
 
-      /* body */
-      const bW = 0.55 * TILE; const bH = 0.72 * TILE;
-      ctx.fillStyle = '#7c3aed';
-      rrect(ctx, sx - bW / 2, sy - bH + 4 + bob, bW, bH, 4); ctx.fill();
+      /* ── shoes ── */
+      ctx.fillStyle = '#111827';
+      rrect(ctx, sx - 10, sy + bob + legSwing * 0.45 + 3, 8, 5, 2); ctx.fill();
+      rrect(ctx, sx + 2,  sy + bob - legSwing * 0.45 + 3, 8, 5, 2); ctx.fill();
 
-      /* legs (alternating when moving) */
-      const legW = bW * 0.35; const legH = bH * 0.28;
-      const legSwing = moving ? Math.sin(time * 8) * 3 : 0;
-      ctx.fillStyle = '#5b21b6';
-      ctx.fillRect(sx - bW * 0.35, sy + bob + legSwing, legW, legH);
-      ctx.fillRect(sx + bW * 0.35 - legW, sy + bob - legSwing, legW, legH);
+      /* ── legs (pants) ── */
+      const pantsGrd = ctx.createLinearGradient(sx - 8, sy - 6 + bob, sx + 10, sy - 6 + bob);
+      pantsGrd.addColorStop(0, '#1e3a5f'); pantsGrd.addColorStop(1, '#1e2d4a');
+      ctx.fillStyle = pantsGrd;
+      ctx.fillRect(sx - 9, sy - 7 + bob + legSwing * 0.3, 8, 12);
+      ctx.fillRect(sx + 1, sy - 7 + bob - legSwing * 0.3, 8, 12);
 
-      /* head */
-      const hr = 0.28 * TILE;
-      ctx.beginPath(); ctx.arc(sx, sy - bH + 4 + bob - hr * 0.4, hr, 0, Math.PI * 2);
+      /* ── arms ── */
+      ctx.fillStyle = '#6d28d9';
+      rrect(ctx, sx - 15, sy - 20 + bob + armSwing, 6, 12, 2); ctx.fill();
+      rrect(ctx, sx +  9, sy - 20 + bob - armSwing, 6, 12, 2); ctx.fill();
+      /* hands */
+      ctx.fillStyle = '#f4c07c';
+      ctx.beginPath(); ctx.arc(sx - 12, sy - 10 + bob + armSwing, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx + 12, sy - 10 + bob - armSwing, 3, 0, Math.PI * 2); ctx.fill();
+
+      /* ── body / torso ── */
+      const torsoGrd = ctx.createLinearGradient(sx - 11, sy - 23 + bob, sx + 11, sy - 4 + bob);
+      torsoGrd.addColorStop(0, '#7c3aed');
+      torsoGrd.addColorStop(0.45, '#6d28d9');
+      torsoGrd.addColorStop(1, '#5b21b6');
+      rrect(ctx, sx - 11, sy - 23 + bob, 22, 19, 3);
+      ctx.fillStyle = torsoGrd; ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 0.8; ctx.stroke();
+      /* collar */
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      rrect(ctx, sx - 4, sy - 23 + bob, 8, 5, 2); ctx.fill();
+      /* torso highlight */
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      rrect(ctx, sx - 9, sy - 22 + bob, 10, 16, 2); ctx.fill();
+
+      /* ── backpack ── */
+      ctx.fillStyle = '#4c1d95';
+      rrect(ctx, sx + 8, sy - 21 + bob, 7, 12, 2); ctx.fill();
+      ctx.strokeStyle = '#5b21b6'; ctx.lineWidth = 0.8; ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(sx + 9, sy - 19 + bob, 5, 2);
+      ctx.fillRect(sx + 9, sy - 15 + bob, 5, 2);
+
+      /* ── neck ── */
+      ctx.fillStyle = '#e5a865';
+      ctx.fillRect(sx - 3, sy - 26 + bob, 6, 5);
+
+      /* ── head ── */
+      ctx.beginPath(); ctx.arc(sx, sy - 31 + bob, 11, 0, Math.PI * 2);
       ctx.fillStyle = '#f4c07c'; ctx.fill();
+      ctx.strokeStyle = 'rgba(180,120,40,0.35)'; ctx.lineWidth = 0.8; ctx.stroke();
 
-      /* eyes */
-      ctx.fillStyle = '#2a1a00';
-      ctx.beginPath(); ctx.arc(sx - 3, sy - bH + 3 + bob - hr * 0.4, 1.8, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(sx + 3, sy - bH + 3 + bob - hr * 0.4, 1.8, 0, Math.PI * 2); ctx.fill();
+      /* ── hair ── */
+      ctx.beginPath(); ctx.arc(sx, sy - 34 + bob, 9.5, Math.PI * 1.05, 0.05); ctx.closePath();
+      ctx.fillStyle = '#2d1505'; ctx.fill();
+      /* hair highlight */
+      ctx.beginPath(); ctx.arc(sx - 2, sy - 36 + bob, 4.5, Math.PI * 1.15, Math.PI * 1.75);
+      ctx.strokeStyle = 'rgba(80,40,10,0.40)'; ctx.lineWidth = 2; ctx.stroke();
 
-      /* player indicator dot */
-      ctx.beginPath(); ctx.arc(sx, sy - bH - hr - 6 + bob, 3, 0, Math.PI * 2);
+      /* ── eyes ── */
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(sx - 3.5, sy - 31 + bob, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx + 3.5, sy - 31 + bob, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1a0800';
+      ctx.beginPath(); ctx.arc(sx - 3.2, sy - 31 + bob, 1.4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx + 3.2, sy - 31 + bob, 1.4, 0, Math.PI * 2); ctx.fill();
+      /* eye shine */
+      ctx.fillStyle = 'rgba(255,255,255,0.65)';
+      ctx.beginPath(); ctx.arc(sx - 4, sy - 31.8 + bob, 0.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx + 2.8, sy - 31.8 + bob, 0.6, 0, Math.PI * 2); ctx.fill();
+
+      /* ── mouth ── */
+      ctx.strokeStyle = '#a0522d'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(sx, sy - 28.5 + bob, 2.8, 0.1, Math.PI - 0.1); ctx.stroke();
+
+      /* ── indicator glow above head ── */
+      const dotY = sy - 31 + bob - 14;
+      const pulse = 0.85 + Math.sin(time * 3.5) * 0.15;
+      const dotG = ctx.createRadialGradient(sx, dotY, 0, sx, dotY, 8 * pulse);
+      dotG.addColorStop(0, 'rgba(167,139,250,1)');
+      dotG.addColorStop(1, 'rgba(109,40,217,0)');
+      ctx.beginPath(); ctx.arc(sx, dotY, 8 * pulse, 0, Math.PI * 2);
+      ctx.fillStyle = dotG; ctx.fill();
+      ctx.beginPath(); ctx.arc(sx, dotY, 3.5, 0, Math.PI * 2);
       ctx.fillStyle = '#a78bfa'; ctx.fill();
     };
 
@@ -2311,14 +2378,37 @@ export function StoryWorldMap({
       FLOWER_DATA.forEach((f) => {
         const [fx, fy] = w2s(f.x, f.z);
         const fr = f.r * TILE;
-        ctx.beginPath(); ctx.arc(fx, fy, fr, 0, Math.PI * 2);
-        ctx.fillStyle = f.color + '66'; ctx.fill();
-        for (let j = 0; j < 5; j++) {
-          const ang = j * 1.256 + t * 0.3;
-          const dx = Math.cos(ang) * fr * 0.55, dy = Math.sin(ang) * fr * 0.55;
-          ctx.beginPath(); ctx.arc(fx + dx, fy + dy, 3, 0, Math.PI * 2);
-          ctx.fillStyle = f.color; ctx.fill();
+        const sway = Math.sin(t * 1.3 + f.x * 0.18) * fr * 0.08;
+        /* bed shadow */
+        ctx.beginPath(); ctx.ellipse(fx + sway + 2, fy + 2, fr * 1.05, fr * 0.45, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.10)'; ctx.fill();
+        /* grass bed base */
+        ctx.beginPath(); ctx.ellipse(fx + sway, fy, fr * 0.95, fr * 0.42, 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#2d6a18'; ctx.fill();
+        /* petals — elliptical for natural look */
+        const pAngle = t * 0.18 + f.x * 0.07;
+        const nPetals = 6;
+        for (let j = 0; j < nPetals; j++) {
+          const ang = j * (Math.PI * 2 / nPetals) + pAngle;
+          const petalDist = fr * 0.52;
+          const px2 = fx + sway + Math.cos(ang) * petalDist;
+          const py2 = fy + Math.sin(ang) * petalDist * 0.55;
+          ctx.save();
+          ctx.translate(px2, py2);
+          ctx.rotate(ang);
+          ctx.beginPath();
+          ctx.ellipse(0, 0, fr * 0.38, fr * 0.22, 0, 0, Math.PI * 2);
+          const pg = ctx.createRadialGradient(0, 0, 0, 0, 0, fr * 0.38);
+          pg.addColorStop(0, f.color + 'ff');
+          pg.addColorStop(1, f.color + '88');
+          ctx.fillStyle = pg; ctx.fill();
+          ctx.restore();
         }
+        /* center disc */
+        ctx.beginPath(); ctx.arc(fx + sway, fy, fr * 0.24, 0, Math.PI * 2);
+        ctx.fillStyle = '#fbbf24'; ctx.fill();
+        ctx.beginPath(); ctx.arc(fx + sway - fr * 0.06, fy - fr * 0.06, fr * 0.10, 0, Math.PI * 2);
+        ctx.fillStyle = '#fde68a'; ctx.fill();
       });
 
       /* 4b. Park gravel paths */
@@ -2582,27 +2672,57 @@ export function StoryWorldMap({
           const isHoriz = bench.rot > 0.5;
           const bW = isHoriz ? TILE * 0.55 : TILE * 1.4;
           const bH = isHoriz ? TILE * 1.4 : TILE * 0.55;
+
           /* shadow */
-          ctx.fillStyle = 'rgba(0,0,0,0.18)';
-          ctx.fillRect(bx - bW / 2 + 2, by - bH / 2 + 3, bW, bH);
-          /* seat */
-          ctx.fillStyle = '#8b6914';
-          ctx.fillRect(bx - bW / 2, by - bH / 2, bW, bH * 0.55);
-          /* slats lines */
-          ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 0.8;
-          const slats = 3;
-          for (let sl = 1; sl < slats; sl++) {
-            const lx2 = bx - bW / 2 + (bW / slats) * sl;
-            ctx.beginPath(); ctx.moveTo(lx2, by - bH / 2); ctx.lineTo(lx2, by - bH / 2 + bH * 0.55); ctx.stroke();
+          const bshG = ctx.createLinearGradient(bx - bW / 2 + 3, by - bH / 2 + 4, bx + bW / 2 + 3, by + bH / 2 + 4);
+          bshG.addColorStop(0, 'rgba(0,0,0,0.20)'); bshG.addColorStop(1, 'rgba(0,0,0,0.06)');
+          ctx.fillStyle = bshG;
+          ctx.fillRect(bx - bW / 2 + 3, by - bH / 2 + 4, bW, bH);
+
+          /* ── seat (wooden slats with gradient) ── */
+          const seatH = bH * 0.48;
+          const seatY = by - bH * 0.14;
+          const nSlats = isHoriz ? 3 : 4;
+          const slatColors = ['#a0762a', '#8b6320', '#9e7128', '#7a5518'];
+          for (let sl = 0; sl < nSlats; sl++) {
+            const slW = bW / nSlats - 1;
+            const slX = bx - bW / 2 + sl * (bW / nSlats);
+            ctx.fillStyle = slatColors[sl % slatColors.length];
+            rrect(ctx, slX, seatY - seatH / 2, slW, seatH, 1); ctx.fill();
+            ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 0.8;
+            ctx.beginPath(); ctx.moveTo(slX + slW, seatY - seatH / 2); ctx.lineTo(slX + slW, seatY + seatH / 2); ctx.stroke();
           }
-          /* backrest */
-          ctx.fillStyle = '#a07820';
-          ctx.fillRect(bx - bW / 2, by + bH * 0.05, bW, bH * 0.28);
-          /* legs */
-          ctx.fillStyle = '#5a4010';
-          const legH = bH * 0.22;
-          ctx.fillRect(bx - bW / 2 + 2, by + bH * 0.33, 3, legH);
-          ctx.fillRect(bx + bW / 2 - 5, by + bH * 0.33, 3, legH);
+          /* seat top highlight */
+          ctx.fillStyle = 'rgba(255,220,150,0.18)';
+          ctx.fillRect(bx - bW / 2, seatY - seatH / 2, bW, seatH * 0.3);
+
+          /* ── backrest ── */
+          const brY = seatY - seatH / 2 - 5;
+          const brH = bH * 0.28;
+          ctx.fillStyle = '#8b6320';
+          ctx.fillRect(bx - bW / 2, brY - brH, bW, brH);
+          ctx.fillStyle = '#a07828';
+          ctx.fillRect(bx - bW / 2, brY - brH, bW, brH * 0.4);
+          /* backrest divider lines */
+          ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 0.8;
+          for (let si = 1; si < nSlats; si++) {
+            const sx2 = bx - bW / 2 + si * (bW / nSlats);
+            ctx.beginPath(); ctx.moveTo(sx2, brY - brH); ctx.lineTo(sx2, brY); ctx.stroke();
+          }
+          /* metal outline */
+          ctx.strokeStyle = '#4a3510'; ctx.lineWidth = 1;
+          ctx.strokeRect(bx - bW / 2, brY - brH, bW, brH);
+
+          /* ── metal armrests ── */
+          const armColor = '#3a3a3a';
+          ctx.fillStyle = armColor;
+          ctx.fillRect(bx - bW / 2 - 2, brY - brH, 4, brH + seatH + 6);
+          ctx.fillRect(bx + bW / 2 - 2, brY - brH, 4, brH + seatH + 6);
+
+          /* ── legs ── */
+          ctx.fillStyle = '#2a2a2a';
+          ctx.fillRect(bx - bW / 2 + 3, seatY + seatH / 2, 3, bH * 0.22);
+          ctx.fillRect(bx + bW / 2 - 6, seatY + seatH / 2, 3, bH * 0.22);
         }});
       });
 
@@ -2748,53 +2868,125 @@ export function StoryWorldMap({
         const bH = bld.h * TILE;
         const colors = BUILDING_COLORS[bld.type] ?? BUILDING_COLORS.house;
         sprites.push({ z: bld.z, draw: () => {
-          /* shadow */
+          /* pseudo-3D dimensions */
+          const sideW = Math.round(bW * 0.14);
+          const wallH  = Math.round(bH * 0.28);
+          const roofH2 = bH - wallH;
+          const fLeft  = bx - bW / 2;
+          const fRight = bx + bW / 2 - sideW;
+          const sRight = bx + bW / 2;
+          const topY   = by - bH / 2;
+          const wallY  = by + bH / 2 - wallH;
+          const botY   = by + bH / 2;
+
+          /* directional shadow */
+          const [bSunX, bSunZ] = getSunVec(t);
           ctx.beginPath();
-          ctx.ellipse(bx + 3, by + bH * 0.3, bW * 0.45, bH * 0.15, 0, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fill();
-          /* body */
-          rrect(ctx, bx - bW / 2, by - bH / 2, bW, bH, 4);
-          ctx.fillStyle = colors.body; ctx.fill();
-          ctx.strokeStyle = darken(colors.body, 40); ctx.lineWidth = 1.5; ctx.stroke();
-          /* roof strip */
-          const roofH = bH * 0.3;
-          rrect(ctx, bx - bW / 2, by - bH / 2, bW, roofH, 4);
-          ctx.fillStyle = colors.roof; ctx.fill();
+          ctx.ellipse(bx + bSunX * bW * 0.28 + 3, by + bH * 0.32 + bSunZ * bH * 0.18, bW * 0.44, bH * 0.14, 0.08, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fill();
+
+          /* RIGHT SIDE WALL */
+          const sideGrd2 = ctx.createLinearGradient(fRight, 0, sRight, 0);
+          sideGrd2.addColorStop(0, darken(colors.body, 45));
+          sideGrd2.addColorStop(1, darken(colors.body, 65));
+          ctx.fillStyle = sideGrd2;
+          ctx.beginPath(); ctx.roundRect(fRight, topY, sideW, bH, [0, 3, 3, 0]); ctx.fill();
+
+          /* FRONT WALL (bottom portion) */
+          const frontGrd2 = ctx.createLinearGradient(fLeft, wallY, fLeft, botY);
+          frontGrd2.addColorStop(0, darken(colors.body, 12));
+          frontGrd2.addColorStop(1, darken(colors.body, 32));
+          ctx.fillStyle = frontGrd2;
+          ctx.beginPath(); ctx.roundRect(fLeft, wallY, fRight - fLeft, wallH, [0, 0, 3, 3]); ctx.fill();
+
+          /* ROOF / TOP FACE */
+          const roofGrd3 = ctx.createLinearGradient(fLeft, topY, fRight, wallY);
+          roofGrd3.addColorStop(0, lighten(colors.roof, 28));
+          roofGrd3.addColorStop(0.6, colors.roof);
+          roofGrd3.addColorStop(1, darken(colors.roof, 15));
+          ctx.fillStyle = roofGrd3;
+          ctx.beginPath(); ctx.roundRect(fLeft, topY, fRight - fLeft, roofH2, [5, 3, 0, 5]); ctx.fill();
+          /* subtle tile lines on roof */
+          ctx.strokeStyle = 'rgba(0,0,0,0.07)'; ctx.lineWidth = 1;
+          for (let li2 = 1; li2 <= 2; li2++) {
+            const ly2 = topY + (roofH2 * li2) / 3;
+            ctx.beginPath(); ctx.moveTo(fLeft + 3, ly2); ctx.lineTo(fRight - 3, ly2); ctx.stroke();
+          }
+          /* eave line */
+          ctx.beginPath(); ctx.moveTo(fLeft + 3, wallY); ctx.lineTo(fRight, wallY);
+          ctx.strokeStyle = 'rgba(0,0,0,0.20)'; ctx.lineWidth = 1.5; ctx.stroke();
+
+          /* outlines */
+          ctx.strokeStyle = darken(colors.body, 48); ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.roundRect(fLeft, topY, fRight - fLeft, bH, [5, 0, 3, 5]); ctx.stroke();
+          ctx.beginPath(); ctx.roundRect(fRight, topY, sideW, bH, [0, 3, 3, 0]); ctx.stroke();
+
           /* type-specific details */
           if (bld.type === 'ruin') {
-            ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(0,0,0,0.32)'; ctx.lineWidth = 1.2;
             ctx.beginPath(); ctx.moveTo(bx - bW * 0.2, by - bH * 0.28); ctx.lineTo(bx - bW * 0.05, by + bH * 0.22); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(bx + bW * 0.15, by - bH * 0.1); ctx.lineTo(bx + bW * 0.3, by + bH * 0.28); ctx.stroke();
           } else if (bld.type === 'church') {
-            ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(bx, by - bH / 2 - 9); ctx.lineTo(bx, by - bH / 2 + 1); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(bx - 5, by - bH / 2 - 5); ctx.lineTo(bx + 5, by - bH / 2 - 5); ctx.stroke();
+            ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.moveTo(bx - sideW / 2, by - bH / 2 - 10); ctx.lineTo(bx - sideW / 2, by - bH / 2 + 2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(bx - sideW / 2 - 5, by - bH / 2 - 5); ctx.lineTo(bx - sideW / 2 + 5, by - bH / 2 - 5); ctx.stroke();
           } else if (bld.type === 'tower') {
             for (let ti = -1; ti <= 1; ti++) {
               ctx.fillStyle = colors.roof;
-              ctx.fillRect(bx + ti * bW * 0.28 - 4, by - bH / 2 - 6, 7, 6);
+              rrect(ctx, bx + ti * bW * 0.22 - sideW / 2 - 4, topY - 8, 7, 8, 1); ctx.fill();
             }
           } else if (bld.type === 'inn') {
             ctx.strokeStyle = '#7a2020'; ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.moveTo(bx + bW / 2 - 2, by - bH / 2); ctx.lineTo(bx + bW / 2 - 2, by - bH / 2 - 10); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(fRight - 2, topY); ctx.lineTo(fRight - 2, topY - 11); ctx.stroke();
             ctx.fillStyle = '#ff3333';
-            ctx.beginPath(); ctx.moveTo(bx + bW / 2 - 2, by - bH / 2 - 10); ctx.lineTo(bx + bW / 2 + 8, by - bH / 2 - 7); ctx.lineTo(bx + bW / 2 - 2, by - bH / 2 - 4); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(fRight - 2, topY - 11); ctx.lineTo(fRight + 9, topY - 7); ctx.lineTo(fRight - 2, topY - 3); ctx.fill();
           } else if (bld.type === 'shop') {
-            ctx.fillStyle = '#f97316';
-            ctx.fillRect(bx - bW / 2, by - bH / 2 + roofH, bW, 4);
+            ctx.fillStyle = '#f97316aa';
+            ctx.fillRect(fLeft, wallY - 4, fRight - fLeft, 4);
+            /* shop awning stripes */
+            ctx.fillStyle = 'rgba(255,255,255,0.20)';
+            for (let si2 = 0; si2 < 4; si2++) {
+              ctx.fillRect(fLeft + si2 * (fRight - fLeft) / 4, wallY - 4, (fRight - fLeft) / 8, 4);
+            }
           }
-          /* door */
-          const doorW = bW * 0.24; const doorH = bH * 0.28;
-          ctx.fillStyle = darken(colors.body, 55);
-          ctx.fillRect(bx - doorW / 2, by + bH / 2 - doorH, doorW, doorH);
-          ctx.beginPath(); ctx.arc(bx, by + bH / 2 - doorH, doorW / 2, Math.PI, 0); ctx.fill();
-          /* windows */
+          /* chimney for house/inn */
+          if (bld.type === 'house' || bld.type === 'inn') {
+            ctx.fillStyle = darken(colors.roof, 30);
+            ctx.fillRect(bx - bW * 0.1, topY - 7, 5, 7);
+            ctx.fillStyle = darken(colors.roof, 50);
+            ctx.fillRect(bx - bW * 0.12, topY - 8, 9, 2);
+          }
+
+          /* arched door */
+          const doorW2 = bW * 0.22; const doorH2 = wallH * 0.80;
+          ctx.fillStyle = darken(colors.body, 60);
+          ctx.fillRect(bx - doorW2 / 2 - sideW / 2, botY - doorH2, doorW2, doorH2);
+          ctx.beginPath(); ctx.arc(bx - sideW / 2, botY - doorH2, doorW2 / 2, Math.PI, 0); ctx.fill();
+          /* door highlight */
+          ctx.fillStyle = 'rgba(255,255,255,0.07)';
+          ctx.fillRect(bx - doorW2 / 2 - sideW / 2 + 2, botY - doorH2 + 2, doorW2 * 0.4, doorH2 * 0.5);
+          /* door handle */
+          ctx.beginPath(); ctx.arc(bx - sideW / 2 + doorW2 * 0.24, botY - doorH2 * 0.38, 2, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,240,160,0.7)'; ctx.fill();
+
+          /* windows with glass glint */
           if (bld.type !== 'ruin') {
-            [bx - bW * 0.24, bx + bW * 0.24].forEach(wx => {
-              ctx.fillStyle = 'rgba(255,255,180,0.38)';
-              ctx.fillRect(wx - 4, by + bH * 0.04 - 4, 8, 6);
-              ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1;
-              ctx.strokeRect(wx - 4, by + bH * 0.04 - 4, 8, 6);
+            const winRowY = wallY + wallH * 0.25;
+            [bx - bW * 0.20 - sideW / 2, bx + bW * 0.08 - sideW / 2].forEach(wx2 => {
+              const wW2 = 10; const wH2 = 9;
+              ctx.fillStyle = darken(colors.body, 55);
+              ctx.fillRect(wx2 - wW2 / 2 - 1, winRowY - wH2 / 2 - 1, wW2 + 2, wH2 + 2);
+              const wgGrd = ctx.createRadialGradient(wx2, winRowY, 0, wx2, winRowY, wW2);
+              wgGrd.addColorStop(0, 'rgba(255,255,190,0.65)');
+              wgGrd.addColorStop(1, 'rgba(140,210,255,0.12)');
+              ctx.fillStyle = wgGrd;
+              ctx.fillRect(wx2 - wW2 / 2, winRowY - wH2 / 2, wW2, wH2);
+              ctx.strokeStyle = 'rgba(200,200,140,0.35)'; ctx.lineWidth = 0.8;
+              ctx.beginPath(); ctx.moveTo(wx2, winRowY - wH2 / 2); ctx.lineTo(wx2, winRowY + wH2 / 2); ctx.stroke();
+              ctx.beginPath(); ctx.moveTo(wx2 - wW2 / 2, winRowY); ctx.lineTo(wx2 + wW2 / 2, winRowY); ctx.stroke();
+              /* glass shine dot */
+              ctx.fillStyle = 'rgba(255,255,255,0.45)';
+              ctx.beginPath(); ctx.arc(wx2 - wW2 * 0.2, winRowY - wH2 * 0.2, 1.5, 0, Math.PI * 2); ctx.fill();
             });
           }
         }});
@@ -2851,30 +3043,75 @@ export function StoryWorldMap({
       otherPlayersRef.current.forEach(op => {
         sprites.push({ z: op.z, draw: () => {
           const [osx, osy] = w2s(op.x, op.z);
-          const bW = 0.55 * TILE; const bH = 0.72 * TILE;
+
           /* shadow */
-          ctx.fillStyle = 'rgba(0,0,0,0.18)';
-          ctx.beginPath(); ctx.ellipse(osx, osy + 4, bW * 0.55, 5, 0, 0, Math.PI * 2); ctx.fill();
-          /* body */
-          ctx.fillStyle = '#2563eb';
-          rrect(ctx, osx - bW / 2, osy - bH + 4, bW, bH, 4); ctx.fill();
+          const opSh = ctx.createRadialGradient(osx + 2, osy + 9, 0, osx + 2, osy + 9, 15);
+          opSh.addColorStop(0, 'rgba(0,0,0,0.32)'); opSh.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.beginPath(); ctx.ellipse(osx + 2, osy + 9, 15, 6, 0, 0, Math.PI * 2);
+          ctx.fillStyle = opSh; ctx.fill();
+
+          /* shoes */
+          ctx.fillStyle = '#111827';
+          rrect(ctx, osx - 10, osy + 3, 8, 5, 2); ctx.fill();
+          rrect(ctx, osx + 2,  osy + 3, 8, 5, 2); ctx.fill();
+
           /* legs */
-          const legW2 = bW * 0.35; const legH2 = bH * 0.28;
+          ctx.fillStyle = '#1e3a5f';
+          ctx.fillRect(osx - 9, osy - 7, 8, 12);
+          ctx.fillRect(osx + 1, osy - 7, 8, 12);
+
+          /* arms */
           ctx.fillStyle = '#1d4ed8';
-          ctx.fillRect(osx - bW * 0.35, osy, legW2, legH2);
-          ctx.fillRect(osx + bW * 0.35 - legW2, osy, legW2, legH2);
+          rrect(ctx, osx - 15, osy - 20, 6, 12, 2); ctx.fill();
+          rrect(ctx, osx +  9, osy - 20, 6, 12, 2); ctx.fill();
+          ctx.fillStyle = '#f4c07c';
+          ctx.beginPath(); ctx.arc(osx - 12, osy - 10, 3, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(osx + 12, osy - 10, 3, 0, Math.PI * 2); ctx.fill();
+
+          /* torso */
+          const opTG = ctx.createLinearGradient(osx - 11, osy - 23, osx + 11, osy - 4);
+          opTG.addColorStop(0, '#2563eb'); opTG.addColorStop(0.5, '#1d4ed8'); opTG.addColorStop(1, '#1e40af');
+          rrect(ctx, osx - 11, osy - 23, 22, 19, 3);
+          ctx.fillStyle = opTG; ctx.fill();
+          ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 0.8; ctx.stroke();
+          ctx.fillStyle = 'rgba(255,255,255,0.08)';
+          rrect(ctx, osx - 9, osy - 22, 10, 16, 2); ctx.fill();
+
+          /* neck */
+          ctx.fillStyle = '#e5a865';
+          ctx.fillRect(osx - 3, osy - 26, 6, 5);
+
           /* head */
-          ctx.beginPath(); ctx.arc(osx, osy - bH + 4 - 0.28 * TILE * 0.4, 0.28 * TILE, 0, Math.PI * 2);
+          ctx.beginPath(); ctx.arc(osx, osy - 31, 11, 0, Math.PI * 2);
           ctx.fillStyle = '#f4c07c'; ctx.fill();
-          /* username label */
+          ctx.strokeStyle = 'rgba(180,120,40,0.3)'; ctx.lineWidth = 0.8; ctx.stroke();
+
+          /* hair */
+          ctx.beginPath(); ctx.arc(osx, osy - 34, 9.5, Math.PI * 1.05, 0.05); ctx.closePath();
+          ctx.fillStyle = '#2d1505'; ctx.fill();
+
+          /* eyes */
+          ctx.fillStyle = '#fff';
+          ctx.beginPath(); ctx.arc(osx - 3.5, osy - 31, 2.5, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(osx + 3.5, osy - 31, 2.5, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#1a0800';
+          ctx.beginPath(); ctx.arc(osx - 3.2, osy - 31, 1.4, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(osx + 3.2, osy - 31, 1.4, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.65)';
+          ctx.beginPath(); ctx.arc(osx - 4, osy - 31.8, 0.6, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(osx + 2.8, osy - 31.8, 0.6, 0, Math.PI * 2); ctx.fill();
+
+          /* username badge */
           ctx.save();
-          ctx.font = `bold ${Math.round(TILE * 0.55)}px sans-serif`;
-          ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-          const labelY = osy - bH - 0.28 * TILE * 1.6;
-          ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3;
-          ctx.strokeText(op.username, osx, labelY);
+          ctx.font = `bold ${Math.round(TILE * 0.5)}px sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          const tw2 = ctx.measureText(op.username).width;
+          const badgeY = osy - 31 - 11 - 14;
+          rrect(ctx, osx - tw2 / 2 - 7, badgeY, tw2 + 14, 14, 5);
+          ctx.fillStyle = 'rgba(29,78,216,0.92)'; ctx.fill();
+          ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 1; ctx.stroke();
           ctx.fillStyle = '#e0f2fe';
-          ctx.fillText(op.username, osx, labelY);
+          ctx.fillText(op.username, osx, badgeY + 7);
           ctx.restore();
         }});
       });
@@ -3048,6 +3285,17 @@ export function StoryWorldMap({
         atmoGrad.addColorStop(0.55, `rgba(${_skyR},${_skyG},${_skyB},${_skyA * 0.50})`);
         atmoGrad.addColorStop(1, `rgba(${_skyR},${_skyG},${_skyB},${_skyA * 0.72})`);
         ctx.fillStyle = atmoGrad;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      /* ── Cinematic vignette (always on, subtle) ─────────── */
+      {
+        const vR = Math.max(w, h) * 0.72;
+        const vGrad = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.28, w / 2, h / 2, vR);
+        vGrad.addColorStop(0, 'rgba(0,0,0,0)');
+        vGrad.addColorStop(0.65, 'rgba(0,0,0,0.04)');
+        vGrad.addColorStop(1, 'rgba(0,0,0,0.42)');
+        ctx.fillStyle = vGrad;
         ctx.fillRect(0, 0, w, h);
       }
 
