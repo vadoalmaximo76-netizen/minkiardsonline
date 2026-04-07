@@ -1355,10 +1355,22 @@ export class CPUPlayer {
     const gameState = this.gameManager.getGameState(this.gameId);
     if (!gameState) return null;
 
+    // Build CORRUZIONE peace restriction set (same logic as pickEnemyTarget)
+    const blockedOwners = new Set<string>();
+    const peaceRestrictions = (gameState as any).peaceRestrictions as Array<{protectedPlayer: string; restrictedPlayer: string; turnsRemaining: number}> | undefined;
+    if (peaceRestrictions) {
+      for (const p of peaceRestrictions) {
+        if (p.restrictedPlayer === this.playerName && p.turnsRemaining > 0) {
+          blockedOwners.add(p.protectedPlayer);
+        }
+      }
+    }
+
     const enemies = (gameState.field || []).filter((c: any) => {
       if (c.type !== 'personaggi' && c.type !== 'personaggi_speciali') return false;
       if (c.owner === this.playerName) return false;
       if (c.eliminatedBy || c.faceDown || c.stealth || c.immuneToAttacks || c.isProtected) return false;
+      if (blockedOwners.has(c.owner)) return false;
       return true;
     });
 
