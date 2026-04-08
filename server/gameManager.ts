@@ -27603,6 +27603,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             mosseTargetCount: cc.mosseTargetCount ?? undefined,
             mosseCanCounter: cc.mosseCanCounter ?? false,
             mosseCanBeCountered: cc.mosseCanBeCountered ?? false,
+            draftBaseId: (deckType === 'personaggi' || deckType === 'personaggi_speciali') ? id : undefined,
           } as Card;
           if (deckType === 'personaggi' && card.pti != null) {
             const stars = card.stars ?? 1;
@@ -27652,6 +27653,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           backImage: (DECK_BACK_IMAGES as any)[deckType] || '',
           owner: '',
           name: defaultName,
+          draftBaseId: (deckType === 'personaggi' || deckType === 'personaggi_speciali') ? id : undefined,
         };
         if (mod) {
           this.applyModificationToCard(card, mod);
