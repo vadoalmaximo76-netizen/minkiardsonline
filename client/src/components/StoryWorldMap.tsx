@@ -915,8 +915,19 @@ export function StoryWorldMap({
   const sizeRef      = useRef<{ w: number; h: number }>({ w: 800, h: 600 });
 
   /* ── Game state refs (no re-render on change) ──────────── */
-  const playerRef = useRef<{ x: number; z: number }>({ x: 0, z: 185 });
-  const camRef    = useRef<{ x: number; z: number }>({ x: 0, z: 185 });
+  // Restore last map position from localStorage so the player returns where they left off
+  const _savedMapPos = (() => {
+    try {
+      const raw = localStorage.getItem(`storymap_pos_${userId}`);
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (typeof p.x === 'number' && typeof p.z === 'number') return p as { x: number; z: number };
+      }
+    } catch { /* ignore */ }
+    return null;
+  })();
+  const playerRef = useRef<{ x: number; z: number }>(_savedMapPos ?? { x: 0, z: 185 });
+  const camRef    = useRef<{ x: number; z: number }>(_savedMapPos ?? { x: 0, z: 185 });
   const keysRef   = useRef<Set<string>>(new Set());
   const joyRef    = useRef<{ x: number; z: number }>({ x: 0, z: 0 });
   const timeRef   = useRef(0);
@@ -2022,12 +2033,18 @@ export function StoryWorldMap({
         }
       }
 
-      /* Throttled move emit (every ~100ms) */
-      if (userId && authToken) {
+      /* Throttled move emit + position save (every ~100ms) */
+      if (userId) {
         moveEmitTimer.current += dt;
         if (moveEmitTimer.current >= 0.1) {
           moveEmitTimer.current = 0;
-          socket.emit('story-world:move', { x: playerRef.current.x, z: playerRef.current.z });
+          if (authToken) {
+            socket.emit('story-world:move', { x: playerRef.current.x, z: playerRef.current.z });
+          }
+          // Persist position so player returns here after missions / page reload
+          try {
+            localStorage.setItem(`storymap_pos_${userId}`, JSON.stringify({ x: playerRef.current.x, z: playerRef.current.z }));
+          } catch { /* ignore quota errors */ }
         }
       }
 
