@@ -9494,10 +9494,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
         }
         
-        // Process persistent damages at the START of the next player's turn
-        // This applies recurring damage from cards like VIRUS, INFLUENZA, PUOZZA
-        gameManager.processPersistentDamages(gameId, nextPlayer, io);
-        
         // RIFUGIO: Restore protection for the next player's characters at start of their turn
         gameManager.restoreRifugioProtection(gameId, nextPlayer, io);
         
@@ -10384,9 +10380,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               timestamp: Date.now()
             });
           }
-          
-          // Process persistent damages at the START of the next player's turn
-          gameManager.processPersistentDamages(gameId, nextPlayer, io);
           
           // Update game state
           const gameState = gameManager.getSanitizedGameState(gameId);

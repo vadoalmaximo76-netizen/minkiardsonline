@@ -30966,6 +30966,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       
       console.log(`⚔️ DUELLO: Turn switched to ${nextPlayer}`);
+
+      // Process persistent damages at the START of nextPlayer's turn
+      {
+        const ioPDForce1 = (global as any).io;
+        if (ioPDForce1) {
+          this.processPersistentDamages(gameId, nextPlayer, ioPDForce1);
+        }
+      }
+
       return nextPlayer;
     }
 
@@ -31231,6 +31240,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         // =======================================================================
 
+        // Process persistent damages (VIRUS, INFLUENZA, PUOZZA) at the START of nextPlayer's turn
+        // Called here so ALL endTurn code paths trigger it (not just the main socket handler in routes.ts)
+        {
+          const ioPD = (global as any).io;
+          if (ioPD) {
+            this.processPersistentDamages(gameId, nextPlayer, ioPD);
+          }
+        }
+
         return nextPlayer;
       }
       
@@ -31412,6 +31430,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       
       console.log(`⚔️ DUELLO: Turn switched to ${nextPlayer}`);
+
+      // Process persistent damages at the START of nextPlayer's turn
+      {
+        const ioPDForceDuel = (global as any).io;
+        if (ioPDForceDuel) {
+          this.processPersistentDamages(gameId, nextPlayer, ioPDForceDuel);
+        }
+      }
+
       return nextPlayer;
     }
 
@@ -31486,6 +31513,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         // Start inactivity timer for the next human player
         this.startTurnTimer(gameId, nextPlayer);
+
+        // Process persistent damages at the START of nextPlayer's turn
+        {
+          const ioPDForce2 = (global as any).io;
+          if (ioPDForce2) {
+            this.processPersistentDamages(gameId, nextPlayer, ioPDForce2);
+          }
+        }
+
         return nextPlayer;
       }
       
