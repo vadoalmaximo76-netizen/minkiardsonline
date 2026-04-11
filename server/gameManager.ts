@@ -560,6 +560,11 @@ export class GameManager {
     this.clearTurnTimer(gameId);
     const gameState = this.games.get(gameId);
     if (!gameState) return;
+    // Clear any pending ATTACCO MULTIPLO choice from a previous turn to prevent stale late selections
+    if ((gameState as any).pendingAttaccoMultiplo) {
+      console.log(`🧹 Clearing stale pendingAttaccoMultiplo on turn start for ${playerName}`);
+      delete (gameState as any).pendingAttaccoMultiplo;
+    }
     // Don't start timer for CPU players
     const player = gameState.players[playerName];
     if (player?.cpuInstance) return;
