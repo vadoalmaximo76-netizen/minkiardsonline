@@ -2966,6 +2966,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     });
                   }
                   
+                  // PARASITIC CARDS: auto-attach PARASSITA/SAIBAIM to best enemy target
+                  if (result.card && (result.card.type === 'personaggi' || result.card.type === 'personaggi_speciali')) {
+                    const parasiticType = gameManager.isParasiticCard(result.card);
+                    if (parasiticType && result.card.canReattach !== false) {
+                      const target = gameManager.getCPUParasiticTarget(gameId, cpuName);
+                      if (target) {
+                        console.log(`🦠 CPU ${cpuName} (case play-card) auto-attaching ${parasiticType} to ${target.id}`);
+                        const attachResult = await gameManager.attachParasiticCard(gameId, result.card.id, target.id, cpuName);
+                        if (attachResult.success) {
+                          const getN = (url: string) => {
+                            const f = url.split('/').pop() || '';
+                            return f.replace(/\.(png|jpg|jpeg|gif|webp)$/i, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                          };
+                          const targetName = target.name || getN(target.frontImage);
+                          io.to(gameId).emit('parasitic-attached', {
+                            parasiticCardId: result.card.id,
+                            parasiticType,
+                            targetCardId: target.id,
+                            targetName,
+                            ownerPlayer: cpuName,
+                            targetPlayer: target.owner
+                          });
+                          io.to(gameId).emit('chat-message', {
+                            id: `${Date.now()}-parasitic-cpu`,
+                            playerName: 'SISTEMA',
+                            message: `🦠 ${parasiticType} di ${cpuName} si è agganciato a ${targetName}!`,
+                            timestamp: Date.now()
+                          });
+                          const psState = gameManager.getSanitizedGameState(gameId);
+                          emitThrottledGameState(io, gameId, psState);
+                        }
+                      } else {
+                        console.log(`🦠 CPU ${cpuName}: ${parasiticType} played but no valid targets available`);
+                        io.to(gameId).emit('chat-message', {
+                          id: `${Date.now()}-parasitic-no-target`,
+                          playerName: 'SISTEMA',
+                          message: `🦠 ${parasiticType} non ha bersagli validi a cui agganciarsi!`,
+                          timestamp: Date.now()
+                        });
+                      }
+                    }
+                  }
+
                   // CRITICAL FIX: If CPU played a MOSSE card, automatically attack an enemy
                   if (result.card && result.card.type === 'mosse') {
                     console.log(`🎯 CPU ${cpuName} played MOSSE card - automatically triggering attack`);
@@ -7473,6 +7516,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           cardImage: result.card.frontImage
                         });
                       }
+
+                      // PARASITIC CARDS: auto-attach PARASSITA/SAIBAIM to best enemy target
+                      if (result.card && (result.card.type === 'personaggi' || result.card.type === 'personaggi_speciali')) {
+                        const _pType = gameManager.isParasiticCard(result.card);
+                        if (_pType && result.card.canReattach !== false) {
+                          const _pTarget = gameManager.getCPUParasiticTarget(gameId, cpuAction.data.playerName);
+                          if (_pTarget) {
+                            const _pRes = await gameManager.attachParasiticCard(gameId, result.card.id, _pTarget.id, cpuAction.data.playerName);
+                            if (_pRes.success) {
+                              const _getN = (u: string) => { const f = u.split('/').pop() || ''; return f.replace(/\.(png|jpg|jpeg|gif|webp)$/i, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); };
+                              const _tn = _pTarget.name || _getN(_pTarget.frontImage);
+                              io.to(gameId).emit('parasitic-attached', { parasiticCardId: result.card.id, parasiticType: _pType, targetCardId: _pTarget.id, targetName: _tn, ownerPlayer: cpuAction.data.playerName, targetPlayer: _pTarget.owner });
+                              io.to(gameId).emit('chat-message', { id: `${Date.now()}-parasitic-cpu2`, playerName: 'SISTEMA', message: `🦠 ${_pType} di ${cpuAction.data.playerName} si è agganciato a ${_tn}!`, timestamp: Date.now() });
+                              emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+                            }
+                          }
+                        }
+                      }
                       break;
                       
                     case 'start-duel':
@@ -10463,6 +10524,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       
                       const playGameState = gameManager.getSanitizedGameState(gameId);
                       emitThrottledGameState(io, gameId, playGameState);
+
+                      // PARASITIC CARDS: auto-attach PARASSITA/SAIBAIM to best enemy target
+                      if (playResult.card && (playResult.card.type === 'personaggi' || playResult.card.type === 'personaggi_speciali')) {
+                        const _pType3 = gameManager.isParasiticCard(playResult.card);
+                        if (_pType3 && playResult.card.canReattach !== false) {
+                          const _pTarget3 = gameManager.getCPUParasiticTarget(gameId, cpuAction.data.playerName);
+                          if (_pTarget3) {
+                            const _pRes3 = await gameManager.attachParasiticCard(gameId, playResult.card.id, _pTarget3.id, cpuAction.data.playerName);
+                            if (_pRes3.success) {
+                              const _getN3 = (u: string) => { const f = u.split('/').pop() || ''; return f.replace(/\.(png|jpg|jpeg|gif|webp)$/i, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); };
+                              const _tn3 = _pTarget3.name || _getN3(_pTarget3.frontImage);
+                              io.to(gameId).emit('parasitic-attached', { parasiticCardId: playResult.card.id, parasiticType: _pType3, targetCardId: _pTarget3.id, targetName: _tn3, ownerPlayer: cpuAction.data.playerName, targetPlayer: _pTarget3.owner });
+                              io.to(gameId).emit('chat-message', { id: `${Date.now()}-parasitic-cpu3`, playerName: 'SISTEMA', message: `🦠 ${_pType3} di ${cpuAction.data.playerName} si è agganciato a ${_tn3}!`, timestamp: Date.now() });
+                              emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+                            }
+                          }
+                        }
+                      }
                       
                       // CRITICAL FIX: If CPU played a MOSSE card, announce attack and wait for master to input damage
                       if (playResult.card && playResult.card.type === 'mosse') {
