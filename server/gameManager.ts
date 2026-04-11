@@ -37094,12 +37094,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         (game as any).attaccoMultiplo[attackerName]--;
         if ((game as any).attaccoMultiplo[attackerName] <= 0) delete (game as any).attaccoMultiplo[attackerName];
 
-        const otherEnemies = (game.field as Card[]).filter((c: Card) =>
-          c.owner !== attackerName &&
-          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
-          c.id !== targetCardId &&
-          (c.pti ?? 0) > 0
-        );
+        const otherEnemies = (game.field as Card[]).filter((c: Card) => {
+          const cPti = c.pti ?? this.extractPTIFromNote(c.text || '') ?? 0;
+          return c.owner !== attackerName &&
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+            c.id !== targetCardId &&
+            cPti > 0;
+        });
         const ioAM = (global as any).io || io;
         const isCPUAttacker = this.isPlayerCPU(gameId, attackerName);
 
