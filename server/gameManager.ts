@@ -34571,7 +34571,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   }
 
   // EXTRACTED AND HARDENED: Damage processing method (preserves ALL legacy logic + BAMBOLA VOODOO + ATTACCO DISONESTO + FURTO + STAR REMOVAL + SPECIAL EFFECTS)
-  async processMosseDamage(gameId: string, attackerName: string, targetCardId: string, damageValue: number, mosseCardId: string, io: any, isVoodooReflection: boolean = false, isHandTarget: boolean = false, isFurtoAttack: boolean = false, isPersistentTick: boolean = false, starsToRemove: number = 0, mosseEffect?: string): Promise<void> {
+  async processMosseDamage(gameId: string, attackerName: string, targetCardId: string, damageValue: number, mosseCardId: string, io: any, isVoodooReflection: boolean = false, isHandTarget: boolean = false, isFurtoAttack: boolean = false, isPersistentTick: boolean = false, starsToRemove: number = 0, mosseEffect?: string, isSecondHit: boolean = false): Promise<void> {
     const game = this.games.get(gameId);
     const gameState = this.getSanitizedGameState(gameId);
     
@@ -36430,6 +36430,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
 
     // ── DAMMI UN ALTRO GIORNO / INTERNET EXPLORER: ritarda il danno ────────────
+    // Store damage for later application instead of applying now.
+    // Does NOT early-return so the standard post-attack pipeline (MOSSE return/draw,
+    // chat messages, turn timer, etc.) still runs normally.
     if (!isVoodooReflection && !isPersistentTick && !isHandTarget && !forceInstantDeath && effectiveDamage > 0) {
       const delayTurns = (targetCard as any).delayDamageByTurns as number | undefined;
       if (delayTurns && delayTurns > 0) {
@@ -36446,10 +36449,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           });
         }
         console.log(`⏰ DELAY DAMAGE: ${effectiveDamage} PTI on ${targetNameDDG} (${targetOwner}) delayed by ${delayTurns} turns`);
-        this.returnToDeck(gameId, mosseCardId, attackerName);
-        const gsDelay = this.getSanitizedGameState(gameId);
-        if (ioDDG) ioDDG.to(gameId).emit('game-state-update', gsDelay);
-        return;
+        effectiveDamage = 0; // Zero out damage so newPTI = currentPTI (no change this attack)
       }
     }
     // ─────────────────────────────────────────────────────────────────────────────
@@ -37080,12 +37080,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       console.log(`❄️ GOLDEN FREEZER: ${attackerName} consecutiveAttacksLeft=${leftGF}`);
     }
 
-    // ── ATTACCO MULTIPLO: colpisci automaticamente un secondo personaggio avversario ──
-    if (!isVoodooReflection && !isPersistentTick && !isHandTarget && !isFurtoAttack && game) {
+    // ── ATTACCO MULTIPLO: colpisci un secondo personaggio avversario ────────────
+    // Guard: skip on secondary mechanics (voodoo, persistent ticks, hand attacks, furto)
+    // and on recursive second-hit calls (isSecondHit) to avoid double MOSSE lifecycle.
+    if (!isVoodooReflection && !isPersistentTick && !isHandTarget && !isFurtoAttack && !isSecondHit && game) {
       const multiCount = (game as any).attaccoMultiplo?.[attackerName];
       if (multiCount && multiCount > 0) {
         (game as any).attaccoMultiplo[attackerName]--;
         if ((game as any).attaccoMultiplo[attackerName] <= 0) delete (game as any).attaccoMultiplo[attackerName];
+
         const otherEnemies = (game.field as Card[]).filter((c: Card) =>
           c.owner !== attackerName &&
           (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
@@ -37093,36 +37096,73 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           (c.pti ?? 0) > 0
         );
         const ioAM = (global as any).io || io;
-        if (otherEnemies.length > 0) {
+        const isCPUAttacker = this.isPlayerCPU(gameId, attackerName);
+
+        if (otherEnemies.length === 0) {
+          if (ioAM) ioAM.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-attacco-multiplo-noenemy`,
+            playerName: 'Sistema',
+            message: `⚔️ ATTACCO MULTIPLO: nessun altro personaggio avversario in campo da colpire!`,
+            timestamp: Date.now()
+          });
+        } else if (isCPUAttacker || otherEnemies.length === 1) {
+          // CPU or single remaining target: auto-select highest-PTI enemy
           const secondTarget = otherEnemies.reduce((best: Card, c: Card) =>
             (c.pti ?? 0) > (best.pti ?? 0) ? c : best, otherEnemies[0]);
           const attackerCharAM = this.getPlayerActiveCharacter(game, attackerName);
           const secondTargetName = secondTarget.name || this.getCardNameFromUrl(secondTarget.frontImage || '');
-          if (ioAM) {
-            ioAM.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-attacco-multiplo-2`,
-              playerName: 'Sistema',
-              message: `⚔️ ATTACCO MULTIPLO! ${attackerCharAM?.name || attackerName} colpisce simultaneamente anche ${secondTargetName} di ${secondTarget.owner} per ${effectiveDamage} PTI!`,
-              timestamp: Date.now()
-            });
-          }
-          console.log(`⚔️ ATTACCO MULTIPLO: auto-hitting second target ${secondTarget.id} for ${effectiveDamage} PTI`);
-          await this.processMosseDamage(gameId, attackerName, secondTarget.id, effectiveDamage, mosseCardId, ioAM, false, false, false, false, starsToRemove, mosseEffect);
+          if (ioAM) ioAM.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-attacco-multiplo-2`,
+            playerName: 'Sistema',
+            message: `⚔️ ATTACCO MULTIPLO! ${attackerCharAM?.name || attackerName} colpisce simultaneamente anche ${secondTargetName} di ${secondTarget.owner} per ${damageValue} PTI!`,
+            timestamp: Date.now()
+          });
+          console.log(`⚔️ ATTACCO MULTIPLO: auto-hitting second target ${secondTarget.id} for ${damageValue} PTI (isSecondHit=true)`);
+          // isSecondHit=true skips the MOSSE return/draw lifecycle in the recursive call
+          await this.processMosseDamage(gameId, attackerName, secondTarget.id, damageValue, mosseCardId, ioAM, false, false, false, false, starsToRemove, mosseEffect, true);
         } else {
+          // Human player with multiple valid targets: show choice panel
+          const attackerSocketId = (game.players[attackerName] as any)?.socketId;
+          const cIdAM = `attacco-multiplo-${Date.now()}`;
+          const optsAM = otherEnemies.map((c: Card) => ({
+            value: c.id,
+            label: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+            description: `PTI: ${c.pti ?? '?'} | ${c.owner}`
+          }));
+          (game as any).pendingAttaccoMultiplo = {
+            choiceId: cIdAM,
+            attackerName,
+            damageValue,
+            mosseCardId,
+            starsToRemove,
+            mosseEffect
+          };
           if (ioAM) {
+            if (attackerSocketId) {
+              ioAM.to(attackerSocketId).emit('show-choice-panel', {
+                choiceId: cIdAM,
+                title: '⚔️ ATTACCO MULTIPLO',
+                question: 'Scegli il secondo bersaglio da colpire:',
+                options: optsAM,
+                forPlayer: attackerName
+              });
+            }
             ioAM.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-attacco-multiplo-noenemy`,
+              id: `${Date.now()}-attacco-multiplo-choose`,
               playerName: 'Sistema',
-              message: `⚔️ ATTACCO MULTIPLO: nessun altro personaggio avversario in campo da colpire!`,
+              message: `⚔️ ATTACCO MULTIPLO! ${attackerName} deve scegliere il secondo bersaglio da colpire!`,
               timestamp: Date.now()
             });
           }
+          console.log(`⚔️ ATTACCO MULTIPLO: human player ${attackerName} must choose second target (${otherEnemies.length} options)`);
         }
       }
     }
     // ─────────────────────────────────────────────────────────────────────────────
 
     // MOSSE return system: CPU auto-return with replacement, humans manual
+    // isSecondHit calls skip this block — the MOSSE lifecycle already runs in the first hit.
+    if (!isSecondHit) {
     console.log(`MOSSE card ${mosseCardId} used by ${attackerName}`);
     
     if (game?.players[attackerName]?.isCPU || attackerName.startsWith('CPU-')) {
@@ -37177,6 +37217,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
       }
     }
+    } // end if (!isSecondHit) — MOSSE lifecycle guard
 
     // Auto-resume the turn timer if this attack resolved and it's still the attacker's turn.
     // Only resume if no active timer is already running (prevents double-timer when pauseTurnTimer

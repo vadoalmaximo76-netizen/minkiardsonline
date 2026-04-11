@@ -6077,6 +6077,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if ((gameManager as any).processChoicePanelResponseInternal(gameId, socketPlayerName, choiceId, value, io)) return;
       }
 
+      // ── ATTACCO MULTIPLO: human player selects second target ────────────────────
+      const pendingAM = (game as any).pendingAttaccoMultiplo;
+      if (pendingAM && pendingAM.choiceId === choiceId && pendingAM.attackerName === socketPlayerName) {
+        delete (game as any).pendingAttaccoMultiplo;
+        const secondTargetId = value;
+        const secondTargetCard = game.field?.find((c: any) => c.id === secondTargetId);
+        if (secondTargetCard && secondTargetCard.owner !== socketPlayerName) {
+          const secondTargetName = secondTargetCard.name || secondTargetId;
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-attacco-multiplo-2`,
+            playerName: 'Sistema',
+            message: `⚔️ ATTACCO MULTIPLO! ${socketPlayerName} sceglie di colpire anche ${secondTargetName} per ${pendingAM.damageValue} PTI!`,
+            timestamp: Date.now()
+          });
+          // isSecondHit=true skips MOSSE return/draw lifecycle (already done for first hit)
+          await gameManager.processMosseDamage(
+            gameId, socketPlayerName, secondTargetId,
+            pendingAM.damageValue, pendingAM.mosseCardId, io,
+            false, false, false, false,
+            pendingAM.starsToRemove || 0, pendingAM.mosseEffect, true
+          );
+          io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        } else {
+          console.warn(`⚔️ ATTACCO MULTIPLO: invalid second target ${secondTargetId} chosen by ${socketPlayerName}`);
+          io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        }
+        return;
+      }
+
       // No matching pending choice found
       console.log(`⚠️ choice-panel-response: no matching pending choice for ${socketPlayerName} (choiceId: ${choiceId})`);
     });
