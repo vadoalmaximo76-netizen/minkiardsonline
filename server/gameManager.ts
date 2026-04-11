@@ -36429,6 +36429,31 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
+    // ── DAMMI UN ALTRO GIORNO / INTERNET EXPLORER: ritarda il danno ────────────
+    if (!isVoodooReflection && !isPersistentTick && !isHandTarget && !forceInstantDeath && effectiveDamage > 0) {
+      const delayTurns = (targetCard as any).delayDamageByTurns as number | undefined;
+      if (delayTurns && delayTurns > 0) {
+        (targetCard as any).delayDamageByTurns = 0;
+        this.addDelayedDamage(gameId, attackerName, targetOwner, targetCardId, effectiveDamage, mosseCardId, delayTurns);
+        const targetNameDDG = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '');
+        const ioDDG = (global as any).io || io;
+        if (ioDDG) {
+          ioDDG.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-delay-damage`,
+            playerName: 'Sistema',
+            message: `⏰ DANNO RITARDATO! ${effectiveDamage} PTI su ${targetNameDDG} verranno applicati tra ${delayTurns} ${delayTurns === 1 ? 'turno' : 'turni'}!`,
+            timestamp: Date.now()
+          });
+        }
+        console.log(`⏰ DELAY DAMAGE: ${effectiveDamage} PTI on ${targetNameDDG} (${targetOwner}) delayed by ${delayTurns} turns`);
+        this.returnToDeck(gameId, mosseCardId, attackerName);
+        const gsDelay = this.getSanitizedGameState(gameId);
+        if (ioDDG) ioDDG.to(gameId).emit('game-state-update', gsDelay);
+        return;
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────────
+
     // PRESERVE: Calculate new PTI after damage (using effective damage after shield)
     // If instant death effect, set newPTI to 0
     let newPTI = forceInstantDeath ? 0 : Math.max(0, currentPTI - effectiveDamage);
@@ -37054,6 +37079,48 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       console.log(`❄️ GOLDEN FREEZER: ${attackerName} consecutiveAttacksLeft=${leftGF}`);
     }
+
+    // ── ATTACCO MULTIPLO: colpisci automaticamente un secondo personaggio avversario ──
+    if (!isVoodooReflection && !isPersistentTick && !isHandTarget && !isFurtoAttack && game) {
+      const multiCount = (game as any).attaccoMultiplo?.[attackerName];
+      if (multiCount && multiCount > 0) {
+        (game as any).attaccoMultiplo[attackerName]--;
+        if ((game as any).attaccoMultiplo[attackerName] <= 0) delete (game as any).attaccoMultiplo[attackerName];
+        const otherEnemies = (game.field as Card[]).filter((c: Card) =>
+          c.owner !== attackerName &&
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+          c.id !== targetCardId &&
+          (c.pti ?? 0) > 0
+        );
+        const ioAM = (global as any).io || io;
+        if (otherEnemies.length > 0) {
+          const secondTarget = otherEnemies.reduce((best: Card, c: Card) =>
+            (c.pti ?? 0) > (best.pti ?? 0) ? c : best, otherEnemies[0]);
+          const attackerCharAM = this.getPlayerActiveCharacter(game, attackerName);
+          const secondTargetName = secondTarget.name || this.getCardNameFromUrl(secondTarget.frontImage || '');
+          if (ioAM) {
+            ioAM.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-attacco-multiplo-2`,
+              playerName: 'Sistema',
+              message: `⚔️ ATTACCO MULTIPLO! ${attackerCharAM?.name || attackerName} colpisce simultaneamente anche ${secondTargetName} di ${secondTarget.owner} per ${effectiveDamage} PTI!`,
+              timestamp: Date.now()
+            });
+          }
+          console.log(`⚔️ ATTACCO MULTIPLO: auto-hitting second target ${secondTarget.id} for ${effectiveDamage} PTI`);
+          await this.processMosseDamage(gameId, attackerName, secondTarget.id, effectiveDamage, mosseCardId, ioAM, false, false, false, false, starsToRemove, mosseEffect);
+        } else {
+          if (ioAM) {
+            ioAM.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-attacco-multiplo-noenemy`,
+              playerName: 'Sistema',
+              message: `⚔️ ATTACCO MULTIPLO: nessun altro personaggio avversario in campo da colpire!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────────
 
     // MOSSE return system: CPU auto-return with replacement, humans manual
     console.log(`MOSSE card ${mosseCardId} used by ${attackerName}`);
