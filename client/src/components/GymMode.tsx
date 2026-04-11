@@ -780,6 +780,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         setCompletedIds([]);
         setStoryDeckIds([]);
         setLostLeaderIds([]);
+        setChosenFaction(null);
         setShowResetConfirm(false);
         fetchUserCredits();
         setPhase('deck-select');
@@ -1116,9 +1117,15 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             <p className="text-white/60 mt-2 text-sm">
               Hai sconfitto <span className="text-yellow-200 font-bold">{selectedLeader.name}</span> dello Stage <span className="text-yellow-200 font-bold">{selectedLeader.gymName}</span>!
             </p>
-            <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl px-5 py-2 mt-3 inline-block">
-              <p className="text-yellow-300 font-black text-xl">+{selectedLeader.rewardCredits} Rankiard</p>
-            </div>
+            {isReplayBattle ? (
+              <div className="bg-white/10 border border-white/20 rounded-xl px-5 py-2 mt-3 inline-block">
+                <p className="text-white/60 font-bold text-sm">Nessun premio — avversario già battuto</p>
+              </div>
+            ) : (
+              <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl px-5 py-2 mt-3 inline-block">
+                <p className="text-yellow-300 font-black text-xl">+{selectedLeader.rewardCredits} Rankiard</p>
+              </div>
+            )}
           </div>
 
           <div
@@ -1130,21 +1137,25 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                 <div
                   className="rounded-full mb-3"
                   style={{
-                    boxShadow: victoryStep >= 2 ? '0 0 40px 12px rgba(234,179,8,0.6), 0 0 80px 20px rgba(234,179,8,0.25)' : 'none',
+                    boxShadow: victoryStep >= 2 ? (isReplayBattle ? '0 0 20px 6px rgba(150,150,150,0.4)' : '0 0 40px 12px rgba(234,179,8,0.6), 0 0 80px 20px rgba(234,179,8,0.25)') : 'none',
                     transition: 'box-shadow 0.8s ease',
                   }}
                 >
-                  <img src={selectedLeader.badgeImageUrl} alt="medaglia" className="w-28 h-28 object-cover rounded-full border-4 border-yellow-400" />
+                  <img src={selectedLeader.badgeImageUrl} alt="medaglia" className={`w-28 h-28 object-cover rounded-full border-4 ${isReplayBattle ? 'border-white/30 opacity-60' : 'border-yellow-400'}`} />
                 </div>
-                <p className="text-yellow-300 font-black text-lg tracking-wide">⭐ Medaglia conquistata!</p>
+                <p className={`font-black text-lg tracking-wide ${isReplayBattle ? 'text-white/50' : 'text-yellow-300'}`}>
+                  {isReplayBattle ? '🔄 Già conquistata' : '⭐ Medaglia conquistata!'}
+                </p>
               </>
             ) : (
               <div className="flex flex-col items-center">
-                <div className="w-24 h-24 rounded-full bg-yellow-500/20 border-4 border-yellow-400 flex items-center justify-center mb-3"
-                  style={{ boxShadow: victoryStep >= 2 ? '0 0 40px 12px rgba(234,179,8,0.5)' : 'none', transition: 'box-shadow 0.8s ease' }}>
-                  <Star className="w-12 h-12 text-yellow-300" />
+                <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center mb-3 ${isReplayBattle ? 'bg-white/10 border-white/30' : 'bg-yellow-500/20 border-yellow-400'}`}
+                  style={{ boxShadow: victoryStep >= 2 ? (isReplayBattle ? 'none' : '0 0 40px 12px rgba(234,179,8,0.5)') : 'none', transition: 'box-shadow 0.8s ease' }}>
+                  <Star className={`w-12 h-12 ${isReplayBattle ? 'text-white/30' : 'text-yellow-300'}`} />
                 </div>
-                <p className="text-yellow-300 font-black text-lg">⭐ Stage completato!</p>
+                <p className={`font-black text-lg ${isReplayBattle ? 'text-white/50' : 'text-yellow-300'}`}>
+                  {isReplayBattle ? '🔄 Stage già completato' : '⭐ Stage completato!'}
+                </p>
               </div>
             )}
           </div>
