@@ -6082,12 +6082,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (pendingAM && pendingAM.choiceId === choiceId && pendingAM.attackerName === socketPlayerName) {
         delete (game as any).pendingAttaccoMultiplo;
         const secondTargetId = value;
-        const secondTargetCard = game.field?.find((c: any) =>
-          c.id === secondTargetId &&
-          c.owner !== socketPlayerName &&
-          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
-          (c.pti ?? 0) > 0
-        );
+        const secondTargetCard = game.field?.find((c: any) => {
+          const cPti = c.pti ?? (gameManager as any).extractPTIFromNote?.(c.text || '') ?? 0;
+          return c.id === secondTargetId &&
+            c.owner !== socketPlayerName &&
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+            cPti > 0;
+        });
         if (secondTargetCard) {
           const secondTargetName = secondTargetCard.name || secondTargetId;
           io.to(gameId).emit('chat-message', {

@@ -37145,6 +37145,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           };
           if (ioAM) {
             if (attackerSocketId) {
+              // Primary contract event: attacco-multiplo-available
+              ioAM.to(attackerSocketId).emit('attacco-multiplo-available', {
+                choiceId: cIdAM,
+                targets: optsAM
+              });
+              // Also trigger existing choice-panel UI so human sees the selection dialog
               ioAM.to(attackerSocketId).emit('show-choice-panel', {
                 choiceId: cIdAM,
                 title: '⚔️ ATTACCO MULTIPLO',
