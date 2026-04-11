@@ -923,12 +923,24 @@ export function registerAuthRoutes(app: Express) {
           message: "Email di recupero inviata! Controlla la tua casella di posta (anche lo spam)."
         });
       } catch (emailError: any) {
-        console.error("Error sending reset email:", emailError?.message || emailError);
-        
-        res.status(500).json({ 
-          success: false, 
+        const errMsg: string = emailError?.message || String(emailError);
+        console.error("[ForgotPassword] Error sending reset email:", errMsg);
+
+        const isConfigError =
+          errMsg.includes('RESEND_FROM_EMAIL') ||
+          errMsg.includes('API key not configured') ||
+          errMsg.includes('non configurato') ||
+          errMsg.toLowerCase().includes('domain') ||
+          errMsg.toLowerCase().includes('verified') ||
+          errMsg.toLowerCase().includes('authorized') ||
+          errMsg.toLowerCase().includes('sender');
+
+        res.status(500).json({
+          success: false,
           emailSent: false,
-          error: "Impossibile inviare l'email di recupero. Riprova tra qualche minuto o contatta l'assistenza."
+          error: isConfigError
+            ? "Il servizio email non è configurato correttamente. Contatta l'amministratore del sito."
+            : "Impossibile inviare l'email di recupero. Riprova tra qualche minuto o contatta l'assistenza."
         });
       }
     } catch (error) {

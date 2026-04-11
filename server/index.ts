@@ -12,6 +12,7 @@ import { isRedisConfigured, setPlayerOnline, getOnlinePlayerCount } from "./redi
 import { probeAndSwitchIfNeeded } from "./db";
 import { isCloudinaryConfigured } from "./cloudinary";
 import { isFreesoundConfigured } from "./freesound";
+import { logResendConfigStatus } from "./resendClient";
 
 // Auto-detect production mode: if dist/public exists and NODE_ENV is not explicitly set,
 // we are running from a compiled bundle in production.
@@ -85,6 +86,9 @@ app.use((req, res, next) => {
     if (process.env.NODE_ENV === 'production' && !process.env.OPENAI_API_KEY) {
       console.warn('WARNING: OPENAI_API_KEY is not set. Card analysis and CPU functionality will not work.');
     }
+
+    // Log Resend email configuration status so admins can spot missing config at a glance
+    await logResendConfigStatus();
 
     // Probe the primary DB at startup; switch to fallback before any request if quota exceeded
     await probeAndSwitchIfNeeded();

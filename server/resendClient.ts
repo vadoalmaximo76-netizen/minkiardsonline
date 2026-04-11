@@ -1,19 +1,5 @@
 import { Resend } from 'resend';
 
-// Free email provider domains that cannot be verified/used as senders in Resend
-const FREE_EMAIL_DOMAINS = [
-  'gmail.com', 'googlemail.com', 'hotmail.com', 'hotmail.it', 'hotmail.fr',
-  'outlook.com', 'outlook.it', 'live.com', 'live.it', 'yahoo.com',
-  'yahoo.it', 'yahoo.fr', 'icloud.com', 'me.com', 'mac.com',
-  'libero.it', 'virgilio.it', 'tiscali.it', 'alice.it',
-];
-
-function isUnverifiableDomain(email: string): boolean {
-  if (!email) return true;
-  const domain = email.split('@').pop()?.toLowerCase() || '';
-  return FREE_EMAIL_DOMAINS.includes(domain);
-}
-
 async function getConnectorCredentials(): Promise<{ apiKey: string; fromEmail: string | null } | null> {
   try {
     const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
@@ -28,7 +14,7 @@ async function getConnectorCredentials(): Promise<{ apiKey: string; fromEmail: s
     const res = await fetch(
       'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
       {
-        headers: { Accept: 'application/json', X_REPLIT_TOKEN: xReplitToken },
+        headers: { Accept: 'application/json', 'X-Replit-Token': xReplitToken },
         signal: AbortSignal.timeout(5000),
       }
     );
@@ -60,20 +46,16 @@ export async function getUncachableResendClient(): Promise<{ client: Resend; fro
     throw new Error('Resend API key not configured. Set RESEND_API_KEY env var or configure the Resend integration.');
   }
 
-  // Determine the from address — prefer env var, then connector, then safe default
-  let rawFromEmail = envFromEmail || connector?.fromEmail || null;
+  // Determine the from address — prefer env var, then connector
+  const rawFromEmail = envFromEmail || connector?.fromEmail || null;
 
-  // If the from address is a free provider (e.g. gmail.com), it cannot be a verified
-  // sender in Resend. Fall back to Resend's built-in test sender.
-  if (!rawFromEmail || isUnverifiableDomain(rawFromEmail)) {
-    if (rawFromEmail) {
-      console.warn(
-        `[Resend] from_email "${rawFromEmail}" uses an unverifiable domain. ` +
-        'Falling back to onboarding@resend.dev (test mode — only delivers to the Resend account owner). ' +
-        'To send to any email, set RESEND_FROM_EMAIL to an address on a domain you own and have verified in Resend.'
-      );
-    }
-    rawFromEmail = 'MINKIARDS <onboarding@resend.dev>';
+  // If no from address is configured at all, throw an explicit error
+  if (!rawFromEmail) {
+    throw new Error(
+      'RESEND_FROM_EMAIL non configurato. ' +
+      'Imposta la variabile d\'ambiente RESEND_FROM_EMAIL con un indirizzo mittente. ' +
+      'Senza questa configurazione le email non possono essere inviate.'
+    );
   }
 
   // Ensure the from address has a display name
@@ -85,4 +67,24 @@ export async function getUncachableResendClient(): Promise<{ client: Resend; fro
     client: new Resend(apiKey),
     fromEmail,
   };
+}
+
+export async function logResendConfigStatus(): Promise<void> {
+  const hasEnvApiKey = !!(process.env.RESEND_API_KEY);
+  const hasEnvFromEmail = !!(process.env.RESEND_FROM_EMAIL);
+
+  // Also probe the connector so we can report the real effective state
+  const connector = await getConnectorCredentials().catch(() => null);
+  const hasConnectorApiKey = !!(connector?.apiKey);
+  const hasConnectorFromEmail = !!(connector?.fromEmail);
+
+  const effectiveApiKey = hasEnvApiKey || hasConnectorApiKey;
+  const effectiveFromEmail = hasEnvFromEmail || hasConnectorFromEmail;
+
+  console.log('[Resend] Configuration status (env var / connector):');
+  console.log(`  API key:    ${hasEnvApiKey ? '✅ env' : hasConnectorApiKey ? '✅ connector' : '❌ NOT SET'}`);
+  console.log(`  From email: ${hasEnvFromEmail ? `✅ env (${process.env.RESEND_FROM_EMAIL})` : hasConnectorFromEmail ? `✅ connector (${connector!.fromEmail})` : '❌ NOT SET'}`);
+  if (!effectiveApiKey || !effectiveFromEmail) {
+    console.warn('[Resend] WARNING: Email sending (password recovery etc.) will fail until both RESEND_API_KEY and RESEND_FROM_EMAIL are properly configured (env var or Resend connector).');
+  }
 }
