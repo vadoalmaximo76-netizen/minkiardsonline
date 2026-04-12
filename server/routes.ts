@@ -12953,10 +12953,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const deckType = deckTypeFromId(cardId);
         const baseName = nameFromUrl(imgUrl);
 
-        // For personaggi cards, fall back to personaggiCache for PTI/stars/name
+        // For personaggi cards, fall back to personaggiCache for PTI/stars
         let cachePti: number | null = null;
         let cacheStars: number | null = null;
-        let cacheName: string | null = null;
         if (deckType === 'personaggi' || deckType === 'personaggi_speciali') {
           const cardLookupName = mod?.name || baseName;
           const cached = getPersonaggioFromCache(cardLookupName);
@@ -12964,17 +12963,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             cachePti = cached.pti;
             cacheStars = cached.stars;
           }
-          // Also try by card image index to find cached name
-          const allCached = jsonStorage.personaggiCache.getAll();
-          if (allCached.length > 0 && !mod?.name) {
+          // Fallback by deck index for PTI/stars only (never for name — index order differs)
+          if (!cached) {
+            const allCached = jsonStorage.personaggiCache.getAll();
             const parts = cardId.split('-');
             const idx = parseInt(parts[parts.length - 1]);
             if (!isNaN(idx) && allCached[idx]) {
-              cacheName = allCached[idx].name || null;
-              if (!cached) {
-                cachePti = allCached[idx].pti;
-                cacheStars = allCached[idx].stars;
-              }
+              cachePti = allCached[idx].pti;
+              cacheStars = allCached[idx].stars;
             }
           }
         }
@@ -12982,7 +12978,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cardBase = {
           id: cardId,
           deckType,
-          name: mod?.name || cacheName || baseName,
+          name: mod?.name || baseName,
           imageUrl: mod?.imageUrl || imgUrl,
           pti: mod?.pti ?? cachePti,
           stars: mod?.stars ?? cacheStars,
