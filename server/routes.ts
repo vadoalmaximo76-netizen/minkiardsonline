@@ -12934,6 +12934,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           mosseCharacterOverrides: cc.mosseCharacterOverrides || [],
           mosseRestrictedFrom: cc.mosseRestrictedFrom || [],
           mosseRestrictedAgainst: cc.mosseRestrictedAgainst || [],
+          mosseTargetingMode: cc.mosseTargetingMode || null,
+          mosseTargetCount: cc.mosseTargetCount ?? null,
+          mosseCanCounter: cc.mosseCanCounter ?? false,
+          mosseCanBeCountered: cc.mosseCanBeCountered ?? true,
           rarity: null,
           draftCost: 0,
           evolvesInto: null,
@@ -12949,19 +12953,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const deckType = deckTypeFromId(cardId);
         const baseName = nameFromUrl(imgUrl);
 
+        // For personaggi cards, fall back to personaggiCache for PTI/stars/name
+        let cachePti: number | null = null;
+        let cacheStars: number | null = null;
+        let cacheName: string | null = null;
+        if (deckType === 'personaggi' || deckType === 'personaggi_speciali') {
+          const cardLookupName = mod?.name || baseName;
+          const cached = getPersonaggioFromCache(cardLookupName);
+          if (cached) {
+            cachePti = cached.pti;
+            cacheStars = cached.stars;
+          }
+          // Also try by card image index to find cached name
+          const allCached = jsonStorage.personaggiCache.getAll();
+          if (allCached.length > 0 && !mod?.name) {
+            const parts = cardId.split('-');
+            const idx = parseInt(parts[parts.length - 1]);
+            if (!isNaN(idx) && allCached[idx]) {
+              cacheName = allCached[idx].name || null;
+              if (!cached) {
+                cachePti = allCached[idx].pti;
+                cacheStars = allCached[idx].stars;
+              }
+            }
+          }
+        }
+
         cardBase = {
           id: cardId,
           deckType,
-          name: mod?.name || baseName,
+          name: mod?.name || cacheName || baseName,
           imageUrl: mod?.imageUrl || imgUrl,
-          pti: mod?.pti ?? null,
-          stars: mod?.stars ?? null,
+          pti: mod?.pti ?? cachePti,
+          stars: mod?.stars ?? cacheStars,
           effect: mod?.effect ?? null,
           mosseDamageValue: mod?.mosseDamageValue ?? null,
           mosseDamageEffect: mod?.mosseDamageEffect ?? null,
           mosseCharacterOverrides: mod?.mosseCharacterOverrides || [],
           mosseRestrictedFrom: mod?.mosseRestrictedFrom || [],
           mosseRestrictedAgainst: mod?.mosseRestrictedAgainst || [],
+          mosseTargetingMode: mod?.mosseTargetingMode ?? null,
+          mosseTargetCount: mod?.mosseTargetCount ?? null,
+          mosseCanCounter: mod?.mosseCanCounter ?? false,
+          mosseCanBeCountered: mod?.mosseCanBeCountered ?? true,
           rarity: (mod as any)?.rarity ?? null,
           draftCost: (mod as any)?.draftCost ?? 0,
           evolvesInto: mod?.evolvesInto || null,

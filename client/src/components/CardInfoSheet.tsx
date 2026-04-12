@@ -33,6 +33,10 @@ interface CardSheetData {
   }> | null;
   mosseRestrictedFrom?: (string | { characterName?: string; characterId?: string })[] | null;
   mosseRestrictedAgainst?: (string | { characterName?: string; characterId?: string })[] | null;
+  mosseTargetingMode?: string | null;
+  mosseTargetCount?: number | null;
+  mosseCanCounter?: boolean;
+  mosseCanBeCountered?: boolean;
   rarity?: string | null;
   draftCost?: number | null;
   evolvesInto?: string | null;
@@ -82,6 +86,23 @@ const MOSSE_EFFECT_LABELS: Record<string, string> = {
   set_5_pti: 'PTI a 5',
   remove_1_star: 'Rimuove 1 stella',
   other: 'Effetto speciale',
+};
+
+const TARGETING_MODE_LABELS: Record<string, string> = {
+  single: 'Singolo bersaglio',
+  all: 'Tutti i nemici',
+  random: 'Bersaglio casuale',
+  multi: 'Più bersagli',
+  self: 'Su se stesso',
+  ally: 'Su alleato',
+};
+
+const SPECIAL_CATEGORY_LABELS: Record<string, string> = {
+  parasitic: '🦠 Parassita',
+  healing: '💊 Curativo',
+  support: '🛡️ Supporto',
+  transformation: '🔄 Trasformazione',
+  legendary: '⭐ Leggendario',
 };
 
 function Section({ title, icon, children, defaultOpen = true }: { title: string; icon?: React.ReactNode; children: React.ReactNode; defaultOpen?: boolean }) {
@@ -276,7 +297,7 @@ export function CardInfoSheet({ cardId, compact = false }: CardInfoSheetProps) {
             </div>
           )}
 
-          {/* Rarity + Draft cost */}
+          {/* Rarity + Draft cost + Special category */}
           <div className="flex items-center gap-2 flex-wrap">
             {rarityInfo && (
               <span
@@ -291,6 +312,11 @@ export function CardInfoSheet({ cardId, compact = false }: CardInfoSheetProps) {
                 💰 {data.draftCost} crediti Draft
               </span>
             )}
+            {data.specialCategory && (
+              <span className="text-[10px] font-bold bg-purple-500/15 border border-purple-500/30 text-purple-300 px-2 py-0.5 rounded-full">
+                {SPECIAL_CATEGORY_LABELS[data.specialCategory] || data.specialCategory}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -299,6 +325,40 @@ export function CardInfoSheet({ cardId, compact = false }: CardInfoSheetProps) {
       {data.effect && (
         <Section title="Poteri / Effetto" icon={<Zap size={12} />}>
           <p className="text-white/70 text-[11px] leading-relaxed">{data.effect}</p>
+        </Section>
+      )}
+
+      {/* Mossa mechanics */}
+      {isMossa && (data.mosseTargetingMode || data.mosseTargetCount != null || data.mosseCanCounter === true || data.mosseCanBeCountered === false) && (
+        <Section title="Meccaniche" icon={<Swords size={12} />}>
+          <div className="flex flex-col gap-1.5">
+            {data.mosseTargetingMode && (
+              <div className="flex items-center justify-between">
+                <span className="text-white/50 text-[11px]">Bersaglio</span>
+                <span className="text-white/85 text-[11px] font-semibold">
+                  {TARGETING_MODE_LABELS[data.mosseTargetingMode] || data.mosseTargetingMode}
+                </span>
+              </div>
+            )}
+            {data.mosseTargetCount != null && data.mosseTargetCount > 1 && (
+              <div className="flex items-center justify-between">
+                <span className="text-white/50 text-[11px]">N° bersagli</span>
+                <span className="text-white/85 text-[11px] font-semibold">{data.mosseTargetCount}</span>
+              </div>
+            )}
+            {data.mosseCanCounter === true && (
+              <div className="flex items-center justify-between">
+                <span className="text-white/50 text-[11px]">Può contrattaccare</span>
+                <span className="text-green-400 text-[11px] font-bold">Sì</span>
+              </div>
+            )}
+            {data.mosseCanBeCountered === false && (
+              <div className="flex items-center justify-between">
+                <span className="text-white/50 text-[11px]">Può essere contrata</span>
+                <span className="text-red-400 text-[11px] font-bold">No</span>
+              </div>
+            )}
+          </div>
         </Section>
       )}
 
