@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter, Gift, Star, Lock, ChevronDown, ChevronUp, Clock, Target, Flame, Save, RotateCcw, Calendar, Ticket, Store, ChevronLeft, ChevronRight, Pencil, Copy, Tag } from 'lucide-react';
+import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter, Gift, Star, Lock, ChevronDown, ChevronUp, Clock, Target, Flame, Save, RotateCcw, Calendar, Ticket, Store, ChevronLeft, ChevronRight, Pencil, Copy, Tag, ClipboardList } from 'lucide-react';
+import { CardInfoSheet } from './CardInfoSheet';
 import { PackOpeningAnimation, PackType, RevealedCard } from './PackOpeningAnimation';
 import { SeasonPass } from './SeasonPass';
 import { Marketplace } from './Marketplace';
@@ -2965,6 +2966,17 @@ export function DraftSection({ onBack, playerName, userId, onGoToTournaments, on
                   <div className={`mt-1.5 text-xs ${cvSellMsg.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>{cvSellMsg.text}</div>
                 )}
               </div>
+
+              {/* Scheda carta section */}
+              <details className="w-full mb-3 bg-indigo-900/20 border border-indigo-500/20 rounded-xl overflow-hidden">
+                <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer text-indigo-300 text-xs font-bold hover:bg-indigo-900/30 transition-colors">
+                  <ClipboardList size={12} />
+                  Scheda carta completa
+                </summary>
+                <div className="px-3 pb-3">
+                  <CardInfoSheet cardId={card.id} compact />
+                </div>
+              </details>
 
               {/* Elimina button */}
               <button

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Shield, Star, Lock, CheckCircle, Swords, Trophy, ChevronRight, Sparkles, Heart, Target, Users, BookOpen, X } from 'lucide-react';
+import { ArrowLeft, Shield, Star, Lock, CheckCircle, Swords, Trophy, ChevronRight, Sparkles, Heart, Target, Users, BookOpen, X, ClipboardList } from 'lucide-react';
+import { CardInfoSheet } from './CardInfoSheet';
 import { GuestWall } from './GuestWall';
 import { GameBoard } from './GameBoard';
 import { socket } from '../lib/socket';
@@ -352,6 +353,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [storyDeckIds, setStoryDeckIds] = useState<string[]>([]);
   const [deckFetchStatus, setDeckFetchStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [cardPickLoading, setCardPickLoading] = useState(false);
+  const [scheaCardId, setScheaCardId] = useState<string | null>(null);
   const [battleYoutubeVideoId, setBattleYoutubeVideoId] = useState<string | null>(null);
   const [musicActive, setMusicActive] = useState(false);
   const [pickedCardId, setPickedCardId] = useState<string | null>(null);
@@ -361,6 +363,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [isReplayBattle, setIsReplayBattle] = useState(false);
   const [lostLeaderIds, setLostLeaderIds] = useState<number[]>([]);
   const [showDeckPanel, setShowDeckPanel] = useState(false);
+  const [deckPanelScheaCardId, setDeckPanelScheaCardId] = useState<string | null>(null);
   const [chosenFaction, setChosenFaction] = useState<string | null>(null);
   const [showWizardCardReveal, setShowWizardCardReveal] = useState(false);
   const [cardEffects, setCardEffects] = useState<Record<string, string>>({});
@@ -1033,7 +1036,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
               return (
                 <button
                   key={`${cardId}-${idx}`}
-                  onClick={() => handlePickCard(cardId)}
+                  onClick={() => setScheaCardId(cardId)}
                   disabled={cardPickLoading}
                   className="relative flex items-stretch gap-3 rounded-xl overflow-hidden border-2 border-white/20 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all group disabled:opacity-50 disabled:cursor-not-allowed bg-gray-900/80 text-left"
                 >
@@ -1090,6 +1093,47 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             })}
           </div>
         </div>
+
+        {/* Scheda carta overlay */}
+        {scheaCardId && (
+          <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div className="w-full sm:max-w-md bg-gray-900 border border-indigo-500/40 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
+                <div className="flex items-center gap-2">
+                  <ClipboardList size={15} className="text-indigo-400" />
+                  <span className="text-white font-bold text-sm">Scheda carta</span>
+                </div>
+                <button
+                  onClick={() => setScheaCardId(null)}
+                  className="text-white/40 hover:text-white transition-colors p-1"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              {/* Sheet */}
+              <div className="flex-1 overflow-y-auto p-4">
+                <CardInfoSheet cardId={scheaCardId} compact />
+              </div>
+              {/* Action buttons */}
+              <div className="px-4 py-3 border-t border-white/10 flex gap-2 shrink-0">
+                <button
+                  onClick={() => setScheaCardId(null)}
+                  className="flex-1 py-2 rounded-lg border border-white/20 text-white/60 text-sm font-bold hover:bg-white/5 transition-colors"
+                >
+                  Annulla
+                </button>
+                <button
+                  onClick={() => { const id = scheaCardId; setScheaCardId(null); handlePickCard(id!); }}
+                  disabled={cardPickLoading}
+                  className="flex-2 py-2 px-4 rounded-lg bg-yellow-500 hover:bg-yellow-400 text-black text-sm font-black transition-colors disabled:opacity-50"
+                >
+                  ✅ Scegli questa carta
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1582,9 +1626,9 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
 
       {/* Deck Panel Modal */}
       {showDeckPanel && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70" onClick={() => setShowDeckPanel(false)}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70" onClick={() => { setShowDeckPanel(false); setDeckPanelScheaCardId(null); }}>
           <div
-            className="w-full max-w-lg bg-gray-950 border-t border-white/10 rounded-t-3xl shadow-2xl flex flex-col"
+            className="relative w-full max-w-lg bg-gray-950 border-t border-white/10 rounded-t-3xl shadow-2xl flex flex-col"
             style={{ maxHeight: isLandscape ? '85vh' : '80vh' }}
             onClick={e => e.stopPropagation()}
           >
@@ -1594,7 +1638,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                 <p className="text-white/40 text-xs mt-0.5">{storyDeckIds.length} carte totali</p>
               </div>
               <button
-                onClick={() => setShowDeckPanel(false)}
+                onClick={() => { setShowDeckPanel(false); setDeckPanelScheaCardId(null); }}
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
               >
                 <X className="w-4 h-4 text-white/70" />
@@ -1613,8 +1657,13 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                     const imgUrl = getCardImageFromId(cardId);
                     const label = getCardDeckLabel(cardId);
                     return (
-                      <div key={`${cardId}-${idx}`} className="flex flex-col items-center gap-1">
-                        <div className="w-full aspect-[2/3] rounded-lg overflow-hidden border border-white/10 bg-gray-800">
+                      <button
+                        key={`${cardId}-${idx}`}
+                        className="flex flex-col items-center gap-1 text-left group"
+                        onClick={() => setDeckPanelScheaCardId(cardId)}
+                        title="Tocca per vedere la scheda"
+                      >
+                        <div className="w-full aspect-[2/3] rounded-lg overflow-hidden border border-white/10 bg-gray-800 group-hover:border-indigo-400/60 transition-colors relative">
                           {imgUrl ? (
                             <img src={imgUrl} alt={label} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                           ) : (
@@ -1622,14 +1671,38 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                               <Shield className="w-4 h-4 text-white/20" />
                             </div>
                           )}
+                          <div className="absolute inset-0 bg-indigo-500/0 group-hover:bg-indigo-500/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                            <ClipboardList size={14} className="text-white drop-shadow" />
+                          </div>
                         </div>
-                        <span className="text-[9px] text-white/50 font-bold text-center leading-tight truncate w-full" title={getCardNameFromId(cardId)}>{getCardNameFromId(cardId) || label}</span>
-                      </div>
+                        <span className="text-[9px] text-white/50 font-bold text-center leading-tight truncate w-full group-hover:text-indigo-300 transition-colors" title={getCardNameFromId(cardId)}>{getCardNameFromId(cardId) || label}</span>
+                      </button>
                     );
                   })}
                 </div>
               )}
             </div>
+
+            {/* Inner card sheet overlay for deck panel */}
+            {deckPanelScheaCardId && (
+              <div className="absolute inset-0 z-10 bg-gray-950/95 flex flex-col rounded-t-3xl">
+                <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-white/10 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <ClipboardList size={14} className="text-indigo-400" />
+                    <span className="text-white font-bold text-sm">Scheda carta</span>
+                  </div>
+                  <button
+                    onClick={() => setDeckPanelScheaCardId(null)}
+                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                  >
+                    <X className="w-4 h-4 text-white/70" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 py-4">
+                  <CardInfoSheet cardId={deckPanelScheaCardId} compact />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

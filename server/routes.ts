@@ -12868,6 +12868,203 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── SCHEDA CARTA UNIVERSALE ─────────────────────────────────────────────────
+  // GET /api/cards/sheet?cardId=personaggi-5  (or mosse-3, bonus-10, custom-2, etc.)
+  app.get('/api/cards/sheet', async (req, res) => {
+    try {
+      const cardId = req.query.cardId as string;
+      if (!cardId) return res.status(400).json({ success: false, error: 'cardId required' });
+
+      // Helper: extract a readable name from an image URL
+      const nameFromUrl = (url: string): string => {
+        if (!url) return '';
+        const filename = (url.split('/').pop() || '').replace(/\.(png|jpg|jpeg|gif|webp)$/i, '');
+        return filename.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      };
+
+      // Helper: get image URL from a standard card ID (e.g. "personaggi-5")
+      const imageFromId = (id: string): string => {
+        if (!id) return '';
+        if (id.startsWith('custom-')) {
+          const num = id.replace('custom-', '');
+          return `/api/card-image/${num}`;
+        }
+        const parts = id.split('-');
+        const idx = parseInt(parts[parts.length - 1]);
+        const deckKey = parts.slice(0, parts.length - 1).join('_');
+        const urls = (CARD_DATA as any)[deckKey];
+        if (urls && !isNaN(idx) && idx >= 0 && idx < urls.length) return urls[idx];
+        return '';
+      };
+
+      // Helper: infer deckType from cardId
+      const deckTypeFromId = (id: string): string => {
+        if (id.startsWith('personaggi_speciali')) return 'personaggi_speciali';
+        if (id.startsWith('personaggi')) return 'personaggi';
+        if (id.startsWith('mosse')) return 'mosse';
+        if (id.startsWith('bonus')) return 'bonus';
+        if (id.startsWith('custom-')) return 'custom';
+        return 'unknown';
+      };
+
+      let cardBase: Record<string, any> = {};
+      let isCustomCard = false;
+
+      if (cardId.startsWith('custom-')) {
+        // Custom card (user-created)
+        const num = parseInt(cardId.replace('custom-', ''));
+        const cc = jsonStorage.customCards.getById(num);
+        if (!cc) return res.status(404).json({ success: false, error: 'Card not found' });
+        isCustomCard = true;
+        cardBase = {
+          id: cardId,
+          deckType: cc.deckType,
+          name: cc.name || nameFromUrl(`/api/card-image/${num}`),
+          imageUrl: `/api/card-image/${num}`,
+          pti: cc.pti,
+          stars: cc.stars,
+          effect: cc.effect,
+          mosseDamageValue: cc.mosseDamageValue,
+          mosseDamageEffect: cc.mosseDamageEffect,
+          mosseCharacterOverrides: cc.mosseCharacterOverrides || [],
+          mosseRestrictedFrom: cc.mosseRestrictedFrom || [],
+          mosseRestrictedAgainst: cc.mosseRestrictedAgainst || [],
+          rarity: null,
+          draftCost: 0,
+          evolvesInto: null,
+          transformsInto: null,
+          transformsFrom: null,
+          cheatsInto: null,
+          specialCategory: null,
+        };
+      } else {
+        // Standard card — get modification if any
+        const mod = jsonStorage.cardModifications.getByOriginalCardId(cardId);
+        const imgUrl = imageFromId(cardId);
+        const deckType = deckTypeFromId(cardId);
+        const baseName = nameFromUrl(imgUrl);
+
+        cardBase = {
+          id: cardId,
+          deckType,
+          name: mod?.name || baseName,
+          imageUrl: mod?.imageUrl || imgUrl,
+          pti: mod?.pti ?? null,
+          stars: mod?.stars ?? null,
+          effect: mod?.effect ?? null,
+          mosseDamageValue: mod?.mosseDamageValue ?? null,
+          mosseDamageEffect: mod?.mosseDamageEffect ?? null,
+          mosseCharacterOverrides: (mod?.mosseCharacterOverrides as any) || [],
+          mosseRestrictedFrom: (mod?.mosseRestrictedFrom as any) || [],
+          mosseRestrictedAgainst: (mod?.mosseRestrictedAgainst as any) || [],
+          rarity: (mod as any)?.rarity || null,
+          draftCost: mod?.draftCost ?? 0,
+          evolvesInto: mod?.evolvesInto || null,
+          transformsInto: mod?.transformsInto || null,
+          transformsFrom: mod?.transformsFrom || null,
+          cheatsInto: mod?.cheatsInto || null,
+          specialCategory: (mod as any)?.specialCategory || null,
+        };
+      }
+
+      // Resolve linked card names & images for transformations
+      const resolveLinkedCard = (linkedId: string | null) => {
+        if (!linkedId) return null;
+        if (linkedId.startsWith('custom-')) {
+          const num = parseInt(linkedId.replace('custom-', ''));
+          const cc = jsonStorage.customCards.getById(num);
+          return { id: linkedId, name: cc?.name || linkedId, imageUrl: `/api/card-image/${num}` };
+        }
+        const linkedMod = jsonStorage.cardModifications.getByOriginalCardId(linkedId);
+        const img = imageFromId(linkedId);
+        return { id: linkedId, name: linkedMod?.name || nameFromUrl(img), imageUrl: linkedMod?.imageUrl || img };
+      };
+
+      cardBase.evolvesIntoCard = resolveLinkedCard(cardBase.evolvesInto);
+      cardBase.transformsIntoCard = resolveLinkedCard(cardBase.transformsInto);
+      cardBase.transformsFromCard = resolveLinkedCard(cardBase.transformsFrom);
+      cardBase.cheatsIntoCard = resolveLinkedCard(cardBase.cheatsInto);
+
+      const deckType = cardBase.deckType as string;
+
+      // ── Cross-references for PERSONAGGI / PERSONAGGI_SPECIALI ───────────────
+      // Find all mosse/bonus cards that have mosseCharacterOverrides for this character
+      const cardName = cardBase.name?.toUpperCase() || '';
+      const mossesWithOverrides: any[] = [];
+      const bonusesWithOverrides: any[] = [];
+
+      if (deckType === 'personaggi' || deckType === 'personaggi_speciali') {
+        // Scan card modifications for mosse/bonus with overrides matching this character
+        const allMods = jsonStorage.cardModifications.getAll();
+        for (const mod of allMods) {
+          if (mod.deckType !== 'mosse' && mod.deckType !== 'bonus') continue;
+          const overrides = (mod.mosseCharacterOverrides as any[]) || [];
+          const match = overrides.find((o: any) =>
+            (o.characterName && o.characterName.toUpperCase() === cardName) ||
+            (o.characterId && o.characterId === cardId)
+          );
+          if (!match) continue;
+          const entry = {
+            cardId: mod.originalCardId,
+            name: mod.name || nameFromUrl(imageFromId(mod.originalCardId)),
+            imageUrl: mod.imageUrl || imageFromId(mod.originalCardId),
+            usedBy: match.usedBy || null,
+            usedOn: match.usedOn || null,
+          };
+          if (mod.deckType === 'mosse') mossesWithOverrides.push(entry);
+          else bonusesWithOverrides.push(entry);
+        }
+        // Also scan custom cards
+        const allCustom = jsonStorage.customCards.getAll();
+        for (const cc of allCustom) {
+          if (cc.deckType !== 'mosse' && cc.deckType !== 'bonus') continue;
+          const overrides = (cc.mosseCharacterOverrides as any[]) || [];
+          const match = overrides.find((o: any) =>
+            (o.characterName && o.characterName.toUpperCase() === cardName) ||
+            (o.characterId && o.characterId === cardId)
+          );
+          if (!match) continue;
+          const entry = {
+            cardId: `custom-${cc.id}`,
+            name: cc.name || `Carta ${cc.id}`,
+            imageUrl: `/api/card-image/${cc.id}`,
+            usedBy: match.usedBy || null,
+            usedOn: match.usedOn || null,
+          };
+          if (cc.deckType === 'mosse') mossesWithOverrides.push(entry);
+          else bonusesWithOverrides.push(entry);
+        }
+        cardBase.mossesWithOverrides = mossesWithOverrides;
+        cardBase.bonusesWithOverrides = bonusesWithOverrides;
+
+        // ── Reverse lookup for PERSONAGGI_SPECIALI ─────────────────────────────
+        if (deckType === 'personaggi_speciali') {
+          const allMods2 = jsonStorage.cardModifications.getAll();
+          cardBase.evolvesFrom = null;
+          cardBase.transformsFromSource = null;
+          cardBase.cheatsFrom = null;
+          for (const mod of allMods2) {
+            if (mod.evolvesInto === cardId) {
+              cardBase.evolvesFrom = resolveLinkedCard(mod.originalCardId);
+            }
+            if (mod.transformsInto === cardId) {
+              cardBase.transformsFromSource = resolveLinkedCard(mod.originalCardId);
+            }
+            if (mod.cheatsInto === cardId) {
+              cardBase.cheatsFrom = resolveLinkedCard(mod.originalCardId);
+            }
+          }
+        }
+      }
+
+      return res.json({ success: true, card: cardBase });
+    } catch (error) {
+      console.error('Error fetching card sheet:', error);
+      return res.status(500).json({ success: false, error: 'Failed to fetch card sheet' });
+    }
+  });
+  // ───────────────────────────────────────────────────────────────────────────
+
   // DEBUG ENDPOINT: Add CPU to test MOSSE sequence  
   app.post('/api/debug/add-cpu-player', async (req, res) => {
     try {

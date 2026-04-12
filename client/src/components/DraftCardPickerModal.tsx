@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Sparkles } from 'lucide-react';
+import { X, Sparkles, ClipboardList } from 'lucide-react';
 import { DECK_BACK_IMAGES } from '../lib/cardData';
 import { useAudio } from '../lib/stores/useAudio';
+import { CardInfoSheet } from './CardInfoSheet';
 
 export interface PickerCard {
   cardId: string;
@@ -161,6 +162,7 @@ export function DraftCardPickerModal({ cards, onSelect, onClose, title = 'Scegli
   const [flashColor, setFlashColor] = useState('rgba(255,255,255,0)');
   const [selected, setSelected] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [scheaCardId, setScheaCardId] = useState<string | null>(null);
   const [entered, setEntered] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const revealDone = revealedCount >= cards.length;
@@ -464,24 +466,48 @@ export function DraftCardPickerModal({ cards, onSelect, onClose, title = 'Scegli
 
                 {/* Select button */}
                 {revealDone && !confirmed && (
-                  <button
-                    onClick={() => handleSelect(card)}
-                    style={{
-                      width: '100%',
-                      marginTop: 6,
-                      padding: '5px 0',
-                      borderRadius: 8,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      border: 'none',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      background: isSelected ? '#16a34a' : 'rgba(255,255,255,0.12)',
-                      color: isSelected ? 'white' : 'rgba(255,255,255,0.75)',
-                    }}
-                  >
-                    {isSelected ? '✓ Scelta' : 'Scegli'}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleSelect(card)}
+                      style={{
+                        width: '100%',
+                        marginTop: 6,
+                        padding: '5px 0',
+                        borderRadius: 8,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        border: 'none',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        background: isSelected ? '#16a34a' : 'rgba(255,255,255,0.12)',
+                        color: isSelected ? 'white' : 'rgba(255,255,255,0.75)',
+                      }}
+                    >
+                      {isSelected ? '✓ Scelta' : 'Scegli'}
+                    </button>
+                    <button
+                      onClick={() => setScheaCardId(card.cardId)}
+                      style={{
+                        width: '100%',
+                        marginTop: 3,
+                        padding: '3px 0',
+                        borderRadius: 8,
+                        fontSize: 10,
+                        fontWeight: 600,
+                        border: '1px solid rgba(99,102,241,0.4)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        background: 'rgba(99,102,241,0.15)',
+                        color: 'rgba(165,180,252,0.9)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      📋 Scheda
+                    </button>
+                  </>
                 )}
               </div>
             );
@@ -531,6 +557,50 @@ export function DraftCardPickerModal({ cards, onSelect, onClose, title = 'Scegli
           </button>
         )}
       </div>
+
+      {/* Card info sheet overlay */}
+      {scheaCardId && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(0,0,0,0.85)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'flex-end',
+          justifyContent: 'center',
+        }}>
+          <div style={{
+            width: '100%', maxWidth: 440,
+            background: '#111827',
+            borderTop: '1px solid rgba(99,102,241,0.4)',
+            borderRadius: '1.5rem 1.5rem 0 0',
+            maxHeight: '80vh',
+            display: 'flex', flexDirection: 'column',
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)',
+              flexShrink: 0,
+            }}>
+              <span style={{ color: 'white', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                📋 Scheda carta
+              </span>
+              <button
+                onClick={() => setScheaCardId(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.1)', border: 'none',
+                  borderRadius: '50%', width: 28, height: 28,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', color: 'rgba(255,255,255,0.7)',
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
+              <CardInfoSheet cardId={scheaCardId} compact />
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes shimmer-sweep {

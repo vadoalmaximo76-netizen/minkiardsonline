@@ -4,11 +4,38 @@ import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
 import { useAudio } from "../lib/stores/useAudio";
-import { X, Sword, Plus, Sparkles, Palette } from "lucide-react";
+import { X, Sword, Plus, Sparkles, Palette, ClipboardList } from "lucide-react";
 import { CARD_DATA } from "../lib/cardData";
 import { SkinSelectionPanel } from "./SkinSelectionPanel";
+import { CardInfoSheet } from "./CardInfoSheet";
+
+// Derive original card ID (e.g. "personaggi-5") from a runtime card object
+function getOriginalCardId(card: any): string | null {
+  if (!card) return null;
+  if (card.draftBaseId) return card.draftBaseId;
+  if (card.id) {
+    if (card.id.startsWith('custom-')) {
+      const match = card.id.match(/^(custom-\d+)/);
+      if (match) return match[1];
+    }
+    const stripped = card.id.replace(/-[a-z0-9]{6}$/, '');
+    if (stripped !== card.id && /^(personaggi_speciali|personaggi|mosse|bonus)(-\d+)?$/.test(stripped)) {
+      return stripped;
+    }
+  }
+  if (card.frontImage) {
+    for (const deckType of ['personaggi_speciali', 'personaggi', 'mosse', 'bonus'] as const) {
+      const urls = (CARD_DATA as any)[deckType] as string[];
+      if (!urls) continue;
+      const idx = urls.indexOf(card.frontImage);
+      if (idx >= 0) return `${deckType}-${idx}`;
+    }
+  }
+  return null;
+}
 
 export const CardModal: React.FC = () => {
+  const [showScheda, setShowScheda] = useState(false);
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
   const [showTransferSelect, setShowTransferSelect] = useState(false);
   const [showSwapSelect, setShowSwapSelect] = useState(false);
@@ -406,7 +433,19 @@ export const CardModal: React.FC = () => {
     <div data-modal="card" className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-2 sm:p-4">
       <div className="premium-panel p-4 sm:p-6 max-w-lg w-full relative rounded-lg max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-3 sm:mb-4">
-          <h3 className="text-white font-bold text-base sm:text-lg pr-8">{cardName}</h3>
+          <div className="flex items-center gap-2 flex-1 pr-10 min-w-0">
+            <h3 className="text-white font-bold text-base sm:text-lg truncate">{cardName}</h3>
+            {getOriginalCardId(selectedCard) && (
+              <button
+                onClick={() => setShowScheda(s => !s)}
+                className={`shrink-0 flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full border transition-colors ${showScheda ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-white/10 border-white/20 text-white/60 hover:text-white hover:bg-white/20'}`}
+                title="Scheda carta"
+              >
+                <ClipboardList size={11} />
+                SCHEDA
+              </button>
+            )}
+          </div>
           <Button
             onClick={handleClose}
             className="absolute top-2 right-2 sm:-top-2 sm:-right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-1.5 shadow-lg border-2 border-white/20 z-[70] min-w-[36px] min-h-[36px]"
@@ -415,6 +454,12 @@ export const CardModal: React.FC = () => {
             <X size={20} />
           </Button>
         </div>
+        {/* Card info sheet tab */}
+        {showScheda && getOriginalCardId(selectedCard) && (
+          <div className="mb-4 bg-black/40 rounded-xl border border-indigo-500/30 p-3">
+            <CardInfoSheet cardId={getOriginalCardId(selectedCard)!} />
+          </div>
+        )}
 
         {/* Large card image */}
         <div className="flex justify-center mb-4 sm:mb-6">
