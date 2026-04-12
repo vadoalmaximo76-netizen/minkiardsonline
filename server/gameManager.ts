@@ -150,6 +150,8 @@ interface Card {
   starDrainPer500?: boolean;
   // CHARACTER LINEAGE — ancestry chain for clones, transformations, evolutions
   characterLineage?: string[]; // List of ancestor base card IDs, most recent first
+  // HAND DAMAGE FLAG — set when card receives PTI damage while in hand (e.g. ATTACCO DISONESTO)
+  _handPtiModified?: boolean;
 }
 
 interface Player {
@@ -20842,6 +20844,25 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         return;
       }
 
+      // HAND PTI MODIFIED: Card was damaged while in hand (e.g. ATTACCO DISONESTO).
+      // Preserve the damaged PTI but still fetch originalPti from cache for reference.
+      if (card._handPtiModified && card.pti != null) {
+        const damagedPti = card.pti;
+        const cardNameForCache = this.getCardNameFromUrl(card.frontImage);
+        const modForHand = jsonStorage.cardModifications.getByOriginalCardId(card.id);
+        if (modForHand && !modForHand.isDeleted && modForHand.pti !== null) {
+          card.originalPti = modForHand.pti;
+        } else {
+          const cachedForHand = getPersonaggioFromCache(cardNameForCache);
+          card.originalPti = (cachedForHand?.pti) || damagedPti;
+        }
+        card.stars = card.stars ?? 1;
+        card.text = `PTI: ${damagedPti} | Stelle: ${card.stars} | PTI originali: ${card.originalPti}`;
+        delete card._handPtiModified;
+        console.log(`✅ Card ${card.id} played from hand with damaged PTI: pti=${damagedPti}, originalPti=${card.originalPti}`);
+        return;
+      }
+
       // DRAFT MODE CARDS: If card was built by buildCards() for a personal draft deck, it already
       // has growth-inclusive PTI/stars applied. Preserve them and skip the base-stat overwrite.
       if (card.draftBaseId && card.pti != null) {
@@ -36599,6 +36620,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const handCardIndex = player.hand.findIndex((c: Card) => c.id === targetCardId);
         if (handCardIndex !== -1) {
           player.hand[handCardIndex].text = updatedNotes;
+          player.hand[handCardIndex].pti = newPTI;
+          player.hand[handCardIndex]._handPtiModified = true;
           // CRITICAL: Also update .stars property if stars were removed
           if (newStarsAfterRemoval !== null) {
             player.hand[handCardIndex].stars = newStarsAfterRemoval;
