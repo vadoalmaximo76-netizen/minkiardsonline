@@ -33353,16 +33353,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               counterCardOnField.counterMosseOnField = true;
             }
             
-            // Auto-draw replacement MOSSE for defender
-            const mosseDeck = game.decks?.mosse || [];
-            if (mosseDeck.length > 0) {
-              const drawnCard = mosseDeck.pop();
-              if (drawnCard) {
-                drawnCard.owner = defender;
-                game.players[defender].hand.push(drawnCard);
-                console.log(`[CLASH-AUTO-DRAW] ${defender} drew replacement MOSSE: ${drawnCard.name || drawnCard.id}`);
-              }
-            }
+            // Auto-draw replacement MOSSE for defender (use pickCard to respect personal decks in GymMode/DraftMode)
+            await this.pickCard(gameId, 'mosse', defender);
+            console.log(`[CLASH-AUTO-DRAW] ${defender} drew replacement MOSSE via pickCard`);
             
             io.to(gameId).emit('chat-message', {
               id: `${Date.now()}-clash-counter-mosse`,
@@ -33510,23 +33503,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             // Send updated game state to show card on field
             io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
             
-            // Auto-draw replacement MOSSE for defender
-            const mosseDeck = game.decks?.mosse || [];
-            if (mosseDeck.length > 0) {
-              // Use pop() to draw from END of deck (cards returned with returnToDeck go to start)
-              const drawnCard = mosseDeck.pop();
-              if (drawnCard) {
-                drawnCard.owner = defender;
-                game.players[defender].hand.push(drawnCard);
-                console.log(`[AUTO-DRAW] ${defender} drew replacement MOSSE: ${drawnCard.name || drawnCard.id}`);
-                
-                io.to(gameId).emit('chat-message', {
-                  id: `${Date.now()}-auto-draw-mosse`,
-                  playerName: 'Sistema',
-                  message: `🎴 ${defender} pesca automaticamente una nuova MOSSE!`,
-                  timestamp: Date.now()
-                });
-              }
+            // Auto-draw replacement MOSSE for defender (use pickCard to respect personal decks in GymMode/DraftMode)
+            const drewCard = await this.pickCard(gameId, 'mosse', defender);
+            if (drewCard) {
+              console.log(`[AUTO-DRAW] ${defender} drew replacement MOSSE via pickCard`);
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-auto-draw-mosse`,
+                playerName: 'Sistema',
+                message: `🎴 ${defender} pesca automaticamente una nuova MOSSE!`,
+                timestamp: Date.now()
+              });
             }
             
             // Set timeout to return counter MOSSE to deck after 5 seconds
