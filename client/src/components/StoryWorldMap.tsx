@@ -1,6 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { GymLeader } from '../types/gym';
 import { socket } from '../lib/socket';
+import { CardInfoSheet } from './CardInfoSheet';
 import {
   RuotaDellaFortuna, MemoryGame, SfidaAlDado,
   ReazioneRapida, QuizMinkiard, SassoCartaForbice,
@@ -1016,6 +1017,7 @@ export function StoryWorldMap({
   const [isCollecting,       setIsCollecting]       = useState(false);
   const [collectResult,      setCollectResult]      = useState<{ type: string; credits?: number; cardId?: string; subtype?: string } | null>(null);
   const [cardReveal,         setCardReveal]         = useState<StoryCollectible | null>(null);
+  const [revealScheaOpen,    setRevealScheaOpen]    = useState(false);
 
   /* ── Multiplayer state ──────────────────────────────────── */
   const [proximityPlayer,   setProximityPlayer]   = useState<OtherPlayer | null>(null);
@@ -4183,14 +4185,21 @@ export function StoryWorldMap({
             <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginBottom: 18 }}>
               Aggiungi questa carta al tuo mazzo Story Mode
             </div>
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button onClick={() => setCardReveal(null)} style={{
-                flex: 1, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
+                flex: 1, minWidth: 70, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
                 borderRadius: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 700, fontSize: 13,
                 padding: '10px 0', cursor: 'pointer',
               }}>↩ Dopo</button>
+              {cardReveal.cardId && (
+                <button onClick={() => setRevealScheaOpen(true)} style={{
+                  flex: 1, minWidth: 70, background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)',
+                  borderRadius: 10, color: '#a5b4fc', fontWeight: 700, fontSize: 13,
+                  padding: '10px 0', cursor: 'pointer',
+                }}>📋 Scheda</button>
+              )}
               <button onClick={() => handleCollectDirect(cardReveal)} disabled={isCollecting} style={{
-                flex: 2,
+                flex: 2, minWidth: 120,
                 background: cardReveal.subtype === 'personaggi' ? 'linear-gradient(135deg,#818cf8,#6366f1)'
                   : cardReveal.subtype === 'mossa' ? 'linear-gradient(135deg,#f87171,#dc2626)'
                   : 'linear-gradient(135deg,#4ade80,#16a34a)',
@@ -4200,6 +4209,47 @@ export function StoryWorldMap({
               }}>
                 {isCollecting ? '…' : '➕ Aggiungi al mazzo'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Card info sheet overlay (from cardReveal) */}
+      {revealScheaOpen && cardReveal?.cardId && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 300,
+          background: 'rgba(0,0,0,0.88)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        }} onClick={() => setRevealScheaOpen(false)}>
+          <div
+            style={{
+              width: '100%', maxWidth: 440,
+              background: '#111827',
+              borderTop: '1px solid rgba(99,102,241,0.4)',
+              borderRadius: '1.5rem 1.5rem 0 0',
+              maxHeight: '80vh',
+              display: 'flex', flexDirection: 'column',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0,
+            }}>
+              <span style={{ color: 'white', fontWeight: 700, fontSize: 13 }}>📋 Scheda carta</span>
+              <button
+                onClick={() => setRevealScheaOpen(false)}
+                style={{
+                  background: 'rgba(255,255,255,0.1)', border: 'none',
+                  borderRadius: '50%', width: 28, height: 28,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 16,
+                }}
+              >✕</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
+              <CardInfoSheet cardId={cardReveal.cardId} compact />
             </div>
           </div>
         </div>

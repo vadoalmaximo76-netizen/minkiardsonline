@@ -12873,6 +12873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/cards/sheet', async (req, res) => {
     try {
       const cardId = req.query.cardId as string;
+      const hintDeckType = req.query.deckType as string | undefined;
       if (!cardId) return res.status(400).json({ success: false, error: 'cardId required' });
 
       // Helper: extract a readable name from an image URL
@@ -12881,6 +12882,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const filename = (url.split('/').pop() || '').replace(/\.(png|jpg|jpeg|gif|webp)$/i, '');
         return filename.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
       };
+
+      // Typed access to CARD_DATA by deck key
+      const SHEET_CARD_DATA = CARD_DATA as Record<string, string[] | undefined>;
 
       // Helper: get image URL from a standard card ID (e.g. "personaggi-5")
       const imageFromId = (id: string): string => {
@@ -12892,22 +12896,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const parts = id.split('-');
         const idx = parseInt(parts[parts.length - 1]);
         const deckKey = parts.slice(0, parts.length - 1).join('_');
-        const urls = (CARD_DATA as any)[deckKey];
+        const urls = SHEET_CARD_DATA[deckKey];
         if (urls && !isNaN(idx) && idx >= 0 && idx < urls.length) return urls[idx];
         return '';
       };
 
-      // Helper: infer deckType from cardId
+      // Helper: infer deckType from cardId (falls back to hintDeckType query param)
       const deckTypeFromId = (id: string): string => {
         if (id.startsWith('personaggi_speciali')) return 'personaggi_speciali';
         if (id.startsWith('personaggi')) return 'personaggi';
         if (id.startsWith('mosse')) return 'mosse';
         if (id.startsWith('bonus')) return 'bonus';
         if (id.startsWith('custom-')) return 'custom';
+        if (hintDeckType) return hintDeckType;
         return 'unknown';
       };
 
-      let cardBase: Record<string, any> = {};
+      let cardBase: Record<string, unknown> = {};
       let isCustomCard = false;
 
       if (cardId.startsWith('custom-')) {
@@ -12954,16 +12959,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           effect: mod?.effect ?? null,
           mosseDamageValue: mod?.mosseDamageValue ?? null,
           mosseDamageEffect: mod?.mosseDamageEffect ?? null,
-          mosseCharacterOverrides: (mod?.mosseCharacterOverrides as any) || [],
-          mosseRestrictedFrom: (mod?.mosseRestrictedFrom as any) || [],
-          mosseRestrictedAgainst: (mod?.mosseRestrictedAgainst as any) || [],
-          rarity: (mod as any)?.rarity || null,
-          draftCost: mod?.draftCost ?? 0,
+          mosseCharacterOverrides: mod?.mosseCharacterOverrides || [],
+          mosseRestrictedFrom: mod?.mosseRestrictedFrom || [],
+          mosseRestrictedAgainst: mod?.mosseRestrictedAgainst || [],
+          rarity: (mod as any)?.rarity ?? null,
+          draftCost: (mod as any)?.draftCost ?? 0,
           evolvesInto: mod?.evolvesInto || null,
           transformsInto: mod?.transformsInto || null,
           transformsFrom: mod?.transformsFrom || null,
           cheatsInto: mod?.cheatsInto || null,
-          specialCategory: (mod as any)?.specialCategory || null,
+          specialCategory: (mod as any)?.specialCategory ?? null,
         };
       }
 
@@ -12980,26 +12985,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return { id: linkedId, name: linkedMod?.name || nameFromUrl(img), imageUrl: linkedMod?.imageUrl || img };
       };
 
-      cardBase.evolvesIntoCard = resolveLinkedCard(cardBase.evolvesInto);
-      cardBase.transformsIntoCard = resolveLinkedCard(cardBase.transformsInto);
-      cardBase.transformsFromCard = resolveLinkedCard(cardBase.transformsFrom);
-      cardBase.cheatsIntoCard = resolveLinkedCard(cardBase.cheatsInto);
+      cardBase.evolvesIntoCard = resolveLinkedCard(cardBase.evolvesInto as string | null);
+      cardBase.transformsIntoCard = resolveLinkedCard(cardBase.transformsInto as string | null);
+      cardBase.transformsFromCard = resolveLinkedCard(cardBase.transformsFrom as string | null);
+      cardBase.cheatsIntoCard = resolveLinkedCard(cardBase.cheatsInto as string | null);
 
-      const deckType = cardBase.deckType as string;
+      const deckType = (cardBase.deckType as string) || 'unknown';
+      const cardName = ((cardBase.name as string | null) ?? '').toUpperCase();
 
       // ── Cross-references for PERSONAGGI / PERSONAGGI_SPECIALI ───────────────
       // Find all mosse/bonus cards that have mosseCharacterOverrides for this character
-      const cardName = cardBase.name?.toUpperCase() || '';
-      const mossesWithOverrides: any[] = [];
-      const bonusesWithOverrides: any[] = [];
+      // Type for a character override item stored in mosseCharacterOverrides
+      interface OverrideItem {
+        characterName?: string;
+        characterId?: string;
+        usedBy?: { damageValue?: number | null; effect?: string | null } | null;
+        usedOn?: { damageValue?: number | null; effect?: string | null } | null;
+      }
+
+      const mossesWithOverrides: Array<{ cardId: string; name: string; imageUrl: string; usedBy: OverrideItem['usedBy']; usedOn: OverrideItem['usedOn'] }> = [];
+      const bonusesWithOverrides: Array<{ cardId: string; name: string; imageUrl: string; usedBy: OverrideItem['usedBy']; usedOn: OverrideItem['usedOn'] }> = [];
 
       if (deckType === 'personaggi' || deckType === 'personaggi_speciali') {
         // Scan card modifications for mosse/bonus with overrides matching this character
         const allMods = jsonStorage.cardModifications.getAll();
         for (const mod of allMods) {
           if (mod.deckType !== 'mosse' && mod.deckType !== 'bonus') continue;
-          const overrides = (mod.mosseCharacterOverrides as any[]) || [];
-          const match = overrides.find((o: any) =>
+          const overrides: OverrideItem[] = Array.isArray(mod.mosseCharacterOverrides) ? mod.mosseCharacterOverrides as OverrideItem[] : [];
+          const match = overrides.find(o =>
             (o.characterName && o.characterName.toUpperCase() === cardName) ||
             (o.characterId && o.characterId === cardId)
           );
@@ -13018,8 +13031,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const allCustom = jsonStorage.customCards.getAll();
         for (const cc of allCustom) {
           if (cc.deckType !== 'mosse' && cc.deckType !== 'bonus') continue;
-          const overrides = (cc.mosseCharacterOverrides as any[]) || [];
-          const match = overrides.find((o: any) =>
+          const ccOverrides: OverrideItem[] = Array.isArray(cc.mosseCharacterOverrides) ? cc.mosseCharacterOverrides as OverrideItem[] : [];
+          const match = ccOverrides.find(o =>
             (o.characterName && o.characterName.toUpperCase() === cardName) ||
             (o.characterId && o.characterId === cardId)
           );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter, Gift, Star, Lock, ChevronDown, ChevronUp, Clock, Target, Flame, Save, RotateCcw, Calendar, Ticket, Store, ChevronLeft, ChevronRight, Pencil, Copy, Tag, ClipboardList } from 'lucide-react';
 import { CardInfoSheet } from './CardInfoSheet';
+import { DraftWinReward } from './DraftWinReward';
 import { PackOpeningAnimation, PackType, RevealedCard } from './PackOpeningAnimation';
 import { SeasonPass } from './SeasonPass';
 import { Marketplace } from './Marketplace';
@@ -212,6 +213,8 @@ export function DraftSection({ onBack, playerName, userId, onGoToTournaments, on
   interface TournamentData { id: number; status: string; wins: number; losses: number; entryCredits: number; rewardsGranted: any[]; startedAt: string; endedAt?: string }
   interface LeaderboardEntry { id: number; username: string; avatar: string | null; draftRating: number; draftBestRun: number }
   const [tournament, setTournament] = useState<TournamentData | null>(null);
+  const [showWinModal, setShowWinModal] = useState(false);
+  const prevTournamentStatus = useRef<string | null>(null);
   const [tournamentLoading, setTournamentLoading] = useState(false);
   const [tournamentMsg, setTournamentMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [tournamentHistory, setTournamentHistory] = useState<TournamentData[]>([]);
@@ -551,6 +554,15 @@ export function DraftSection({ onBack, playerName, userId, onGoToTournaments, on
     socket.on('marketplace-sale', handleSale);
     return () => { socket.off('marketplace-sale', handleSale); };
   }, [userId]);
+
+  useEffect(() => {
+    if (!tournament) { prevTournamentStatus.current = null; return; }
+    const prev = prevTournamentStatus.current;
+    prevTournamentStatus.current = tournament.status;
+    if (prev !== null && prev !== 'completed' && tournament.status === 'completed') {
+      setShowWinModal(true);
+    }
+  }, [tournament?.status]);
 
   const handleInitialPackClose = () => {
     setCurrentInitialPack(null);
@@ -2860,6 +2872,16 @@ export function DraftSection({ onBack, playerName, userId, onGoToTournaments, on
             )}
           </div>
         </div>
+      )}
+
+      {showWinModal && tournament && (
+        <DraftWinReward
+          wins={tournament.wins}
+          creditsEarned={Array.isArray(tournament.rewardsGranted)
+            ? tournament.rewardsGranted.reduce((sum: number, r: { credits?: number }) => sum + (r.credits || 0), 0)
+            : 0}
+          onContinue={() => setShowWinModal(false)}
+        />
       )}
 
       {packAnimation && (

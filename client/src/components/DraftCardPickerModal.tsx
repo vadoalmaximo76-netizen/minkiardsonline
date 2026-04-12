@@ -343,7 +343,6 @@ export function DraftCardPickerModal({ cards, onSelect, onClose, title = 'Scegli
                   <div
                     style={{
                       backfaceVisibility: 'hidden',
-                      transform: 'rotateY(180deg)',
                       position: 'absolute', inset: 0,
                       borderRadius: '0.75rem',
                       overflow: 'hidden',
@@ -357,7 +356,7 @@ export function DraftCardPickerModal({ cards, onSelect, onClose, title = 'Scegli
                       outline: isSelected ? '3px solid white' : 'none',
                       outlineOffset: '2px',
                     }}
-                    onClick={() => isRevealed && revealDone && handleSelect(card)}
+                    onClick={() => isRevealed && revealDone && setScheaCardId(card.cardId)}
                   >
                     {/* Legendary shimmer sweep */}
                     {isRevealed && isLeg && (
@@ -598,6 +597,26 @@ export function DraftCardPickerModal({ cards, onSelect, onClose, title = 'Scegli
             <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
               <CardInfoSheet cardId={scheaCardId} compact />
             </div>
+            {!confirmed && (() => {
+              const scheaCard = cards.find(c => c.cardId === scheaCardId);
+              if (!scheaCard) return null;
+              const isAlreadySel = selected === scheaCardId;
+              return (
+                <div style={{ padding: '10px 16px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+                  <button
+                    onClick={() => { handleSelect(scheaCard); setScheaCardId(null); }}
+                    style={{
+                      width: '100%', padding: '9px 0', borderRadius: 10, fontSize: 13,
+                      fontWeight: 700, border: 'none', cursor: 'pointer',
+                      background: isAlreadySel ? '#16a34a' : '#4f46e5',
+                      color: 'white',
+                    }}
+                  >
+                    {isAlreadySel ? '✓ Già scelta' : '✓ Scegli questa carta'}
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

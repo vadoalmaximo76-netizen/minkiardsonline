@@ -9,23 +9,31 @@ import { CARD_DATA } from "../lib/cardData";
 import { SkinSelectionPanel } from "./SkinSelectionPanel";
 import { CardInfoSheet } from "./CardInfoSheet";
 
+// Minimal shape required to derive the original card ID from a runtime game card
+interface CardLike {
+  id: string;
+  draftBaseId?: string;
+  frontImage?: string;
+}
+
+// Typed access to CARD_DATA arrays by deck type key
+const TYPED_CARD_DATA = CARD_DATA as Record<string, string[] | undefined>;
+
 // Derive original card ID (e.g. "personaggi-5") from a runtime card object
-function getOriginalCardId(card: any): string | null {
+function getOriginalCardId(card: CardLike | null): string | null {
   if (!card) return null;
   if (card.draftBaseId) return card.draftBaseId;
-  if (card.id) {
-    if (card.id.startsWith('custom-')) {
-      const match = card.id.match(/^(custom-\d+)/);
-      if (match) return match[1];
-    }
-    const stripped = card.id.replace(/-[a-z0-9]{6}$/, '');
-    if (stripped !== card.id && /^(personaggi_speciali|personaggi|mosse|bonus)(-\d+)?$/.test(stripped)) {
-      return stripped;
-    }
+  if (card.id.startsWith('custom-')) {
+    const match = card.id.match(/^(custom-\d+)/);
+    if (match) return match[1];
+  }
+  const stripped = card.id.replace(/-[a-z0-9]{6}$/, '');
+  if (stripped !== card.id && /^(personaggi_speciali|personaggi|mosse|bonus)(-\d+)?$/.test(stripped)) {
+    return stripped;
   }
   if (card.frontImage) {
     for (const deckType of ['personaggi_speciali', 'personaggi', 'mosse', 'bonus'] as const) {
-      const urls = (CARD_DATA as any)[deckType] as string[];
+      const urls = TYPED_CARD_DATA[deckType];
       if (!urls) continue;
       const idx = urls.indexOf(card.frontImage);
       if (idx >= 0) return `${deckType}-${idx}`;

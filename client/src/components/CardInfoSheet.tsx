@@ -31,8 +31,8 @@ interface CardSheetData {
     usedBy?: { damageValue?: number | null; effect?: string | null } | null;
     usedOn?: { damageValue?: number | null; effect?: string | null } | null;
   }> | null;
-  mosseRestrictedFrom?: any[] | null;
-  mosseRestrictedAgainst?: any[] | null;
+  mosseRestrictedFrom?: (string | { characterName?: string; characterId?: string })[] | null;
+  mosseRestrictedAgainst?: (string | { characterName?: string; characterId?: string })[] | null;
   rarity?: string | null;
   draftCost?: number | null;
   evolvesInto?: string | null;
@@ -213,10 +213,10 @@ export function CardInfoSheet({ cardId, compact = false }: CardInfoSheetProps) {
   const rarityInfo = data.rarity ? (RARITY_LABELS[data.rarity.toLowerCase()] || { label: data.rarity, color: '#9ca3af' }) : null;
 
   const restrictedFrom: string[] = Array.isArray(data.mosseRestrictedFrom)
-    ? data.mosseRestrictedFrom.map((x: any) => (typeof x === 'string' ? x : (x?.characterName || x?.characterId || JSON.stringify(x))))
+    ? data.mosseRestrictedFrom.map(x => (typeof x === 'string' ? x : (x?.characterName || x?.characterId || JSON.stringify(x))))
     : [];
   const restrictedAgainst: string[] = Array.isArray(data.mosseRestrictedAgainst)
-    ? data.mosseRestrictedAgainst.map((x: any) => (typeof x === 'string' ? x : (x?.characterName || x?.characterId || JSON.stringify(x))))
+    ? data.mosseRestrictedAgainst.map(x => (typeof x === 'string' ? x : (x?.characterName || x?.characterId || JSON.stringify(x))))
     : [];
 
   const charOverrides = Array.isArray(data.mosseCharacterOverrides) ? data.mosseCharacterOverrides : [];
