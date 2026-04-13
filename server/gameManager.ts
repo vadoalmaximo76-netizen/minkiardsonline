@@ -33521,24 +33521,27 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             }
             
             // Set timeout to return counter MOSSE to deck after 5 seconds
+            // Use returnToDeck so GymMode/DraftMode cards go to the personal deck, not shared deck
+            const counterOwner = defender;
             setTimeout(() => {
               const currentGame = this.games.get(gameId);
               if (currentGame) {
                 const cardToReturn = currentGame.field.find((c: any) => c.id === counterCardId);
                 if (cardToReturn) {
-                  // Remove from field
-                  currentGame.field = currentGame.field.filter((c: any) => c.id !== counterCardId);
-                  
-                  (cardToReturn as any).owner = undefined;
+                  const returnedCardName = cardToReturn.name || counterCardId;
+                  // Ensure owner is set correctly for returnToDeck ownership check
+                  (cardToReturn as any).owner = counterOwner;
                   (cardToReturn as any).counterMosseOnField = undefined;
-                  currentGame.decks.mosse.unshift(cardToReturn);
                   
-                  console.log(`[COUNTER-MOSSE] ${cardToReturn.name || counterCardId} returned to deck after 5 seconds`);
+                  // returnToDeck handles personal deck routing in GymMode/DraftMode
+                  this.returnToDeck(gameId, counterCardId, counterOwner);
+                  
+                  console.log(`[COUNTER-MOSSE] ${returnedCardName} returned to ${counterOwner}'s deck after 5 seconds`);
                   
                   io.to(gameId).emit('chat-message', {
                     id: `${Date.now()}-counter-mosse-return`,
                     playerName: 'Sistema',
-                    message: `📤 ${cardToReturn.name || 'MOSSE'} torna nel mazzo dopo la respinta.`,
+                    message: `📤 ${returnedCardName} torna nel mazzo dopo la respinta.`,
                     timestamp: Date.now()
                   });
                   
@@ -37219,28 +37222,23 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }, 1000);
     } else {
       // HUMAN AUTO-DRAW: Automatically draw replacement MOSSE card after attack
+      // Use pickCard so GymMode/DraftMode draws from personal deck, not shared deck
       console.log(`🎴 ${attackerName}: Auto-drawing replacement MOSSE card after attack`);
       
-      const mosseDeck = game?.decks?.mosse || [];
-      if (mosseDeck.length > 0 && game?.players?.[attackerName]) {
-        // Use pop() to draw from END of deck (not shift which draws from start where returnToDeck puts cards)
-        const drawnCard = mosseDeck.pop();
-        if (drawnCard) {
-          drawnCard.owner = attackerName;
-          game.players[attackerName].hand.push(drawnCard);
-          console.log(`[AUTO-DRAW] ${attackerName} drew replacement MOSSE: ${drawnCard.name || drawnCard.id}`);
-          
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-auto-draw-mosse-attacker`,
-            playerName: 'Sistema',
-            message: `🎴 ${attackerName} pesca automaticamente una nuova MOSSE!`,
-            timestamp: Date.now()
-          });
-          
-          // Update game state to show new card
-          const updatedState = this.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', updatedState);
-        }
+      const drewCard = await this.pickCard(gameId, 'mosse', attackerName);
+      if (drewCard && game?.players?.[attackerName]) {
+        console.log(`[AUTO-DRAW] ${attackerName} drew replacement MOSSE via pickCard`);
+        
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-auto-draw-mosse-attacker`,
+          playerName: 'Sistema',
+          message: `🎴 ${attackerName} pesca automaticamente una nuova MOSSE!`,
+          timestamp: Date.now()
+        });
+        
+        // Update game state to show new card
+        const updatedState = this.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', updatedState);
       }
     }
     } // end if (!isSecondHit) — MOSSE lifecycle guard
