@@ -9332,6 +9332,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const tIdx = toNext ? (i + 1) % toT.length : (i - 1 + toT.length) % toT.length;
           game.players[toT[i]].hand = handsCopy[toT[tIdx]];
         }
+        for (const p of toT) {
+          for (const card of game.players[p].hand) {
+            card.owner = p;
+          }
+        }
         emitChat(`🌊 TSUNAMI! Dado: ${dieT} (${toNext ? 'PARI' : 'DISPARI'}) — ogni giocatore cede la mano al ${toNext ? 'successivo' : 'precedente'}!`);
         emitState(); break;
       }
