@@ -5622,7 +5622,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tgtCO.pti = (tgtCO.pti || 0) + 50;
           (gameManager as any).updateCardTextWithPTI(tgtCO);
           if (!game.peaceRestrictions) game.peaceRestrictions = [];
-          game.peaceRestrictions.push({ restrictedPlayer: tgtCO.owner, protectedPlayer: socketPlayerName, turnsLeft: 3, reason: 'CORRUZIONE' });
+          game.peaceRestrictions.push({ restrictedPlayer: tgtCO.owner, protectedPlayer: socketPlayerName, turnsRemaining: 3, reason: 'CORRUZIONE' });
           io.to(gameId).emit('chat-message', { id: `${Date.now()}-co`, playerName: 'Sistema', message: `💰 CORRUZIONE! ${socketPlayerName} cede 50 PTI a ${tgtCO.name || tgtCO.owner}. ${tgtCO.owner} non può attaccare ${socketPlayerName} per 3 turni!`, timestamp: Date.now() });
           try {
             const coState = gameManager.getGameState(gameId);

@@ -9517,7 +9517,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           tgt.pti = (tgt.pti || 0) + 50;
           this.updateCardTextWithPTI(tgt);
           if (!game.peaceRestrictions) game.peaceRestrictions = [];
-          (game.peaceRestrictions as any[]).push({ restrictedPlayer: tgt.owner, protectedPlayer: playerName, turnsLeft: 3, reason: 'CORRUZIONE' });
+          (game.peaceRestrictions as any[]).push({ restrictedPlayer: tgt.owner, protectedPlayer: playerName, turnsRemaining: 3, reason: 'CORRUZIONE' });
           emitChat(`💰 CORRUZIONE! ${playerName} cede 50 PTI a ${tgt.name || tgt.owner}. ${tgt.owner} non può attaccare ${playerName} per 3 turni!`);
           if (io) {
             io.to(gameId).emit('cinematic-event', {
