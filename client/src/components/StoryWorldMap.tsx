@@ -934,6 +934,7 @@ export function StoryWorldMap({
   const timeRef   = useRef(0);
   const walkRef   = useRef(0);
   const movingRef = useRef(false);
+  const facingRef = useRef<'left' | 'right'>('right');
 
   /* ── Multiplayer presence refs ──────────────────────────── */
   const otherPlayersRef  = useRef<Map<number, OtherPlayer>>(new Map());
@@ -1678,6 +1679,13 @@ export function StoryWorldMap({
 
     const drawPlayer = (ctx: CanvasRenderingContext2D, time: number, moving: boolean) => {
       const [sx, sy] = w2s(playerRef.current.x, playerRef.current.z);
+      const facingLeft = facingRef.current === 'left';
+      if (facingLeft) {
+        ctx.save();
+        ctx.translate(sx, 0);
+        ctx.scale(-1, 1);
+        ctx.translate(-sx, 0);
+      }
       const bob = moving ? Math.sin(time * 8) * 1.5 : 0;
       const walkCycle = time * 8;
       const legSwing  = moving ? Math.sin(walkCycle) * 2 : 0;
@@ -1778,6 +1786,7 @@ export function StoryWorldMap({
       ctx.fillStyle = dotG; ctx.fill();
       ctx.beginPath(); ctx.arc(sx, dotY, hr * 0.35, 0, Math.PI * 2);
       ctx.fillStyle = '#a78bfa'; ctx.fill();
+      if (facingLeft) ctx.restore();
     };
 
     /* ---------------------------------------------------- */
@@ -1795,6 +1804,9 @@ export function StoryWorldMap({
       if (keys.has('ArrowDown')  || keys.has('KeyS') || joy.z >  0.3) dz += 1;
       if (keys.has('ArrowLeft')  || keys.has('KeyA') || joy.x < -0.3) dx -= 1;
       if (keys.has('ArrowRight') || keys.has('KeyD') || joy.x >  0.3) dx += 1;
+
+      if (dx < 0) facingRef.current = 'left';
+      else if (dx > 0) facingRef.current = 'right';
 
       const moving = (dx !== 0 || dz !== 0) && !wizardDialogue;
       movingRef.current = moving;
