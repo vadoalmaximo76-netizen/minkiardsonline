@@ -14542,6 +14542,11 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
             'Non hai risposto alla sfida in tempo. Il tuo Stage 13 è stato distrutto.',
             { challengeId: ec.id }
           );
+          await insertNotification(ec.challengerUserId, 'general',
+            '⏰ Sfida Stage 13 scaduta',
+            'Il boss non ha risposto alla tua sfida in tempo. La sfida è scaduta.',
+            { challengeId: ec.id }
+          );
         }
       } catch { /* ignore expiry errors */ }
 
@@ -14947,9 +14952,38 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const alreadyStolen = await db.select().from(stage13CardSteals)
         .where(and(eq(stage13CardSteals.bossUserId, userId), eq(stage13CardSteals.loserUserId, challenge.challengerUserId)));
 
+      const rawIds = (loserDeck?.cardIds || []) as string[];
+      // Enrich card IDs into card objects for the frontend
+      const enrichedCards: { id: string; name: string; pti?: number; stars?: number; imageUrl?: string }[] = [];
+      for (const cardId of rawIds) {
+        const parts = cardId.split('-');
+        const idx = parseInt(parts[parts.length - 1]);
+        const deckType = parts.slice(0, -1).join('-');
+        let name = cardId;
+        let pti: number | undefined;
+        let stars: number | undefined;
+        let imageUrl: string | undefined;
+        // Try to get image URL from CARD_DATA
+        const deckUrls = (CARD_DATA as any)[deckType] as string[] | undefined;
+        if (deckUrls && !isNaN(idx) && deckUrls[idx]) imageUrl = deckUrls[idx];
+        // For custom cards, look up by DB id for name/stats
+        if (deckType === 'custom' && !isNaN(idx)) {
+          try {
+            const ccRows = await db.select({ name: customCards.name, pti: customCards.pti, stars: customCards.stars, imageData: customCards.imageData }).from(customCards).where(eq(customCards.id, idx)).limit(1);
+            if (ccRows.length > 0) {
+              name = ccRows[0].name;
+              pti = ccRows[0].pti || undefined;
+              stars = ccRows[0].stars || undefined;
+              if (ccRows[0].imageData) imageUrl = ccRows[0].imageData;
+            }
+          } catch {}
+        }
+        enrichedCards.push({ id: cardId, name, pti, stars, imageUrl });
+      }
+
       res.json({
         success: true,
-        cardIds: loserDeck?.cardIds || [],
+        cards: enrichedCards,
         alreadyStolen: alreadyStolen.length > 0,
       });
     } catch (e) {
@@ -22453,6 +22487,11 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
           await insertNotification(ec.ownerUserId, 'general',
             '⏰ Stage 13 scaduto!',
             'Non hai risposto alla sfida in tempo. Il tuo Stage 13 è stato distrutto.',
+            { challengeId: ec.id, type: 'stage13_expired' }
+          );
+          await insertNotification(ec.challengerUserId, 'general',
+            '⏰ Sfida Stage 13 scaduta',
+            'Il boss non ha risposto alla tua sfida in tempo. La sfida è scaduta.',
             { challengeId: ec.id, type: 'stage13_expired' }
           );
           console.log(`⏰ [Stage13] Challenge ${ec.id} expired — boss stage ${ec.stageId} destroyed`);
