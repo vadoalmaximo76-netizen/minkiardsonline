@@ -894,7 +894,7 @@ export type StoryCollectiblePickup = typeof storyCollectiblePickups.$inferSelect
 
 export const userStage13 = pgTable("user_stage13", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   stageName: varchar("stage_name", { length: 100 }).notNull(),
   stageColor: varchar("stage_color", { length: 20 }).notNull().default("#7c3aed"),
   isActive: boolean("is_active").notNull().default(true),
@@ -904,12 +904,12 @@ export const userStage13 = pgTable("user_stage13", {
 
 export const stage13Challenges = pgTable("stage13_challenges", {
   id: serial("id").primaryKey(),
-  stageId: integer("stage_id").notNull(),
-  challengerUserId: integer("challenger_user_id").notNull(),
-  ownerUserId: integer("owner_user_id").notNull(),
+  stageId: integer("stage_id").notNull().references(() => userStage13.id, { onDelete: 'cascade' }),
+  challengerUserId: integer("challenger_user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  ownerUserId: integer("owner_user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   status: varchar("status", { length: 20 }).notNull().default("pending"),
   gameId: varchar("game_id", { length: 120 }),
-  winnerId: integer("winner_id"),
+  winnerId: integer("winner_id").references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   expiresAt: timestamp("expires_at").notNull(),
   completedAt: timestamp("completed_at"),
@@ -917,15 +917,15 @@ export const stage13Challenges = pgTable("stage13_challenges", {
 
 export const stage13Visibility = pgTable("stage13_visibility", {
   id: serial("id").primaryKey(),
-  stageId: integer("stage_id").notNull(),
-  viewerUserId: integer("viewer_user_id").notNull(),
+  stageId: integer("stage_id").notNull().references(() => userStage13.id, { onDelete: 'cascade' }),
+  viewerUserId: integer("viewer_user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const stage13CardSteals = pgTable("stage13_card_steals", {
   id: serial("id").primaryKey(),
-  bossUserId: integer("boss_user_id").notNull(),
-  loserUserId: integer("loser_user_id").notNull(),
+  bossUserId: integer("boss_user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  loserUserId: integer("loser_user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   cardId: varchar("card_id", { length: 60 }).notNull(),
   stolenAt: timestamp("stolen_at").notNull().defaultNow(),
 });

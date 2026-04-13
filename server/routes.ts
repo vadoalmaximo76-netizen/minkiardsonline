@@ -14658,16 +14658,18 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         isActive: true,
       }).returning();
 
-      // Select 10% of other users with a story deck (different faction) who have played at least 1 game
-      // We select all eligible users and pick 10%
+      // Select 10% of other users with a story deck (different faction) who have completed at least 1 gym
       const userDeck = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, userId)).limit(1);
       const myFaction = userDeck[0]?.chosenFaction || null;
-      let eligibleUsersQuery = db.select({ userId: userStoryDeck.userId, chosenFaction: userStoryDeck.chosenFaction })
-        .from(userStoryDeck);
-      const eligible = (await eligibleUsersQuery).filter(u =>
+      // Get set of userIds who have completed at least one gym
+      const gymProgressRows = await db.selectDistinct({ userId: userGymProgress.userId }).from(userGymProgress);
+      const usersWithProgress = new Set(gymProgressRows.map(r => r.userId));
+      const allDecks = await db.select({ userId: userStoryDeck.userId, chosenFaction: userStoryDeck.chosenFaction }).from(userStoryDeck);
+      const eligible = allDecks.filter(u =>
         u.userId !== userId &&
         u.chosenFaction !== null &&
-        u.chosenFaction !== myFaction
+        u.chosenFaction !== myFaction &&
+        usersWithProgress.has(u.userId)
       );
       // Pick 10%
       const tenPct = Math.max(1, Math.ceil(eligible.length * 0.1));
@@ -14703,6 +14705,11 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const { stageId } = req.body;
       if (!stageId) return res.status(400).json({ success: false, error: 'stageId obbligatorio' });
 
+      // Must have completed all 12 gyms
+      if (!await hasCompleted12Gyms(userId)) {
+        return res.status(403).json({ success: false, error: 'Devi completare tutte le 12 palestre prima di sfidare lo Stage 13' });
+      }
+
       // Must be in visibility list
       const visRows = await db.select().from(stage13Visibility)
         .where(and(eq(stage13Visibility.stageId, Number(stageId)), eq(stage13Visibility.viewerUserId, userId))).limit(1);
@@ -14715,15 +14722,11 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         .where(and(eq(userStage13.id, Number(stageId)), eq(userStage13.isActive, true))).limit(1);
       if (!stage) return res.status(404).json({ success: false, error: 'Stage non trovato o non attivo' });
 
-      // No pending challenge from this challenger for this stage
-      const existingCh = await db.select().from(stage13Challenges)
-        .where(and(
-          eq(stage13Challenges.stageId, Number(stageId)),
-          eq(stage13Challenges.challengerUserId, userId),
-          eq(stage13Challenges.status, 'pending')
-        )).limit(1);
-      if (existingCh.length > 0) {
-        return res.status(409).json({ success: false, error: 'Hai già una sfida in sospeso per questo stage' });
+      // One pending challenge per stage (globally – any challenger)
+      const existingForStage = await db.select().from(stage13Challenges)
+        .where(and(eq(stage13Challenges.stageId, Number(stageId)), eq(stage13Challenges.status, 'pending'))).limit(1);
+      if (existingForStage.length > 0) {
+        return res.status(409).json({ success: false, error: 'Questo stage ha già una sfida in sospeso' });
       }
 
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -14776,20 +14779,53 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         return res.json({ success: true, status: 'rejected' });
       }
 
-      // Accept: create a GymMode game
+      // Accept: create a real PvP game using the story-pvp pattern
       const [boss] = await db.select({ username: users.username }).from(users).where(eq(users.id, userId));
       const [challenger] = await db.select({ username: users.username }).from(users).where(eq(users.id, challenge.challengerUserId));
-      const [stage] = await db.select().from(userStage13).where(eq(userStage13.id, challenge.stageId));
 
-      // Create a GymMode game between the two users
-      const gameId = `stage13-${challenge.id}-${Date.now()}`;
-      // The game is created as a standard pvp game; both players need to join
-      // We store the gameId in challenge and notify challenger
+      const gameId = `stage13-${challenge.id}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+
+      // Fetch decks for both players
+      let bossCards: number[] = [];
+      let challengerCards: number[] = [];
+      const [bd] = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, userId)).limit(1);
+      const [cd] = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, challenge.challengerUserId)).limit(1);
+      if (bd?.cardIds) bossCards = bd.cardIds as number[];
+      if (cd?.cardIds) challengerCards = cd.cardIds as number[];
+
+      // Store in storyPvpGames so game-end rewards work
+      storyPvpGames.set(gameId, {
+        p1UserId: challenge.challengerUserId, p2UserId: userId,
+        p1Name: challenger?.username || '', p2Name: boss?.username || '',
+        creditsClaimed: new Set(),
+      });
+
+      // Mark challenge as accepted with gameId
       await db.update(stage13Challenges).set({ status: 'accepted', gameId }).where(eq(stage13Challenges.id, challenge.id));
+
+      // Emit pvp-start to both players if they are online on the story world
+      const challengerSocket = storyWorldPlayers.get(challenge.challengerUserId.toString());
+      const bossSocket = storyWorldPlayers.get(userId.toString());
+      if (challengerSocket) {
+        io.to(challengerSocket.socketId).emit('story-world:pvp-start', {
+          gameId, yourRole: 'challenger',
+          opponentUsername: boss?.username || '', opponentUserId: userId,
+          yourDeck: challengerCards, opponentDeck: bossCards,
+          isStage13: true, challengeId: challenge.id,
+        });
+      }
+      if (bossSocket) {
+        io.to(bossSocket.socketId).emit('story-world:pvp-start', {
+          gameId, yourRole: 'boss',
+          opponentUsername: challenger?.username || '', opponentUserId: challenge.challengerUserId,
+          yourDeck: bossCards, opponentDeck: challengerCards,
+          isStage13: true, challengeId: challenge.id,
+        });
+      }
 
       await insertNotification(challenge.challengerUserId, 'general',
         '✅ Sfida Stage 13 accettata!',
-        `${boss?.username || 'Il boss'} ha accettato la tua sfida! La partita è pronta. ID: ${gameId}`,
+        `${boss?.username || 'Il boss'} ha accettato la tua sfida! Entra nello Story Mode per giocare. ID partita: ${gameId}`,
         { challengeId: challenge.id, gameId, type: 'stage13_accepted' }
       );
 
@@ -14809,8 +14845,19 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const { challengeId, winnerId } = req.body;
       if (!challengeId || !winnerId) return res.status(400).json({ success: false, error: 'challengeId e winnerId obbligatori' });
 
+      const userId = user.userId;
       const [challenge] = await db.select().from(stage13Challenges).where(eq(stage13Challenges.id, Number(challengeId)));
       if (!challenge) return res.status(404).json({ success: false, error: 'Sfida non trovata' });
+
+      // Only challenge participants (challenger or boss) may call this endpoint
+      if (challenge.challengerUserId !== userId && challenge.ownerUserId !== userId) {
+        return res.status(403).json({ success: false, error: 'Non sei un partecipante di questa sfida' });
+      }
+
+      // Challenge must be in accepted state (game must have been played)
+      if (challenge.status !== 'accepted') {
+        return res.status(409).json({ success: false, error: 'La sfida non è in stato accettato' });
+      }
 
       await db.update(stage13Challenges).set({
         status: 'completed',
@@ -14879,10 +14926,14 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         return res.status(409).json({ success: false, error: 'Hai già rubato una carta a questo sfidante' });
       }
 
-      // Remove card from loser's story deck
+      // Remove card from loser's story deck, verifying it exists first
       const [loserDeck] = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, challenge.challengerUserId));
       if (!loserDeck) return res.status(404).json({ success: false, error: 'Mazzo sfidante non trovato' });
-      const loserCards = (loserDeck.cardIds as string[]).filter((c: string) => c !== String(cardId));
+      const loserCardList = (loserDeck.cardIds as string[]);
+      if (!loserCardList.includes(String(cardId))) {
+        return res.status(400).json({ success: false, error: 'La carta selezionata non è nel mazzo dello sfidante' });
+      }
+      const loserCards = loserCardList.filter((c: string) => c !== String(cardId));
       await db.update(userStoryDeck).set({ cardIds: loserCards, updatedAt: new Date() }).where(eq(userStoryDeck.userId, challenge.challengerUserId));
 
       // Add card to boss's story deck

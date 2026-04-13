@@ -1,6 +1,6 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db, isDatabaseAvailable, switchToFallback, getFallbackDb } from './db';
-import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, tournamentParticipants, draftDecks, draftCharacterGrowth, storyCharacterGrowth, draftTournaments, injuredPersonaggi, seasonalEvents, seasonalCards, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
+import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, tournamentParticipants, draftDecks, draftCharacterGrowth, storyCharacterGrowth, draftTournaments, injuredPersonaggi, seasonalEvents, seasonalCards, notifications, userStage13, stage13Challenges, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
 import { eq, ilike, sql, and, gt, lte } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 import { trackGameEvent } from './missionsAndAchievements';
@@ -2672,6 +2672,74 @@ Rispondi SOLO in JSON:`;
           }
         } catch (e) {
           console.error('Error reporting fanta match result:', e);
+        }
+      }
+
+      // Stage 13 PvP: auto-complete the challenge when the game ends
+      if (gameId.startsWith('stage13-') && winnerPlayer && isDatabaseAvailable()) {
+        try {
+          // Parse challengeId from gameId format: stage13-{challengeId}-{timestamp}-{random}
+          const parts = gameId.split('-');
+          const challengeId = parseInt(parts[1]);
+          if (!isNaN(challengeId)) {
+            const [challenge] = await db.select().from(stage13Challenges)
+              .where(eq(stage13Challenges.id, challengeId)).limit(1);
+            if (challenge && challenge.status === 'accepted') {
+              const winnerId = game.playerUserIds.get(winnerPlayer);
+              if (winnerId) {
+                await db.update(stage13Challenges).set({
+                  status: 'completed',
+                  winnerId,
+                  completedAt: new Date(),
+                }).where(eq(stage13Challenges.id, challengeId));
+
+                const challengerWon = winnerId === challenge.challengerUserId;
+                if (challengerWon) {
+                  // Destroy boss's stage
+                  await db.update(userStage13)
+                    .set({ isActive: false, destroyedAt: new Date() })
+                    .where(eq(userStage13.id, challenge.stageId));
+                  await db.insert(notifications).values({
+                    userId: challenge.ownerUserId,
+                    type: 'general',
+                    title: '💥 Il tuo Stage 13 è stato distrutto!',
+                    body: 'Hai perso la sfida! Il tuo Stage 13 è stato distrutto. Puoi costruirne uno nuovo quando vuoi.',
+                    data: { challengeId, type: 'stage13_lost' },
+                    isRead: false,
+                  });
+                  await db.insert(notifications).values({
+                    userId: challenge.challengerUserId,
+                    type: 'general',
+                    title: '🏆 Hai sconfitto il boss dello Stage 13!',
+                    body: 'Hai distrutto lo Stage 13! Ora puoi costruire il tuo Stage Personale.',
+                    data: { challengeId, canBuild: true, type: 'stage13_won' },
+                    isRead: false,
+                  });
+                } else {
+                  // Boss won – notify challenger and allow card steal
+                  await db.insert(notifications).values({
+                    userId: challenge.challengerUserId,
+                    type: 'general',
+                    title: '💀 Hai perso la sfida Stage 13',
+                    body: 'Il boss ha difeso il suo Stage 13. Potrebbe rubarti una carta.',
+                    data: { challengeId, type: 'stage13_lost' },
+                    isRead: false,
+                  });
+                  await db.insert(notifications).values({
+                    userId: challenge.ownerUserId,
+                    type: 'general',
+                    title: '🛡️ Hai difeso il tuo Stage 13!',
+                    body: 'Hai vinto la sfida! Puoi rubare una carta allo sfidante.',
+                    data: { challengeId, canSteal: true, type: 'stage13_defended' },
+                    isRead: false,
+                  });
+                }
+                console.log(`✅ [Stage13] Challenge ${challengeId} completed — winner: ${winnerPlayer} (${winnerId}), challengerWon: ${challengerWon}`);
+              }
+            }
+          }
+        } catch (e) {
+          console.error('[Stage13] Error completing stage13 challenge on game end:', e);
         }
       }
 
