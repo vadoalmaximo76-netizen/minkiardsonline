@@ -15,9 +15,9 @@ function handle402(err: unknown): boolean {
   }
   return false;
 }
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, storyCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates, dailyChallengeScores, pageTooltips, storyLocalities, storyCollectiblePickups } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, storyCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates, dailyChallengeScores, pageTooltips, storyLocalities, storyCollectiblePickups, userStage13, stage13Challenges, stage13Visibility, stage13CardSteals } from "../shared/schema";
 import { jsonStorage, homePanelsStorage, newsTickerStorage, homeConfigStorage, rankiardTiersStorage } from "./jsonStorage";
-import { eq, ilike, and, desc, or, ne, sql, inArray, gt, isNull } from "drizzle-orm";
+import { eq, ilike, and, desc, or, ne, sql, inArray, gt, isNull, lt } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from "../client/src/lib/cardData";
 import { authMiddleware, ADMIN_FALLBACK, JWT_SECRET } from "./auth";
 import { setPlayerOnline, rateLimit as redisRateLimit, isRedisConfigured, updateLeaderboard as redisUpdateLeaderboard, cacheGet, cacheSet } from "./redis";
@@ -14495,6 +14495,450 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       res.json({ success: true, cardIds: [] });
     } catch (e) {
       console.error('Error initializing story deck:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // ── Stage 13 – Boss Umano ────────────────────────────────────────────────────
+
+  // Helper: check if user completed all 12 gyms
+  async function hasCompleted12Gyms(userId: number): Promise<boolean> {
+    const progress = await db.select({ gymLeaderId: userGymProgress.gymLeaderId })
+      .from(userGymProgress).where(eq(userGymProgress.userId, userId));
+    const completedIds = new Set(progress.map(p => p.gymLeaderId));
+    const allGyms = await db.select({ id: gymLeaders.id, orderIndex: gymLeaders.orderIndex })
+      .from(gymLeaders).where(and(eq(gymLeaders.isActive, true), eq(gymLeaders.isHidden, false)));
+    const mainGyms = allGyms.filter(g => g.orderIndex >= 1 && g.orderIndex <= 12);
+    return mainGyms.every(g => completedIds.has(g.id));
+  }
+
+  // Helper: insert notification
+  async function insertNotification(userId: number, type: string, title: string, body: string, data: Record<string, unknown> = {}) {
+    try {
+      await db.insert(notifications).values({ userId, type, title, body, data, isRead: false });
+    } catch (e) {
+      console.error('Error inserting stage13 notification:', e);
+    }
+  }
+
+  // GET /api/story-mode/stage13/status
+  app.get('/api/story-mode/stage13/status', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const userId = user.userId;
+
+      // Expire stale pending challenges
+      try {
+        const expiredChallenges = await db.select().from(stage13Challenges)
+          .where(and(eq(stage13Challenges.status, 'pending'), lt(stage13Challenges.expiresAt, new Date())));
+        for (const ec of expiredChallenges) {
+          await db.update(stage13Challenges).set({ status: 'expired' }).where(eq(stage13Challenges.id, ec.id));
+          // Destroy boss stage because they didn't respond
+          await db.update(userStage13).set({ isActive: false, destroyedAt: new Date() }).where(eq(userStage13.id, ec.stageId));
+          await insertNotification(ec.ownerUserId, 'general',
+            '⏰ Stage 13 scaduto!',
+            'Non hai risposto alla sfida in tempo. Il tuo Stage 13 è stato distrutto.',
+            { challengeId: ec.id }
+          );
+        }
+      } catch { /* ignore expiry errors */ }
+
+      const storyCompleted = await hasCompleted12Gyms(userId);
+
+      // My active stage
+      const myStageRows = await db.select().from(userStage13)
+        .where(and(eq(userStage13.userId, userId), eq(userStage13.isActive, true))).limit(1);
+      const myStage = myStageRows[0] || null;
+
+      // Stage visible to me (other user's stage)
+      const visibilityRows = await db.select({ stageId: stage13Visibility.stageId })
+        .from(stage13Visibility).where(eq(stage13Visibility.viewerUserId, userId));
+      let visibleStage: any = null;
+      if (visibilityRows.length > 0) {
+        const stageId = visibilityRows[0].stageId;
+        const vsRows = await db.select().from(userStage13)
+          .where(and(eq(userStage13.id, stageId), eq(userStage13.isActive, true))).limit(1);
+        if (vsRows.length > 0) {
+          const vs = vsRows[0];
+          const [bossUser] = await db.select({ username: users.username }).from(users).where(eq(users.id, vs.userId));
+          visibleStage = { ...vs, bossUsername: bossUser?.username || 'Sconosciuto' };
+        }
+      }
+
+      // Pending challenges (as challenger or as boss)
+      const challengerRows = await db.select().from(stage13Challenges)
+        .where(and(eq(stage13Challenges.challengerUserId, userId), eq(stage13Challenges.status, 'pending'))).limit(1);
+      const bossRows = await db.select().from(stage13Challenges)
+        .where(and(eq(stage13Challenges.ownerUserId, userId), eq(stage13Challenges.status, 'pending'))).limit(1);
+
+      let pendingChallengeAsChallenger: any = null;
+      if (challengerRows.length > 0) {
+        const ch = challengerRows[0];
+        const [bossUser] = await db.select({ username: users.username }).from(users).where(eq(users.id, ch.ownerUserId));
+        pendingChallengeAsChallenger = { ...ch, bossUsername: bossUser?.username || 'Sconosciuto' };
+      }
+      let pendingChallengeAsBoss: any = null;
+      if (bossRows.length > 0) {
+        const ch = bossRows[0];
+        const [challenger] = await db.select({ username: users.username }).from(users).where(eq(users.id, ch.challengerUserId));
+        pendingChallengeAsBoss = { ...ch, challengerUsername: challenger?.username || 'Sconosciuto' };
+      }
+
+      const canBuild = storyCompleted && !myStage;
+      const canChallenge = storyCompleted && !!visibleStage && !pendingChallengeAsChallenger;
+
+      res.json({
+        success: true,
+        storyCompleted,
+        myStage,
+        visibleStage,
+        pendingChallengeAsChallenger,
+        pendingChallengeAsBoss,
+        canBuild,
+        canChallenge,
+      });
+    } catch (e) {
+      console.error('Error fetching stage13 status:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/story-mode/stage13/build
+  app.post('/api/story-mode/stage13/build', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const userId = user.userId;
+
+      if (!await hasCompleted12Gyms(userId)) {
+        return res.status(403).json({ success: false, error: 'Devi completare tutte le 12 palestre prima' });
+      }
+
+      const existing = await db.select().from(userStage13)
+        .where(and(eq(userStage13.userId, userId), eq(userStage13.isActive, true))).limit(1);
+      if (existing.length > 0) {
+        return res.status(409).json({ success: false, error: 'Hai già uno Stage 13 attivo' });
+      }
+
+      const { stageName, stageColor } = req.body;
+      if (!stageName || typeof stageName !== 'string' || stageName.trim().length === 0) {
+        return res.status(400).json({ success: false, error: 'Nome stage obbligatorio' });
+      }
+
+      // Deduct 1000 credits (paidCredits first, then freeCredits)
+      const [credits] = await db.select().from(userDraftCredits).where(eq(userDraftCredits.userId, userId));
+      const paid = credits?.paidCredits ?? 0;
+      const free = credits?.freeCredits ?? 0;
+      if (paid + free < 1000) {
+        return res.status(402).json({ success: false, error: 'Crediti insufficienti (servono 1000)' });
+      }
+      let newPaid = paid, newFree = free;
+      if (paid >= 1000) {
+        newPaid = paid - 1000;
+      } else {
+        const fromPaid = paid;
+        const fromFree = 1000 - fromPaid;
+        newPaid = 0;
+        newFree = free - fromFree;
+      }
+      if (credits) {
+        await db.update(userDraftCredits).set({ paidCredits: newPaid, freeCredits: newFree, updatedAt: new Date() }).where(eq(userDraftCredits.userId, userId));
+      } else {
+        await db.insert(userDraftCredits).values({ userId, paidCredits: 0, freeCredits: newFree < 0 ? 0 : newFree });
+      }
+
+      // Create stage
+      const [newStage] = await db.insert(userStage13).values({
+        userId,
+        stageName: stageName.trim().substring(0, 100),
+        stageColor: stageColor || '#7c3aed',
+        isActive: true,
+      }).returning();
+
+      // Select 10% of other users with a story deck (different faction) who have played at least 1 game
+      // We select all eligible users and pick 10%
+      const userDeck = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, userId)).limit(1);
+      const myFaction = userDeck[0]?.chosenFaction || null;
+      let eligibleUsersQuery = db.select({ userId: userStoryDeck.userId, chosenFaction: userStoryDeck.chosenFaction })
+        .from(userStoryDeck);
+      const eligible = (await eligibleUsersQuery).filter(u =>
+        u.userId !== userId &&
+        u.chosenFaction !== null &&
+        u.chosenFaction !== myFaction
+      );
+      // Pick 10%
+      const tenPct = Math.max(1, Math.ceil(eligible.length * 0.1));
+      const shuffled = eligible.sort(() => Math.random() - 0.5).slice(0, tenPct);
+      if (shuffled.length > 0) {
+        await db.insert(stage13Visibility).values(
+          shuffled.map(u => ({ stageId: newStage.id, viewerUserId: u.userId }))
+        );
+        // Notify them
+        for (const u of shuffled) {
+          await insertNotification(u.userId, 'general',
+            '🏆 Nuova Palestra Numero 13!',
+            `Un nuovo Stage 13 è stato costruito da ${(req as any).user.username || 'un altro giocatore'}. Puoi sfidarlo dalla World Map!`,
+            { stageId: newStage.id }
+          );
+        }
+      }
+
+      res.json({ success: true, stage: newStage });
+    } catch (e) {
+      console.error('Error building stage13:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/story-mode/stage13/challenge
+  app.post('/api/story-mode/stage13/challenge', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const userId = user.userId;
+      const { stageId } = req.body;
+      if (!stageId) return res.status(400).json({ success: false, error: 'stageId obbligatorio' });
+
+      // Must be in visibility list
+      const visRows = await db.select().from(stage13Visibility)
+        .where(and(eq(stage13Visibility.stageId, Number(stageId)), eq(stage13Visibility.viewerUserId, userId))).limit(1);
+      if (visRows.length === 0) {
+        return res.status(403).json({ success: false, error: 'Non sei autorizzato a sfidare questo stage' });
+      }
+
+      // Stage must be active
+      const [stage] = await db.select().from(userStage13)
+        .where(and(eq(userStage13.id, Number(stageId)), eq(userStage13.isActive, true))).limit(1);
+      if (!stage) return res.status(404).json({ success: false, error: 'Stage non trovato o non attivo' });
+
+      // No pending challenge from this challenger for this stage
+      const existingCh = await db.select().from(stage13Challenges)
+        .where(and(
+          eq(stage13Challenges.stageId, Number(stageId)),
+          eq(stage13Challenges.challengerUserId, userId),
+          eq(stage13Challenges.status, 'pending')
+        )).limit(1);
+      if (existingCh.length > 0) {
+        return res.status(409).json({ success: false, error: 'Hai già una sfida in sospeso per questo stage' });
+      }
+
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const [challenge] = await db.insert(stage13Challenges).values({
+        stageId: Number(stageId),
+        challengerUserId: userId,
+        ownerUserId: stage.userId,
+        status: 'pending',
+        expiresAt,
+      }).returning();
+
+      // Notify boss
+      const [challenger] = await db.select({ username: users.username }).from(users).where(eq(users.id, userId));
+      await insertNotification(stage.userId, 'general',
+        '⚔️ Sfida ricevuta allo Stage 13!',
+        `${challenger?.username || 'Un giocatore'} vuole sfidare il tuo Stage 13! Hai 7 giorni per rispondere.`,
+        { challengeId: challenge.id, type: 'stage13_challenge' }
+      );
+
+      res.json({ success: true, challenge });
+    } catch (e) {
+      console.error('Error creating stage13 challenge:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/story-mode/stage13/respond
+  app.post('/api/story-mode/stage13/respond', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const userId = user.userId;
+      const { challengeId, accept } = req.body;
+      if (!challengeId) return res.status(400).json({ success: false, error: 'challengeId obbligatorio' });
+
+      const [challenge] = await db.select().from(stage13Challenges).where(eq(stage13Challenges.id, Number(challengeId)));
+      if (!challenge) return res.status(404).json({ success: false, error: 'Sfida non trovata' });
+      if (challenge.ownerUserId !== userId) return res.status(403).json({ success: false, error: 'Non sei il boss di questa sfida' });
+      if (challenge.status !== 'pending') return res.status(409).json({ success: false, error: 'Sfida non più in sospeso' });
+
+      if (!accept) {
+        await db.update(stage13Challenges).set({ status: 'rejected' }).where(eq(stage13Challenges.id, challenge.id));
+        const [boss] = await db.select({ username: users.username }).from(users).where(eq(users.id, userId));
+        await insertNotification(challenge.challengerUserId, 'general',
+          '❌ Sfida Stage 13 rifiutata',
+          `${boss?.username || 'Il boss'} ha rifiutato la tua sfida allo Stage 13.`,
+          { challengeId: challenge.id }
+        );
+        return res.json({ success: true, status: 'rejected' });
+      }
+
+      // Accept: create a GymMode game
+      const [boss] = await db.select({ username: users.username }).from(users).where(eq(users.id, userId));
+      const [challenger] = await db.select({ username: users.username }).from(users).where(eq(users.id, challenge.challengerUserId));
+      const [stage] = await db.select().from(userStage13).where(eq(userStage13.id, challenge.stageId));
+
+      // Create a GymMode game between the two users
+      const gameId = `stage13-${challenge.id}-${Date.now()}`;
+      // The game is created as a standard pvp game; both players need to join
+      // We store the gameId in challenge and notify challenger
+      await db.update(stage13Challenges).set({ status: 'accepted', gameId }).where(eq(stage13Challenges.id, challenge.id));
+
+      await insertNotification(challenge.challengerUserId, 'general',
+        '✅ Sfida Stage 13 accettata!',
+        `${boss?.username || 'Il boss'} ha accettato la tua sfida! La partita è pronta. ID: ${gameId}`,
+        { challengeId: challenge.id, gameId, type: 'stage13_accepted' }
+      );
+
+      res.json({ success: true, status: 'accepted', gameId });
+    } catch (e) {
+      console.error('Error responding to stage13 challenge:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/story-mode/stage13/complete-match
+  app.post('/api/story-mode/stage13/complete-match', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const { challengeId, winnerId } = req.body;
+      if (!challengeId || !winnerId) return res.status(400).json({ success: false, error: 'challengeId e winnerId obbligatori' });
+
+      const [challenge] = await db.select().from(stage13Challenges).where(eq(stage13Challenges.id, Number(challengeId)));
+      if (!challenge) return res.status(404).json({ success: false, error: 'Sfida non trovata' });
+
+      await db.update(stage13Challenges).set({
+        status: 'completed',
+        winnerId: Number(winnerId),
+        completedAt: new Date(),
+      }).where(eq(stage13Challenges.id, challenge.id));
+
+      const challengerWon = Number(winnerId) === challenge.challengerUserId;
+
+      if (challengerWon) {
+        // Destroy boss's stage
+        await db.update(userStage13).set({ isActive: false, destroyedAt: new Date() }).where(eq(userStage13.id, challenge.stageId));
+        // Notify boss
+        const [boss] = await db.select({ username: users.username }).from(users).where(eq(users.id, challenge.ownerUserId));
+        await insertNotification(challenge.ownerUserId, 'general',
+          '💥 Il tuo Stage 13 è stato distrutto!',
+          `Hai perso la sfida! Il tuo Stage 13 è stato distrutto. Puoi costruirne uno nuovo quando vuoi.`,
+          { challengeId: challenge.id }
+        );
+        // Notify challenger they can build
+        await insertNotification(challenge.challengerUserId, 'general',
+          '🏆 Hai sconfitto il boss!',
+          `Hai distrutto lo Stage 13! Ora puoi costruire il tuo Stage Personale.`,
+          { challengeId: challenge.id, canBuild: true }
+        );
+      } else {
+        // Boss won – notify challenger
+        await insertNotification(challenge.challengerUserId, 'general',
+          '💀 Hai perso la sfida Stage 13',
+          `Il boss ha difeso il suo Stage 13. Potrebbe rubarti una carta.`,
+          { challengeId: challenge.id }
+        );
+      }
+
+      res.json({ success: true, challengerWon });
+    } catch (e) {
+      console.error('Error completing stage13 match:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/story-mode/stage13/steal-card
+  app.post('/api/story-mode/stage13/steal-card', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const userId = user.userId;
+      const { challengeId, cardId } = req.body;
+      if (!challengeId || !cardId) return res.status(400).json({ success: false, error: 'challengeId e cardId obbligatori' });
+
+      const [challenge] = await db.select().from(stage13Challenges).where(eq(stage13Challenges.id, Number(challengeId)));
+      if (!challenge) return res.status(404).json({ success: false, error: 'Sfida non trovata' });
+      if (challenge.ownerUserId !== userId) return res.status(403).json({ success: false, error: 'Non sei il boss' });
+      if (challenge.status !== 'completed' || challenge.winnerId !== userId) {
+        return res.status(403).json({ success: false, error: 'Non puoi rubare carte da questa sfida' });
+      }
+
+      // Already stolen from this loser?
+      const existing = await db.select().from(stage13CardSteals)
+        .where(and(
+          eq(stage13CardSteals.bossUserId, userId),
+          eq(stage13CardSteals.loserUserId, challenge.challengerUserId)
+        )).limit(1);
+      if (existing.length > 0) {
+        return res.status(409).json({ success: false, error: 'Hai già rubato una carta a questo sfidante' });
+      }
+
+      // Remove card from loser's story deck
+      const [loserDeck] = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, challenge.challengerUserId));
+      if (!loserDeck) return res.status(404).json({ success: false, error: 'Mazzo sfidante non trovato' });
+      const loserCards = (loserDeck.cardIds as string[]).filter((c: string) => c !== String(cardId));
+      await db.update(userStoryDeck).set({ cardIds: loserCards, updatedAt: new Date() }).where(eq(userStoryDeck.userId, challenge.challengerUserId));
+
+      // Add card to boss's story deck
+      const [bossDeck] = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, userId));
+      if (bossDeck) {
+        const bossCards = [...(bossDeck.cardIds as string[]), String(cardId)];
+        await db.update(userStoryDeck).set({ cardIds: bossCards, updatedAt: new Date() }).where(eq(userStoryDeck.userId, userId));
+      } else {
+        await db.insert(userStoryDeck).values({ userId, cardIds: [String(cardId)], chosenFaction: null });
+      }
+
+      // Record steal
+      await db.insert(stage13CardSteals).values({ bossUserId: userId, loserUserId: challenge.challengerUserId, cardId: String(cardId) });
+
+      const [boss] = await db.select({ username: users.username }).from(users).where(eq(users.id, userId));
+      await insertNotification(challenge.challengerUserId, 'general',
+        '🃏 Carta rubata!',
+        `${boss?.username || 'Il boss'} ti ha rubato la carta dopo la vittoria!`,
+        { challengeId: challenge.id, cardId }
+      );
+
+      res.json({ success: true });
+    } catch (e) {
+      console.error('Error stealing stage13 card:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // GET /api/story-mode/stage13/loser-deck
+  // Returns the story deck of the loser of a challenge (for the boss to choose a card to steal)
+  app.get('/api/story-mode/stage13/loser-deck/:challengeId', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const userId = user.userId;
+      const challengeId = parseInt(req.params.challengeId);
+
+      const [challenge] = await db.select().from(stage13Challenges).where(eq(stage13Challenges.id, challengeId));
+      if (!challenge) return res.status(404).json({ success: false, error: 'Sfida non trovata' });
+      if (challenge.ownerUserId !== userId) return res.status(403).json({ success: false, error: 'Non sei il boss' });
+      if (challenge.status !== 'completed' || challenge.winnerId !== userId) {
+        return res.status(403).json({ success: false, error: 'Non puoi vedere le carte del perdente' });
+      }
+
+      const [loserDeck] = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, challenge.challengerUserId));
+      const alreadyStolen = await db.select().from(stage13CardSteals)
+        .where(and(eq(stage13CardSteals.bossUserId, userId), eq(stage13CardSteals.loserUserId, challenge.challengerUserId)));
+
+      res.json({
+        success: true,
+        cardIds: loserDeck?.cardIds || [],
+        alreadyStolen: alreadyStolen.length > 0,
+      });
+    } catch (e) {
+      console.error('Error fetching loser deck:', e);
       res.status(500).json({ success: false, error: 'Errore server' });
     }
   });

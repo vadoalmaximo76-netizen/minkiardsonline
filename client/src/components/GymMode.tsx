@@ -379,6 +379,13 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const [localities, setLocalities] = useState<StoryLocality[]>([]);
   const [collectibles, setCollectibles] = useState<StoryCollectible[]>([]);
+  const [stage13Status, setStage13Status] = useState<any>(null);
+  const [showStage13Modal, setShowStage13Modal] = useState(false);
+  const [stage13BuildName, setStage13BuildName] = useState('');
+  const [stage13BuildColor, setStage13BuildColor] = useState('#7c3aed');
+  const [stage13BuildLoading, setStage13BuildLoading] = useState(false);
+  const [stage13BuildError, setStage13BuildError] = useState<string | null>(null);
+  const [stage13BuildSuccess, setStage13BuildSuccess] = useState(false);
 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -489,6 +496,17 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     } catch {}
   }, [authToken]);
 
+  const fetchStage13Status = useCallback(async () => {
+    if (!authToken) return;
+    try {
+      const res = await fetch('/api/story-mode/stage13/status', {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      if (data.success) setStage13Status(data);
+    } catch {}
+  }, [authToken]);
+
   useEffect(() => {
     fetchLeaders();
     fetchStoryDeck();
@@ -496,7 +514,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     fetchCardEffects();
     fetchLocalities();
     fetchCollectibles();
-  }, [fetchLeaders, fetchStoryDeck, fetchUserCredits, fetchCardEffects, fetchLocalities, fetchCollectibles]);
+    fetchStage13Status();
+  }, [fetchLeaders, fetchStoryDeck, fetchUserCredits, fetchCardEffects, fetchLocalities, fetchCollectibles, fetchStage13Status]);
 
   // Show deck selection screen when user has no story deck and first leader has starterDeckOptions
   useEffect(() => {
@@ -1255,12 +1274,30 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           >
             <button
               disabled={victoryStep < 5}
-              onClick={() => {
+              onClick={async () => {
                 onClearPendingGymGame?.();
-                setPhase('map');
-                setSelectedLeader(null);
                 fetchLeaders();
                 fetchUserCredits();
+                // Check if user just completed all 12 gyms → show Stage 13 modal
+                try {
+                  const res = await fetch('/api/story-mode/stage13/status', {
+                    headers: { Authorization: `Bearer ${authToken}` },
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    setStage13Status(data);
+                    if (data.storyCompleted && (data.canBuild || data.visibleStage)) {
+                      setShowStage13Modal(true);
+                      setStage13BuildSuccess(false);
+                      setStage13BuildError(null);
+                      setSelectedLeader(null);
+                      setPhase('map');
+                      return;
+                    }
+                  }
+                } catch {}
+                setPhase('map');
+                setSelectedLeader(null);
               }}
               className="px-8 py-3.5 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-lg rounded-2xl transition-all shadow-xl shadow-yellow-500/30 active:scale-95 disabled:cursor-not-allowed"
             >
@@ -2156,6 +2193,153 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             </div>
             <p className="text-white/80 font-bold text-lg">{wizardCardName}</p>
             <p className="text-white/40 text-sm mt-2">Tocca per continuare</p>
+          </div>
+        </div>
+      )}
+
+      {/* Stage 13 Modal */}
+      {showStage13Modal && stage13Status && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-5"
+          onClick={() => { if (!stage13BuildLoading) setShowStage13Modal(false); }}
+        >
+          <div
+            className="w-full max-w-md bg-gray-950 border border-purple-500/40 rounded-2xl shadow-2xl p-6 flex flex-col gap-4"
+            onClick={e => e.stopPropagation()}
+          >
+            {stage13BuildSuccess ? (
+              <div className="text-center flex flex-col items-center gap-4">
+                <div className="text-5xl">🏰</div>
+                <h3 className="text-purple-300 font-black text-xl">Stage 13 costruito!</h3>
+                <p className="text-white/60 text-sm">Il tuo Stage Personale è ora attivo. Aspetta gli sfidanti!</p>
+                <button
+                  onClick={() => setShowStage13Modal(false)}
+                  className="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl transition-colors"
+                >Chiudi</button>
+              </div>
+            ) : stage13Status.visibleStage ? (
+              // Case A: there's a visible stage to challenge
+              <div className="flex flex-col gap-4">
+                <div className="text-center">
+                  <div className="text-5xl mb-2">⚔️</div>
+                  <h3 className="text-yellow-300 font-black text-xl">Ultima Sfida!</h3>
+                  <p className="text-white/60 text-sm mt-2 leading-relaxed">
+                    Ottimo! Hai completato le 12 Palestre. Ma c'è un'ultima sfida prima di diventare Re delle Minkiards: devi sconfiggere lo Stage di{' '}
+                    <span className="text-yellow-300 font-bold">{stage13Status.visibleStage.bossUsername}</span> – la Palestra Numero 13!
+                  </p>
+                </div>
+                <div
+                  className="rounded-xl px-4 py-3 border text-center font-bold text-sm"
+                  style={{ background: stage13Status.visibleStage.stageColor + '22', borderColor: stage13Status.visibleStage.stageColor + '66', color: stage13Status.visibleStage.stageColor }}
+                >
+                  🏰 {stage13Status.visibleStage.stageName}
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowStage13Modal(false)}
+                    className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition-colors"
+                  >Dopo</button>
+                  <button
+                    onClick={async () => {
+                      setStage13BuildLoading(true);
+                      setStage13BuildError(null);
+                      try {
+                        const res = await fetch('/api/story-mode/stage13/challenge', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                          body: JSON.stringify({ stageId: stage13Status.visibleStage.id }),
+                        });
+                        const data = await res.json();
+                        if (!data.success) setStage13BuildError(data.error || 'Errore');
+                        else {
+                          setStage13BuildSuccess(true);
+                          await fetchStage13Status();
+                        }
+                      } catch { setStage13BuildError('Errore di rete'); }
+                      setStage13BuildLoading(false);
+                    }}
+                    disabled={stage13BuildLoading}
+                    className="flex-1 py-2.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-black font-black text-sm transition-colors disabled:opacity-50"
+                  >
+                    {stage13BuildLoading ? 'Attendere...' : 'Affronta lo Stage 13'}
+                  </button>
+                </div>
+                {stage13BuildError && (
+                  <div className="text-red-400 text-xs text-center">{stage13BuildError}</div>
+                )}
+              </div>
+            ) : (
+              // Case B: no visible stage, offer to build
+              <div className="flex flex-col gap-4">
+                <div className="text-center">
+                  <div className="text-5xl mb-2">🏆</div>
+                  <h3 className="text-yellow-300 font-black text-xl">Tutte le 12 Palestre Completate!</h3>
+                  <p className="text-white/60 text-sm mt-2 leading-relaxed">
+                    Vuoi costruire il tuo Stage Personale (Stage 13) e sfidare altri giocatori? Costerà <span className="text-yellow-300 font-bold">1000 crediti</span>.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-white/60 text-xs font-bold uppercase tracking-wider">Nome del tuo Stage</label>
+                  <input
+                    type="text"
+                    value={stage13BuildName}
+                    onChange={e => setStage13BuildName(e.target.value)}
+                    maxLength={100}
+                    placeholder="Es. La Caverna del Drago..."
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-white placeholder-white/30 text-sm outline-none focus:border-purple-500/60"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-white/60 text-xs font-bold uppercase tracking-wider">Colore stage</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={stage13BuildColor}
+                      onChange={e => setStage13BuildColor(e.target.value)}
+                      className="w-10 h-10 rounded-lg cursor-pointer border-0 bg-transparent"
+                    />
+                    <span className="text-white/60 text-sm font-mono">{stage13BuildColor}</span>
+                  </div>
+                </div>
+                {stage13BuildError && (
+                  <div className="bg-red-900/40 border border-red-500/40 rounded-xl px-4 py-2 text-red-300 text-xs text-center">
+                    {stage13BuildError}
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowStage13Modal(false)}
+                    disabled={stage13BuildLoading}
+                    className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition-colors disabled:opacity-50"
+                  >Salta</button>
+                  <button
+                    onClick={async () => {
+                      if (!stage13BuildName.trim()) { setStage13BuildError('Inserisci il nome del tuo stage'); return; }
+                      setStage13BuildLoading(true);
+                      setStage13BuildError(null);
+                      try {
+                        const res = await fetch('/api/story-mode/stage13/build', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                          body: JSON.stringify({ stageName: stage13BuildName, stageColor: stage13BuildColor }),
+                        });
+                        const data = await res.json();
+                        if (!data.success) setStage13BuildError(data.error || 'Errore');
+                        else {
+                          setStage13BuildSuccess(true);
+                          await fetchStage13Status();
+                        }
+                      } catch { setStage13BuildError('Errore di rete'); }
+                      setStage13BuildLoading(false);
+                    }}
+                    disabled={stage13BuildLoading || !stage13BuildName.trim()}
+                    className="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-sm transition-colors disabled:opacity-50"
+                  >
+                    {stage13BuildLoading ? 'Costruendo...' : 'Costruisci Stage (1000 crediti)'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

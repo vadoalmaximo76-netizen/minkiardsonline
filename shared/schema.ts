@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, uniqueIndex, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -889,6 +889,51 @@ export const storyCollectiblePickups = pgTable("story_collectible_pickups", {
   collectedAt: timestamp("collected_at").notNull().defaultNow(),
 });
 export type StoryCollectiblePickup = typeof storyCollectiblePickups.$inferSelect;
+
+// ── Stage 13 – Boss Umano ─────────────────────────────────────────────────────
+
+export const userStage13 = pgTable("user_stage13", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  stageName: varchar("stage_name", { length: 100 }).notNull(),
+  stageColor: varchar("stage_color", { length: 20 }).notNull().default("#7c3aed"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  destroyedAt: timestamp("destroyed_at"),
+});
+
+export const stage13Challenges = pgTable("stage13_challenges", {
+  id: serial("id").primaryKey(),
+  stageId: integer("stage_id").notNull(),
+  challengerUserId: integer("challenger_user_id").notNull(),
+  ownerUserId: integer("owner_user_id").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  gameId: varchar("game_id", { length: 120 }),
+  winnerId: integer("winner_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const stage13Visibility = pgTable("stage13_visibility", {
+  id: serial("id").primaryKey(),
+  stageId: integer("stage_id").notNull(),
+  viewerUserId: integer("viewer_user_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const stage13CardSteals = pgTable("stage13_card_steals", {
+  id: serial("id").primaryKey(),
+  bossUserId: integer("boss_user_id").notNull(),
+  loserUserId: integer("loser_user_id").notNull(),
+  cardId: varchar("card_id", { length: 60 }).notNull(),
+  stolenAt: timestamp("stolen_at").notNull().defaultNow(),
+});
+
+export type UserStage13 = typeof userStage13.$inferSelect;
+export type Stage13Challenge = typeof stage13Challenges.$inferSelect;
+export type Stage13Visibility = typeof stage13Visibility.$inferSelect;
+export type Stage13CardSteal = typeof stage13CardSteals.$inferSelect;
 
 export type UserGymProgress = typeof userGymProgress.$inferSelect;
 export type UserStoryDeck = typeof userStoryDeck.$inferSelect;

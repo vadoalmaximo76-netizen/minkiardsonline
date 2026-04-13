@@ -97,6 +97,9 @@ const STAR_DATA: { sx: number; sy: number; r: number; twinkle: number }[] = (() 
   return stars;
 })();
 
+/* ── Stage 13 position (remote corner of the map) ──────────────── */
+const STAGE13_WORLD_POS: [number, number] = [-145, -170];
+
 /* ── City stage positions (progressive south→north scatter) ───── */
 const CITY_STAGE_POSITIONS: [number, number][] = [
   [0, 170],       //  1 Piazza d'Ingresso
@@ -1036,6 +1039,14 @@ export function StoryWorldMap({
   /* tooltip state */
   const [tooltip, setTooltip] = useState<{ leader: GymLeader; status: 'completed' | 'available' | 'locked'; x: number; y: number } | null>(null);
 
+  /* Stage 13 state */
+  const [stage13Status, setStage13Status] = useState<any>(null);
+  const [showStage13ChallengeModal, setShowStage13ChallengeModal] = useState(false);
+  const [stage13ChallengeLoading, setStage13ChallengeLoading] = useState(false);
+  const [stage13ChallengeError, setStage13ChallengeError] = useState<string | null>(null);
+  const [stage13ChallengeSent, setStage13ChallengeSent] = useState(false);
+  const stage13StatusRef = useRef<any>(null);
+
   /* victory history panel */
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
 
@@ -1120,6 +1131,20 @@ export function StoryWorldMap({
   const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const pos = canvasScreenToWorld(e.clientX, e.clientY);
     if (!pos) return;
+
+    // Check Stage 13 click first
+    const [s13x, s13z] = STAGE13_WORLD_POS;
+    const s13Dist = Math.sqrt((pos.x - s13x) ** 2 + (pos.z - s13z) ** 2);
+    if (s13Dist < ARENA_HIT_RADIUS * 1.5) {
+      const st = stage13StatusRef.current;
+      if (st?.visibleStage && st.storyCompleted) {
+        setShowStage13ChallengeModal(true);
+        setStage13ChallengeSent(false);
+        setStage13ChallengeError(null);
+        return;
+      }
+    }
+
     const lrs = leadersRef.current;
     const aps = arenaPositionsRef.current;
     let best: { leader: GymLeader; dist: number } | null = null;
@@ -2883,6 +2908,63 @@ export function StoryWorldMap({
         }});
       });
 
+      /* Stage 13 – Human Boss Arena */
+      const s13state = stage13StatusRef.current;
+      const s13Visible = s13state?.visibleStage;
+      const s13My = s13state?.myStage;
+      if (s13Visible || s13My) {
+        const [s13x, s13z] = STAGE13_WORLD_POS;
+        sprites.push({ z: s13z, draw: () => {
+          const [cx, cy] = w2s(s13x, s13z);
+          const stage = s13Visible || s13My;
+          const color = stage?.stageColor || '#7c3aed';
+          const bW = 3.5 * TILE; const bH = 4.0 * TILE;
+          const pulse = 0.5 + Math.sin(t * 2.5) * 0.2;
+
+          // Glow
+          ctx.save();
+          const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, bW * 1.2);
+          grad.addColorStop(0, color + '44');
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.beginPath(); ctx.arc(cx, cy, bW * 1.2, 0, Math.PI * 2); ctx.fill();
+
+          // Pulsing ring
+          ctx.beginPath(); ctx.arc(cx, cy, bW * 0.8, 0, Math.PI * 2);
+          ctx.strokeStyle = color + Math.round(pulse * 255).toString(16).padStart(2, '0');
+          ctx.lineWidth = 3; ctx.stroke();
+
+          // Top face (roof)
+          const sideW = Math.round(bW * 0.15);
+          const wallH = Math.round(bH * 0.28);
+          const topY = cy - bH / 2;
+          ctx.fillStyle = color + 'cc';
+          ctx.fillRect(cx - bW / 2, topY, bW - sideW, bH - wallH);
+
+          // Side wall
+          ctx.fillStyle = color + '77';
+          ctx.fillRect(cx + bW / 2 - sideW, topY + wallH * 0.3, sideW, bH - wallH);
+
+          // Crown emoji at top
+          ctx.font = `${Math.round(TILE * 0.9)}px sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('👑', cx, topY - TILE * 0.6);
+
+          // Label
+          const label = s13Visible
+            ? `${stage.stageName} 👑`
+            : `Il tuo Stage 👑`;
+          const labelW = Math.max(110, label.length * 7);
+          ctx.fillStyle = 'rgba(5,5,20,0.88)';
+          rrect(ctx, cx - labelW / 2, cy + bH / 2 + 4, labelW, 18, 5); ctx.fill();
+          ctx.strokeStyle = color + 'aa'; ctx.lineWidth = 1; ctx.stroke();
+          ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillStyle = color;
+          ctx.fillText(label.substring(0, 20), cx, cy + bH / 2 + 13);
+          ctx.restore();
+        }});
+      }
+
       /* collectibles — proximity-based fade-in only */
       const cpx = playerRef.current.x, cpz = playerRef.current.z;
       const REVEAL_DIST = 3.5; // world units
@@ -3363,6 +3445,20 @@ export function StoryWorldMap({
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, []); // runs once — all mutable state via refs
+
+  /* ── Stage 13 fetch ──────────────────────────────────────── */
+  useEffect(() => {
+    if (!authToken) return;
+    fetch('/api/story-mode/stage13/status', { headers: { Authorization: `Bearer ${authToken}` } })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          setStage13Status(data);
+          stage13StatusRef.current = data;
+        }
+      })
+      .catch(() => {});
+  }, [authToken]);
 
   /* ── Misc handlers ─────────────────────────────────────── */
   useEffect(() => { const t = setTimeout(() => setShowHint(false), 5000); return () => clearTimeout(t); }, []);
@@ -4389,6 +4485,146 @@ export function StoryWorldMap({
           boxShadow: '0 4px 20px rgba(0,0,0,0.7)',
         }}>
           🏆 Vittoria PvP! +{pvpCreditsAlert} crediti
+        </div>
+      )}
+
+      {/* Stage 13 – Challenge Modal */}
+      {showStage13ChallengeModal && stage13Status?.visibleStage && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', padding: '0 20px' }}
+          onClick={() => { if (!stage13ChallengeLoading) setShowStage13ChallengeModal(false); }}
+        >
+          <div
+            style={{ width: '100%', maxWidth: 400, background: '#0a0a1a', border: '1.5px solid rgba(124,58,237,0.5)', borderRadius: 20, padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}
+            onClick={e => e.stopPropagation()}
+          >
+            {stage13ChallengeSent ? (
+              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                <div style={{ fontSize: 40 }}>⚔️</div>
+                <div style={{ color: '#fbbf24', fontWeight: 900, fontSize: 18 }}>Sfida inviata!</div>
+                <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>Il boss ha 7 giorni per rispondere.</div>
+                <button onClick={() => setShowStage13ChallengeModal(false)} style={{ padding: '8px 24px', background: '#7c3aed', color: 'white', border: 'none', borderRadius: 12, fontWeight: 900, cursor: 'pointer' }}>Chiudi</button>
+              </div>
+            ) : (
+              <>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 36, marginBottom: 8 }}>⚔️</div>
+                  <div style={{ color: '#fbbf24', fontWeight: 900, fontSize: 18 }}>Sfida Stage 13</div>
+                  <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 8, lineHeight: 1.5 }}>
+                    Vuoi sfidare lo Stage di <span style={{ color: stage13Status.visibleStage.stageColor, fontWeight: 700 }}>{stage13Status.visibleStage.bossUsername}</span>?
+                  </div>
+                  <div style={{ marginTop: 10, padding: '8px 16px', background: stage13Status.visibleStage.stageColor + '22', border: `1px solid ${stage13Status.visibleStage.stageColor}66`, borderRadius: 12, color: stage13Status.visibleStage.stageColor, fontWeight: 700, fontSize: 14 }}>
+                    🏰 {stage13Status.visibleStage.stageName}
+                  </div>
+                </div>
+                {stage13ChallengeError && (
+                  <div style={{ background: 'rgba(220,38,38,0.2)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: 10, padding: '8px 16px', color: '#fca5a5', fontSize: 12, textAlign: 'center' }}>
+                    {stage13ChallengeError}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button
+                    onClick={() => setShowStage13ChallengeModal(false)}
+                    style={{ flex: 1, padding: '10px 0', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+                  >Annulla</button>
+                  <button
+                    onClick={async () => {
+                      setStage13ChallengeLoading(true);
+                      setStage13ChallengeError(null);
+                      try {
+                        const res = await fetch('/api/story-mode/stage13/challenge', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                          body: JSON.stringify({ stageId: stage13Status.visibleStage.id }),
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          setStage13ChallengeSent(true);
+                        } else {
+                          setStage13ChallengeError(data.error || 'Errore');
+                        }
+                      } catch { setStage13ChallengeError('Errore di rete'); }
+                      setStage13ChallengeLoading(false);
+                    }}
+                    disabled={stage13ChallengeLoading}
+                    style={{ flex: 1, padding: '10px 0', background: '#7c3aed', color: 'white', border: 'none', borderRadius: 12, fontWeight: 900, fontSize: 14, cursor: 'pointer', opacity: stage13ChallengeLoading ? 0.5 : 1 }}
+                  >{stage13ChallengeLoading ? 'Attendere...' : 'Sfida!'}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Stage 13 – Pending challenge as Challenger banner */}
+      {stage13Status?.pendingChallengeAsChallenger && !showStage13ChallengeModal && (
+        <div style={{
+          position: 'absolute', top: 60, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(10,10,26,0.96)', border: '1.5px solid rgba(124,58,237,0.6)',
+          borderRadius: 14, padding: '10px 20px', zIndex: 60, textAlign: 'center',
+          whiteSpace: 'nowrap', boxShadow: '0 4px 20px rgba(0,0,0,0.7)',
+        }}>
+          <div style={{ color: '#a78bfa', fontWeight: 900, fontSize: 13 }}>
+            ⏳ In attesa che <span style={{ color: '#fbbf24' }}>{stage13Status.pendingChallengeAsChallenger.bossUsername}</span> accetti la sfida
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 3 }}>Il boss ha 7 giorni per rispondere</div>
+        </div>
+      )}
+
+      {/* Stage 13 – Pending challenge as Boss notification */}
+      {stage13Status?.pendingChallengeAsBoss && (
+        <div style={{
+          position: 'absolute', top: stage13Status?.pendingChallengeAsChallenger ? 110 : 60, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(10,10,26,0.96)', border: '1.5px solid rgba(251,191,36,0.6)',
+          borderRadius: 14, padding: '12px 20px', zIndex: 60, textAlign: 'center',
+          maxWidth: 320, boxShadow: '0 4px 20px rgba(0,0,0,0.7)',
+        }}>
+          <div style={{ color: '#fbbf24', fontWeight: 900, fontSize: 13 }}>
+            ⚔️ <span style={{ color: '#60a5fa' }}>{stage13Status.pendingChallengeAsBoss.challengerUsername}</span> vuole sfidare il tuo Stage 13!
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 10, justifyContent: 'center' }}>
+            <button
+              onClick={async () => {
+                try {
+                  await fetch('/api/story-mode/stage13/respond', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                    body: JSON.stringify({ challengeId: stage13Status.pendingChallengeAsBoss.id, accept: false }),
+                  });
+                  const data = await fetch('/api/story-mode/stage13/status', { headers: { Authorization: `Bearer ${authToken}` } }).then(r => r.json());
+                  if (data.success) { setStage13Status(data); stage13StatusRef.current = data; }
+                } catch {}
+              }}
+              style={{ padding: '7px 14px', background: 'rgba(220,38,38,0.25)', color: '#fca5a5', border: '1px solid rgba(220,38,38,0.4)', borderRadius: 10, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+            >Rifiuta</button>
+            <button
+              onClick={async () => {
+                try {
+                  await fetch('/api/story-mode/stage13/respond', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                    body: JSON.stringify({ challengeId: stage13Status.pendingChallengeAsBoss.id, accept: true }),
+                  });
+                  const data = await fetch('/api/story-mode/stage13/status', { headers: { Authorization: `Bearer ${authToken}` } }).then(r => r.json());
+                  if (data.success) { setStage13Status(data); stage13StatusRef.current = data; }
+                } catch {}
+              }}
+              style={{ padding: '7px 14px', background: '#7c3aed', color: 'white', border: 'none', borderRadius: 10, fontWeight: 900, fontSize: 12, cursor: 'pointer' }}
+            >Accetta</button>
+          </div>
+        </div>
+      )}
+
+      {/* Stage 13 – My Stage indicator */}
+      {stage13Status?.myStage && (
+        <div style={{
+          position: 'absolute', bottom: 80, right: 16, zIndex: 55,
+          background: 'rgba(10,10,26,0.9)', border: `1.5px solid ${stage13Status.myStage.stageColor}88`,
+          borderRadius: 12, padding: '8px 14px', textAlign: 'center',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
+        }}>
+          <div style={{ color: stage13Status.myStage.stageColor, fontWeight: 900, fontSize: 12 }}>🏰 Il tuo Stage 13</div>
+          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 2 }}>{stage13Status.myStage.stageName}</div>
         </div>
       )}
 
