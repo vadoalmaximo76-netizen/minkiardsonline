@@ -386,6 +386,11 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [stage13BuildLoading, setStage13BuildLoading] = useState(false);
   const [stage13BuildError, setStage13BuildError] = useState<string | null>(null);
   const [stage13BuildSuccess, setStage13BuildSuccess] = useState(false);
+  const [showStage13StealModal, setShowStage13StealModal] = useState(false);
+  const [stage13LoserDeck, setStage13LoserDeck] = useState<any[]>([]);
+  const [stage13StealLoading, setStage13StealLoading] = useState(false);
+  const [stage13StealError, setStage13StealError] = useState<string | null>(null);
+  const [stage13StealSuccess, setStage13StealSuccess] = useState(false);
 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -503,9 +508,23 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         headers: { Authorization: `Bearer ${authToken}` },
       });
       const data = await res.json();
-      if (data.success) setStage13Status(data);
+      if (data.success) {
+        setStage13Status(data);
+        // Auto-open steal modal if boss has a completed challenge waiting for card steal
+        if (data.completedChallengeWaitingSteal && !showStage13StealModal && !stage13StealSuccess) {
+          setShowStage13StealModal(true);
+          // Fetch loser's deck
+          try {
+            const deckRes = await fetch(`/api/story-mode/stage13/loser-deck/${data.completedChallengeWaitingSteal.id}`, {
+              headers: { Authorization: `Bearer ${authToken}` },
+            });
+            const deckData = await deckRes.json();
+            if (deckData.success) setStage13LoserDeck(deckData.cards || []);
+          } catch {}
+        }
+      }
     } catch {}
-  }, [authToken]);
+  }, [authToken, showStage13StealModal, stage13StealSuccess]);
 
   useEffect(() => {
     fetchLeaders();
@@ -2339,6 +2358,86 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                   </button>
                 </div>
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Stage 13 – Boss Card Steal Modal */}
+      {showStage13StealModal && stage13Status?.completedChallengeWaitingSteal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 px-4"
+          onClick={() => { if (!stage13StealLoading && !stage13StealSuccess) setShowStage13StealModal(false); }}
+        >
+          <div
+            className="w-full max-w-md bg-gray-950 border border-yellow-500/40 rounded-2xl shadow-2xl p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            {stage13StealSuccess ? (
+              <div className="text-center flex flex-col items-center gap-4">
+                <div className="text-5xl">🃏</div>
+                <h3 className="text-yellow-300 font-black text-xl">Carta rubata!</h3>
+                <p className="text-white/60 text-sm">La carta è ora nel tuo mazzo Story Mode.</p>
+                <button onClick={() => { setShowStage13StealModal(false); setStage13StealSuccess(false); }} className="px-6 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-black rounded-xl transition-colors">Chiudi</button>
+              </div>
+            ) : (
+              <>
+                <div className="text-center">
+                  <div className="text-4xl mb-2">🏆</div>
+                  <h3 className="text-yellow-300 font-black text-xl">Hai difeso il tuo Stage 13!</h3>
+                  <p className="text-white/60 text-sm mt-2 leading-relaxed">
+                    Hai sconfitto <span className="text-yellow-300 font-bold">{stage13Status.completedChallengeWaitingSteal.challengerUsername}</span>. Puoi rubare una carta dal loro mazzo Story.
+                  </p>
+                </div>
+                {stage13LoserDeck.length === 0 ? (
+                  <div className="text-center text-white/40 text-sm py-4">
+                    {stage13StealLoading ? 'Caricamento mazzo...' : 'Il mazzo dello sfidante è vuoto.'}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-white/50 text-xs uppercase tracking-wider font-bold">Scegli una carta da rubare:</p>
+                    <div className="flex flex-col gap-2 max-h-72 overflow-y-auto pr-1">
+                      {stage13LoserDeck.map((card: any) => (
+                        <button
+                          key={card.id}
+                          disabled={stage13StealLoading}
+                          onClick={async () => {
+                            setStage13StealLoading(true);
+                            setStage13StealError(null);
+                            try {
+                              const res = await fetch('/api/story-mode/stage13/steal-card', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                                body: JSON.stringify({
+                                  challengeId: stage13Status.completedChallengeWaitingSteal.id,
+                                  cardId: card.id,
+                                }),
+                              });
+                              const data = await res.json();
+                              if (!data.success) setStage13StealError(data.error || 'Errore');
+                              else { setStage13StealSuccess(true); await fetchStage13Status(); }
+                            } catch { setStage13StealError('Errore di rete'); }
+                            setStage13StealLoading(false);
+                          }}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/5 hover:bg-yellow-500/20 border border-white/10 hover:border-yellow-500/50 transition-all text-left disabled:opacity-50"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-yellow-500/20 flex items-center justify-center text-sm">🃏</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white font-bold text-sm truncate">{card.name || card.id}</div>
+                            {card.pti && <div className="text-white/40 text-xs">{card.pti} PTI{card.stars ? ` · ${'⭐'.repeat(Math.min(card.stars, 5))}` : ''}</div>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {stage13StealError && <div className="text-red-400 text-xs text-center">{stage13StealError}</div>}
+                <button
+                  onClick={() => setShowStage13StealModal(false)}
+                  disabled={stage13StealLoading}
+                  className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white/60 font-bold text-sm transition-colors disabled:opacity-50"
+                >Salta (non rubare)</button>
+              </>
             )}
           </div>
         </div>

@@ -14586,6 +14586,28 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         pendingChallengeAsBoss = { ...ch, challengerUsername: challenger?.username || 'Sconosciuto' };
       }
 
+      // Completed challenge where boss won and hasn't yet stolen a card
+      let completedChallengeWaitingSteal: any = null;
+      const completedBossWonRows = await db.select().from(stage13Challenges)
+        .where(and(
+          eq(stage13Challenges.ownerUserId, userId),
+          eq(stage13Challenges.status, 'completed'),
+          eq(stage13Challenges.winnerId, userId)
+        )).limit(1);
+      if (completedBossWonRows.length > 0) {
+        const completedCh = completedBossWonRows[0];
+        // Check no steal yet
+        const stealRows = await db.select().from(stage13CardSteals)
+          .where(and(
+            eq(stage13CardSteals.bossUserId, userId),
+            eq(stage13CardSteals.loserUserId, completedCh.challengerUserId)
+          )).limit(1);
+        if (stealRows.length === 0) {
+          const [challengerUser] = await db.select({ username: users.username }).from(users).where(eq(users.id, completedCh.challengerUserId));
+          completedChallengeWaitingSteal = { ...completedCh, challengerUsername: challengerUser?.username || 'Sconosciuto' };
+        }
+      }
+
       const canBuild = storyCompleted && !myStage;
       const canChallenge = storyCompleted && !!visibleStage && !pendingChallengeAsChallenger;
 
@@ -14596,6 +14618,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         visibleStage,
         pendingChallengeAsChallenger,
         pendingChallengeAsBoss,
+        completedChallengeWaitingSteal,
         canBuild,
         canChallenge,
       });
@@ -14836,68 +14859,9 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
     }
   });
 
-  // POST /api/story-mode/stage13/complete-match
-  app.post('/api/story-mode/stage13/complete-match', authMiddleware, async (req, res) => {
-    try {
-      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
-      const user = (req as any).user;
-      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
-      const { challengeId, winnerId } = req.body;
-      if (!challengeId || !winnerId) return res.status(400).json({ success: false, error: 'challengeId e winnerId obbligatori' });
-
-      const userId = user.userId;
-      const [challenge] = await db.select().from(stage13Challenges).where(eq(stage13Challenges.id, Number(challengeId)));
-      if (!challenge) return res.status(404).json({ success: false, error: 'Sfida non trovata' });
-
-      // Only challenge participants (challenger or boss) may call this endpoint
-      if (challenge.challengerUserId !== userId && challenge.ownerUserId !== userId) {
-        return res.status(403).json({ success: false, error: 'Non sei un partecipante di questa sfida' });
-      }
-
-      // Challenge must be in accepted state (game must have been played)
-      if (challenge.status !== 'accepted') {
-        return res.status(409).json({ success: false, error: 'La sfida non è in stato accettato' });
-      }
-
-      await db.update(stage13Challenges).set({
-        status: 'completed',
-        winnerId: Number(winnerId),
-        completedAt: new Date(),
-      }).where(eq(stage13Challenges.id, challenge.id));
-
-      const challengerWon = Number(winnerId) === challenge.challengerUserId;
-
-      if (challengerWon) {
-        // Destroy boss's stage
-        await db.update(userStage13).set({ isActive: false, destroyedAt: new Date() }).where(eq(userStage13.id, challenge.stageId));
-        // Notify boss
-        const [boss] = await db.select({ username: users.username }).from(users).where(eq(users.id, challenge.ownerUserId));
-        await insertNotification(challenge.ownerUserId, 'general',
-          '💥 Il tuo Stage 13 è stato distrutto!',
-          `Hai perso la sfida! Il tuo Stage 13 è stato distrutto. Puoi costruirne uno nuovo quando vuoi.`,
-          { challengeId: challenge.id }
-        );
-        // Notify challenger they can build
-        await insertNotification(challenge.challengerUserId, 'general',
-          '🏆 Hai sconfitto il boss!',
-          `Hai distrutto lo Stage 13! Ora puoi costruire il tuo Stage Personale.`,
-          { challengeId: challenge.id, canBuild: true }
-        );
-      } else {
-        // Boss won – notify challenger
-        await insertNotification(challenge.challengerUserId, 'general',
-          '💀 Hai perso la sfida Stage 13',
-          `Il boss ha difeso il suo Stage 13. Potrebbe rubarti una carta.`,
-          { challengeId: challenge.id }
-        );
-      }
-
-      res.json({ success: true, challengerWon });
-    } catch (e) {
-      console.error('Error completing stage13 match:', e);
-      res.status(500).json({ success: false, error: 'Errore server' });
-    }
-  });
+  // NOTE: Stage 13 match completion is handled server-side by GameManager.completeMatch()
+  // when the game ends. The public complete-match endpoint has been removed to prevent
+  // fraudulent winner manipulation. Completion is now triggered automatically.
 
   // POST /api/story-mode/stage13/steal-card
   app.post('/api/story-mode/stage13/steal-card', authMiddleware, async (req, res) => {
@@ -22476,6 +22440,30 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       res.status(500).json({ error: 'Errore caricamento sessioni' });
     }
   });
+
+  // Scheduled Stage 13 challenge expiry – runs every hour on server boot
+  if (isDatabaseAvailable()) {
+    const expireStage13Challenges = async () => {
+      try {
+        const expiredChallenges = await db.select().from(stage13Challenges)
+          .where(and(eq(stage13Challenges.status, 'pending'), lt(stage13Challenges.expiresAt, new Date())));
+        for (const ec of expiredChallenges) {
+          await db.update(stage13Challenges).set({ status: 'expired' }).where(eq(stage13Challenges.id, ec.id));
+          await db.update(userStage13).set({ isActive: false, destroyedAt: new Date() }).where(eq(userStage13.id, ec.stageId));
+          await insertNotification(ec.ownerUserId, 'general',
+            '⏰ Stage 13 scaduto!',
+            'Non hai risposto alla sfida in tempo. Il tuo Stage 13 è stato distrutto.',
+            { challengeId: ec.id, type: 'stage13_expired' }
+          );
+          console.log(`⏰ [Stage13] Challenge ${ec.id} expired — boss stage ${ec.stageId} destroyed`);
+        }
+      } catch (e) { console.error('[Stage13] expiry scheduler error:', e); }
+    };
+    // Run immediately on boot then every hour
+    expireStage13Challenges();
+    setInterval(expireStage13Challenges, 60 * 60 * 1000);
+    console.log('⏰ [Stage13] Challenge expiry scheduler started (every 60 min)');
+  }
 
   return httpServer;
 }

@@ -4567,7 +4567,14 @@ export function StoryWorldMap({
           <div style={{ color: '#a78bfa', fontWeight: 900, fontSize: 13 }}>
             ⏳ In attesa che <span style={{ color: '#fbbf24' }}>{stage13Status.pendingChallengeAsChallenger.bossUsername}</span> accetti la sfida
           </div>
-          <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 3 }}>Il boss ha 7 giorni per rispondere</div>
+          <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 3 }}>
+            {(() => {
+              const expires = stage13Status.pendingChallengeAsChallenger.expiresAt ? new Date(stage13Status.pendingChallengeAsChallenger.expiresAt) : null;
+              if (!expires) return 'Scade tra 7 giorni';
+              const daysLeft = Math.max(0, Math.ceil((expires.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+              return daysLeft <= 0 ? 'Scaduta' : `Scade tra ${daysLeft} giorn${daysLeft === 1 ? 'o' : 'i'}`;
+            })()}
+          </div>
         </div>
       )}
 
