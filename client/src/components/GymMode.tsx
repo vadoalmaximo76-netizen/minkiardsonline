@@ -383,6 +383,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [showStage13Modal, setShowStage13Modal] = useState(false);
   const [stage13BuildName, setStage13BuildName] = useState('');
   const [stage13BuildColor, setStage13BuildColor] = useState('#7c3aed');
+  const [stage13BuildMusicUrl, setStage13BuildMusicUrl] = useState('');
   const [stage13BuildLoading, setStage13BuildLoading] = useState(false);
   const [stage13BuildError, setStage13BuildError] = useState<string | null>(null);
   const [stage13BuildSuccess, setStage13BuildSuccess] = useState(false);
@@ -1869,7 +1870,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             selectedLeaderRef.current = quadratoLeader;
             setPhase('intro');
           }}
-          onStartPvp={(pvpGameId, opponentUsername, _yourDeck, _opponentDeck, yourRole) => {
+          onStartPvp={(pvpGameId, opponentUsername, _yourDeck, _opponentDeck, yourRole, livesCount, youtubeMusicUrl) => {
             const syntheticLeader: GymLeader = {
               id: -1,
               orderIndex: 0,
@@ -1883,11 +1884,11 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
               cpuLevel: 'medium',
               deckBias: { personaggi: 33, mosse: 33, bonus: 34 },
               customDeck: [],
-              livesCount: 1,
+              livesCount: livesCount ?? 1,
               playerStartingDeck: [],
               rewardCredits: 30,
               rewardDescription: 'Vittoria PvP',
-              youtubeMusicUrl: null,
+              youtubeMusicUrl: youtubeMusicUrl ?? null,
               leaderMessages: null,
               cpuCount: 0,
               cpuConfigs: [],
@@ -1910,9 +1911,9 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                 avatarId,
                 userId,
                 isGymMode: true,
-                livesCount: 1,
+                livesCount: livesCount ?? 1,
               });
-              console.log(`[story-pvp] ${playerName} joined room ${pvpGameId} as ${yourRole}`);
+              console.log(`[story-pvp] ${playerName} joined room ${pvpGameId} as ${yourRole} (lives: ${livesCount ?? 1})`);
             };
 
             if (yourRole === 'challenger') {
@@ -2320,6 +2321,17 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                     <span className="text-white/60 text-sm font-mono">{stage13BuildColor}</span>
                   </div>
                 </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-white/60 text-xs font-bold uppercase tracking-wider">🎵 Musica di sottofondo (opzionale)</label>
+                  <input
+                    type="text"
+                    value={stage13BuildMusicUrl}
+                    onChange={e => setStage13BuildMusicUrl(e.target.value)}
+                    placeholder="Link YouTube o YouTube Music..."
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-white placeholder-white/30 text-sm outline-none focus:border-purple-500/60"
+                  />
+                  <p className="text-white/30 text-xs">La canzone verrà riprodotta in sottofondo durante le sfide al tuo Stage 13.</p>
+                </div>
                 {stage13BuildError && (
                   <div className="bg-red-900/40 border border-red-500/40 rounded-xl px-4 py-2 text-red-300 text-xs text-center">
                     {stage13BuildError}
@@ -2340,7 +2352,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                         const res = await fetch('/api/story-mode/stage13/build', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-                          body: JSON.stringify({ stageName: stage13BuildName, stageColor: stage13BuildColor }),
+                          body: JSON.stringify({ stageName: stage13BuildName, stageColor: stage13BuildColor, youtubeMusicUrl: stage13BuildMusicUrl.trim() || null }),
                         });
                         const data = await res.json();
                         if (!data.success) setStage13BuildError(data.error || 'Errore');

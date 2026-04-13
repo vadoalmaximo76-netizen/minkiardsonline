@@ -48,7 +48,7 @@ export interface StoryWorldMapProps {
   userId?: number;
   username?: string;
   authToken?: string | null;
-  onStartPvp?: (gameId: string, opponentUsername: string, yourDeck: number[], opponentDeck: number[], yourRole: 'challenger' | 'target') => void;
+  onStartPvp?: (gameId: string, opponentUsername: string, yourDeck: number[], opponentDeck: number[], yourRole: 'challenger' | 'target', livesCount?: number, youtubeMusicUrl?: string | null) => void;
   onCardCollected?: (cardId: string) => void;
   /* Quadrato hidden boss */
   quadratoLeader?: GymLeader | null;
@@ -1259,8 +1259,8 @@ export function StoryWorldMap({
     const handleChallengeDeclined = () => {
       setChallengeSent(false);
     };
-    const handlePvpStart = (data: { gameId: string; yourRole: 'challenger' | 'target'; opponentUsername: string; opponentUserId: number; yourDeck: number[]; opponentDeck: number[] }) => {
-      onStartPvp?.(data.gameId, data.opponentUsername, data.yourDeck, data.opponentDeck, data.yourRole);
+    const handlePvpStart = (data: { gameId: string; yourRole: 'challenger' | 'target'; opponentUsername: string; opponentUserId: number; yourDeck: number[]; opponentDeck: number[]; livesCount?: number; youtubeMusicUrl?: string | null }) => {
+      onStartPvp?.(data.gameId, data.opponentUsername, data.yourDeck, data.opponentDeck, data.yourRole, data.livesCount, data.youtubeMusicUrl);
     };
     const handleCreditsEarned = ({ credits }: { credits: number }) => {
       setPvpCreditsAlert(credits);

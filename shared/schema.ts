@@ -897,6 +897,7 @@ export const userStage13 = pgTable("user_stage13", {
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   stageName: varchar("stage_name", { length: 100 }).notNull(),
   stageColor: varchar("stage_color", { length: 20 }).notNull().default("#7c3aed"),
+  youtubeMusicUrl: text("youtube_music_url"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   destroyedAt: timestamp("destroyed_at"),

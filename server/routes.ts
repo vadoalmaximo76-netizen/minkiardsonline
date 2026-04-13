@@ -14651,7 +14651,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         return res.status(409).json({ success: false, error: 'Hai già uno Stage 13 attivo' });
       }
 
-      const { stageName, stageColor } = req.body;
+      const { stageName, stageColor, youtubeMusicUrl } = req.body;
       if (!stageName || typeof stageName !== 'string' || stageName.trim().length === 0) {
         return res.status(400).json({ success: false, error: 'Nome stage obbligatorio' });
       }
@@ -14679,10 +14679,12 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       }
 
       // Create stage
+      const cleanMusicUrl = typeof youtubeMusicUrl === 'string' && youtubeMusicUrl.trim() ? youtubeMusicUrl.trim() : null;
       const [newStage] = await db.insert(userStage13).values({
         userId,
         stageName: stageName.trim().substring(0, 100),
         stageColor: stageColor || '#7c3aed',
+        youtubeMusicUrl: cleanMusicUrl,
         isActive: true,
       }).returning();
 
@@ -14810,6 +14812,8 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       // Accept: create a real PvP game using the story-pvp pattern
       const [boss] = await db.select({ username: users.username }).from(users).where(eq(users.id, userId));
       const [challenger] = await db.select({ username: users.username }).from(users).where(eq(users.id, challenge.challengerUserId));
+      const [stage] = await db.select({ youtubeMusicUrl: userStage13.youtubeMusicUrl }).from(userStage13).where(eq(userStage13.id, challenge.stageId)).limit(1);
+      const stageMusicUrl = stage?.youtubeMusicUrl || null;
 
       const gameId = `stage13-${challenge.id}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
 
@@ -14840,6 +14844,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
           opponentUsername: boss?.username || '', opponentUserId: userId,
           yourDeck: challengerCards, opponentDeck: bossCards,
           isStage13: true, challengeId: challenge.id,
+          livesCount: 5, youtubeMusicUrl: stageMusicUrl,
         });
       }
       if (bossSocket) {
@@ -14848,6 +14853,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
           opponentUsername: challenger?.username || '', opponentUserId: challenge.challengerUserId,
           yourDeck: bossCards, opponentDeck: challengerCards,
           isStage13: true, challengeId: challenge.id,
+          livesCount: 5, youtubeMusicUrl: stageMusicUrl,
         });
       }
 
