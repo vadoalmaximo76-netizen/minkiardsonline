@@ -3367,6 +3367,10 @@ Rispondi SOLO in JSON:`;
       if (g.isGymMode || g.tournamentMatchId || g.fantaTournamentId) return 1;
       return 0;
     };
+    const extractTs = (id: string): number => {
+      const m = id.match(/-(\d{13})-/);
+      return m ? parseInt(m[1], 10) : 0;
+    };
     candidates.sort((a, b) => {
       const aPriority = modePriority(a.game);
       const bPriority = modePriority(b.game);
@@ -3377,7 +3381,8 @@ Rispondi SOLO in JSON:`;
       const aPlaying = a.game.isPlaying ? 1 : 0;
       const bPlaying = b.game.isPlaying ? 1 : 0;
       if (bPlaying !== aPlaying) return bPlaying - aPlaying;
-      return b.handCount - a.handCount;
+      if (b.handCount !== a.handCount) return b.handCount - a.handCount;
+      return extractTs(b.gameId) - extractTs(a.gameId);
     });
 
     return { gameId: candidates[0].gameId, handCount: candidates[0].handCount, ...getGameMode(candidates[0].game) };

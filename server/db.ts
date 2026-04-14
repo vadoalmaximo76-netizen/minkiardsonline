@@ -65,7 +65,7 @@ function tryConnectPostgres(url: string, label: string): DbType | null {
       connectionString: txUrl,
       max: 3,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 10000,
+      connectionTimeoutMillis: 3000,
       ssl: { rejectUnauthorized: false },
     });
     const db = drizzleNodePg(pool, { schema });
@@ -149,6 +149,32 @@ export function switchToFallback(): boolean {
   return true;
 }
 
+// ── Secondary DB circuit breaker ────────────────────────────────────────────
+// When the secondary (Supabase) DB is unreachable, every write attempt blocks
+// the event loop for up to `connectionTimeoutMillis` ms. The circuit breaker
+// stops sending writes after N consecutive failures and waits for a cooldown
+// before retrying, preventing a flood of timeouts from degrading the server.
+let _secFailCount = 0;
+let _secCircuitOpenUntil = 0;
+const SEC_CIRCUIT_THRESHOLD = 3;       // open after this many consecutive failures
+const SEC_CIRCUIT_COOLDOWN   = 60_000; // stay open for 60 s
+
+function isSecondaryCircuitOpen(): boolean {
+  return Date.now() < _secCircuitOpenUntil;
+}
+function recordSecondaryFailure(): void {
+  _secFailCount++;
+  if (_secFailCount >= SEC_CIRCUIT_THRESHOLD && Date.now() >= _secCircuitOpenUntil) {
+    _secCircuitOpenUntil = Date.now() + SEC_CIRCUIT_COOLDOWN;
+    console.warn(`[DualWrite] Circuit OPEN: secondary DB failed ${_secFailCount}× in a row. Pausing for ${SEC_CIRCUIT_COOLDOWN / 1000}s.`);
+  }
+}
+function recordSecondarySuccess(): void {
+  if (_secFailCount > 0) console.log('[DualWrite] Circuit RESET: secondary DB write succeeded.');
+  _secFailCount = 0;
+  _secCircuitOpenUntil = 0;
+}
+
 // ── Dual-write builder ──────────────────────────────────────────────────────
 // Creates a proxy around a Drizzle query builder that, when awaited, also
 // fires the same query on the secondary DB in the background (errors silently
@@ -160,10 +186,13 @@ function createDualBuilder(primaryBuilder: AnyBuilder, secondaryBuilder: AnyBuil
       // When the query is awaited (.then is called), execute both DBs
       if (prop === 'then') {
         return function(onFulfilled: FulfillFn | undefined, onRejected: RejectFn | undefined) {
-          // Fire secondary in background — do NOT await
-          if (secondaryBuilder && typeof secondaryBuilder['then'] === 'function') {
-            Promise.resolve(secondaryBuilder).catch((err: unknown) => {
+          // Fire secondary in background — skip when circuit breaker is open
+          if (secondaryBuilder && typeof secondaryBuilder['then'] === 'function' && !isSecondaryCircuitOpen()) {
+            Promise.resolve(secondaryBuilder).then(() => {
+              recordSecondarySuccess();
+            }).catch((err: unknown) => {
               const msg = (err as { message?: string }).message ?? String(err);
+              recordSecondaryFailure();
               console.warn('[DualWrite] Secondary DB write failed (ignored):', msg.slice(0, 120));
             });
           }

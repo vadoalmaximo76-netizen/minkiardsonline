@@ -258,6 +258,7 @@ const lastEventCounters = new Map<string, number>(); // Track eventCounter to sk
 // If a player disconnects during their turn, auto-skip after DISCONNECT_TURN_SKIP_MS
 const DISCONNECT_TURN_SKIP_MS = 30_000;
 const disconnectTurnTimers = new Map<string, NodeJS.Timeout>(); // key: `${gameId}:${playerName}`
+const timerResumeLastTs = new Map<string, number>(); // debounce: last resume ms per `${gameId}:${playerName}`
 
 // Daily challenge server-side session tracking: userId -> session data
 // Tracks how many battles the user won, cumulative turns and mosse played, server-authoritative
@@ -8611,6 +8612,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!gameState) return;
       const currentPlayer = gameState.turnOrder[gameState.currentTurnIndex];
       if (currentPlayer !== playerName) return; // Only resume for the current-turn player
+      // Debounce: ignore duplicate resumes within 300 ms (multiple sockets / rapid reconnect)
+      const debounceKey = `${gameId}:${playerName}`;
+      const lastTs = timerResumeLastTs.get(debounceKey) ?? 0;
+      const now = Date.now();
+      if (now - lastTs < 300) return;
+      timerResumeLastTs.set(debounceKey, now);
       console.log(`▶️ Client requested timer resume for ${playerName} in game ${gameId}`);
       gameManager.resumeTurnTimer(gameId, playerName);
     });
