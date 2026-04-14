@@ -1995,10 +1995,10 @@ export function StoryWorldMap({
         const lrs2 = leadersRef.current;
         const baseLeaders2 = lrs2.filter(l => !l.requiredFaction);
         if (baseLeaders2.length > 0) {
-          // Find the max orderIndex to identify the "final group" (e.g. stage 12: Bronx/Zody)
-          const maxOrdIdx = Math.max(...baseLeaders2.map(l => l.orderIndex));
+          // Find the max orderIndex across ALL leaders (including faction leaders like Bronx/Zody)
+          const maxOrdIdx = Math.max(...lrs2.map(l => l.orderIndex));
           const preFinalLeaders = baseLeaders2.filter(l => l.orderIndex < maxOrdIdx);
-          const firstFinalLeader = baseLeaders2.find(l => l.orderIndex === maxOrdIdx);
+          const firstFinalLeader = lrs2.find(l => l.orderIndex === maxOrdIdx);
           const firstFinalIdx = firstFinalLeader ? lrs2.indexOf(firstFinalLeader) : lrs2.length - 1;
           const [ambushAx, ambushAz] = getArenaPosition(firstFinalIdx >= 0 ? firstFinalIdx : lrs2.length - 1);
           const distToFinal = Math.sqrt((px2 - ambushAx) ** 2 + (pz2 - ambushAz) ** 2);
