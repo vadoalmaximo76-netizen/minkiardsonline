@@ -207,6 +207,44 @@ const TREE_DATA: { x: number; z: number; h: number; r: number }[] = [
   { x:  0, z:128, h:2.3, r:0.82 }, { x: 20, z:138, h:2.4, r:0.85 },
   { x: 35, z:125, h:2.2, r:0.80 }, { x:-30, z:148, h:2.5, r:0.88 },
   { x: 30, z:150, h:2.5, r:0.88 }, { x: -5, z:155, h:2.3, r:0.82 },
+  // ── BOSCO NORD-OVEST (x:-172 to -92, z:-200 to -72) dense forest ──
+  { x:-168, z:-78,  h:3.8, r:1.55 }, { x:-155, z:-82,  h:4.0, r:1.65 }, { x:-142, z:-78,  h:3.6, r:1.48 },
+  { x:-128, z:-82,  h:4.2, r:1.70 }, { x:-115, z:-80,  h:3.8, r:1.55 }, { x:-102, z:-78,  h:3.5, r:1.42 },
+  { x:-162, z:-95,  h:4.0, r:1.65 }, { x:-148, z:-92,  h:3.7, r:1.52 }, { x:-135, z:-96,  h:4.2, r:1.70 },
+  { x:-122, z:-92,  h:3.9, r:1.60 }, { x:-108, z:-90,  h:3.6, r:1.48 }, { x:-162, z:-90,  h:3.8, r:1.55 },
+  { x:-170, z:-110, h:4.0, r:1.65 }, { x:-158, z:-108, h:3.8, r:1.55 }, { x:-145, z:-112, h:4.2, r:1.72 },
+  { x:-132, z:-108, h:4.0, r:1.65 }, { x:-118, z:-110, h:3.7, r:1.52 }, { x:-105, z:-108, h:3.5, r:1.42 },
+  { x:-165, z:-125, h:4.2, r:1.70 }, { x:-152, z:-122, h:4.0, r:1.65 }, { x:-138, z:-125, h:3.8, r:1.55 },
+  { x:-125, z:-122, h:4.2, r:1.72 }, { x:-112, z:-125, h:3.9, r:1.60 }, { x:-100, z:-122, h:3.6, r:1.48 },
+  { x:-170, z:-140, h:4.0, r:1.65 }, { x:-158, z:-138, h:4.2, r:1.70 }, { x:-145, z:-142, h:3.8, r:1.55 },
+  { x:-130, z:-140, h:4.0, r:1.65 }, { x:-115, z:-142, h:4.2, r:1.72 }, { x:-100, z:-140, h:3.7, r:1.52 },
+  { x:-168, z:-158, h:4.2, r:1.70 }, { x:-154, z:-155, h:3.8, r:1.55 }, { x:-140, z:-158, h:4.0, r:1.65 },
+  { x:-125, z:-155, h:4.2, r:1.72 }, { x:-110, z:-158, h:3.9, r:1.60 }, { x:-165, z:-152, h:3.7, r:1.52 },
+  { x:-170, z:-172, h:4.0, r:1.65 }, { x:-155, z:-172, h:4.2, r:1.70 }, { x:-140, z:-174, h:3.8, r:1.55 },
+  { x:-126, z:-172, h:4.0, r:1.65 }, { x:-110, z:-175, h:4.2, r:1.72 }, { x:-168, z:-168, h:3.6, r:1.48 },
+  { x:-165, z:-188, h:4.2, r:1.70 }, { x:-150, z:-190, h:3.8, r:1.55 }, { x:-135, z:-188, h:4.0, r:1.65 },
+  { x:-120, z:-192, h:4.2, r:1.72 }, { x:-105, z:-188, h:3.7, r:1.52 }, { x:-158, z:-185, h:3.9, r:1.60 },
+  // ── CAMPAGNA OVEST orchards (sparse, x:-165 to -95, z:-68 to 15) ──
+  { x:-158, z:-62, h:2.2, r:0.78 }, { x:-148, z:-62, h:2.0, r:0.72 }, { x:-138, z:-62, h:2.2, r:0.78 },
+  { x:-128, z:-62, h:2.0, r:0.72 }, { x:-118, z:-62, h:2.2, r:0.78 }, { x:-108, z:-62, h:2.0, r:0.72 },
+  { x:-165, z:-42, h:2.4, r:0.82 }, { x:-150, z:-42, h:2.2, r:0.78 }, { x:-135, z:-42, h:2.4, r:0.82 },
+  { x:-120, z:-42, h:2.2, r:0.78 }, { x:-105, z:-42, h:2.4, r:0.82 },
+  { x:-162, z:-22, h:2.2, r:0.78 }, { x:-148, z:-22, h:2.4, r:0.82 }, { x:-133, z:-22, h:2.2, r:0.78 },
+  { x:-118, z:-22, h:2.4, r:0.82 }, { x:-103, z:-22, h:2.2, r:0.78 },
+  { x:-160, z:  0, h:2.0, r:0.72 }, { x:-145, z:  0, h:2.2, r:0.78 }, { x:-130, z:  0, h:2.0, r:0.72 },
+  { x:-115, z:  0, h:2.2, r:0.78 }, { x:-100, z:  0, h:2.0, r:0.72 },
+  // ── PIANURA RURALE poplars (slim, along field edges) ──
+  { x:-80, z:-155, h:3.2, r:0.50 }, { x:-60, z:-155, h:3.4, r:0.52 }, { x:-40, z:-155, h:3.2, r:0.50 },
+  { x:-20, z:-155, h:3.4, r:0.52 }, { x:  0, z:-155, h:3.2, r:0.50 }, { x: 20, z:-155, h:3.4, r:0.52 },
+  { x: 40, z:-155, h:3.2, r:0.50 }, { x: 60, z:-155, h:3.4, r:0.52 }, { x: 80, z:-155, h:3.2, r:0.50 },
+  { x:-80, z:-195, h:3.0, r:0.48 }, { x:-60, z:-195, h:3.2, r:0.50 }, { x:-40, z:-195, h:3.0, r:0.48 },
+  { x:-20, z:-195, h:3.2, r:0.50 }, { x: 20, z:-195, h:3.0, r:0.48 }, { x: 40, z:-195, h:3.2, r:0.50 },
+  { x: 60, z:-195, h:3.0, r:0.48 }, { x: 80, z:-195, h:3.2, r:0.50 },
+  // ── CAMPUS TECNOPOLIS: ornamental trees in rows ──
+  { x:100, z:-80,  h:2.5, r:0.75 }, { x:115, z:-80,  h:2.4, r:0.72 }, { x:130, z:-80,  h:2.6, r:0.78 },
+  { x:145, z:-80,  h:2.5, r:0.75 }, { x:160, z:-80,  h:2.4, r:0.72 }, { x:168, z:-80,  h:2.5, r:0.75 },
+  { x:100, z:-115, h:2.4, r:0.72 }, { x:115, z:-115, h:2.6, r:0.78 }, { x:145, z:-115, h:2.4, r:0.72 },
+  { x:160, z:-115, h:2.5, r:0.75 }, { x:100, z:-138, h:2.5, r:0.75 }, { x:165, z:-138, h:2.4, r:0.72 },
 ];
 
 const WATER_DATA: { x: number; z: number; r: number }[] = [
@@ -220,6 +258,12 @@ const WATER_DATA: { x: number; z: number; r: number }[] = [
   { x:  90, z:160,  r: 2.0 },  // Ingresso fountain est
   { x: -50, z:-105, r: 5.5 },  // Parco Grande pond
   { x:-140, z:-130, r: 4.5 },  // Porto Nord basin
+  // ── New rural / forest water bodies ───────────────────────────
+  { x:-148, z:-158, r: 7.5 },  // Lago Bosco (forest lake)
+  { x:-125, z:-190, r: 5.0 },  // Stagno Bosco (forest pond)
+  { x:  15, z:-180, r: 4.0 },  // Stagno Rurale (rural pond)
+  { x: -50, z:-175, r: 3.0 },  // Pozza Rurale (field puddle)
+  { x:-170, z: -32, r: 3.5 },  // Abbeveratoio Campagna (farm watering hole)
 ];
 
 /* ── City park flower beds (only in park + plaza areas) ─────── */
@@ -247,6 +291,16 @@ const FLOWER_DATA: { x:number; z:number; r:number; color:string }[] = [
   // Parco Ingresso flower beds
   { x:-32, z:128, r:1.6, color:'#ff6b9d' }, { x: 32, z:132, r:1.6, color:'#fbbf24' },
   { x: -8, z:148, r:1.8, color:'#a78bfa' }, { x:  8, z:148, r:1.8, color:'#4ade80' },
+  // ── Campagna Ovest wildflowers (for butterflies) ─────────────
+  { x:-142, z:-32, r:2.0, color:'#f97316' }, { x:-148, z: -5, r:1.8, color:'#a78bfa' },
+  { x:-128, z:-46, r:2.0, color:'#fbbf24' }, { x:-155, z: 10, r:1.8, color:'#f97316' },
+  { x:-135, z:-56, r:2.0, color:'#34d399' }, { x:-160, z:-20, r:1.8, color:'#60a5fa' },
+  { x:-168, z:-48, r:1.6, color:'#fbbf24' }, { x:-110, z:-30, r:1.8, color:'#ff6b9d' },
+  // ── Pianura Rurale wildflowers ────────────────────────────────
+  { x: -30, z:-175, r:2.2, color:'#fbbf24' }, { x:  20, z:-185, r:2.0, color:'#a78bfa' },
+  { x:  60, z:-165, r:1.8, color:'#f97316' }, { x: -60, z:-170, r:1.6, color:'#34d399' },
+  { x:  80, z:-190, r:2.0, color:'#ff6b9d' }, { x: -80, z:-190, r:1.8, color:'#60a5fa' },
+  { x:  40, z:-152, r:1.6, color:'#fbbf24' }, { x:-20, z:-162, r:2.0, color:'#f97316' },
 ];
 
 /* ── Park benches (Z-sorted sprites) ────────────────────────── */
@@ -283,8 +337,8 @@ const BENCH_DATA: { x:number; z:number; rot:number }[] = [
   { x: -5, z:152, rot: 1.5 }, { x:  5, z:145, rot: 1.5 },
 ];
 
-/* ── Park paths / gravel trails (drawn before sprites) ───────── */
-const PARK_PATH_DATA: { x1:number; z1:number; x2:number; z2:number; w:number }[] = [
+/* ── Park paths / gravel trails + rural dirt sentieri ────────── */
+const PARK_PATH_DATA: { x1:number; z1:number; x2:number; z2:number; w:number; dirt?:boolean }[] = [
   // Main park trail (N-S spine)
   { x1:-45, z1: -78, x2:-45, z2:-135, w: 2.5 },
   // Cross trails
@@ -307,6 +361,28 @@ const PARK_PATH_DATA: { x1:number; z1:number; x2:number; z2:number; w:number }[]
   { x1:-40, z1:122, x2: 40, z2:122, w: 2.0 },
   { x1:  0, z1:122, x2:  0, z2:158, w: 2.5 },
   { x1:-40, z1:150, x2: 40, z2:150, w: 2.0 },
+  // ── Sentieri di terra battuta (Campagna Ovest, Bosco, Pianura Rurale) ──
+  // Campagna Ovest: E-W boundary trail
+  { x1:-165, z1:-68, x2: -95, z2:-68, w: 2.5, dirt:true },
+  // Campagna Ovest: N-S spine trail
+  { x1:-132, z1:-68, x2:-130, z2: 15, w: 2.5, dirt:true },
+  // Campagna Ovest: cross sentiero
+  { x1:-165, z1:-20, x2:-130, z2:-20, w: 2.0, dirt:true },
+  { x1:-130, z1:-45, x2:-165, z2:-45, w: 2.0, dirt:true },
+  // Bosco entrata
+  { x1: -92, z1: -72, x2: -92, z2:-145, w: 2.0, dirt:true },
+  // Bosco sentieri interni
+  { x1:-145, z1:-100, x2: -92, z2:-100, w: 1.8, dirt:true },
+  { x1:-155, z1:-150, x2:-108, z2:-130, w: 1.8, dirt:true },
+  { x1:-120, z1:-145, x2:-120, z2:-200, w: 2.0, dirt:true },
+  // Pianura Rurale: pista principale N-S
+  { x1:   0, z1:-145, x2:   0, z2:-200, w: 3.0, dirt:true },
+  // Pianura Rurale: E-W tracks
+  { x1: -90, z1:-160, x2:  90, z2:-160, w: 2.5, dirt:true },
+  { x1: -90, z1:-185, x2: 170, z2:-185, w: 2.0, dirt:true },
+  // Campus: viali alberati
+  { x1:  95, z1:-145, x2: 170, z2:-145, w: 2.5 },
+  { x1: 130, z1:-145, x2: 130, z2: -72, w: 2.5 },
 ];
 
 const LAMP_DATA: { x:number; z:number }[] = [
@@ -342,7 +418,7 @@ const LAMP_DATA: { x:number; z:number }[] = [
 ];
 
 /* ── City buildings ──────────────────────────────────────────── */
-type BuildingType = 'house' | 'shop' | 'inn' | 'tower' | 'ruin' | 'church' | 'arcade';
+type BuildingType = 'house' | 'shop' | 'inn' | 'tower' | 'ruin' | 'church' | 'arcade' | 'farm' | 'barn';
 const BUILDING_DATA: { x: number; z: number; type: BuildingType; w: number; h: number }[] = [
   // ── INGRESSO DISTRICT (z: 120-200) ──────────────────────────────
   { x:-22, z:185, type:'church', w:3.5, h:3.2 }, { x: 22, z:185, type:'tower',  w:2.5, h:3.5 },
@@ -423,19 +499,12 @@ const BUILDING_DATA: { x: number; z: number; type: BuildingType; w: number; h: n
   { x:-65, z:-55, type:'house',  w:2.4, h:2.2 }, { x: 65, z:-55, type:'house',  w:2.4, h:2.2 },
   { x:  0, z:-60, type:'church', w:4.0, h:4.0 },
   { x:-78, z:-62, type:'ruin',   w:2.2, h:1.8 }, { x: 78, z:-62, type:'ruin',   w:2.2, h:1.8 },
-  // ── INDUSTRIALE (x: -170 to -80, z: -70 to 30) ─────────────────
-  { x: -95, z: 22, type:'ruin',  w:4.0, h:2.0 }, { x:-115, z: 18, type:'ruin',  w:4.5, h:1.8 },
-  { x:-138, z: 15, type:'ruin',  w:4.0, h:2.0 }, { x:-158, z: 12, type:'house', w:2.4, h:1.8 },
-  { x: -95, z:  5, type:'tower', w:3.5, h:2.5 }, { x:-115, z:  2, type:'ruin',  w:4.5, h:2.0 },
-  { x:-138, z: -2, type:'ruin',  w:4.0, h:1.8 }, { x:-162, z: -5, type:'ruin',  w:3.5, h:1.8 },
-  { x: -98, z:-12, type:'ruin',  w:4.5, h:2.2 }, { x:-120, z:-15, type:'tower', w:3.0, h:3.0 },
-  { x:-142, z:-18, type:'ruin',  w:4.0, h:1.8 }, { x:-162, z:-22, type:'ruin',  w:3.5, h:1.8 },
-  { x: -98, z:-30, type:'ruin',  w:4.5, h:2.0 }, { x:-118, z:-32, type:'ruin',  w:4.0, h:1.8 },
-  { x:-140, z:-35, type:'tower', w:3.0, h:3.5 }, { x:-162, z:-38, type:'ruin',  w:3.5, h:1.8 },
-  { x:-100, z:-48, type:'ruin',  w:4.0, h:2.0 }, { x:-120, z:-50, type:'ruin',  w:4.5, h:1.8 },
-  { x:-142, z:-52, type:'ruin',  w:4.0, h:1.8 }, { x:-162, z:-55, type:'ruin',  w:3.5, h:1.6 },
-  { x:-100, z:-62, type:'house', w:2.4, h:1.8 }, { x:-120, z:-64, type:'ruin',  w:4.0, h:1.8 },
-  { x:-145, z:-62, type:'tower', w:3.0, h:2.8 }, { x:-165, z:-65, type:'ruin',  w:3.2, h:1.8 },
+  // ── CAMPAGNA OVEST (x: -170 to -92, z: -72 to 18) ──────────────
+  { x:-115, z: 18, type:'farm',  w:4.0, h:2.8 }, { x:-155, z: 14, type:'barn',  w:4.5, h:3.0 },
+  { x:-138, z:  5, type:'farm',  w:3.8, h:2.6 }, { x:-162, z:  2, type:'barn',  w:4.0, h:2.8 },
+  { x:-120, z:-15, type:'farm',  w:4.2, h:3.0 }, { x:-155, z:-18, type:'barn',  w:4.0, h:2.8 },
+  { x:-138, z:-38, type:'farm',  w:3.8, h:2.6 }, { x:-162, z:-40, type:'barn',  w:4.5, h:3.0 },
+  { x:-118, z:-55, type:'farm',  w:4.0, h:2.8 }, { x:-155, z:-58, type:'barn',  w:4.2, h:3.0 },
   // ── DISTRETTO NORD (x: -170 to 170, z: -200 to -70) ────────────
   { x: -45, z: -82, type:'house',  w:1.6, h:1.4 }, { x: -65, z: -88, type:'shop',   w:1.8, h:1.5 },
   { x: -30, z: -95, type:'house',  w:1.6, h:1.4 }, { x: -55, z:-105, type:'house',  w:1.6, h:1.4 },
@@ -485,6 +554,8 @@ const BUILDING_COLORS: Record<BuildingType, { body: string; roof: string }> = {
   ruin:   { body: '#7a7060', roof: '#4a4030' },
   church: { body: '#f0e8d0', roof: '#c04040' },
   arcade: { body: '#2d1a4e', roof: '#7c3aed' },
+  farm:   { body: '#d4b878', roof: '#8b5a1a' },
+  barn:   { body: '#c87840', roof: '#6b2a10' },
 };
 
 /* ── Arcade mini-game buildings ─────────────────────────────── */
@@ -506,26 +577,23 @@ const ARCADE_BUILDINGS: ArcadeBuilding[] = [
   { id: 'rps',      name: 'Sasso Carta Forbice',  emoji: '✂️', x:  55, z:-130, color: '#ec4899' },
 ];
 
-/* ── City roads ──────────────────────────────────────────────── */
+/* ── City roads (only in urban zones: Centro, Porto, Ingresso, Residenziale) ── */
 const ROAD_DATA: { x1:number; z1:number; x2:number; z2:number; w:number }[] = [
-  // Main avenues (vertical N-S)
-  { x1:  0, z1:-200, x2:  0, z2:200, w:6   },  // Corso Principale
-  { x1: 90, z1:-160, x2: 90, z2:160, w:5   },  // Viale Est
-  { x1:-90, z1:-160, x2:-90, z2:160, w:5   },  // Viale Ovest
+  // Main avenues (vertical N-S) — urban sections only
+  { x1:  0, z1: -72, x2:  0, z2:200, w:6   },  // Corso Principale (urban section)
+  { x1: 90, z1: -72, x2: 90, z2:160, w:5   },  // Viale Est (urban section)
+  { x1:-90, z1: -72, x2:-90, z2:160, w:5   },  // Viale Ovest (urban section)
   { x1:150, z1: -80, x2:150, z2:180, w:4   },  // Via del Porto
-  { x1:-150,z1: -80, x2:-150,z2:100, w:4   },  // Via Industriale
-  // Cross streets (horizontal E-W)
+  // Cross streets (horizontal E-W) — urban only
   { x1:-90, z1:160, x2: 90, z2:160, w:5.5 },   // Via Sud Grande
-  { x1:-160,z1: 90, x2: 90, z2: 90, w:5   },   // Via Commerciale Ovest
+  { x1:-90, z1: 90, x2: 90, z2: 90, w:5   },   // Via Commerciale (urban)
   { x1: 90, z1: 90, x2:170, z2: 90, w:4   },   // Via Commerciale Est
-  { x1:-170,z1: 15, x2:170, z2: 15, w:6   },   // Via del Centro
-  { x1:-170,z1:-60, x2:170, z2:-60, w:5   },   // Via Nord
-  { x1:-150,z1:-120,x2:170, z2:-120,w:4.5 },   // Via Parco
-  { x1:-90, z1:-170,x2: 90, z2:-170,w:4   },   // Via Finale
-  // Secondary streets
+  { x1:-90, z1: 15, x2:170, z2: 15, w:6   },   // Via del Centro (urban)
+  { x1:-90, z1:-60, x2:170, z2:-60, w:5   },   // Via Nord (urban)
+  { x1:  5, z1:-120, x2:170, z2:-120,w:4.5 },  // Via Parco (campus/porto only)
+  // Secondary streets (urban only)
   { x1:-90, z1:  0, x2:  0, z2:  0, w:3   },
   { x1:  0, z1:  0, x2: 90, z2:  0, w:3   },
-  { x1:-170,z1:-30, x2:-90, z2:-30, w:3   },
   { x1:-90, z1:-90, x2:  0, z2:-90, w:3.5 },
   { x1:  0, z1:-90, x2: 90, z2:-90, w:3.5 },
   { x1: 90, z1:-60, x2:170, z2:-60, w:3.5 },
@@ -536,9 +604,6 @@ const ROAD_DATA: { x1:number; z1:number; x2:number; z2:number; w:number }[] = [
   { x1:-90, z1:120, x2:-30, z2:120, w:3   },
   { x1:-30, z1:120, x2:  0, z2:120, w:3   },
   { x1:  0, z1:-120,x2:  0, z2:-60, w:3.5 },
-  { x1:  0, z1:-170,x2:  0, z2:-120,w:3.5 },
-  { x1:-90, z1:-145,x2:  0, z2:-145,w:3.5 },
-  { x1:  0, z1:-145,x2: 90, z2:-145,w:3.5 },
 ];
 
 /* ── Urban canal / river strips ─────────────────────────────── */
@@ -606,19 +671,96 @@ const TRAFFIC_LIGHT_DATA: { x:number; z:number }[] = [
   { x:  4, z:157 }, { x: -4, z:157 }, { x:  4, z:163 }, { x: -4, z:163 },
 ];
 
+/* ── Rural river / stream segments (animated water flow) ─────── */
+const RIVER_DATA: { x1:number; z1:number; x2:number; z2:number; w:number; color:string }[] = [
+  // Ruscello Campagna Ovest (flows N→S along x≈-132)
+  { x1:-135, z1:-68, x2:-132, z2: 18, w:3.0, color:'#2a8ad4' },
+  // Affluente bosco → campagna
+  { x1:-152, z1:-145, x2:-135, z2:-68, w:2.5, color:'#2278c0' },
+  // Ruscello interno Bosco (x≈-118)
+  { x1:-120, z1:-200, x2:-118, z2:-145, w:2.0, color:'#1e6eb8' },
+  // Rivolo Pianura Rurale
+  { x1: -20, z1:-200, x2: -18, z2:-160, w:2.0, color:'#3090d0' },
+];
+
+/* ── Flying birds (day only, pre-computed trajectories) ─────── */
+type BirdDef = { wx: number; wz: number; dx: number; dz: number; speed: number; phase: number; flapOffset: number };
+const BIRD_DATA: BirdDef[] = [
+  // Flock 1: heading east over Campagna/Residenziale
+  { wx:-185, wz: 55, dx: 0.80, dz: 0.05, speed:0.022, phase:0.00, flapOffset:0.0 },
+  { wx:-185, wz: 53, dx: 0.80, dz: 0.05, speed:0.020, phase:0.12, flapOffset:0.2 },
+  { wx:-185, wz: 57, dx: 0.78, dz: 0.06, speed:0.018, phase:0.25, flapOffset:0.4 },
+  // Flock 2: heading west over Bosco
+  { wx: 185, wz:-95, dx:-0.85, dz:-0.10, speed:0.020, phase:0.50, flapOffset:0.1 },
+  { wx: 185, wz:-93, dx:-0.85, dz:-0.08, speed:0.018, phase:0.60, flapOffset:0.3 },
+  { wx: 185, wz:-97, dx:-0.82, dz:-0.10, speed:0.016, phase:0.70, flapOffset:0.5 },
+  // Solo birds over Pianura Rurale
+  { wx:-185, wz:-162, dx: 0.90, dz: 0.12, speed:0.028, phase:0.30, flapOffset:0.0 },
+  { wx: 185, wz: -25, dx:-0.78, dz:-0.05, speed:0.025, phase:0.80, flapOffset:0.6 },
+];
+
+/* ── Butterflies (Campagna Ovest + Pianura Rurale) ───────────── */
+type ButterflyDef = { cx: number; cz: number; orbitR: number; speed: number; phase: number; color: string };
+const BUTTERFLY_DATA: ButterflyDef[] = [
+  { cx:-142, cz:-32, orbitR:3.5, speed:0.55, phase:0.00, color:'#f97316' },
+  { cx:-148, cz: -5, orbitR:2.8, speed:0.72, phase:0.52, color:'#a78bfa' },
+  { cx:-128, cz:-46, orbitR:3.2, speed:0.48, phase:0.28, color:'#fbbf24' },
+  { cx:-155, cz: 10, orbitR:2.5, speed:0.68, phase:0.75, color:'#f97316' },
+  { cx:-135, cz:-56, orbitR:3.0, speed:0.58, phase:0.10, color:'#34d399' },
+  { cx:-160, cz:-20, orbitR:2.6, speed:0.82, phase:0.65, color:'#60a5fa' },
+  { cx:-110, cz:-30, orbitR:2.8, speed:0.50, phase:0.40, color:'#ff6b9d' },
+  { cx: -30, cz:-175, orbitR:3.0, speed:0.60, phase:0.20, color:'#fbbf24' },
+  { cx:  20, cz:-185, orbitR:2.5, speed:0.70, phase:0.85, color:'#a78bfa' },
+  { cx:  60, cz:-165, orbitR:2.8, speed:0.55, phase:0.35, color:'#34d399' },
+];
+
+/* ── Farm animals / sheep (Campagna Ovest) ───────────────────── */
+type FarmAnimalDef = { x: number; z: number; wanderR: number; phase: number; speed: number };
+const FARM_ANIMAL_DATA: FarmAnimalDef[] = [
+  { x:-138, z:-42, wanderR:5, phase:0.00, speed:0.08 },
+  { x:-148, z:-35, wanderR:4, phase:0.40, speed:0.07 },
+  { x:-125, z:-52, wanderR:5, phase:0.80, speed:0.09 },
+  { x:-155, z:-10, wanderR:5, phase:0.20, speed:0.06 },
+  { x:-135, z:  2, wanderR:4, phase:0.60, speed:0.08 },
+  { x:-160, z:-55, wanderR:3, phase:0.90, speed:0.07 },
+  { x:-112, z: -8, wanderR:4, phase:0.15, speed:0.08 },
+  { x:-168, z:-30, wanderR:5, phase:0.55, speed:0.07 },
+];
+
+/* ── Windmill (Pianura Rurale) ───────────────────────────────── */
+const WINDMILL_DATA: { x: number; z: number }[] = [
+  { x: 35, z:-185 },
+];
+
+/* ── Waving grass strips (Campagna Ovest + Pianura Rurale) ───── */
+const GRASS_STRIP_DATA: { x: number; z: number; angle: number }[] = [
+  // Campagna Ovest grass strips
+  { x:-168, z:-55, angle: 0.2 }, { x:-150, z:-30, angle:-0.1 }, { x:-140, z: -8, angle: 0.3 },
+  { x:-125, z:-62, angle:-0.2 }, { x:-105, z:-15, angle: 0.1 }, { x:-160, z:  8, angle:-0.3 },
+  // Pianura Rurale grass strips
+  { x: -70, z:-152, angle: 0.2 }, { x: -40, z:-168, angle:-0.1 }, { x: -10, z:-175, angle: 0.3 },
+  { x:  30, z:-165, angle:-0.2 }, { x:  65, z:-175, angle: 0.1 }, { x:  90, z:-158, angle:-0.3 },
+  { x: 120, z:-165, angle: 0.2 }, { x: 150, z:-175, angle:-0.1 },
+  // Bosco undergrowth (dark tones)
+  { x:-155, z:-88, angle: 0.4 }, { x:-138, z:-102, angle:-0.3 }, { x:-168, z:-130, angle: 0.2 },
+  { x:-112, z:-135, angle:-0.2 }, { x:-145, z:-170, angle: 0.3 },
+];
+
 /* ── District zones for background coloring ─────────────────── */
 const DISTRICT_DATA: { x1:number; z1:number; x2:number; z2:number; color:string }[] = [
-  { x1: -92, z1: 112, x2:  92, z2:200, color:'#253a28' },  // INGRESSO
-  { x1:-172, z1:  18, x2: -12, z2:112, color:'#1e2a3a' },  // RESIDENZIALE
-  { x1:  18, z1: -12, x2: 172, z2:162, color:'#1a2235' },  // PORTO EST
-  { x1: -92, z1: -72, x2:  92, z2: 18, color:'#282828' },  // CENTRO
-  { x1:-172, z1: -72, x2: -92, z2: 18, color:'#221a10' },  // INDUSTRIALE
-  { x1: -82, z1:-145, x2:   5, z2:-72, color:'#1a2e1a' },  // PARCO GRANDE (expanded)
-  { x1:-172, z1:-200, x2: 172, z2:-72, color:'#1e1e30' },  // NORD
-  // ── Giardini sovrapposti ai distretti urbani ───────────────────
-  { x1:-172, z1:  32, x2:-110, z2:  98, color:'#183518' },  // GIARDINO OVEST (sopra industriale)
-  { x1: 108, z1: -78, x2: 172, z2:  -8, color:'#1c3820' },  // GIARDINO EST (sopra porto)
-  { x1: -42, z1: 118, x2:  42, z2: 160, color:'#253a28' },  // PARCO INGRESSO (centro ingresso)
+  { x1: -92, z1: 112, x2:  92, z2:200, color:'#253a28' },  // 0 INGRESSO
+  { x1:-172, z1:  18, x2: -12, z2:112, color:'#1e2a3a' },  // 1 BORGO RESIDENZIALE
+  { x1:  18, z1: -12, x2: 172, z2:162, color:'#1a2235' },  // 2 PORTO EST
+  { x1: -92, z1: -72, x2:  92, z2: 18, color:'#282828' },  // 3 CENTRO
+  { x1:-172, z1: -72, x2: -92, z2: 18, color:'#2e4a18' },  // 4 CAMPAGNA OVEST
+  { x1: -82, z1:-145, x2:   5, z2:-72, color:'#1a2e1a' },  // 5 PARCO GRANDE
+  { x1:-172, z1:-200, x2: -92, z2:-72, color:'#0c1e08' },  // 6 BOSCO NORD-OVEST
+  { x1: -92, z1:-200, x2: 172, z2:-145, color:'#364222' }, // 7 PIANURA RURALE
+  { x1:  92, z1:-145, x2: 172, z2: -72, color:'#1a2832' }, // 8 CAMPUS TECNOPOLIS
+  // ── Giardini sovrapposti ai distretti ─────────────────────────
+  { x1:-172, z1:  32, x2:-110, z2:  98, color:'#183518' },  // 9 GIARDINO OVEST
+  { x1: 108, z1: -78, x2: 172, z2:  -8, color:'#1c3820' },  // 10 GIARDINO EST
+  { x1: -42, z1: 118, x2:  42, z2: 160, color:'#253a28' },  // 11 PARCO INGRESSO
 ];
 
 /* ── Bridge decorations ──────────────────────────────────────── */
@@ -744,9 +886,11 @@ function Minimap({ playerRef, arenaPositions, leaders, getLeaderStatus, localiti
         '#1e2a3a': 'rgba(30,42,58,0.7)',
         '#1a2235': 'rgba(26,34,53,0.7)',
         '#282828': 'rgba(40,40,40,0.7)',
-        '#221a10': 'rgba(34,26,16,0.7)',
+        '#2e4a18': 'rgba(46,74,24,0.8)',    // CAMPAGNA OVEST
         '#1a2e1a': 'rgba(26,46,26,0.7)',
-        '#1e1e30': 'rgba(30,30,48,0.7)',
+        '#0c1e08': 'rgba(12,30,8,0.88)',    // BOSCO NORD-OVEST
+        '#364222': 'rgba(54,66,34,0.75)',   // PIANURA RURALE
+        '#1a2832': 'rgba(26,40,50,0.75)',   // CAMPUS TECNOPOLIS
         '#183518': 'rgba(24,53,24,0.85)',
         '#1c3820': 'rgba(28,56,32,0.85)',
       };
@@ -2118,16 +2262,18 @@ export function StoryWorldMap({
 
       /* District style config: [base, accent, grid] */
       const DISTRICT_STYLES = [
-        /* 0 INGRESSO      */ { base:'#c4a97d', accent:'#b8946a', grid:'rgba(0,0,0,0.08)', pattern:'cobble' },
-        /* 1 RESIDENZIALE  */ { base:'#8b5e3c', accent:'#7a5232', grid:'rgba(0,0,0,0.10)', pattern:'brick'  },
-        /* 2 PORTO EST     */ { base:'#4a5568', accent:'#3d4a5c', grid:'rgba(0,0,0,0.12)', pattern:'dock'   },
-        /* 3 CENTRO        */ { base:'#7a7570', accent:'#6e6b65', grid:'rgba(0,0,0,0.08)', pattern:'stone'  },
-        /* 4 INDUSTRIALE   */ { base:'#3a3530', accent:'#2d2a26', grid:'rgba(0,0,0,0.14)', pattern:'cement' },
-        /* 5 PARCO GRANDE  */ { base:'#3d7a32', accent:'#2e6024', grid:'rgba(0,0,0,0.06)', pattern:'grass'  },
-        /* 6 NORD          */ { base:'#5a6070', accent:'#4a5060', grid:'rgba(0,0,0,0.10)', pattern:'stone'  },
-        /* 7 GIARDINO OVEST*/ { base:'#2e6e28', accent:'#245a1f', grid:'rgba(0,0,0,0.06)', pattern:'grass'  },
-        /* 8 GIARDINO EST  */ { base:'#306830', accent:'#265825', grid:'rgba(0,0,0,0.06)', pattern:'grass'  },
-        /* 9 PARCO INGRESSO*/ { base:'#3a7a35', accent:'#2e6428', grid:'rgba(0,0,0,0.06)', pattern:'grass'  },
+        /* 0  INGRESSO          */ { base:'#c4a97d', accent:'#b8946a', grid:'rgba(0,0,0,0.08)', pattern:'cobble'  },
+        /* 1  BORGO RESIDENZIALE*/ { base:'#8b5e3c', accent:'#7a5232', grid:'rgba(0,0,0,0.10)', pattern:'brick'   },
+        /* 2  PORTO EST         */ { base:'#4a5568', accent:'#3d4a5c', grid:'rgba(0,0,0,0.12)', pattern:'dock'    },
+        /* 3  CENTRO            */ { base:'#7a7570', accent:'#6e6b65', grid:'rgba(0,0,0,0.08)', pattern:'stone'   },
+        /* 4  CAMPAGNA OVEST    */ { base:'#5a7a30', accent:'#4a6822', grid:'rgba(0,0,0,0.05)', pattern:'meadow'  },
+        /* 5  PARCO GRANDE      */ { base:'#3d7a32', accent:'#2e6024', grid:'rgba(0,0,0,0.06)', pattern:'grass'   },
+        /* 6  BOSCO NORD-OVEST  */ { base:'#1a3810', accent:'#122808', grid:'rgba(0,0,0,0.04)', pattern:'forest'  },
+        /* 7  PIANURA RURALE    */ { base:'#6a7840', accent:'#586232', grid:'rgba(0,0,0,0.06)', pattern:'field'   },
+        /* 8  CAMPUS TECNOPOLIS */ { base:'#3a4858', accent:'#2e3a48', grid:'rgba(0,0,0,0.10)', pattern:'stone'   },
+        /* 9  GIARDINO OVEST    */ { base:'#2e6e28', accent:'#245a1f', grid:'rgba(0,0,0,0.06)', pattern:'grass'   },
+        /* 10 GIARDINO EST      */ { base:'#306830', accent:'#265825', grid:'rgba(0,0,0,0.06)', pattern:'grass'   },
+        /* 11 PARCO INGRESSO    */ { base:'#3a7a35', accent:'#2e6428', grid:'rgba(0,0,0,0.06)', pattern:'grass'   },
       ];
       DISTRICT_DATA.forEach((d, di) => {
         const [x1s, y1s] = w2s(d.x1, d.z1);
@@ -2229,6 +2375,67 @@ export function StoryWorldMap({
             const px2 = rx + ((i * 41 + 7) % rw2); const py2 = ry + ((i * 29 + 3) % rh2);
             ctx.beginPath(); ctx.ellipse(px2, py2, TILE * 2.5, TILE * 1.5, 0, 0, Math.PI * 2);
             ctx.fill();
+          }
+        } else if (sty.pattern === 'meadow') {
+          /* Meadow: irregular grass clumps + wildflower dots */
+          ctx.fillStyle = 'rgba(100,160,50,0.14)';
+          for (let i = 0; i < 20; i++) {
+            const mx = rx + ((i * 47 + 13) % Math.max(1, rw2));
+            const my = ry + ((i * 31 + 7)  % Math.max(1, rh2));
+            ctx.beginPath(); ctx.ellipse(mx, my, TILE * 3.0, TILE * 1.8, (i * 0.4), 0, Math.PI * 2);
+            ctx.fill();
+          }
+          /* small wildflower dots */
+          const fdots = ['rgba(255,200,60,0.35)','rgba(230,100,160,0.30)','rgba(100,200,255,0.28)'];
+          for (let i = 0; i < 18; i++) {
+            const fx3 = rx + ((i * 53 + 19) % Math.max(1, rw2));
+            const fy3 = ry + ((i * 37 + 11) % Math.max(1, rh2));
+            ctx.fillStyle = fdots[i % 3];
+            ctx.beginPath(); ctx.arc(fx3, fy3, 2.5, 0, Math.PI * 2); ctx.fill();
+          }
+          /* subtle ploughing lines */
+          ctx.strokeStyle = 'rgba(0,0,0,0.07)'; ctx.lineWidth = 0.8;
+          for (let gy = ry; gy < ry + rh2; gy += TILE * 2.5) {
+            ctx.beginPath(); ctx.moveTo(rx, gy); ctx.lineTo(rx + rw2, gy); ctx.stroke();
+          }
+        } else if (sty.pattern === 'forest') {
+          /* Forest: dark canopy patches + dense texture */
+          ctx.fillStyle = 'rgba(0,30,0,0.20)';
+          for (let i = 0; i < 25; i++) {
+            const fx3 = rx + ((i * 43 + 11) % Math.max(1, rw2));
+            const fy3 = ry + ((i * 29 + 7)  % Math.max(1, rh2));
+            ctx.beginPath();
+            ctx.ellipse(fx3, fy3, TILE * 3.5, TILE * 2.5, i * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          /* dappled light spots */
+          ctx.fillStyle = 'rgba(80,160,40,0.12)';
+          for (let i = 0; i < 12; i++) {
+            const fx3 = rx + ((i * 61 + 23) % Math.max(1, rw2));
+            const fy3 = ry + ((i * 41 + 5)  % Math.max(1, rh2));
+            ctx.beginPath(); ctx.arc(fx3, fy3, TILE * 1.2, 0, Math.PI * 2); ctx.fill();
+          }
+        } else if (sty.pattern === 'field') {
+          /* Field: horizontal crop rows with alternating tones */
+          const rowH = TILE * 1.4;
+          for (let gy = ry; gy < ry + rh2; gy += rowH) {
+            const rowIdx = Math.round(gy / rowH);
+            ctx.fillStyle = (rowIdx % 2 === 0)
+              ? 'rgba(100,130,50,0.10)'
+              : 'rgba(140,170,70,0.12)';
+            ctx.fillRect(rx, gy, rw2, rowH);
+          }
+          /* furrow lines */
+          ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 0.7;
+          for (let gy = ry; gy < ry + rh2; gy += rowH) {
+            ctx.beginPath(); ctx.moveTo(rx, gy); ctx.lineTo(rx + rw2, gy); ctx.stroke();
+          }
+          /* occasional boulder / shrub dots */
+          ctx.fillStyle = 'rgba(100,80,40,0.15)';
+          for (let i = 0; i < 6; i++) {
+            const fx3 = rx + ((i * 71 + 17) % Math.max(1, rw2));
+            const fy3 = ry + ((i * 53 + 13) % Math.max(1, rh2));
+            ctx.beginPath(); ctx.arc(fx3, fy3, 3.5, 0, Math.PI * 2); ctx.fill();
           }
         }
         ctx.restore();
@@ -2473,7 +2680,7 @@ export function StoryWorldMap({
         ctx.fillStyle = '#fde68a'; ctx.fill();
       });
 
-      /* 4b. Park gravel paths */
+      /* 4b. Park gravel paths + rural dirt sentieri */
       PARK_PATH_DATA.forEach(pp => {
         const isVert = Math.abs(pp.x2 - pp.x1) < 0.1;
         let ppx1: number, ppy1: number, ppx2: number, ppy2: number;
@@ -2486,19 +2693,100 @@ export function StoryWorldMap({
         }
         const ppw = Math.abs(ppx2 - ppx1), pph = Math.abs(ppy2 - ppy1);
         const pprx = Math.min(ppx1, ppx2), ppry = Math.min(ppy1, ppy2);
-        /* gravel base */
-        ctx.fillStyle = '#c8b98a';
-        ctx.fillRect(pprx, ppry, ppw, pph);
-        /* gravel texture dots */
-        ctx.fillStyle = 'rgba(100,80,50,0.18)';
-        for (let gi = 0; gi < 5; gi++) {
-          const gx2 = pprx + ((gi * 17 + 3) % Math.max(1, ppw));
-          const gy2 = ppry + ((gi * 13 + 7) % Math.max(1, pph));
-          ctx.beginPath(); ctx.arc(gx2, gy2, 1.5, 0, Math.PI * 2); ctx.fill();
+        if (pp.dirt) {
+          /* dirt track: earthy brown, rougher texture */
+          ctx.fillStyle = '#a07848';
+          ctx.fillRect(pprx, ppry, ppw, pph);
+          /* dirt texture irregularities */
+          ctx.fillStyle = 'rgba(70,45,20,0.22)';
+          for (let gi = 0; gi < 8; gi++) {
+            const gx2 = pprx + ((gi * 23 + 5) % Math.max(1, ppw));
+            const gy2 = ppry + ((gi * 17 + 3) % Math.max(1, pph));
+            ctx.beginPath(); ctx.ellipse(gx2, gy2, 3.5, 2.0, gi * 0.4, 0, Math.PI * 2); ctx.fill();
+          }
+          ctx.strokeStyle = 'rgba(60,35,10,0.28)'; ctx.lineWidth = 0.8;
+          ctx.strokeRect(pprx, ppry, ppw, pph);
+        } else {
+          /* gravel base */
+          ctx.fillStyle = '#c8b98a';
+          ctx.fillRect(pprx, ppry, ppw, pph);
+          /* gravel texture dots */
+          ctx.fillStyle = 'rgba(100,80,50,0.18)';
+          for (let gi = 0; gi < 5; gi++) {
+            const gx2 = pprx + ((gi * 17 + 3) % Math.max(1, ppw));
+            const gy2 = ppry + ((gi * 13 + 7) % Math.max(1, pph));
+            ctx.beginPath(); ctx.arc(gx2, gy2, 1.5, 0, Math.PI * 2); ctx.fill();
+          }
+          /* edge */
+          ctx.strokeStyle = 'rgba(80,60,30,0.35)'; ctx.lineWidth = 1;
+          ctx.strokeRect(pprx, ppry, ppw, pph);
         }
-        /* edge */
-        ctx.strokeStyle = 'rgba(80,60,30,0.35)'; ctx.lineWidth = 1;
-        ctx.strokeRect(pprx, ppry, ppw, pph);
+      });
+
+      /* 4c. Rural rivers and streams */
+      RIVER_DATA.forEach(rv => {
+        const isVert = Math.abs(rv.x2 - rv.x1) < 0.1;
+        let rx1s: number, ry1s: number, rx2s: number, ry2s: number;
+        if (isVert) {
+          [rx1s, ry1s] = w2s(rv.x1 - rv.w / 2, Math.min(rv.z1, rv.z2));
+          [rx2s, ry2s] = w2s(rv.x1 + rv.w / 2, Math.max(rv.z1, rv.z2));
+        } else {
+          [rx1s, ry1s] = w2s(Math.min(rv.x1, rv.x2), rv.z1 - rv.w / 2);
+          [rx2s, ry2s] = w2s(Math.max(rv.x1, rv.x2), rv.z1 + rv.w / 2);
+        }
+        const rvW = Math.abs(rx2s - rx1s), rvH = Math.abs(ry2s - ry1s);
+        const rvX = Math.min(rx1s, rx2s), rvY = Math.min(ry1s, ry2s);
+        /* animated flow: offset by time */
+        const flowOffset = (t * 18) % Math.max(1, isVert ? rvH : rvW);
+        const rvGrd = isVert
+          ? ctx.createLinearGradient(rvX, rvY, rvX + rvW, rvY)
+          : ctx.createLinearGradient(rvX, rvY, rvX, rvY + rvH);
+        const [rr, rg, rb] = hexToRgb(rv.color);
+        rvGrd.addColorStop(0,   `rgba(${rr},${rg},${rb},0.75)`);
+        rvGrd.addColorStop(0.5, `rgba(${Math.min(255,rr+30)},${Math.min(255,rg+30)},${Math.min(255,rb+40)},0.85)`);
+        rvGrd.addColorStop(1,   `rgba(${rr},${rg},${rb},0.75)`);
+        ctx.fillStyle = rvGrd;
+        ctx.fillRect(rvX, rvY, rvW, rvH);
+        /* ripple lines */
+        ctx.strokeStyle = `rgba(${Math.min(255,rr+50)},${Math.min(255,rg+50)},${Math.min(255,rb+60)},0.40)`;
+        ctx.lineWidth = 1;
+        const rippleStep = isVert ? rvH / 4 : rvW / 4;
+        for (let ri = 0; ri < 4; ri++) {
+          const rOff = ((ri * rippleStep) + flowOffset) % Math.max(1, isVert ? rvH : rvW);
+          if (isVert) {
+            ctx.beginPath(); ctx.moveTo(rvX, rvY + rOff); ctx.lineTo(rvX + rvW, rvY + rOff); ctx.stroke();
+          } else {
+            ctx.beginPath(); ctx.moveTo(rvX + rOff, rvY); ctx.lineTo(rvX + rOff, rvY + rvH); ctx.stroke();
+          }
+        }
+        /* bank shadows */
+        ctx.strokeStyle = 'rgba(0,0,0,0.20)'; ctx.lineWidth = 1.5;
+        ctx.strokeRect(rvX, rvY, rvW, rvH);
+      });
+
+      /* 4d. Waving grass strips (Campagna Ovest + Pianura Rurale + Bosco undergrowth) */
+      GRASS_STRIP_DATA.forEach((gs) => {
+        const [gsx, gsy] = w2s(gs.x, gs.z);
+        const wave = Math.sin(t * 2.2 + gs.x * 0.3 + gs.z * 0.2) * 0.5;
+        const isBosco = gs.z < -72 && gs.x < -92;
+        const bladeColor = isBosco ? '#2a4a18' : '#5a7830';
+        const bladeCount = 7;
+        ctx.save();
+        ctx.translate(gsx, gsy);
+        for (let bi = 0; bi < bladeCount; bi++) {
+          const bx = (bi - bladeCount / 2) * 3.5;
+          const bWave = wave + Math.sin(t * 3.1 + bi * 1.1) * 0.3;
+          const bh = (TILE * 0.55) + (bi % 3) * 2;
+          ctx.strokeStyle = bladeColor;
+          ctx.lineWidth = 1.2;
+          ctx.globalAlpha = 0.65;
+          ctx.beginPath();
+          ctx.moveTo(bx, 0);
+          ctx.quadraticCurveTo(bx + bWave * 4, -bh * 0.5, bx + bWave * 7, -bh);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        ctx.restore();
       });
 
       /* 5-7. (walls/hedges/boulders replaced by city roads and buildings) */
@@ -2507,7 +2795,7 @@ export function StoryWorldMap({
       const lampDayP = (t / 300) % 1;
       const lampNightA = lampDayP >= 0.87 ? 1 : lampDayP < 0.15 ? 1 : lampDayP > 0.75 ? (lampDayP - 0.75) / 0.12 : 0;
 
-      /* 9. (tall grass removed — city world) */
+      /* 9. Waving grass (handled above in 4d) */
 
       /* 10. Wooden bridges */
       BRIDGE_DATA.forEach(br => {
@@ -3041,7 +3329,26 @@ export function StoryWorldMap({
           ctx.beginPath(); ctx.roundRect(fRight, topY, sideW, bH, [0, 3, 3, 0]); ctx.stroke();
 
           /* type-specific details */
-          if (bld.type === 'ruin') {
+          if (bld.type === 'farm') {
+            /* Farm: hay window in loft + wooden fence post detail */
+            ctx.fillStyle = '#8b6520aa';
+            ctx.beginPath();
+            ctx.arc(bx - sideW / 2, topY + roofH2 * 0.45, bW * 0.14, 0, Math.PI * 2); ctx.fill();
+            /* silo hint (vertical stripe on side) */
+            ctx.strokeStyle = 'rgba(160,120,60,0.4)'; ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.moveTo(fRight - 2, topY + 4); ctx.lineTo(fRight - 2, wallY - 2); ctx.stroke();
+          } else if (bld.type === 'barn') {
+            /* Barn: classic X cross-brace on door */
+            ctx.strokeStyle = 'rgba(80,40,10,0.55)'; ctx.lineWidth = 1.5;
+            const db2Left = bx - bW * 0.20 - sideW / 2;
+            const db2Right = bx + bW * 0.02 - sideW / 2;
+            const db2Top = botY - wallH * 0.82;
+            ctx.beginPath(); ctx.moveTo(db2Left, botY); ctx.lineTo(db2Right, db2Top); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(db2Right, botY); ctx.lineTo(db2Left, db2Top); ctx.stroke();
+            /* hay color accent on roof */
+            ctx.fillStyle = 'rgba(220,180,60,0.22)';
+            ctx.fillRect(fLeft + 4, topY + 2, (fRight - fLeft) * 0.5, roofH2 * 0.4);
+          } else if (bld.type === 'ruin') {
             ctx.strokeStyle = 'rgba(0,0,0,0.32)'; ctx.lineWidth = 1.2;
             ctx.beginPath(); ctx.moveTo(bx - bW * 0.2, by - bH * 0.28); ctx.lineTo(bx - bW * 0.05, by + bH * 0.22); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(bx + bW * 0.15, by - bH * 0.1); ctx.lineTo(bx + bW * 0.3, by + bH * 0.28); ctx.stroke();
@@ -3341,6 +3648,170 @@ export function StoryWorldMap({
           ctx.beginPath(); ctx.arc(staffX - 0.8, hatTopY - 8.5, 1.5, 0, Math.PI * 2); ctx.fill();
         }});
       }
+
+      /* ── Birds (day only, flying across the map) ── */
+      const birdDayP = (t / 300) % 1;
+      const birdDayAlpha = birdDayP < 0.12 ? 0 : birdDayP < 0.22 ? (birdDayP - 0.12) / 0.10 : birdDayP > 0.78 ? Math.max(0, 1 - (birdDayP - 0.78) / 0.09) : 1.0;
+      if (birdDayAlpha > 0.05) {
+        BIRD_DATA.forEach((bird) => {
+          const period = 1.0;
+          const prog = ((t * bird.speed + bird.phase) % period + period) % period;
+          /* wrap across -220 to +220 world units */
+          const startX = bird.dx > 0 ? -220 : 220;
+          const endX   = bird.dx > 0 ?  220 : -220;
+          const startZ = bird.dz > 0 ? -220 : 220;
+          const endZ   = bird.dz > 0 ?  220 : -220;
+          const bwx = startX + (endX - startX) * prog;
+          const bwz = startZ + (endZ - startZ) * prog;
+          sprites.push({ z: bwz - 500, draw: () => {
+            const [bsx, bsy] = w2s(bwx, bwz);
+            /* "above" the world — draw at fixed screen offset above terrain */
+            const altY = bsy - bird.alt * 45 - 30;
+            const flap = Math.sin(t * 5.5 + bird.flapOffset * Math.PI * 2) * 0.5 + 0.5;
+            ctx.save();
+            ctx.globalAlpha = birdDayAlpha * 0.85;
+            ctx.strokeStyle = '#1a1a18'; ctx.lineWidth = 1.2; ctx.lineCap = 'round';
+            /* left wing */
+            ctx.beginPath();
+            ctx.moveTo(bsx - 1, altY);
+            ctx.quadraticCurveTo(bsx - 6, altY - 4 - flap * 4, bsx - 11, altY - 2 - flap * 3);
+            ctx.stroke();
+            /* right wing */
+            ctx.beginPath();
+            ctx.moveTo(bsx + 1, altY);
+            ctx.quadraticCurveTo(bsx + 6, altY - 4 - flap * 4, bsx + 11, altY - 2 - flap * 3);
+            ctx.stroke();
+            /* body dot */
+            ctx.fillStyle = '#2a2a28';
+            ctx.beginPath(); ctx.arc(bsx, altY, 1.2, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.restore();
+          }});
+        });
+      }
+
+      /* ── Butterflies (Campagna Ovest + Pianura Rurale, day only) ── */
+      if (birdDayAlpha > 0.1) {
+        BUTTERFLY_DATA.forEach((bf) => {
+          const angle = t * bf.speed + bf.phase * Math.PI * 2;
+          const bfwx = bf.cx + Math.cos(angle) * bf.orbitR;
+          const bfwz = bf.cz + Math.sin(angle * 0.65) * bf.orbitR * 0.55;
+          sprites.push({ z: bfwz, draw: () => {
+            const [bfsx, bfsy] = w2s(bfwx, bfwz);
+            const wingFlap = Math.abs(Math.sin(t * 8 + bf.phase * 6));
+            const bfA = birdDayAlpha * 0.80;
+            ctx.save();
+            ctx.globalAlpha = bfA;
+            ctx.translate(bfsx, bfsy - 4);
+            /* wings */
+            const [bfr, bfg, bfb] = hexToRgb(bf.color);
+            ctx.fillStyle = `rgba(${bfr},${bfg},${bfb},0.85)`;
+            /* upper wings */
+            ctx.beginPath();
+            ctx.ellipse(-3, -1, 4 * wingFlap, 3, -0.4, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse( 3, -1, 4 * wingFlap, 3,  0.4, 0, Math.PI * 2); ctx.fill();
+            /* lower wings */
+            ctx.fillStyle = `rgba(${bfr},${bfg},${bfb},0.60)`;
+            ctx.beginPath();
+            ctx.ellipse(-2.5, 2, 3 * wingFlap, 2, -0.6, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse( 2.5, 2, 3 * wingFlap, 2,  0.6, 0, Math.PI * 2); ctx.fill();
+            /* body */
+            ctx.fillStyle = '#2a1a08'; ctx.globalAlpha = bfA;
+            ctx.beginPath(); ctx.ellipse(0, 0, 1, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.restore();
+          }});
+        });
+      }
+
+      /* ── Farm animals / sheep (Campagna Ovest) ── */
+      FARM_ANIMAL_DATA.forEach((sheep) => {
+        const wanderAngle = t * sheep.speed + sheep.phase * Math.PI * 2;
+        const swx = sheep.x + Math.cos(wanderAngle) * sheep.wanderR;
+        const swz = sheep.z + Math.sin(wanderAngle * 0.7) * sheep.wanderR * 0.6;
+        sprites.push({ z: swz, draw: () => {
+          const [ssx, ssy] = w2s(swx, swz);
+          ctx.save();
+          ctx.translate(ssx, ssy);
+          /* body — fluffy white oval */
+          ctx.fillStyle = '#f0ede8';
+          ctx.beginPath(); ctx.ellipse(0, -3, TILE * 0.38, TILE * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+          /* fluffy texture */
+          ctx.fillStyle = '#e0ddd8';
+          ctx.beginPath(); ctx.ellipse(-3, -4, 3.5, 2.5, -0.3, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse( 3, -4, 3.5, 2.5,  0.3, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse( 0, -6, 3.5, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+          /* head */
+          ctx.fillStyle = '#d8c8a0';
+          ctx.beginPath(); ctx.ellipse(TILE * 0.25, -4, 3.5, 3, 0.4, 0, Math.PI * 2); ctx.fill();
+          /* legs */
+          ctx.fillStyle = '#c8b888';
+          ctx.fillRect(-5, 0, 2, 6);
+          ctx.fillRect(-2, 0, 2, 6);
+          ctx.fillRect( 1, 0, 2, 6);
+          ctx.fillRect( 4, 0, 2, 6);
+          /* shadow */
+          ctx.fillStyle = 'rgba(0,0,0,0.18)';
+          ctx.beginPath(); ctx.ellipse(0, 3, TILE * 0.35, TILE * 0.12, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        }});
+      });
+
+      /* ── Windmill (Pianura Rurale) ── */
+      WINDMILL_DATA.forEach((wm) => {
+        sprites.push({ z: wm.z, draw: () => {
+          const [wmx, wmy] = w2s(wm.x, wm.z);
+          const bladeRot = t * 0.8;
+          /* tower */
+          ctx.fillStyle = '#d4c8a0';
+          ctx.beginPath();
+          ctx.moveTo(wmx - TILE * 0.4, wmy + TILE * 0.8);
+          ctx.lineTo(wmx + TILE * 0.4, wmy + TILE * 0.8);
+          ctx.lineTo(wmx + TILE * 0.22, wmy - TILE * 1.4);
+          ctx.lineTo(wmx - TILE * 0.22, wmy - TILE * 1.4);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#a89860'; ctx.lineWidth = 1.5; ctx.stroke();
+          /* roof cap */
+          ctx.fillStyle = '#7a5830';
+          ctx.beginPath();
+          ctx.moveTo(wmx - TILE * 0.26, wmy - TILE * 1.4);
+          ctx.lineTo(wmx + TILE * 0.26, wmy - TILE * 1.4);
+          ctx.lineTo(wmx, wmy - TILE * 1.9);
+          ctx.closePath();
+          ctx.fill();
+          /* door */
+          ctx.fillStyle = '#6a4820';
+          ctx.fillRect(wmx - 4, wmy + TILE * 0.2, 8, TILE * 0.6);
+          /* hub */
+          const hubY = wmy - TILE * 1.2;
+          ctx.fillStyle = '#555544';
+          ctx.beginPath(); ctx.arc(wmx, hubY, 4, 0, Math.PI * 2); ctx.fill();
+          /* 4 blades */
+          for (let bi = 0; bi < 4; bi++) {
+            const ba = bladeRot + (bi * Math.PI / 2);
+            const bladeLen = TILE * 1.1;
+            ctx.save();
+            ctx.translate(wmx, hubY);
+            ctx.rotate(ba);
+            /* blade */
+            ctx.fillStyle = '#e8ddb8';
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(3, -bladeLen);
+            ctx.lineTo(-3, -bladeLen);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#c0a860'; ctx.lineWidth = 0.8; ctx.stroke();
+            ctx.restore();
+          }
+          /* shadow */
+          ctx.fillStyle = 'rgba(0,0,0,0.15)';
+          ctx.beginPath(); ctx.ellipse(wmx + 6, wmy + TILE * 0.85, TILE * 0.35, TILE * 0.1, 0.2, 0, Math.PI * 2); ctx.fill();
+        }});
+      });
 
       /* player */
       sprites.push({ z: playerRef.current.z, draw: () => drawPlayer(ctx, t, movingRef.current) });
