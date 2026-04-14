@@ -104,6 +104,9 @@ export class CPUPlayer {
   
   private openaiApiKey: string | undefined;
   private gymLeaderMessages: Record<string, string[]> | null = null;
+  private gymLeaderName: string = '';
+  private gymLeaderId: number = 0;
+  private stage12FirstCharId: string | null = null;
   private attackMode: 'free_for_all' | 'hunt_human' = 'free_for_all';
   private level: 'easy' | 'medium' | 'hard' = 'medium';
   private mood: 'balanced' | 'aggressive' | 'defensive' | 'random' = 'balanced';
@@ -458,6 +461,33 @@ export class CPUPlayer {
 
   setLeaderMessages(messages: Record<string, string[]>) {
     this.gymLeaderMessages = messages;
+  }
+
+  setGymLeaderName(name: string) {
+    this.gymLeaderName = name;
+  }
+
+  setGymLeaderId(id: number) {
+    this.gymLeaderId = id;
+  }
+
+  getStage12FirstCharId(): string | null {
+    return this.stage12FirstCharId;
+  }
+
+  setStage12FirstCharId(id: string) {
+    this.stage12FirstCharId = id;
+  }
+
+  /**
+   * Returns true if `char` is the stage-12 first character or an evolution of it.
+   * Uses the card's `characterLineage` array which tracks ancestor card IDs through evolutions.
+   */
+  private isStage12FirstOrEvolved(char: any): boolean {
+    if (!this.stage12FirstCharId) return false;
+    if (char.id === this.stage12FirstCharId) return true;
+    if (Array.isArray(char.characterLineage) && char.characterLineage.includes(this.stage12FirstCharId)) return true;
+    return false;
   }
 
   pickLeaderMessage(occasion: string): string | null {
@@ -854,6 +884,24 @@ export class CPUPlayer {
     }
 
     if (type === 'bonus') {
+      // STAGE 12 (Quadrato): evolution cards bonus-51 (Bullox) and bonus-53 (Horsy) get
+      // an overwhelming score so they are always chosen first when the first character
+      // (or one of its evolutions) is on field.
+      if (this.gymLeaderId === 11) {
+        const isEvolutionCard = card.id === 'bonus-51' || card.id.startsWith('bonus-51-') ||
+                                card.id === 'bonus-53' || card.id.startsWith('bonus-53-');
+        if (isEvolutionCard) {
+          const gs = gameState ?? (this.gameManager ? this.gameManager.getGameState(this.gameId) : null);
+          const myChar = gs ? (gs.field ?? []).find((c: any) =>
+            c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          ) : null;
+          if (myChar && this.isStage12FirstOrEvolved(myChar)) {
+            console.log(`⬆️ Stage 12 evolution card ${card.id} boosted to 500 score (first char on field)`);
+            return 500;
+          }
+        }
+      }
+
       const ptiValue = this.extractBonusPtiValue(card);
       const effKey = this.getCardEffectKey(card);
       const reg = effKey ? CPUPlayer.SPECIAL_CARD_EFFECTS[effKey] : null;
@@ -953,6 +1001,9 @@ export class CPUPlayer {
    * These cards only have effect when reacting to an incoming attack.
    */
   private isDefensiveOnlyBonus(card: any): boolean {
+    // Evolution cards for Stage 12 (Quadrato) must never be treated as defensive-only
+    if (card.id === 'bonus-51' || card.id?.startsWith('bonus-51-') ||
+        card.id === 'bonus-53' || card.id?.startsWith('bonus-53-')) return false;
     const effKey = this.getCardEffectKey(card);
     const DEFENSIVE_KEYS = new Set([
       'respinta', 'difesa_vigliacca', 'alta_salva', 'boomerang',
@@ -3864,6 +3915,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           return this.evaluateCard(c) > this.evaluateCard(best) ? c : best;
         }, personaggiInHand[0]);
         console.log(`CPU ${this.playerName} playing PERSONAGGI (no character on field): ${this.getCardNameFromUrl(bestPersonaggio.frontImage)}`);
+        // STAGE 12 (Quadrato): record the first character placed so we can protect it from voluntary swaps
+        if (this.gymLeaderId === 11 && this.stage12FirstCharId === null) {
+          this.stage12FirstCharId = bestPersonaggio.id;
+          console.log(`⭐ Stage 12 CPU ${this.playerName}: tracking first character ${this.stage12FirstCharId}`);
+        }
         return bestPersonaggio;
       }
     }
@@ -3898,14 +3954,25 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       const currentStars = this.extractStarsFromCard(myCharacter);
       const isDead = currentPTI <= 0 || currentStars <= 0;
 
+      // STAGE 12 (Quadrato): lazy-initialize first-char tracking for restart case (char already on field)
+      if (this.gymLeaderId === 11 && this.stage12FirstCharId === null && !isDead) {
+        this.stage12FirstCharId = myCharacter.id;
+        console.log(`⭐ Stage 12 CPU ${this.playerName}: lazy-init first character ${this.stage12FirstCharId} from field (restart)`);
+      }
+
       // SCAMBIO PERSONAGGIO PRE-ATTACCO: If a hand character has MORE stars than the active
       // character and swapping gives a worthwhile damage gain, swap first. The gain threshold is
       // dynamic: +1 star requires > 50 gain, +2 stars requires > 30 gain, +3+ stars requires > 15 gain.
       // Applies in aggressive/balanced moods at medium/hard; also in defensive mood at hard level
       // (because even a defensive player should swap when the gain is large enough).
+      // SCAMBIO PRE-ATTACCO: skip voluntary swap only when in Stage 12 AND the active character
+      // is the first character placed (or one of its evolutions). After the first character dies
+      // and is replaced by a new one, normal swap logic applies for the replacement character.
       const swapMoodOk = (this.mood === 'aggressive' || this.mood === 'balanced') ||
         (this.mood === 'defensive' && this.level === 'hard');
-      if (!isDead && personaggiInHand.length > 0 && mosseInHand.length > 0 && effectiveEnemies.length > 0 &&
+      const isStage12 = this.gymLeaderId === 11;
+      const isProtectedByStage12 = isStage12 && this.isStage12FirstOrEvolved(myCharacter);
+      if (!isDead && !isProtectedByStage12 && personaggiInHand.length > 0 && mosseInHand.length > 0 && effectiveEnemies.length > 0 &&
           swapMoodOk && (this.level === 'medium' || this.level === 'hard')) {
         const bestHandChar = personaggiInHand.reduce((best: any, c: any) =>
           this.extractStarsFromCard(c) > this.extractStarsFromCard(best) ? c : best, personaggiInHand[0]
@@ -3982,6 +4049,19 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           return ePti < wPti ? e : w;
         }, effectiveEnemies[0]);
         const weakestPti = this.extractPtiFromCard(weakestEnemy);
+
+        // STAGE 12 (Quadrato): if the first character is on field, evolution cards (bonus-51/53)
+        // take absolute priority over all mood-specific branches including aggressive MOSSE.
+        if (isProtectedByStage12) {
+          const evolutionBonus = offensiveBonusInHand.find((c: any) =>
+            c.id === 'bonus-51' || c.id.startsWith('bonus-51-') ||
+            c.id === 'bonus-53' || c.id.startsWith('bonus-53-')
+          );
+          if (evolutionBonus) {
+            console.log(`⭐ Stage 12 CPU ${this.playerName}: playing evolution card ${evolutionBonus.id} (priorità assoluta)`);
+            return evolutionBonus;
+          }
+        }
 
         // Mood: random — pick any action card randomly
         if (this.mood === 'random') {

@@ -2569,11 +2569,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             // Always set gym leader CPU name so eliminateEnemy/other hooks work
             game.gymLeaderCpuName = cpuName;
+            // Store leader name so stage-specific CPU logic can identify the gym leader
+            if (leaderName) {
+              game.gymLeaderName = leaderName;
+              if (game.players[cpuName]?.cpuInstance) {
+                game.players[cpuName].cpuInstance!.setGymLeaderName(leaderName);
+              }
+            }
             // Store leader image URL for boss message overlays
             if (leaderImageUrl) game.gymLeaderImageUrl = leaderImageUrl;
             // Persist the DB id of this gym leader so it can be recovered after a restart
             if (gymLeaderId) {
               game.gymLeaderId = typeof gymLeaderId === 'number' ? gymLeaderId : parseInt(gymLeaderId);
+              if (game.players[cpuName]?.cpuInstance) {
+                game.players[cpuName].cpuInstance!.setGymLeaderId(game.gymLeaderId);
+              }
             }
 
             // Load leader messages from DB (always authoritative) falling back to client payload

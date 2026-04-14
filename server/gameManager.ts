@@ -496,7 +496,9 @@ interface GameState {
   gymLeaderMessages?: Record<string, string[]>;
   gymLeaderCpuName?: string;
   gymLeaderId?: number;
+  gymLeaderName?: string;
   gymLeaderImageUrl?: string;
+  gymStage12FirstCharIds?: Record<string, string>;
   tournamentCharacterLimit?: string;
   tournamentCpuNames?: string[];
   killTriggerBlock?: { turnsLeft: number; blockTurns: number; playedBy: string };
@@ -3639,8 +3641,17 @@ Rispondi SOLO in JSON:`;
         // Gym / Story Mode fields
         isGymMode: game.isGymMode || false,
         gymLeaderId: game.gymLeaderId || null,
+        gymLeaderName: game.gymLeaderName || null,
         gymLeaderCpuName: game.gymLeaderCpuName || null,
         gymLeaderMessages: game.gymLeaderMessages || null,
+        gymStage12FirstCharIds: (() => {
+          const ids: Record<string, string> = {};
+          for (const [pName, p] of Object.entries(game.players)) {
+            const fid = p.isCPU && p.cpuInstance ? p.cpuInstance.getStage12FirstCharId() : null;
+            if (fid) ids[pName] = fid;
+          }
+          return Object.keys(ids).length > 0 ? ids : null;
+        })(),
         // Tournament fields
         tournamentMatchId: game.tournamentMatchId || null,
         tournamentCharacterLimit: game.tournamentCharacterLimit || null,
@@ -3826,7 +3837,9 @@ Rispondi SOLO in JSON:`;
             // Gym / Story Mode fields
             isGymMode: state.isGymMode || false,
             gymLeaderCpuName: state.gymLeaderCpuName || undefined,
+            gymLeaderName: state.gymLeaderName || undefined,
             gymLeaderMessages: state.gymLeaderMessages || undefined,
+            gymStage12FirstCharIds: state.gymStage12FirstCharIds || undefined,
             // Tournament fields
             tournamentMatchId: state.tournamentMatchId || undefined,
             // Last action
@@ -3861,11 +3874,37 @@ Rispondi SOLO in JSON:`;
           this.games.set(savedGame.gameId, gameState);
 
           // Restore gym leader messages onto the primary CPU instance (if gym mode)
-          if (state.isGymMode && state.gymLeaderCpuName && state.gymLeaderMessages) {
+          if (state.isGymMode && state.gymLeaderCpuName) {
             const gymCpuPlayer = gameState.players[state.gymLeaderCpuName];
             if (gymCpuPlayer?.cpuInstance) {
-              gymCpuPlayer.cpuInstance.setLeaderMessages(state.gymLeaderMessages);
-              console.log(`🗨️ Restored gym leader messages for ${state.gymLeaderCpuName} in ${savedGame.gameId}`);
+              if (state.gymLeaderMessages) {
+                gymCpuPlayer.cpuInstance.setLeaderMessages(state.gymLeaderMessages);
+                console.log(`🗨️ Restored gym leader messages for ${state.gymLeaderCpuName} in ${savedGame.gameId}`);
+              }
+              if (state.gymLeaderName) {
+                gymCpuPlayer.cpuInstance.setGymLeaderName(state.gymLeaderName);
+              }
+              if (state.gymLeaderId) {
+                gymCpuPlayer.cpuInstance.setGymLeaderId(state.gymLeaderId);
+              }
+            }
+            // For multi-CPU gym games (e.g. Quadrato with 4 CPUs), propagate gymLeaderId to all CPUs
+            if (state.gymLeaderId) {
+              for (const [pName, p] of Object.entries(gameState.players)) {
+                if (p.isCPU && p.cpuInstance && pName !== state.gymLeaderCpuName) {
+                  p.cpuInstance.setGymLeaderId(state.gymLeaderId);
+                }
+              }
+            }
+            // Restore stage12FirstCharId to each CPU in this gym game
+            if (state.gymStage12FirstCharIds && typeof state.gymStage12FirstCharIds === 'object') {
+              for (const [cpuName, firstCharId] of Object.entries(state.gymStage12FirstCharIds)) {
+                const cpuPlayer = gameState.players[cpuName];
+                if (cpuPlayer?.cpuInstance && firstCharId) {
+                  cpuPlayer.cpuInstance.setStage12FirstCharId(firstCharId as string);
+                  console.log(`⭐ Restored stage12FirstCharId for ${cpuName} in ${savedGame.gameId}: ${firstCharId}`);
+                }
+              }
             }
           }
 
