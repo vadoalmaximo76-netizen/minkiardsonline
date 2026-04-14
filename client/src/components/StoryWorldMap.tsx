@@ -2439,6 +2439,32 @@ export function StoryWorldMap({
           }
         }
         ctx.restore();
+
+        /* 1c. District edge transition — soft gradient blending at borders */
+        const edgeW = TILE * 1.8;
+        const blendAlpha = 0.38;
+        const bg = '#5a9e2f'; // base green background color
+        // Left edge
+        const lGrad = ctx.createLinearGradient(rx, ry, rx + edgeW, ry);
+        lGrad.addColorStop(0, bg + 'a0'); lGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = lGrad; ctx.globalAlpha = blendAlpha;
+        ctx.fillRect(rx, ry, edgeW, rh2);
+        // Right edge
+        const rGrad = ctx.createLinearGradient(rx + rw2 - edgeW, ry, rx + rw2, ry);
+        rGrad.addColorStop(0, 'rgba(0,0,0,0)'); rGrad.addColorStop(1, bg + 'a0');
+        ctx.fillStyle = rGrad;
+        ctx.fillRect(rx + rw2 - edgeW, ry, edgeW, rh2);
+        // Top edge
+        const tGrad = ctx.createLinearGradient(rx, ry, rx, ry + edgeW);
+        tGrad.addColorStop(0, bg + 'a0'); tGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = tGrad;
+        ctx.fillRect(rx, ry, rw2, edgeW);
+        // Bottom edge
+        const bGrad = ctx.createLinearGradient(rx, ry + rh2 - edgeW, rx, ry + rh2);
+        bGrad.addColorStop(0, 'rgba(0,0,0,0)'); bGrad.addColorStop(1, bg + 'a0');
+        ctx.fillStyle = bGrad;
+        ctx.fillRect(rx, ry + rh2 - edgeW, rw2, edgeW);
+        ctx.globalAlpha = 1;
       });
 
       /* 1b. Day/night cycle: compute atmosphere values (applied post-render) */
@@ -2524,6 +2550,38 @@ export function StoryWorldMap({
         ctx.setLineDash([TILE * 1.5, TILE]);
         ctx.beginPath(); ctx.moveTo(mx1, my1); ctx.lineTo(mx2, my2); ctx.stroke();
         ctx.setLineDash([]);
+      });
+
+      /* 2b. Roundabouts at major intersections — grey ring + green center island */
+      const ROUNDABOUT_DATA: { x: number; z: number; r: number }[] = [
+        { x:   0, z:  15, r: 6.5 },  // Centro: Corso Principale ∩ Via del Centro
+        { x:   0, z:  90, r: 5.5 },  // Corso Principale ∩ Via Commerciale
+        { x:  90, z:  15, r: 5.0 },  // Viale Est ∩ Via del Centro
+        { x: -90, z:  15, r: 5.0 },  // Viale Ovest ∩ Via del Centro
+        { x:   0, z: 160, r: 5.5 },  // Corso Principale ∩ Via Sud Grande
+      ];
+      ROUNDABOUT_DATA.forEach(ra => {
+        const [rax, ray] = w2s(ra.x, ra.z);
+        const rR = ra.r * TILE;
+        /* outer road ring */
+        ctx.beginPath(); ctx.arc(rax, ray, rR, 0, Math.PI * 2);
+        ctx.fillStyle = '#787878'; ctx.fill();
+        /* edge line */
+        ctx.beginPath(); ctx.arc(rax, ray, rR, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1.5; ctx.stroke();
+        /* dark outer border */
+        ctx.beginPath(); ctx.arc(rax, ray, rR, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2; ctx.stroke();
+        /* green center island */
+        const islandR = rR * 0.50;
+        ctx.beginPath(); ctx.arc(rax, ray, islandR, 0, Math.PI * 2);
+        ctx.fillStyle = '#52b830'; ctx.fill();
+        /* island border */
+        ctx.beginPath(); ctx.arc(rax, ray, islandR, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0,80,0,0.50)'; ctx.lineWidth = 1; ctx.stroke();
+        /* island highlight patch */
+        ctx.beginPath(); ctx.arc(rax - islandR * 0.2, ray - islandR * 0.2, islandR * 0.45, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(120,220,60,0.30)'; ctx.fill();
       });
 
       /* Pedestrian crosswalks (zebra stripes at major intersections) */
