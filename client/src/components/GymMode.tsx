@@ -554,7 +554,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     }
   }, [loading, leaders, storyDeckIds, phase, deckFetchStatus]);
 
-  // 2D mode: auto-trigger Quadrato after all regular leaders are complete
+  // 2D mode: auto-trigger Quadrato after all pre-final stages are complete (before Bronx/Zody)
   useEffect(() => {
     if (phase !== 'map') return;
     if (storyViewMode !== '2d') return;
@@ -565,8 +565,12 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     if (quadratoAutoTriggeredRef.current) return;
     const regular = leaders.filter(l => !l.isHidden && l.isActive && !l.requiredFaction);
     if (regular.length === 0) return;
-    const allDone = regular.every(l => completedIds.includes(l.id));
-    if (!allDone) return;
+    // Find the max orderIndex (final group, e.g. Bronx/Zody at 12)
+    const maxOrdIdx = Math.max(...regular.map(l => l.orderIndex));
+    const preFinalRegular = regular.filter(l => l.orderIndex < maxOrdIdx);
+    if (preFinalRegular.length === 0) return;
+    const allPreFinalDone = preFinalRegular.every(l => completedIds.includes(l.id));
+    if (!allPreFinalDone) return;
     quadratoAutoTriggeredRef.current = true;
     setTimeout(() => {
       setSelectedLeader(qLeader);
@@ -635,15 +639,25 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
 
   useEffect(() => {
     if (phase === 'victory' && justWon && selectedLeader && authToken) {
-      fetch(`/api/gym-leaders/${selectedLeader.id}/complete`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${authToken}` },
-      }).then(() => {
-        setCompletedIds(prev => [...prev, selectedLeader.id]);
+      const isQuadratoFight = quadratoLeader && selectedLeader.id === quadratoLeader.id;
+      const idsToComplete = isQuadratoFight
+        ? [selectedLeader.id, ...leaders.filter(l => l.isHidden && l.id !== selectedLeader.id && l.orderIndex === selectedLeader.orderIndex).map(l => l.id)]
+        : [selectedLeader.id];
+      Promise.all(idsToComplete.map(id =>
+        fetch(`/api/gym-leaders/${id}/complete`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${authToken}` },
+        })
+      )).then(() => {
+        setCompletedIds(prev => {
+          const next = [...prev];
+          for (const id of idsToComplete) { if (!next.includes(id)) next.push(id); }
+          return next;
+        });
         setJustWon(false);
       }).catch(() => {});
     }
-  }, [phase, justWon, selectedLeader, authToken]);
+  }, [phase, justWon, selectedLeader, authToken, quadratoLeader, leaders]);
 
   useEffect(() => {
     if (phase !== 'victory') { setVictoryStep(0); return; }
@@ -861,11 +875,21 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     finally {
       setCardPickLoading(false);
       if (justWon && selectedLeader && authToken) {
-        fetch(`/api/gym-leaders/${selectedLeader.id}/complete`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${authToken}` },
-        }).then(() => {
-          setCompletedIds(prev => selectedLeader && !prev.includes(selectedLeader.id) ? [...prev, selectedLeader.id] : prev);
+        const isQFight = quadratoLeader && selectedLeader.id === quadratoLeader.id;
+        const idsToMark = isQFight
+          ? [selectedLeader.id, ...leaders.filter(l => l.isHidden && l.id !== selectedLeader.id && l.orderIndex === selectedLeader.orderIndex).map(l => l.id)]
+          : [selectedLeader.id];
+        Promise.all(idsToMark.map(id =>
+          fetch(`/api/gym-leaders/${id}/complete`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${authToken}` },
+          })
+        )).then(() => {
+          setCompletedIds(prev => {
+            const next = [...prev];
+            for (const id of idsToMark) { if (!next.includes(id)) next.push(id); }
+            return next;
+          });
           setJustWon(false);
         }).catch(() => {});
       }

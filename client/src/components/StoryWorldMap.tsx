@@ -1995,17 +1995,22 @@ export function StoryWorldMap({
         const lrs2 = leadersRef.current;
         const baseLeaders2 = lrs2.filter(l => !l.requiredFaction);
         if (baseLeaders2.length > 0) {
-          const lastBaseIdx = lrs2.indexOf(baseLeaders2[baseLeaders2.length - 1]);
-          const [lastAx, lastAz] = getArenaPosition(lastBaseIdx >= 0 ? lastBaseIdx : lrs2.length - 1);
-          const distToLast = Math.sqrt((px2 - lastAx) ** 2 + (pz2 - lastAz) ** 2);
-          const allRegularDone = baseLeaders2.every(l => getLeaderStatusRef.current(l) === 'completed');
-          if (!ambushActiveRef.current && distToLast <= 50 && allRegularDone) {
+          // Find the max orderIndex to identify the "final group" (e.g. stage 12: Bronx/Zody)
+          const maxOrdIdx = Math.max(...baseLeaders2.map(l => l.orderIndex));
+          const preFinalLeaders = baseLeaders2.filter(l => l.orderIndex < maxOrdIdx);
+          const firstFinalLeader = baseLeaders2.find(l => l.orderIndex === maxOrdIdx);
+          const firstFinalIdx = firstFinalLeader ? lrs2.indexOf(firstFinalLeader) : lrs2.length - 1;
+          const [ambushAx, ambushAz] = getArenaPosition(firstFinalIdx >= 0 ? firstFinalIdx : lrs2.length - 1);
+          const distToFinal = Math.sqrt((px2 - ambushAx) ** 2 + (pz2 - ambushAz) ** 2);
+          // Trigger when all pre-final stages done and player approaches the final group
+          const allPreFinalDone = preFinalLeaders.length > 0 && preFinalLeaders.every(l => getLeaderStatusRef.current(l) === 'completed');
+          if (!ambushActiveRef.current && distToFinal <= 80 && allPreFinalDone) {
             ambushActiveRef.current = true;
             ghostFigsRef.current = [
-              { id: 0, x: lastAx + 65, z: lastAz },
-              { id: 1, x: lastAx - 65, z: lastAz },
-              { id: 2, x: lastAx,      z: lastAz + 65 },
-              { id: 3, x: lastAx,      z: lastAz - 65 },
+              { id: 0, x: ambushAx + 65, z: ambushAz },
+              { id: 1, x: ambushAx - 65, z: ambushAz },
+              { id: 2, x: ambushAx,      z: ambushAz + 65 },
+              { id: 3, x: ambushAx,      z: ambushAz - 65 },
             ];
           }
           if (ambushActiveRef.current) {
