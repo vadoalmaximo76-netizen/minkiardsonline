@@ -5153,18 +5153,6 @@ export function StoryWorldMap({
         </div>
       )}
 
-      {/* Stage 13 – My Stage indicator */}
-      {stage13Status?.myStage && (
-        <div style={{
-          position: 'absolute', bottom: 80, right: 16, zIndex: 55,
-          background: 'rgba(10,10,26,0.9)', border: `1.5px solid ${stage13Status.myStage.stageColor}88`,
-          borderRadius: 12, padding: '8px 14px', textAlign: 'center',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
-        }}>
-          <div style={{ color: stage13Status.myStage.stageColor, fontWeight: 900, fontSize: 12 }}>🏰 Il tuo Stage 13</div>
-          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 2 }}>{stage13Status.myStage.stageName}</div>
-        </div>
-      )}
 
       {/* Mobile d-pad (bottom-left always) */}
       {isTouchDevice && (

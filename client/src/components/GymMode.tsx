@@ -2717,7 +2717,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             setStage13BuildError(null);
           }}
           style={{
-            position: 'absolute', bottom: 20, right: 16, zIndex: 80,
+            position: 'absolute', bottom: 100, right: 16, zIndex: 80,
             background: stage13Status.pendingChallengeAsBoss
               ? 'linear-gradient(135deg,#dc2626,#991b1b)'
               : stage13Status.myStage
