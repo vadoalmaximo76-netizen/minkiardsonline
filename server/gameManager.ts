@@ -18238,6 +18238,50 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
+    // OSTAGGIO SPECIAL HANDLING: Detect OSTAGGIO card and apply special effects
+    // NOTE: Checked BEFORE SAGOMA/BARRIERA so OSTAGGIO bypasses all field defenses
+    if (this.isOstaggioCard(mosseCard) && !isHandTarget) {
+      console.log(`⛓️ OSTAGGIO detected: ${attackerName} using OSTAGGIO on ${targetCardId}`);
+      
+      // STAKU: Clear mandatory attack obligation (attack committed via OSTAGGIO)
+      if ((game as any).autoAttack?.[attackerName]) {
+        delete (game as any).autoAttack[attackerName];
+        console.log(`⚡ STAKU: mandatory attack obligation fulfilled for ${attackerName} (OSTAGGIO)`);
+      }
+      // Track card usage
+      if (!attacker.usedCardsThisTurn) {
+        attacker.usedCardsThisTurn = [];
+      }
+      attacker.usedCardsThisTurn.push(mosseCard.frontImage);
+      
+      // Record event
+      await this.recordEvent(gameId, 'mosse-attack', {
+        attackerName,
+        mosseCardId,
+        targetCardId,
+        targetOwner: targetOwnerName,
+        isHandTarget: false,
+        outcome: 'ostaggio_applied'
+      }, attackerName);
+      
+      // Return special result indicating OSTAGGIO attack
+      // The actual application will be handled by routes.ts after damage input
+      return {
+        success: true,
+        result: {
+          targetCardId,
+          targetOwner: targetOwnerName,
+          mosseCardId,
+          attackerName,
+          isHandTarget: false,
+          requiresDefenseResponse: false, // OSTAGGIO bypasses defense
+          isOstaggioAttack: true,
+          damageValue: damageValue,
+          message: `${attackerName} usa OSTAGGIO! Il personaggio non può difendersi!`
+        }
+      };
+    }
+
     // SAGOME INTERCEPTION: If target owner has active sagome, absorb the attack on a sagoma
     if (!isHandTarget) {
       const sagomeState = (game as any).sagome as Record<string, { count: number; ptiEach: number }> | undefined;
@@ -18323,49 +18367,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           };
         }
       }
-    }
-    
-    // OSTAGGIO SPECIAL HANDLING: Detect OSTAGGIO card and apply special effects
-    if (this.isOstaggioCard(mosseCard) && !isHandTarget) {
-      console.log(`⛓️ OSTAGGIO detected: ${attackerName} using OSTAGGIO on ${targetCardId}`);
-      
-      // STAKU: Clear mandatory attack obligation (attack committed via OSTAGGIO)
-      if ((game as any).autoAttack?.[attackerName]) {
-        delete (game as any).autoAttack[attackerName];
-        console.log(`⚡ STAKU: mandatory attack obligation fulfilled for ${attackerName} (OSTAGGIO)`);
-      }
-      // Track card usage
-      if (!attacker.usedCardsThisTurn) {
-        attacker.usedCardsThisTurn = [];
-      }
-      attacker.usedCardsThisTurn.push(mosseCard.frontImage);
-      
-      // Record event
-      await this.recordEvent(gameId, 'mosse-attack', {
-        attackerName,
-        mosseCardId,
-        targetCardId,
-        targetOwner: targetOwnerName,
-        isHandTarget: false,
-        outcome: 'ostaggio_applied'
-      }, attackerName);
-      
-      // Return special result indicating OSTAGGIO attack
-      // The actual application will be handled by routes.ts after damage input
-      return {
-        success: true,
-        result: {
-          targetCardId,
-          targetOwner: targetOwnerName,
-          mosseCardId,
-          attackerName,
-          isHandTarget: false,
-          requiresDefenseResponse: false, // OSTAGGIO bypasses defense
-          isOstaggioAttack: true,
-          damageValue: damageValue,
-          message: `${attackerName} usa OSTAGGIO! Il personaggio non può difendersi!`
-        }
-      };
     }
     
     // HOSTAGE TARGET CHECK: Hostaged characters cannot defend
@@ -19454,9 +19455,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const originalOwner = targetCard.owner;
     const originalFieldIndex = game.field.indexOf(targetCard);
     
-    // Get target's current PTI
+    // Get target's current PTI (from text or card.pti field as fallback)
     const ptiMatch = targetCard.text?.match(/PTI:\s*(\d+)/i);
-    let currentPTI = ptiMatch ? parseInt(ptiMatch[1], 10) : 0;
+    let currentPTI = ptiMatch ? parseInt(ptiMatch[1], 10) : (targetCard.pti ?? 0);
     
     // Apply damage first
     const newPTI = currentPTI - damageValue;
