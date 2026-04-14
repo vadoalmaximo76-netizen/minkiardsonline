@@ -29026,11 +29026,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         for (const char of nonNapoletaniInCampo) {
           const roll = Math.floor(Math.random() * 6) + 1;
           const oldStars = char.stars || 1;
+          const actualLost = Math.min(roll, oldStars);
           char.stars = Math.max(0, oldStars - roll);
           this.updateCardTextWithPTI(char);
-          totalStarsLost += Math.min(roll, oldStars); // actual stars lost
+          totalStarsLost += actualLost;
           const charName = char.name || this.getCardNameFromUrl(char.frontImage || '');
-          rollMessages.push(`${charName} -${roll}⭐`);
+          rollMessages.push(`${charName} (dado: ${roll}, -${actualLost}⭐)`);
           // Emit dice-rolled event so frontend shows dice animation
           if (io) {
             io.to(gameId).emit('dice-rolled', {
