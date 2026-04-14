@@ -4345,6 +4345,24 @@ Rispondi SOLO in JSON:`;
         }
       }
 
+      // OSTAGGIO: if the player's active character is held hostage, block MOSSE and BONUS card plays
+      if (!game.activeDuel && (card.type === 'mosse' || card.type === 'bonus')) {
+        const activeChar = this.getPlayerActiveCharacter(game, playerName);
+        if (activeChar && activeChar.isHostage) {
+          const hostagedName = this.getCardNameFromUrl(activeChar.frontImage);
+          console.log(`⛓️ OSTAGGIO: blocking ${playerName}'s ${card.type} card — active character (${hostagedName}) is hostaged`);
+          const ioOst = (global as any).io;
+          if (ioOst) {
+            ioOst.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-ostaggio-block-play`, playerName: 'Sistema',
+              message: `⛓️ ${hostagedName} è in ostaggio! Non può agire finché è prigioniero. Non puoi giocare carte ${card.type.toUpperCase()} in questo stato.`,
+              timestamp: Date.now()
+            });
+          }
+          return {};
+        }
+      }
+
       // DITTATURA check: enforce PTI restrictions BEFORE removing card from hand
       if (isPersonaggio && (game as any).cardPlayRestrictions) {
         const restrictions = (game as any).cardPlayRestrictions as Array<{type: string; threshold: number; turnsRemaining: number; imposedBy: string}>;
@@ -19462,10 +19480,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // Apply damage first
     const newPTI = currentPTI - damageValue;
     
-    // Update PTI in card text
+    // Update PTI in card text AND in the numeric pti field so both are in sync
     if (targetCard.text) {
       targetCard.text = targetCard.text.replace(/PTI:\s*\d+/i, `PTI: ${Math.max(0, newPTI)}`);
     }
+    targetCard.pti = Math.max(0, newPTI);
     
     // Special death condition: if PTI was less than 300 before hostage OR becomes 0 after damage
     if (currentPTI < 300 || newPTI <= 0) {
