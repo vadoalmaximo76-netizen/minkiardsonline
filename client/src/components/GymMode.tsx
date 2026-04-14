@@ -555,7 +555,13 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   }, [loading, leaders, storyDeckIds, phase, deckFetchStatus]);
 
   const regularLeaders = leaders.filter(l => !l.isHidden);
-  const quadratoLeader = leaders.find(l => l.isHidden && l.name === 'Quadrato') ?? null;
+  // Faction-specific Quadrato boss: prefer the hidden leader that matches the player's faction.
+  // Fallback to gymName='Quadrato' (covers both Cicchetti/Fabrizio), then name='Quadrato'.
+  const quadratoLeader =
+    (chosenFaction ? leaders.find(l => l.isHidden && l.requiredFaction === chosenFaction) : null) ??
+    leaders.find(l => l.isHidden && l.gymName === 'Quadrato') ??
+    leaders.find(l => l.isHidden && l.name === 'Quadrato') ??
+    null;
   const quadratoCompleted = quadratoLeader ? completedIds.includes(quadratoLeader.id) : false;
 
   // 2D mode: auto-trigger Quadrato after all pre-final stages are complete (before Bronx/Zody)
@@ -563,7 +569,11 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     if (phase !== 'map') return;
     if (storyViewMode !== '2d') return;
     if (loading) return;
-    const qLeader = leaders.find(l => l.isHidden && l.name === 'Quadrato') ?? null;
+    const qLeader =
+      (chosenFaction ? leaders.find(l => l.isHidden && l.requiredFaction === chosenFaction) : null) ??
+      leaders.find(l => l.isHidden && l.gymName === 'Quadrato') ??
+      leaders.find(l => l.isHidden && l.name === 'Quadrato') ??
+      null;
     if (!qLeader) return;
     if (completedIds.includes(qLeader.id)) { quadratoAutoTriggeredRef.current = false; return; }
     if (quadratoAutoTriggeredRef.current) return;
@@ -581,7 +591,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
       selectedLeaderRef.current = qLeader;
       setPhase('intro');
     }, 800);
-  }, [phase, storyViewMode, loading, leaders, completedIds]);
+  }, [phase, storyViewMode, loading, leaders, completedIds, chosenFaction]);
 
   useEffect(() => {
     selectedLeaderRef.current = selectedLeader;
