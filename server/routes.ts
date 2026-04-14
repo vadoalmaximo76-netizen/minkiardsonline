@@ -14638,10 +14638,40 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
     const progress = await db.select({ gymLeaderId: userGymProgress.gymLeaderId })
       .from(userGymProgress).where(eq(userGymProgress.userId, userId));
     const completedIds = new Set(progress.map(p => p.gymLeaderId));
-    const allGyms = await db.select({ id: gymLeaders.id, orderIndex: gymLeaders.orderIndex })
+
+    const allGyms = await db.select({ id: gymLeaders.id, orderIndex: gymLeaders.orderIndex, requiredFaction: gymLeaders.requiredFaction })
       .from(gymLeaders).where(and(eq(gymLeaders.isActive, true), eq(gymLeaders.isHidden, false)));
     const mainGyms = allGyms.filter(g => g.orderIndex >= 1 && g.orderIndex <= 12);
-    return mainGyms.every(g => completedIds.has(g.id));
+
+    // Get player's chosen faction to resolve faction-specific leaders
+    const storyRows = await db.select({ chosenFaction: userStoryDeck.chosenFaction })
+      .from(userStoryDeck).where(eq(userStoryDeck.userId, userId)).limit(1);
+    const chosenFaction = storyRows[0]?.chosenFaction ?? null;
+
+    // Group leaders by orderIndex
+    const byOrderIndex = new Map<number, typeof mainGyms>();
+    for (const g of mainGyms) {
+      if (!byOrderIndex.has(g.orderIndex)) byOrderIndex.set(g.orderIndex, []);
+      byOrderIndex.get(g.orderIndex)!.push(g);
+    }
+
+    for (const [, group] of byOrderIndex) {
+      const noFaction = group.filter(g => !g.requiredFaction);
+      const withFaction = group.filter(g => !!g.requiredFaction);
+
+      // All non-faction leaders in this group must be completed
+      if (!noFaction.every(g => completedIds.has(g.id))) return false;
+
+      // For faction-specific leaders: at least one matching the player's faction must be completed
+      if (withFaction.length > 0) {
+        const relevant = chosenFaction
+          ? withFaction.filter(g => g.requiredFaction === chosenFaction)
+          : withFaction;
+        const candidates = relevant.length > 0 ? relevant : withFaction;
+        if (!candidates.some(g => completedIds.has(g.id))) return false;
+      }
+    }
+    return true;
   }
 
   // Helper: insert notification
