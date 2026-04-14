@@ -2181,6 +2181,96 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                 </div>
               </div>
             )}
+
+            {/* Stage 13 Node – always visible once unlocked */}
+            {stage13Status && (stage13Status.myStage || stage13Status.canBuild || stage13Status.visibleStage || stage13Status.pendingChallengeAsBoss || stage13Status.pendingChallengeAsChallenger) && (
+              <div style={{ padding: '0 10px 24px' }}>
+                {/* Connector line from stage 12 */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
+                  <div style={{ width: 3, height: 28, background: 'linear-gradient(to bottom, rgba(124,58,237,0.0), rgba(124,58,237,0.7))', borderRadius: 99 }} />
+                </div>
+                <button
+                  onClick={() => {
+                    setShowStage13Modal(true);
+                    setStage13BuildSuccess(false);
+                    setStage13BuildError(null);
+                  }}
+                  style={{
+                    width: '100%', border: 'none', cursor: 'pointer', background: 'none', padding: 0, textAlign: 'left',
+                  }}
+                >
+                  <div style={{
+                    borderRadius: 18, overflow: 'hidden', position: 'relative',
+                    border: stage13Status.myStage
+                      ? `2px solid ${stage13Status.myStage.stageColor || '#7c3aed'}88`
+                      : stage13Status.visibleStage
+                      ? `2px solid ${stage13Status.visibleStage.stageColor || '#7c3aed'}88`
+                      : '2px solid rgba(124,58,237,0.4)',
+                    boxShadow: '0 4px 28px rgba(124,58,237,0.25)',
+                    animation: 'gymCardShimmer 3s linear infinite',
+                  }}>
+                    {/* Animated bg */}
+                    <div style={{
+                      position: 'absolute', inset: 0,
+                      background: stage13Status.myStage
+                        ? `linear-gradient(135deg, ${stage13Status.myStage.stageColor || '#7c3aed'}22, rgba(10,5,25,0.95))`
+                        : stage13Status.visibleStage
+                        ? `linear-gradient(135deg, ${stage13Status.visibleStage.stageColor || '#7c3aed'}22, rgba(10,5,25,0.95))`
+                        : 'linear-gradient(135deg, rgba(124,58,237,0.14), rgba(10,5,25,0.95))',
+                    }} />
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(105deg,transparent 25%,rgba(255,255,255,0.04) 50%,transparent 75%)', backgroundSize: '400% auto', animation: 'gymCardShimmer 3s linear infinite' }} />
+                    <div style={{ position: 'relative', zIndex: 1, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                      {/* Icon */}
+                      <div style={{
+                        width: 54, height: 54, borderRadius: '50%', flexShrink: 0,
+                        background: stage13Status.myStage
+                          ? `${stage13Status.myStage.stageColor || '#7c3aed'}33`
+                          : stage13Status.visibleStage
+                          ? `${stage13Status.visibleStage.stageColor || '#7c3aed'}33`
+                          : 'rgba(124,58,237,0.2)',
+                        border: stage13Status.myStage
+                          ? `2px solid ${stage13Status.myStage.stageColor || '#7c3aed'}66`
+                          : stage13Status.visibleStage
+                          ? `2px solid ${stage13Status.visibleStage.stageColor || '#7c3aed'}66`
+                          : '2px solid rgba(124,58,237,0.35)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 26,
+                      }}>
+                        {stage13Status.pendingChallengeAsBoss ? '⚔️' : stage13Status.pendingChallengeAsChallenger ? '⏳' : stage13Status.myStage ? '👑' : stage13Status.visibleStage ? '🏰' : '🏗️'}
+                      </div>
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(196,181,253,0.7)' }}>⭐ Stage 13 – Boss Umano</p>
+                        <p style={{ margin: '3px 0 1px', fontSize: 15, fontWeight: 900, color: '#e9d5ff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {stage13Status.pendingChallengeAsBoss
+                            ? `⚔️ ${stage13Status.pendingChallengeAsBoss.challengerUsername} ti sfida!`
+                            : stage13Status.pendingChallengeAsChallenger
+                            ? `⏳ Sfida a ${stage13Status.pendingChallengeAsChallenger.bossUsername}...`
+                            : stage13Status.myStage
+                            ? stage13Status.myStage.stageName
+                            : stage13Status.visibleStage
+                            ? stage13Status.visibleStage.stageName
+                            : 'Costruisci il tuo Stage'}
+                        </p>
+                        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: 'rgba(196,181,253,0.55)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {stage13Status.pendingChallengeAsBoss
+                            ? 'Accetta o rifiuta la sfida'
+                            : stage13Status.pendingChallengeAsChallenger
+                            ? 'In attesa di risposta dal boss'
+                            : stage13Status.myStage
+                            ? `👑 Il tuo stage personale`
+                            : stage13Status.visibleStage
+                            ? `👊 Boss: ${stage13Status.visibleStage.bossUsername}`
+                            : 'Costo: 1000 crediti'}
+                        </p>
+                      </div>
+                      {/* Arrow */}
+                      <ChevronRight style={{ width: 20, height: 20, color: 'rgba(196,181,253,0.5)', flexShrink: 0 }} />
+                    </div>
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Tooltip 2D */}
@@ -2270,6 +2360,87 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                   onClick={() => setShowStage13Modal(false)}
                   className="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl transition-colors"
                 >Chiudi</button>
+              </div>
+            ) : stage13Status.pendingChallengeAsBoss ? (
+              // Case: someone is challenging your stage
+              <div className="flex flex-col gap-4">
+                <div className="text-center">
+                  <div className="text-5xl mb-2">⚔️</div>
+                  <h3 className="text-red-300 font-black text-xl">Sei sfidato!</h3>
+                  <p className="text-white/60 text-sm mt-2 leading-relaxed">
+                    <span className="text-yellow-300 font-bold">{stage13Status.pendingChallengeAsBoss.challengerUsername}</span> vuole sfidare il tuo Stage 13. Accetti la sfida?
+                  </p>
+                </div>
+                {stage13BuildError && (
+                  <div className="bg-red-900/40 border border-red-500/40 rounded-xl px-4 py-2 text-red-300 text-xs text-center">{stage13BuildError}</div>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={async () => {
+                      setStage13BuildLoading(true); setStage13BuildError(null);
+                      try {
+                        const res = await fetch('/api/story-mode/stage13/respond', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                          body: JSON.stringify({ challengeId: stage13Status.pendingChallengeAsBoss.id, accept: false }),
+                        });
+                        const data = await res.json();
+                        if (!data.success) setStage13BuildError(data.error || 'Errore');
+                        else { await fetchStage13Status(); setShowStage13Modal(false); }
+                      } catch { setStage13BuildError('Errore di rete'); }
+                      setStage13BuildLoading(false);
+                    }}
+                    disabled={stage13BuildLoading}
+                    className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition-colors disabled:opacity-50"
+                  >{stage13BuildLoading ? '...' : 'Rifiuta'}</button>
+                  <button
+                    onClick={async () => {
+                      setStage13BuildLoading(true); setStage13BuildError(null);
+                      try {
+                        const res = await fetch('/api/story-mode/stage13/respond', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                          body: JSON.stringify({ challengeId: stage13Status.pendingChallengeAsBoss.id, accept: true }),
+                        });
+                        const data = await res.json();
+                        if (!data.success) setStage13BuildError(data.error || 'Errore');
+                        else { await fetchStage13Status(); setShowStage13Modal(false); }
+                      } catch { setStage13BuildError('Errore di rete'); }
+                      setStage13BuildLoading(false);
+                    }}
+                    disabled={stage13BuildLoading}
+                    className="flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-white font-black text-sm transition-colors disabled:opacity-50"
+                  >{stage13BuildLoading ? 'Attendere...' : '⚔️ Accetta!'}</button>
+                </div>
+              </div>
+            ) : stage13Status.pendingChallengeAsChallenger ? (
+              // Case: waiting for boss to respond
+              <div className="flex flex-col gap-4 text-center">
+                <div className="text-5xl">⏳</div>
+                <h3 className="text-blue-300 font-black text-xl">Sfida inviata!</h3>
+                <p className="text-white/60 text-sm leading-relaxed">
+                  Hai sfidato lo Stage di <span className="text-yellow-300 font-bold">{stage13Status.pendingChallengeAsChallenger.bossUsername}</span>. Aspetta che accetti la sfida.
+                </p>
+                <button onClick={() => setShowStage13Modal(false)} className="px-6 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold rounded-xl transition-colors">Chiudi</button>
+              </div>
+            ) : stage13Status.myStage ? (
+              // Case: user already has their own stage
+              <div className="flex flex-col gap-4">
+                <div className="text-center">
+                  <div className="text-5xl mb-2">👑</div>
+                  <h3 className="font-black text-xl" style={{ color: stage13Status.myStage.stageColor || '#c084fc' }}>{stage13Status.myStage.stageName}</h3>
+                  <p className="text-white/50 text-xs mt-1 font-bold uppercase tracking-wider">Il tuo Stage 13 – Boss Umano</p>
+                </div>
+                <div className="rounded-xl px-4 py-3 border text-sm" style={{ background: (stage13Status.myStage.stageColor || '#7c3aed') + '18', borderColor: (stage13Status.myStage.stageColor || '#7c3aed') + '55' }}>
+                  <p className="text-white/60 text-xs mb-2 font-bold uppercase tracking-wider">Il tuo stage è attivo</p>
+                  <p className="text-white/80 text-sm leading-relaxed">
+                    Stai difendendo questo stage contro gli sfidanti. Se vinci, puoi rubare una carta dal loro mazzo. Se perdi, il tuo stage viene distrutto.
+                  </p>
+                  {stage13Status.myStage.youtubeMusicUrl && (
+                    <p className="text-white/40 text-xs mt-2">🎵 Musica configurata</p>
+                  )}
+                </div>
+                <button onClick={() => setShowStage13Modal(false)} className="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl transition-colors">Chiudi</button>
               </div>
             ) : stage13Status.visibleStage ? (
               // Case A: there's a visible stage to challenge
