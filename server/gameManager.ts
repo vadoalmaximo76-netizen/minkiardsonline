@@ -28713,7 +28713,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       );
       for (const char of fieldNapoletani) {
         const owner = char.owner || '';
-        if (owner) this.handleEvolutionTransformation(game, gameId, owner, 'taroccata', char.id);
+        if (owner) this.handleEvolutionTransformation(game, gameId, owner, 'transformation', char.id);
       }
       if (fieldNapoletani.length > 0 && io) {
         io.to(gameId).emit('chat-message', {
@@ -29029,7 +29029,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           char.stars = Math.max(0, oldStars - roll);
           this.updateCardTextWithPTI(char);
           totalStarsLost += Math.min(roll, oldStars); // actual stars lost
-          rollMessages.push(`${char.name || this.getCardNameFromUrl(char.frontImage || '')} -${roll}⭐`);
+          const charName = char.name || this.getCardNameFromUrl(char.frontImage || '');
+          rollMessages.push(`${charName} -${roll}⭐`);
+          // Emit dice-rolled event so frontend shows dice animation
+          if (io) {
+            io.to(gameId).emit('dice-rolled', {
+              playerName: char.owner || 'Sistema',
+              result: roll,
+              reason: 'vedi-napoli',
+              characterName: charName
+            });
+          }
         }
         // Distribute lost stars evenly (ceiling) among napoletani
         if (totalStarsLost > 0) {
@@ -29047,11 +29057,31 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           });
         }
       } else if (nonNapoletaniInCampo.length > 0 && napoletaniInCampo.length === 0) {
-        // No napoletani to receive stars — non-napoletani still lose stars
+        // No napoletani to receive stars — non-napoletani still lose stars (Caso B)
+        const rollMessages: string[] = [];
         for (const char of nonNapoletaniInCampo) {
           const roll = Math.floor(Math.random() * 6) + 1;
-          char.stars = Math.max(0, (char.stars || 1) - roll);
+          const oldStars = char.stars || 1;
+          char.stars = Math.max(0, oldStars - roll);
           this.updateCardTextWithPTI(char);
+          const charName = char.name || this.getCardNameFromUrl(char.frontImage || '');
+          rollMessages.push(`${charName} -${Math.min(roll, oldStars)}⭐`);
+          // Emit dice-rolled event so frontend shows dice animation
+          if (io) {
+            io.to(gameId).emit('dice-rolled', {
+              playerName: char.owner || 'Sistema',
+              result: roll,
+              reason: 'vedi-napoli',
+              characterName: charName
+            });
+          }
+        }
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-vedi-napoli-casob`, playerName: 'Sistema',
+            message: `🌶️ VEDI NAPOLI! Nessun napoletano in campo per ricevere le stelle. ${rollMessages.join(', ')}. Turni rimasti: ${scenario.vediNapoliTurnsLeft}`,
+            timestamp: Date.now()
+          });
         }
       }
 
