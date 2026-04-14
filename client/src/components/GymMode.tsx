@@ -554,6 +554,10 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     }
   }, [loading, leaders, storyDeckIds, phase, deckFetchStatus]);
 
+  const regularLeaders = leaders.filter(l => !l.isHidden);
+  const quadratoLeader = leaders.find(l => l.isHidden && l.name === 'Quadrato') ?? null;
+  const quadratoCompleted = quadratoLeader ? completedIds.includes(quadratoLeader.id) : false;
+
   // 2D mode: auto-trigger Quadrato after all pre-final stages are complete (before Bronx/Zody)
   useEffect(() => {
     if (phase !== 'map') return;
@@ -906,10 +910,6 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     if (allBefore) return 'available';
     return 'locked';
   };
-
-  const regularLeaders = leaders.filter(l => !l.isHidden);
-  const quadratoLeader = leaders.find(l => l.isHidden && l.name === 'Quadrato') ?? null;
-  const quadratoCompleted = quadratoLeader ? completedIds.includes(quadratoLeader.id) : false;
 
   /* Wizard reward card: Bullox → bonus-51 (Evoluzione gialla), Horsy → bonus-53 (Evoluzione verde) */
   const wizardCardId   = chosenFaction === 'bullox' ? 'bonus-51' : 'bonus-53';
