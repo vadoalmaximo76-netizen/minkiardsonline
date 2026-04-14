@@ -2707,6 +2707,47 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           </div>
         </div>
       )}
+
+      {/* Stage 13 floating button — always visible regardless of scroll/view */}
+      {stage13Status && (stage13Status.myStage || stage13Status.canBuild || stage13Status.visibleStage || stage13Status.pendingChallengeAsBoss || stage13Status.pendingChallengeAsChallenger) && !showStage13Modal && phase === 'map' && (
+        <button
+          onClick={() => {
+            setShowStage13Modal(true);
+            setStage13BuildSuccess(false);
+            setStage13BuildError(null);
+          }}
+          style={{
+            position: 'absolute', bottom: 20, right: 16, zIndex: 80,
+            background: stage13Status.pendingChallengeAsBoss
+              ? 'linear-gradient(135deg,#dc2626,#991b1b)'
+              : stage13Status.myStage
+              ? `linear-gradient(135deg,${stage13Status.myStage.stageColor || '#7c3aed'},#4c1d95)`
+              : stage13Status.visibleStage
+              ? `linear-gradient(135deg,${stage13Status.visibleStage.stageColor || '#7c3aed'},#4c1d95)`
+              : 'linear-gradient(135deg,#7c3aed,#4c1d95)',
+            border: 'none', borderRadius: 999, cursor: 'pointer',
+            padding: '10px 18px',
+            display: 'flex', alignItems: 'center', gap: 8,
+            boxShadow: '0 4px 20px rgba(124,58,237,0.5), 0 0 0 2px rgba(255,255,255,0.1)',
+            animation: stage13Status.pendingChallengeAsBoss ? 'gymNodePulse 1.5s ease-out infinite' : undefined,
+          }}
+        >
+          <span style={{ fontSize: 18 }}>
+            {stage13Status.pendingChallengeAsBoss ? '⚔️' : stage13Status.pendingChallengeAsChallenger ? '⏳' : stage13Status.myStage ? '👑' : stage13Status.visibleStage ? '🏰' : '🏗️'}
+          </span>
+          <span style={{ color: 'white', fontWeight: 900, fontSize: 13, letterSpacing: '0.01em' }}>
+            {stage13Status.pendingChallengeAsBoss
+              ? 'Sei sfidato!'
+              : stage13Status.pendingChallengeAsChallenger
+              ? 'Sfida inviata'
+              : stage13Status.myStage
+              ? 'Stage 13'
+              : stage13Status.visibleStage
+              ? 'Stage 13'
+              : 'Costruisci Stage 13'}
+          </span>
+        </button>
+      )}
     </div>
   );
 }
