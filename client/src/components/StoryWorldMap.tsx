@@ -2442,29 +2442,28 @@ export function StoryWorldMap({
 
         /* 1c. District edge transition — soft gradient blending at borders */
         const edgeW = TILE * 1.8;
-        const blendAlpha = 0.38;
-        const bg = '#5a9e2f'; // base green background color
+        const edgeColorSolid = 'rgba(90,158,47,0.62)'; // base green (#5a9e2f) with alpha
+        const edgeColorTransp = 'rgba(90,158,47,0)';
         // Left edge
         const lGrad = ctx.createLinearGradient(rx, ry, rx + edgeW, ry);
-        lGrad.addColorStop(0, bg + 'a0'); lGrad.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = lGrad; ctx.globalAlpha = blendAlpha;
+        lGrad.addColorStop(0, edgeColorSolid); lGrad.addColorStop(1, edgeColorTransp);
+        ctx.fillStyle = lGrad;
         ctx.fillRect(rx, ry, edgeW, rh2);
         // Right edge
         const rGrad = ctx.createLinearGradient(rx + rw2 - edgeW, ry, rx + rw2, ry);
-        rGrad.addColorStop(0, 'rgba(0,0,0,0)'); rGrad.addColorStop(1, bg + 'a0');
+        rGrad.addColorStop(0, edgeColorTransp); rGrad.addColorStop(1, edgeColorSolid);
         ctx.fillStyle = rGrad;
         ctx.fillRect(rx + rw2 - edgeW, ry, edgeW, rh2);
         // Top edge
         const tGrad = ctx.createLinearGradient(rx, ry, rx, ry + edgeW);
-        tGrad.addColorStop(0, bg + 'a0'); tGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        tGrad.addColorStop(0, edgeColorSolid); tGrad.addColorStop(1, edgeColorTransp);
         ctx.fillStyle = tGrad;
         ctx.fillRect(rx, ry, rw2, edgeW);
         // Bottom edge
         const bGrad = ctx.createLinearGradient(rx, ry + rh2 - edgeW, rx, ry + rh2);
-        bGrad.addColorStop(0, 'rgba(0,0,0,0)'); bGrad.addColorStop(1, bg + 'a0');
+        bGrad.addColorStop(0, edgeColorTransp); bGrad.addColorStop(1, edgeColorSolid);
         ctx.fillStyle = bGrad;
         ctx.fillRect(rx, ry + rh2 - edgeW, rw2, edgeW);
-        ctx.globalAlpha = 1;
       });
 
       /* 1b. Day/night cycle: compute atmosphere values (applied post-render) */
