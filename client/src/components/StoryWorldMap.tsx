@@ -1565,24 +1565,24 @@ export function StoryWorldMap({
       ctx.closePath(); ctx.fill();
       /* foliage - 5 layers for volumetric look */
       const fy = sy - R * 0.88;
-      /* shadow base ring */
+      /* shadow base ring (Pokémon-style dark green) */
       ctx.beginPath(); ctx.arc(sx, fy, R * 1.12, 0, Math.PI * 2);
-      ctx.fillStyle = '#0d3310'; ctx.fill();
-      /* main body */
+      ctx.fillStyle = '#1a4a10'; ctx.fill();
+      /* main body (vivid medium green) */
       ctx.beginPath(); ctx.arc(sx, fy, R, 0, Math.PI * 2);
-      ctx.fillStyle = '#1a5c1a'; ctx.fill();
+      ctx.fillStyle = '#2e8a2e'; ctx.fill();
       /* east-side ambient occlusion */
       ctx.beginPath(); ctx.arc(sx + R * 0.28, fy + R * 0.1, R * 0.72, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(0,18,0,0.32)'; ctx.fill();
-      /* mid highlight layer */
+      ctx.fillStyle = 'rgba(0,30,0,0.35)'; ctx.fill();
+      /* mid highlight layer (brighter green) */
       ctx.beginPath(); ctx.arc(sx - R * 0.14, fy - R * 0.18, R * 0.78, 0, Math.PI * 2);
-      ctx.fillStyle = '#236b23'; ctx.fill();
-      /* top highlight */
+      ctx.fillStyle = '#3da83d'; ctx.fill();
+      /* top highlight (vivid bright green) */
       ctx.beginPath(); ctx.arc(sx - R * 0.3, fy - R * 0.34, R * 0.5, 0, Math.PI * 2);
-      ctx.fillStyle = '#35a035'; ctx.fill();
-      /* specular spot */
+      ctx.fillStyle = '#58cc58'; ctx.fill();
+      /* specular spot (light highlight) */
       ctx.beginPath(); ctx.arc(sx - R * 0.42, fy - R * 0.46, R * 0.22, 0, Math.PI * 2);
-      ctx.fillStyle = '#4ec44e'; ctx.fill();
+      ctx.fillStyle = '#88e088'; ctx.fill();
     };
 
     const drawArena = (
@@ -2256,24 +2256,24 @@ export function StoryWorldMap({
       const camX = playerRef.current.x, camZ = playerRef.current.z;
       ensurePatterns(ctx, camX, camZ);
 
-      /* 1. City background: concrete base + district zones with distinct visual styles */
-      ctx.fillStyle = '#2a2a2a';
+      /* 1. City background: bright green grass base (Pokémon-style) */
+      ctx.fillStyle = '#5a9e2f';
       ctx.fillRect(0, 0, w, h);
 
       /* District style config: [base, accent, grid] */
       const DISTRICT_STYLES = [
-        /* 0  INGRESSO          */ { base:'#c4a97d', accent:'#b8946a', grid:'rgba(0,0,0,0.08)', pattern:'cobble'  },
-        /* 1  BORGO RESIDENZIALE*/ { base:'#8b5e3c', accent:'#7a5232', grid:'rgba(0,0,0,0.10)', pattern:'brick'   },
-        /* 2  PORTO EST         */ { base:'#4a5568', accent:'#3d4a5c', grid:'rgba(0,0,0,0.12)', pattern:'dock'    },
-        /* 3  CENTRO            */ { base:'#7a7570', accent:'#6e6b65', grid:'rgba(0,0,0,0.08)', pattern:'stone'   },
-        /* 4  CAMPAGNA OVEST    */ { base:'#5a7a30', accent:'#4a6822', grid:'rgba(0,0,0,0.05)', pattern:'meadow'  },
-        /* 5  PARCO GRANDE      */ { base:'#3d7a32', accent:'#2e6024', grid:'rgba(0,0,0,0.06)', pattern:'grass'   },
-        /* 6  BOSCO NORD-OVEST  */ { base:'#1a3810', accent:'#122808', grid:'rgba(0,0,0,0.04)', pattern:'forest'  },
-        /* 7  PIANURA RURALE    */ { base:'#6a7840', accent:'#586232', grid:'rgba(0,0,0,0.06)', pattern:'field'   },
-        /* 8  CAMPUS TECNOPOLIS */ { base:'#3a4858', accent:'#2e3a48', grid:'rgba(0,0,0,0.10)', pattern:'stone'   },
-        /* 9  GIARDINO OVEST    */ { base:'#2e6e28', accent:'#245a1f', grid:'rgba(0,0,0,0.06)', pattern:'grass'   },
-        /* 10 GIARDINO EST      */ { base:'#306830', accent:'#265825', grid:'rgba(0,0,0,0.06)', pattern:'grass'   },
-        /* 11 PARCO INGRESSO    */ { base:'#3a7a35', accent:'#2e6428', grid:'rgba(0,0,0,0.06)', pattern:'grass'   },
+        /* 0  INGRESSO          */ { base:'#d4b866', accent:'#c8a250', grid:'rgba(0,0,0,0.10)', pattern:'cobble'  },
+        /* 1  BORGO RESIDENZIALE*/ { base:'#c87a50', accent:'#b86840', grid:'rgba(0,0,0,0.10)', pattern:'brick'   },
+        /* 2  PORTO EST         */ { base:'#5888b8', accent:'#4a78a8', grid:'rgba(0,0,0,0.12)', pattern:'dock'    },
+        /* 3  CENTRO            */ { base:'#b0a898', accent:'#a09888', grid:'rgba(0,0,0,0.08)', pattern:'stone'   },
+        /* 4  CAMPAGNA OVEST    */ { base:'#78c040', accent:'#68a832', grid:'rgba(0,0,0,0.05)', pattern:'meadow'  },
+        /* 5  PARCO GRANDE      */ { base:'#52b830', accent:'#44a025', grid:'rgba(0,0,0,0.06)', pattern:'grass'   },
+        /* 6  BOSCO NORD-OVEST  */ { base:'#2a6018', accent:'#1e4810', grid:'rgba(0,0,0,0.04)', pattern:'forest'  },
+        /* 7  PIANURA RURALE    */ { base:'#90b848', accent:'#80a838', grid:'rgba(0,0,0,0.06)', pattern:'field'   },
+        /* 8  CAMPUS TECNOPOLIS */ { base:'#6880a0', accent:'#587090', grid:'rgba(0,0,0,0.10)', pattern:'stone'   },
+        /* 9  GIARDINO OVEST    */ { base:'#48b030', accent:'#3a9825', grid:'rgba(0,0,0,0.06)', pattern:'grass'   },
+        /* 10 GIARDINO EST      */ { base:'#4aac32', accent:'#3c9228', grid:'rgba(0,0,0,0.06)', pattern:'grass'   },
+        /* 11 PARCO INGRESSO    */ { base:'#52b838', accent:'#44a030', grid:'rgba(0,0,0,0.06)', pattern:'grass'   },
       ];
       DISTRICT_DATA.forEach((d, di) => {
         const [x1s, y1s] = w2s(d.x1, d.z1);
@@ -2289,7 +2289,7 @@ export function StoryWorldMap({
         ctx.beginPath(); ctx.rect(rx, ry, rw2, rh2);
         ctx.clip();
         if (sty.pattern === 'cobble') {
-          /* Cobblestone: irregular small tiles */
+          /* Cobblestone: irregular small tiles (Pokémon sandy market style) */
           ctx.fillStyle = sty.accent;
           const ts = TILE * 0.55;
           for (let gx = rx - ts; gx < rx + rw2 + ts; gx += ts) {
@@ -2298,7 +2298,7 @@ export function StoryWorldMap({
               ctx.fillRect(gx + off + 1, gy + 1, ts - 2, ts - 2);
             }
           }
-          ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 1;
+          ctx.strokeStyle = 'rgba(100,60,0,0.25)'; ctx.lineWidth = 1;
           for (let gx = rx - ts; gx < rx + rw2 + ts; gx += ts) {
             for (let gy = ry - ts; gy < ry + rh2 + ts; gy += ts) {
               const off = ((Math.round(gy / ts)) % 2) * ts * 0.5;
@@ -2306,7 +2306,7 @@ export function StoryWorldMap({
             }
           }
         } else if (sty.pattern === 'brick') {
-          /* Brick: horizontal staggered rows */
+          /* Brick: horizontal staggered rows (warm terracotta) */
           ctx.fillStyle = sty.accent;
           const bw = TILE * 1.2, bh = TILE * 0.5;
           for (let gy = ry - bh; gy < ry + rh2 + bh; gy += bh) {
@@ -2316,7 +2316,7 @@ export function StoryWorldMap({
               ctx.fillRect(gx + 1, gy + 1, bw - 2, bh - 2);
             }
           }
-          ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 0.8;
+          ctx.strokeStyle = 'rgba(80,30,10,0.25)'; ctx.lineWidth = 0.8;
           for (let gy = ry - bh; gy < ry + rh2 + bh; gy += bh) {
             const row = Math.round(gy / bh);
             const off = (row % 2) * bw * 0.5;
@@ -2363,44 +2363,44 @@ export function StoryWorldMap({
             ctx.fillRect(sx2, sy2, TILE * 1.2, TILE * 0.8);
           }
         } else if (sty.pattern === 'grass') {
-          /* Grass: light texture lines */
-          ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 0.8;
+          /* Grass: bright Pokémon-style texture with vivid highlights */
+          ctx.strokeStyle = 'rgba(0,80,0,0.12)'; ctx.lineWidth = 0.8;
           const gg = TILE * 0.85;
           for (let gy = ry; gy < ry + rh2; gy += gg) {
             ctx.beginPath(); ctx.moveTo(rx, gy); ctx.lineTo(rx + rw2, gy); ctx.stroke();
           }
-          /* brighter highlight patches */
-          ctx.fillStyle = 'rgba(100,200,70,0.12)';
+          /* vivid highlight patches */
+          ctx.fillStyle = 'rgba(120,230,60,0.20)';
           for (let i = 0; i < 8; i++) {
             const px2 = rx + ((i * 41 + 7) % rw2); const py2 = ry + ((i * 29 + 3) % rh2);
             ctx.beginPath(); ctx.ellipse(px2, py2, TILE * 2.5, TILE * 1.5, 0, 0, Math.PI * 2);
             ctx.fill();
           }
         } else if (sty.pattern === 'meadow') {
-          /* Meadow: irregular grass clumps + wildflower dots */
-          ctx.fillStyle = 'rgba(100,160,50,0.14)';
+          /* Meadow: bright grass clumps + vivid wildflower dots */
+          ctx.fillStyle = 'rgba(120,200,50,0.22)';
           for (let i = 0; i < 20; i++) {
             const mx = rx + ((i * 47 + 13) % Math.max(1, rw2));
             const my = ry + ((i * 31 + 7)  % Math.max(1, rh2));
             ctx.beginPath(); ctx.ellipse(mx, my, TILE * 3.0, TILE * 1.8, (i * 0.4), 0, Math.PI * 2);
             ctx.fill();
           }
-          /* small wildflower dots */
-          const fdots = ['rgba(255,200,60,0.35)','rgba(230,100,160,0.30)','rgba(100,200,255,0.28)'];
+          /* vivid wildflower dots */
+          const fdots = ['rgba(255,220,40,0.60)','rgba(255,80,160,0.45)','rgba(80,200,255,0.45)'];
           for (let i = 0; i < 18; i++) {
             const fx3 = rx + ((i * 53 + 19) % Math.max(1, rw2));
             const fy3 = ry + ((i * 37 + 11) % Math.max(1, rh2));
             ctx.fillStyle = fdots[i % 3];
-            ctx.beginPath(); ctx.arc(fx3, fy3, 2.5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(fx3, fy3, 3.0, 0, Math.PI * 2); ctx.fill();
           }
           /* subtle ploughing lines */
-          ctx.strokeStyle = 'rgba(0,0,0,0.07)'; ctx.lineWidth = 0.8;
+          ctx.strokeStyle = 'rgba(0,60,0,0.10)'; ctx.lineWidth = 0.8;
           for (let gy = ry; gy < ry + rh2; gy += TILE * 2.5) {
             ctx.beginPath(); ctx.moveTo(rx, gy); ctx.lineTo(rx + rw2, gy); ctx.stroke();
           }
         } else if (sty.pattern === 'forest') {
-          /* Forest: dark canopy patches + dense texture */
-          ctx.fillStyle = 'rgba(0,30,0,0.20)';
+          /* Forest: rich dark canopy patches + dense texture */
+          ctx.fillStyle = 'rgba(0,50,0,0.28)';
           for (let i = 0; i < 25; i++) {
             const fx3 = rx + ((i * 43 + 11) % Math.max(1, rw2));
             const fy3 = ry + ((i * 29 + 7)  % Math.max(1, rh2));
@@ -2408,30 +2408,30 @@ export function StoryWorldMap({
             ctx.ellipse(fx3, fy3, TILE * 3.5, TILE * 2.5, i * 0.3, 0, Math.PI * 2);
             ctx.fill();
           }
-          /* dappled light spots */
-          ctx.fillStyle = 'rgba(80,160,40,0.12)';
+          /* dappled light spots (vivid) */
+          ctx.fillStyle = 'rgba(100,210,50,0.18)';
           for (let i = 0; i < 12; i++) {
             const fx3 = rx + ((i * 61 + 23) % Math.max(1, rw2));
             const fy3 = ry + ((i * 41 + 5)  % Math.max(1, rh2));
             ctx.beginPath(); ctx.arc(fx3, fy3, TILE * 1.2, 0, Math.PI * 2); ctx.fill();
           }
         } else if (sty.pattern === 'field') {
-          /* Field: horizontal crop rows with alternating tones */
+          /* Field: horizontal crop rows with bright alternating tones */
           const rowH = TILE * 1.4;
           for (let gy = ry; gy < ry + rh2; gy += rowH) {
             const rowIdx = Math.round(gy / rowH);
             ctx.fillStyle = (rowIdx % 2 === 0)
-              ? 'rgba(100,130,50,0.10)'
-              : 'rgba(140,170,70,0.12)';
+              ? 'rgba(120,170,50,0.18)'
+              : 'rgba(160,210,70,0.20)';
             ctx.fillRect(rx, gy, rw2, rowH);
           }
           /* furrow lines */
-          ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 0.7;
+          ctx.strokeStyle = 'rgba(0,50,0,0.10)'; ctx.lineWidth = 0.7;
           for (let gy = ry; gy < ry + rh2; gy += rowH) {
             ctx.beginPath(); ctx.moveTo(rx, gy); ctx.lineTo(rx + rw2, gy); ctx.stroke();
           }
           /* occasional boulder / shrub dots */
-          ctx.fillStyle = 'rgba(100,80,40,0.15)';
+          ctx.fillStyle = 'rgba(120,100,50,0.20)';
           for (let i = 0; i < 6; i++) {
             const fx3 = rx + ((i * 71 + 17) % Math.max(1, rw2));
             const fy3 = ry + ((i * 53 + 13) % Math.max(1, rh2));
@@ -2491,11 +2491,11 @@ export function StoryWorldMap({
         }
         const rw = Math.abs(sx2 - sx1), rh = Math.abs(sy2 - sy1);
         const rx = Math.min(sx1, sx2), ry = Math.min(sy1, sy2);
-        /* outer sidewalk strip: light stone/concrete */
-        ctx.fillStyle = '#b0a898';
+        /* outer sidewalk strip: light concrete (Pokémon-style) */
+        ctx.fillStyle = '#d0c8b8';
         ctx.fillRect(rx - SIDEWALK_W, ry - SIDEWALK_W, rw + SIDEWALK_W * 2, rh + SIDEWALK_W * 2);
         /* sidewalk flagstone hints */
-        ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 0.8;
+        ctx.strokeStyle = 'rgba(0,0,0,0.14)'; ctx.lineWidth = 0.8;
         if (isVert) {
           for (let ty = ry - SIDEWALK_W; ty < ry + rh + SIDEWALK_W; ty += TILE * 1.2) {
             ctx.beginPath(); ctx.moveTo(rx - SIDEWALK_W, ty); ctx.lineTo(rx, ty); ctx.stroke();
@@ -2508,21 +2508,19 @@ export function StoryWorldMap({
           }
         }
         /* curb edge (dark line between sidewalk and road) */
-        ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 2;
         ctx.strokeRect(rx, ry, rw, rh);
-        /* road surface (asphalt) */
-        ctx.fillStyle = '#2d2d2d';
+        /* road surface (medium grey - Pokémon style) */
+        ctx.fillStyle = '#787878';
         ctx.fillRect(rx, ry, rw, rh);
-        /* asphalt surface graininess */
-        ctx.fillStyle = 'rgba(255,255,255,0.02)';
-        for (let gi = 0; gi < 4; gi++) {
-          ctx.fillRect(rx + ((gi * 37) % rw), ry + ((gi * 29) % rh), rw * 0.18, rh * 0.22);
-        }
+        /* road edge stripes (white edge lines) */
+        ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1.5;
+        ctx.strokeRect(rx + 2, ry + 2, rw - 4, rh - 4);
         /* center dashes */
         const [mx1, my1] = isVert ? w2s(road.x1, Math.min(road.z1, road.z2)) : w2s(Math.min(road.x1, road.x2), road.z1);
         const [mx2, my2] = isVert ? w2s(road.x1, Math.max(road.z1, road.z2)) : w2s(Math.max(road.x1, road.x2), road.z1);
-        ctx.strokeStyle = 'rgba(255,255,220,0.22)';
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(255,240,60,0.75)';
+        ctx.lineWidth = 2;
         ctx.setLineDash([TILE * 1.5, TILE]);
         ctx.beginPath(); ctx.moveTo(mx1, my1); ctx.lineTo(mx2, my2); ctx.stroke();
         ctx.setLineDash([]);
@@ -2563,19 +2561,19 @@ export function StoryWorldMap({
         }
         const cw = Math.abs(cx2 - cx1), ch = Math.abs(cy2 - cy1);
         const crx = Math.min(cx1, cx2), cry = Math.min(cy1, cy2);
-        /* canal water with animated ripple */
+        /* canal water with animated ripple (vivid Pokémon blue) */
         const cWave = Math.sin(t * 1.1 + canal.x1 * 0.05) * 0.04;
         const cGrd = ctx.createLinearGradient(crx, cry, crx + cw, cry + ch);
-        cGrd.addColorStop(0, `rgba(26,120,216,${0.80 + cWave})`);
-        cGrd.addColorStop(0.5, `rgba(55,160,240,${0.75 + cWave})`);
-        cGrd.addColorStop(1, `rgba(26,120,216,${0.80 + cWave})`);
+        cGrd.addColorStop(0, `rgba(30,140,230,${0.90 + cWave})`);
+        cGrd.addColorStop(0.5, `rgba(60,180,255,${0.85 + cWave})`);
+        cGrd.addColorStop(1, `rgba(30,140,230,${0.90 + cWave})`);
         ctx.fillStyle = cGrd;
         ctx.fillRect(crx, cry, cw, ch);
         /* canal edge lines */
-        ctx.strokeStyle = 'rgba(90,140,200,0.55)'; ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(20,100,200,0.70)'; ctx.lineWidth = 1.5;
         ctx.strokeRect(crx, cry, cw, ch);
         /* animated shimmer lines */
-        ctx.strokeStyle = 'rgba(140,210,255,0.22)'; ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(160,230,255,0.45)'; ctx.lineWidth = 1.5;
         if (isVert) {
           const shimY = cry + ((t * 0.4 * TILE) % ch);
           ctx.setLineDash([TILE * 0.5, TILE * 0.8]);
@@ -2600,12 +2598,12 @@ export function StoryWorldMap({
         shoreGrad.addColorStop(1, '#b89050');
         ctx.beginPath(); ctx.arc(wcx, wcy, sr + 1.5 * TILE, 0, Math.PI * 2);
         ctx.fillStyle = shoreGrad; ctx.fill();
-        /* water base */
-        const wAlpha = 0.78 + Math.sin(t * 1.4 + wd.x) * 0.06;
+        /* water base (vivid Pokémon blue) */
+        const wAlpha = 0.90 + Math.sin(t * 1.4 + wd.x) * 0.06;
         const waterGrad = ctx.createRadialGradient(wcx - sr * 0.2, wcy - sr * 0.15, 0, wcx, wcy, sr);
-        waterGrad.addColorStop(0, `rgba(55,160,240,${wAlpha})`);
-        waterGrad.addColorStop(0.6, `rgba(26,120,216,${wAlpha})`);
-        waterGrad.addColorStop(1, `rgba(10,80,170,${wAlpha})`);
+        waterGrad.addColorStop(0, `rgba(70,190,255,${wAlpha})`);
+        waterGrad.addColorStop(0.6, `rgba(30,148,230,${wAlpha})`);
+        waterGrad.addColorStop(1, `rgba(10,100,200,${wAlpha})`);
         ctx.beginPath(); ctx.arc(wcx, wcy, sr, 0, Math.PI * 2);
         ctx.fillStyle = waterGrad; ctx.fill();
         /* concentric ripple rings */
@@ -2694,31 +2692,31 @@ export function StoryWorldMap({
         const ppw = Math.abs(ppx2 - ppx1), pph = Math.abs(ppy2 - ppy1);
         const pprx = Math.min(ppx1, ppx2), ppry = Math.min(ppy1, ppy2);
         if (pp.dirt) {
-          /* dirt track: earthy brown, rougher texture */
-          ctx.fillStyle = '#a07848';
+          /* dirt track: bright sandy-earth (Pokémon-style) */
+          ctx.fillStyle = '#c8a060';
           ctx.fillRect(pprx, ppry, ppw, pph);
           /* dirt texture irregularities */
-          ctx.fillStyle = 'rgba(70,45,20,0.22)';
+          ctx.fillStyle = 'rgba(90,55,20,0.22)';
           for (let gi = 0; gi < 8; gi++) {
             const gx2 = pprx + ((gi * 23 + 5) % Math.max(1, ppw));
             const gy2 = ppry + ((gi * 17 + 3) % Math.max(1, pph));
             ctx.beginPath(); ctx.ellipse(gx2, gy2, 3.5, 2.0, gi * 0.4, 0, Math.PI * 2); ctx.fill();
           }
-          ctx.strokeStyle = 'rgba(60,35,10,0.28)'; ctx.lineWidth = 0.8;
+          ctx.strokeStyle = 'rgba(80,50,15,0.35)'; ctx.lineWidth = 1;
           ctx.strokeRect(pprx, ppry, ppw, pph);
         } else {
-          /* gravel base */
-          ctx.fillStyle = '#c8b98a';
+          /* gravel base (light sandy gravel) */
+          ctx.fillStyle = '#d8c898';
           ctx.fillRect(pprx, ppry, ppw, pph);
           /* gravel texture dots */
-          ctx.fillStyle = 'rgba(100,80,50,0.18)';
+          ctx.fillStyle = 'rgba(110,90,55,0.22)';
           for (let gi = 0; gi < 5; gi++) {
             const gx2 = pprx + ((gi * 17 + 3) % Math.max(1, ppw));
             const gy2 = ppry + ((gi * 13 + 7) % Math.max(1, pph));
             ctx.beginPath(); ctx.arc(gx2, gy2, 1.5, 0, Math.PI * 2); ctx.fill();
           }
           /* edge */
-          ctx.strokeStyle = 'rgba(80,60,30,0.35)'; ctx.lineWidth = 1;
+          ctx.strokeStyle = 'rgba(90,70,35,0.40)'; ctx.lineWidth = 1;
           ctx.strokeRect(pprx, ppry, ppw, pph);
         }
       });
@@ -2769,7 +2767,7 @@ export function StoryWorldMap({
         const [gsx, gsy] = w2s(gs.x, gs.z);
         const wave = Math.sin(t * 2.2 + gs.x * 0.3 + gs.z * 0.2) * 0.5;
         const isBosco = gs.z < -72 && gs.x < -92;
-        const bladeColor = isBosco ? '#2a4a18' : '#5a7830';
+        const bladeColor = isBosco ? '#2e6018' : '#72aa30';
         const bladeCount = 7;
         ctx.save();
         ctx.translate(gsx, gsy);
