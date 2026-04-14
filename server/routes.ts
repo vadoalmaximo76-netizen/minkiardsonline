@@ -13978,6 +13978,128 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
     }
   });
 
+  // ── Admin Story Mode Testing endpoints ───────────────────────────────────────
+
+  // GET /api/admin/story-testing/progress - get admin's gym progress vs all leaders
+  app.get('/api/admin/story-testing/progress', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess(user);
+      if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+
+      const leaders = await db.select().from(gymLeaders).orderBy(gymLeaders.orderIndex);
+      const progress = await db.select().from(userGymProgress).where(eq(userGymProgress.userId, user.userId));
+      const completedIds = new Set(progress.map((p: any) => p.gymLeaderId));
+
+      const storyRows = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, user.userId)).limit(1);
+
+      res.json({
+        success: true,
+        leaders: leaders.map((l: any) => ({ id: l.id, orderIndex: l.orderIndex, name: l.name, gymName: l.gymName, isActive: l.isActive, completed: completedIds.has(l.id) })),
+        storyDeck: storyRows[0] ?? null,
+      });
+    } catch (e) {
+      console.error('Error fetching story testing progress:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/admin/story-testing/skip-to-stage/:gymLeaderId - mark all stages up to (excluding) this one as completed
+  app.post('/api/admin/story-testing/skip-to-stage/:gymLeaderId', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess(user);
+      if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+
+      const targetId = parseInt(req.params.gymLeaderId);
+      const leaders = await db.select().from(gymLeaders).orderBy(gymLeaders.orderIndex);
+      const targetLeader = leaders.find((l: any) => l.id === targetId);
+      if (!targetLeader) return res.status(404).json({ success: false, error: 'Stage non trovato' });
+
+      const leadersToComplete = leaders.filter((l: any) => l.orderIndex < targetLeader.orderIndex);
+
+      const existing = await db.select().from(userGymProgress).where(eq(userGymProgress.userId, user.userId));
+      const existingIds = new Set(existing.map((p: any) => p.gymLeaderId));
+
+      for (const leader of leadersToComplete) {
+        if (!existingIds.has(leader.id)) {
+          await db.insert(userGymProgress).values({ userId: user.userId, gymLeaderId: leader.id });
+        }
+      }
+
+      // Remove the target stage from completed (so user starts fresh at that stage)
+      await db.delete(userGymProgress).where(and(eq(userGymProgress.userId, user.userId), eq(userGymProgress.gymLeaderId, targetId)));
+
+      res.json({ success: true, completed: leadersToComplete.length });
+    } catch (e) {
+      console.error('Error skipping to stage:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/admin/story-testing/toggle-stage/:gymLeaderId - toggle single stage completion
+  app.post('/api/admin/story-testing/toggle-stage/:gymLeaderId', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess(user);
+      if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+
+      const gymLeaderId = parseInt(req.params.gymLeaderId);
+      if (isNaN(gymLeaderId)) return res.status(400).json({ success: false, error: 'ID stage non valido' });
+
+      const leaderCheck = await db.select({ id: gymLeaders.id }).from(gymLeaders).where(eq(gymLeaders.id, gymLeaderId)).limit(1);
+      if (leaderCheck.length === 0) return res.status(404).json({ success: false, error: 'Stage non trovato' });
+
+      const existing = await db.select().from(userGymProgress).where(and(eq(userGymProgress.userId, user.userId), eq(userGymProgress.gymLeaderId, gymLeaderId))).limit(1);
+
+      if (existing.length > 0) {
+        await db.delete(userGymProgress).where(and(eq(userGymProgress.userId, user.userId), eq(userGymProgress.gymLeaderId, gymLeaderId)));
+        res.json({ success: true, completed: false });
+      } else {
+        await db.insert(userGymProgress).values({ userId: user.userId, gymLeaderId });
+        res.json({ success: true, completed: true });
+      }
+    } catch (e) {
+      console.error('Error toggling stage:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/admin/story-testing/reset-progress - reset all story mode progress for admin
+  app.post('/api/admin/story-testing/reset-progress', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess(user);
+      if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+
+      await db.delete(userGymProgress).where(eq(userGymProgress.userId, user.userId));
+      res.json({ success: true });
+    } catch (e) {
+      console.error('Error resetting progress:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/admin/story-testing/reset-deck - reset story mode deck for admin
+  app.post('/api/admin/story-testing/reset-deck', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess(user);
+      if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+
+      await db.delete(userStoryDeck).where(eq(userStoryDeck.userId, user.userId));
+      res.json({ success: true });
+    } catch (e) {
+      console.error('Error resetting story deck:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
   // POST /api/admin/sync-gym-leaders - copy all gym leaders from EXTERNAL_DATABASE_URL → current DB
   app.post('/api/admin/sync-gym-leaders', authMiddleware, async (req, res) => {
     try {

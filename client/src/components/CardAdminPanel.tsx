@@ -4,8 +4,9 @@ import { AdminTooltipsPanel } from './AdminTooltipsPanel';
 import { OcrReviewPanel } from './OcrReviewPanel';
 import { DraftCostEditorPanel } from './DraftCostEditorPanel';
 import { AdminGymPanel } from './AdminGymPanel';
+import { AdminTestingPanel } from './AdminTestingPanel';
 import { Button } from './ui/button';
-import { Info, Eye, Coins, Check, X, Zap, ListOrdered, Menu, Shield, Database, RefreshCw, CloudDownload } from 'lucide-react';
+import { Info, Eye, Coins, Check, X, Zap, ListOrdered, Menu, Shield, Database, RefreshCw, CloudDownload, FlaskConical } from 'lucide-react';
 
 interface CardAdminPanelProps {
   onBack: () => void;
@@ -166,6 +167,7 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
   const [showOcrPanel, setShowOcrPanel] = useState(false);
   const [showCreditsPanel, setShowCreditsPanel] = useState(false);
   const [showGymPanel, setShowGymPanel] = useState(false);
+  const [showTestingPanel, setShowTestingPanel] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [showDraftCostEditor, setShowDraftCostEditor] = useState(false);
@@ -299,6 +301,7 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
               { label: 'Sincronizza DB', icon: <Database size={14} />, color: 'text-green-300', onClick: () => { setShowSyncDialog(true); setSyncResult(null); setSyncError(null); setShowMenu(false); } },
               { label: 'Sincronizza JSON → DB', icon: <CloudDownload size={14} />, color: 'text-cyan-300', onClick: () => { setShowForceSyncDialog(true); setForceSyncResult(null); setForceSyncError(null); setShowMenu(false); } },
               { label: 'Palestre', icon: <Shield size={14} />, color: 'text-yellow-300', onClick: () => { setShowGymPanel(true); setShowMenu(false); } },
+              { label: 'Testing Story Mode', icon: <FlaskConical size={14} />, color: 'text-emerald-300', onClick: () => { setShowTestingPanel(true); setShowMenu(false); } },
               { label: 'Editor Costi Draft', icon: <ListOrdered size={14} />, color: 'text-indigo-300', onClick: () => { setShowDraftCostEditor(true); setShowMenu(false); } },
               { label: 'Costi Draft Auto', icon: <Zap size={14} />, color: 'text-orange-300', onClick: () => { setShowAutoCostDialog(true); setAutoCostResult(null); setAutoCostError(null); setShowMenu(false); } },
               { label: 'Crediti Draft', icon: <Coins size={14} />, color: 'text-teal-300', onClick: () => { setShowCreditsPanel(true); setShowMenu(false); } },
@@ -341,6 +344,11 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
       {showGymPanel && (
         <AdminGymPanel
           onClose={() => setShowGymPanel(false)}
+        />
+      )}
+      {showTestingPanel && (
+        <AdminTestingPanel
+          onClose={() => setShowTestingPanel(false)}
         />
       )}
       {showDraftCostEditor && (
