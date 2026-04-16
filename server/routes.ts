@@ -10563,6 +10563,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     case 'play-card':
                       const playResult = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
                       
+                      // Emit card-played and show-youtube-video events for this CPU play
+                      if (playResult.card) {
+                        await emitCardPlayed(io, gameId, playResult.card, cpuAction.data.playerName);
+                      }
+                      
                       // According to MINKIARDS rules: when you play a card, you automatically draw a replacement of the same type
                       if (playResult.card) {
                         const cardType = playResult.card.type;
