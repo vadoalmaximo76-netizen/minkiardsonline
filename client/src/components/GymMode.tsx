@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, Shield, Star, Lock, CheckCircle, Swords, Trophy, ChevronRight, Sparkles, Heart, Target, Users, BookOpen, X, ClipboardList } from 'lucide-react';
 import gsap from 'gsap';
 import { CardInfoSheet } from './CardInfoSheet';
@@ -135,7 +135,76 @@ const GYM_PATH_STYLES = `
     50%      { filter: drop-shadow(0 0 14px #f59e0b) drop-shadow(0 0 28px #f59e0bcc); }
   }
   .gym-path-node-pop { animation: gymNodePop 0.42s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+  @keyframes gymPhaseFlash {
+    0%   { opacity: 1; }
+    35%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  @keyframes gymBossEntry {
+    0%   { transform: scale(0.78); opacity: 0; filter: drop-shadow(0 0 0px rgba(251,191,36,0)); }
+    60%  { transform: scale(1.04); opacity: 1; filter: drop-shadow(0 0 32px rgba(251,191,36,0.7)); }
+    100% { transform: scale(1);    opacity: 1; filter: drop-shadow(0 0 12px rgba(251,191,36,0.3)); }
+  }
+  @keyframes gymIntroSlideUp {
+    0%   { transform: translateY(22px); opacity: 0; }
+    100% { transform: translateY(0);    opacity: 1; }
+  }
+  @keyframes gymConfettiFall {
+    0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+    80%  { opacity: 1; }
+    100% { transform: translateY(100vh) rotate(var(--conf-spin)); opacity: 0; }
+  }
+  @keyframes gymDefeatRedFlash {
+    0%   { opacity: 0.55; }
+    30%  { opacity: 0.55; }
+    100% { opacity: 0; }
+  }
+  @keyframes gymBossShake {
+    0%,100% { transform: translateX(0); }
+    15%      { transform: translateX(-10px); }
+    30%      { transform: translateX(10px); }
+    45%      { transform: translateX(-8px); }
+    60%      { transform: translateX(8px); }
+    75%      { transform: translateX(-4px); }
+    88%      { transform: translateX(4px); }
+  }
+  @keyframes gymCardDealIn {
+    0%   { transform: translateY(20px); opacity: 0; }
+    100% { transform: translateY(0);    opacity: 1; }
+  }
+  @keyframes gymBadgeGlowPulse {
+    0%,100% { box-shadow: 0 0 20px 4px rgba(234,179,8,0.45); }
+    50%      { box-shadow: 0 0 52px 18px rgba(234,179,8,0.80), 0 0 90px 30px rgba(234,179,8,0.30); }
+  }
+  @keyframes gymIntroBgFadeIn {
+    0%   { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  @keyframes gymIntroBurst {
+    0%   { transform: rotate(var(--ba)) translateX(0px)    scale(1.2); opacity: 0.9; }
+    100% { transform: rotate(var(--ba)) translateX(var(--bd)) scale(0.2); opacity: 0; }
+  }
 `;
+
+/* ── Pre-computed confetti particle data (deterministic, no Math.random in render) ── */
+const CONFETTI_DATA = Array.from({ length: 26 }, (_, i) => ({
+  x: ((i * 1237 + 83) * 31) % 100,
+  color: ['#fbbf24','#f59e0b','#ffffff','#fde68a','#f97316','#fef3c7','#fcd34d'][i % 7],
+  delay: ((i * 79 + 17) % 700),
+  size: 6 + (i % 5) * 2,
+  spin: ((i * 137) % 540) - 270,
+  duration: 1200 + (i % 6) * 150,
+}));
+
+/* ── Pre-computed intro boss-arrival burst particles (deterministic) ── */
+const INTRO_BURST_DATA = Array.from({ length: 14 }, (_, i) => ({
+  angle: Math.round((i / 14) * 360),
+  dist: 38 + (i % 4) * 20,
+  color: ['#fbbf24','#f59e0b','#fde68a','#fcd34d','#ffffff'][i % 5],
+  size:  5 + (i % 4) * 3,
+  delay: (i % 4) * 35,
+}));
 
 const GYM_NODE_PCT_RIGHT = 58;
 const GYM_NODE_PCT_LEFT  = 42;
@@ -375,6 +444,10 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [showInfermeria, setShowInfermeria] = useState(false);
   const [showSecretRoom, setShowSecretRoom] = useState(false);
   const [secretRoomRevealing, setSecretRoomRevealing] = useState(false);
+  const [showRedFlash, setShowRedFlash] = useState(false);
+  const transitionRef = useRef<HTMLDivElement>(null);
+  const transitionFadeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const redFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const secretRoomEverRevealedRef = useRef(
     userId ? localStorage.getItem(`secretRoomRevealed_${userId}`) === 'true' : false
   );
@@ -702,6 +775,45 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     const t = setTimeout(() => setDefeatMsgVisible(true), 600);
     return () => clearTimeout(t);
   }, [phase]);
+
+  /* Phase transition: instant-black overlay, then fade to reveal new content */
+  useLayoutEffect(() => {
+    const el = transitionRef.current;
+    if (!el) return;
+    el.style.transition = 'none';
+    el.style.opacity = '1';
+  }, [phase]);
+
+  useEffect(() => {
+    const el = transitionRef.current;
+    if (!el) return;
+    if (transitionFadeRef.current) clearTimeout(transitionFadeRef.current);
+    transitionFadeRef.current = setTimeout(() => {
+      if (el) {
+        el.style.transition = 'opacity 350ms ease-out';
+        el.style.opacity = '0';
+      }
+    }, 160);
+    return () => { if (transitionFadeRef.current) clearTimeout(transitionFadeRef.current); };
+  }, [phase]);
+
+  /* Defeat: brief red flash on entering defeat screen */
+  useEffect(() => {
+    if (phase !== 'defeat') { setShowRedFlash(false); return; }
+    if (redFlashTimerRef.current) clearTimeout(redFlashTimerRef.current);
+    setShowRedFlash(true);
+    redFlashTimerRef.current = setTimeout(() => setShowRedFlash(false), 350);
+    return () => { if (redFlashTimerRef.current) clearTimeout(redFlashTimerRef.current); };
+  }, [phase]);
+
+  /* Inject cinematic keyframes into document head — always available across all phases */
+  useEffect(() => {
+    const styleEl = document.createElement('style');
+    styleEl.id = 'gym-mode-keyframes';
+    styleEl.textContent = GYM_PATH_STYLES;
+    document.head.appendChild(styleEl);
+    return () => { styleEl.remove(); };
+  }, []);
 
   // ── Secret Room GSAP reveal animation ────────────────────────────────────
   useEffect(() => {
@@ -1059,6 +1171,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   if (phase === 'battle' && gameId && selectedLeader) {
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto">
+        {/* Phase transition flash */}
+        <div ref={transitionRef} className="fixed inset-0 z-[300] bg-black pointer-events-none" style={{ opacity: 0 }} />
         {battleYoutubeVideoId && musicActive && (
           <iframe
             key={battleYoutubeVideoId}
@@ -1134,7 +1248,9 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             : 'linear-gradient(135deg, #1a0a2e 0%, #0a1a2e 100%)',
         }}
       >
-        <div className="flex-shrink-0 text-center pt-10 pb-4 px-4">
+        {/* Phase transition flash */}
+        <div ref={transitionRef} className="fixed inset-0 z-[300] bg-black pointer-events-none" style={{ opacity: 0 }} />
+        <div className="flex-shrink-0 text-center pt-10 pb-4 px-4" style={{ animation: 'gymIntroSlideUp 500ms ease-out both' }}>
           <div className="text-5xl mb-2">✨</div>
           <h2 className="text-yellow-300 font-black text-2xl mb-1">Scegli una carta!</h2>
           <p className="text-white/60 text-sm">
@@ -1155,6 +1271,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                   onClick={() => setScheaCardId(cardId)}
                   disabled={cardPickLoading}
                   className="relative flex items-stretch gap-3 rounded-xl overflow-hidden border-2 border-white/20 hover:border-yellow-400 hover:shadow-lg hover:shadow-yellow-400/20 transition-all group disabled:opacity-50 disabled:cursor-not-allowed bg-gray-900/80 text-left"
+                  style={{ animation: 'gymCardDealIn 380ms ease-out both', animationDelay: `${idx * 80}ms` }}
                 >
                   {/* Card thumbnail */}
                   <div className="flex-shrink-0 w-20 aspect-[2/3] relative overflow-hidden">
@@ -1267,6 +1384,28 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             : 'linear-gradient(135deg, #0d0820 0%, #0a1a0e 100%)',
         }}
       >
+        {/* Phase transition flash */}
+        <div ref={transitionRef} className="fixed inset-0 z-[300] bg-black pointer-events-none" style={{ opacity: 0 }} />
+        {/* Confetti burst — appears when victoryStep >= 1 */}
+        {victoryStep >= 1 && !isReplayBattle && CONFETTI_DATA.map((c, i) => (
+          <div
+            key={i}
+            className="fixed top-0 pointer-events-none z-[100]"
+            style={{
+              left: `${c.x}%`,
+              width: c.size,
+              height: c.size * 0.6,
+              backgroundColor: c.color,
+              borderRadius: 2,
+              animationDelay: `${c.delay}ms`,
+              animationDuration: `${c.duration}ms`,
+              animationFillMode: 'both',
+              animationName: 'gymConfettiFall',
+              animationTimingFunction: 'ease-in',
+              '--conf-spin': `${c.spin}deg`,
+            } as React.CSSProperties}
+          />
+        ))}
         <div className="min-h-full flex flex-col items-center justify-center px-6 py-12 gap-6">
           <div
             className="text-center transition-all duration-700"
@@ -1299,6 +1438,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                   style={{
                     boxShadow: victoryStep >= 2 ? (isReplayBattle ? '0 0 20px 6px rgba(150,150,150,0.4)' : '0 0 40px 12px rgba(234,179,8,0.6), 0 0 80px 20px rgba(234,179,8,0.25)') : 'none',
                     transition: 'box-shadow 0.8s ease',
+                    animation: !isReplayBattle && victoryStep >= 2 ? 'gymBadgeGlowPulse 1.2s ease-in-out 3' : undefined,
                   }}
                 >
                   <img src={selectedLeader.badgeImageUrl} alt="medaglia" className={`w-28 h-28 object-cover rounded-full border-4 ${isReplayBattle ? 'border-white/30 opacity-60' : 'border-yellow-400'}`} />
@@ -1422,6 +1562,25 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             : 'linear-gradient(135deg, #1a0000 0%, #0a000e 100%)',
         }}
       >
+        {/* Phase transition flash */}
+        <div ref={transitionRef} className="fixed inset-0 z-[300] bg-black pointer-events-none" style={{ opacity: 0 }} />
+        {/* Red vignette flash */}
+        {showRedFlash && (
+          <div className="fixed inset-0 z-[150] pointer-events-none bg-red-700" style={{ animation: 'gymDefeatRedFlash 350ms ease-out forwards' }} />
+        )}
+        {/* Boss avatar with shake — shown above other content */}
+        {selectedLeader.leaderImageUrl && (
+          <div
+            className="mb-2"
+            style={{ animation: 'gymBossShake 480ms ease-out 150ms both' }}
+          >
+            <img
+              src={selectedLeader.leaderImageUrl}
+              alt={selectedLeader.name}
+              className="w-20 h-20 object-cover rounded-2xl border-2 border-red-500/50 shadow-lg shadow-red-900/40"
+            />
+          </div>
+        )}
         <div className="text-7xl mb-4">💀</div>
         <h2 className="text-red-400 font-black text-4xl tracking-wide drop-shadow-lg mb-2">SCONFITTA</h2>
         <p className="text-white/50 text-sm text-center mb-8">
@@ -1531,34 +1690,80 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             : 'linear-gradient(135deg, #0d0820 0%, #0a1a2e 100%)',
         }}
       >
-        <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 text-center gap-5">
-            {/* Boss image */}
+        {/* Phase transition flash */}
+        <div ref={transitionRef} className="fixed inset-0 z-[300] bg-black pointer-events-none" style={{ opacity: 0 }} />
+        {/* Background fades in from black (background-first reveal) */}
+        <div className="fixed inset-0 bg-black pointer-events-none" style={{ animationName: 'gymIntroBgFadeIn', animationDuration: '550ms', animationDelay: '0ms', animationFillMode: 'forwards', zIndex: 10 }} />
+        <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 text-center gap-5" style={{ position: 'relative', zIndex: 20 }}>
+            {/* Boss image — cinematic scale-in with glow burst */}
             {selectedLeader.leaderImageUrl ? (
-              <div className="relative">
+              <div className="relative" style={{ animation: 'gymBossEntry 700ms cubic-bezier(0.34,1.56,0.64,1) both' }}>
                 <img
                   src={selectedLeader.leaderImageUrl}
                   alt={selectedLeader.name}
                   className="w-36 h-36 object-cover rounded-3xl border-4 border-yellow-400/40 shadow-2xl shadow-yellow-400/10"
                 />
+                {/* Boss-arrival particle burst — fires after boss lands (~600ms) */}
+                {INTRO_BURST_DATA.map((p, i) => (
+                  <div
+                    key={i}
+                    className="absolute pointer-events-none"
+                    style={{
+                      top: '50%', left: '50%',
+                      width: p.size, height: p.size,
+                      borderRadius: '50%',
+                      backgroundColor: p.color,
+                      marginTop: -p.size / 2, marginLeft: -p.size / 2,
+                      transformOrigin: '50% 50%',
+                      animationName: 'gymIntroBurst',
+                      animationDuration: '700ms',
+                      animationDelay: `${590 + p.delay}ms`,
+                      animationFillMode: 'both',
+                      animationTimingFunction: 'ease-out',
+                      '--ba': `${p.angle}deg`,
+                      '--bd': `${p.dist}px`,
+                    } as React.CSSProperties}
+                  />
+                ))}
                 <div className="absolute -bottom-2 -right-2 bg-orange-600 text-white text-[10px] font-black rounded-full px-2 py-0.5 border-2 border-gray-900">
                   BOSS
                 </div>
               </div>
             ) : (
-              <div className="w-36 h-36 rounded-3xl bg-gray-800 border-4 border-yellow-400/30 flex items-center justify-center">
+              <div className="relative w-36 h-36 rounded-3xl bg-gray-800 border-4 border-yellow-400/30 flex items-center justify-center" style={{ animation: 'gymBossEntry 700ms cubic-bezier(0.34,1.56,0.64,1) both' }}>
                 <Shield className="w-16 h-16 text-yellow-400/40" />
+                {INTRO_BURST_DATA.map((p, i) => (
+                  <div
+                    key={i}
+                    className="absolute pointer-events-none"
+                    style={{
+                      top: '50%', left: '50%',
+                      width: p.size, height: p.size,
+                      borderRadius: '50%',
+                      backgroundColor: p.color,
+                      marginTop: -p.size / 2, marginLeft: -p.size / 2,
+                      animationName: 'gymIntroBurst',
+                      animationDuration: '700ms',
+                      animationDelay: `${590 + p.delay}ms`,
+                      animationFillMode: 'both',
+                      animationTimingFunction: 'ease-out',
+                      '--ba': `${p.angle}deg`,
+                      '--bd': `${p.dist}px`,
+                    } as React.CSSProperties}
+                  />
+                ))}
               </div>
             )}
 
-            {/* Stage name */}
-            <div>
+            {/* Stage name — slides up with delay */}
+            <div style={{ animation: 'gymIntroSlideUp 480ms ease-out 220ms both' }}>
               <p className="text-yellow-400/70 text-xs font-black uppercase tracking-widest mb-1">Stage {selectedLeader.orderIndex}</p>
               <h2 className="text-white font-black text-3xl mb-1">{selectedLeader.gymName}</h2>
               <p className="text-white/50 text-sm">Boss: <span className="text-yellow-300 font-bold">{selectedLeader.name}</span></p>
             </div>
 
-            {/* Tags */}
-            <div className="flex flex-wrap justify-center gap-2">
+            {/* Tags — slide up with further delay */}
+            <div className="flex flex-wrap justify-center gap-2" style={{ animation: 'gymIntroSlideUp 480ms ease-out 380ms both' }}>
               <span className={`text-xs px-3 py-1 rounded-full font-bold bg-gray-800/80 border border-white/10 ${DIFFICULTY_LABEL[selectedLeader.cpuLevel]?.color || 'text-white'}`}>
                 {selectedLeader.cpuLevel === 'easy' ? '🟢' : selectedLeader.cpuLevel === 'medium' ? '🟡' : '🔴'} {DIFFICULTY_LABEL[selectedLeader.cpuLevel]?.label || selectedLeader.cpuLevel}
               </span>
@@ -1627,6 +1832,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col" style={{ background: 'linear-gradient(180deg, #0a0515 0%, #05080f 50%, #0a0515 100%)' }}>
+      {/* Phase transition flash overlay */}
+      <div ref={transitionRef} className="fixed inset-0 z-[300] bg-black pointer-events-none" style={{ opacity: 0 }} />
       {/* Header — compact in landscape */}
       <div className="flex-shrink-0 border-b border-white/10" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)' }}>
         <div
@@ -2232,7 +2439,6 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
       {/* Classic 2D scroll map */}
       {storyViewMode === '2d' && (
         <>
-          <style>{GYM_PATH_STYLES}</style>
           <div ref={mapScrollRef} className="flex-1 overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
             {loading ? (
               <div className="text-center py-16">

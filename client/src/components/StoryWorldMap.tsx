@@ -3087,12 +3087,13 @@ export function StoryWorldMap({
           const lampGlX = lx + 0.6 * TILE; const lampGlY = ly - 1.8 * TILE;
           /* large night pool of light */
           if (lampNightA > 0.05) {
-            const poolR = 2.8 * TILE;
+            const poolR = 3.8 * TILE;
             const poolGrad = ctx.createRadialGradient(lampGlX, lampGlY, 0, lampGlX, lampGlY, poolR);
-            const poolInt = lampNightA * 0.18;
-            poolGrad.addColorStop(0, `rgba(255,235,120,${poolInt * 1.8})`);
-            poolGrad.addColorStop(0.4, `rgba(255,210,80,${poolInt})`);
-            poolGrad.addColorStop(1, 'rgba(255,190,40,0)');
+            const poolInt = lampNightA * 0.26;
+            poolGrad.addColorStop(0, `rgba(255,235,120,${poolInt * 2.2})`);
+            poolGrad.addColorStop(0.3, `rgba(255,215,80,${poolInt * 1.4})`);
+            poolGrad.addColorStop(0.6, `rgba(255,190,40,${poolInt * 0.6})`);
+            poolGrad.addColorStop(1, 'rgba(255,170,20,0)');
             ctx.beginPath(); ctx.arc(lampGlX, lampGlY, poolR, 0, Math.PI * 2);
             ctx.fillStyle = poolGrad; ctx.fill();
           }
@@ -3587,11 +3588,27 @@ export function StoryWorldMap({
             const winRowY = wallY + wallH * 0.25;
             [bx - bW * 0.20 - sideW / 2, bx + bW * 0.08 - sideW / 2].forEach(wx2 => {
               const wW2 = 10; const wH2 = 9;
-              ctx.fillStyle = darken(colors.body, 55);
+              /* night: warm orange-yellow window glow behind frame */
+              if (_nightAlpha > 0.05) {
+                const winGlR = wW2 * 2.2;
+                const winGlGrd = ctx.createRadialGradient(wx2, winRowY, 0, wx2, winRowY, winGlR);
+                const winGlA = _nightAlpha * 0.55;
+                winGlGrd.addColorStop(0, `rgba(255,200,80,${winGlA})`);
+                winGlGrd.addColorStop(0.5, `rgba(255,160,40,${winGlA * 0.5})`);
+                winGlGrd.addColorStop(1, 'rgba(255,120,20,0)');
+                ctx.beginPath(); ctx.arc(wx2, winRowY, winGlR, 0, Math.PI * 2);
+                ctx.fillStyle = winGlGrd; ctx.fill();
+              }
+              ctx.fillStyle = _nightAlpha > 0.05 ? `rgba(255,200,80,0.88)` : darken(colors.body, 55);
               ctx.fillRect(wx2 - wW2 / 2 - 1, winRowY - wH2 / 2 - 1, wW2 + 2, wH2 + 2);
               const wgGrd = ctx.createRadialGradient(wx2, winRowY, 0, wx2, winRowY, wW2);
-              wgGrd.addColorStop(0, 'rgba(255,255,190,0.65)');
-              wgGrd.addColorStop(1, 'rgba(140,210,255,0.12)');
+              if (_nightAlpha > 0.05) {
+                wgGrd.addColorStop(0, `rgba(255,240,160,${0.85 + _nightAlpha * 0.10})`);
+                wgGrd.addColorStop(1, `rgba(255,180,60,${0.60 + _nightAlpha * 0.15})`);
+              } else {
+                wgGrd.addColorStop(0, 'rgba(255,255,190,0.65)');
+                wgGrd.addColorStop(1, 'rgba(140,210,255,0.12)');
+              }
               ctx.fillStyle = wgGrd;
               ctx.fillRect(wx2 - wW2 / 2, winRowY - wH2 / 2, wW2, wH2);
               ctx.strokeStyle = 'rgba(200,200,140,0.35)'; ctx.lineWidth = 0.8;
@@ -4073,15 +4090,58 @@ export function StoryWorldMap({
         ctx.fillRect(0, 0, w, h);
       }
 
-      /* ── Cinematic vignette (always on, subtle) ─────────── */
+      /* ── Cinematic vignette (stronger at edges) ─────────── */
       {
-        const vR = Math.max(w, h) * 0.72;
-        const vGrad = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.28, w / 2, h / 2, vR);
+        const vR = Math.max(w, h) * 0.78;
+        const vGrad = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.22, w / 2, h / 2, vR);
         vGrad.addColorStop(0, 'rgba(0,0,0,0)');
-        vGrad.addColorStop(0.65, 'rgba(0,0,0,0.04)');
-        vGrad.addColorStop(1, 'rgba(0,0,0,0.42)');
+        vGrad.addColorStop(0.50, 'rgba(0,0,0,0.06)');
+        vGrad.addColorStop(0.78, 'rgba(0,0,0,0.22)');
+        vGrad.addColorStop(1, 'rgba(0,0,0,0.62)');
         ctx.fillStyle = vGrad;
         ctx.fillRect(0, 0, w, h);
+      }
+
+      /* ── Gradient fog band at far map boundaries ─────────── */
+      {
+        const fogA = 0.28;
+        /* top fog */
+        const tFog = ctx.createLinearGradient(0, 0, 0, h * 0.18);
+        tFog.addColorStop(0, `rgba(10,8,20,${fogA})`);
+        tFog.addColorStop(1, 'rgba(10,8,20,0)');
+        ctx.fillStyle = tFog; ctx.fillRect(0, 0, w, h * 0.18);
+        /* bottom fog */
+        const bFog = ctx.createLinearGradient(0, h * 0.82, 0, h);
+        bFog.addColorStop(0, 'rgba(10,8,20,0)');
+        bFog.addColorStop(1, `rgba(10,8,20,${fogA})`);
+        ctx.fillStyle = bFog; ctx.fillRect(0, h * 0.82, w, h * 0.18);
+        /* left fog */
+        const lFog = ctx.createLinearGradient(0, 0, w * 0.14, 0);
+        lFog.addColorStop(0, `rgba(10,8,20,${fogA})`);
+        lFog.addColorStop(1, 'rgba(10,8,20,0)');
+        ctx.fillStyle = lFog; ctx.fillRect(0, 0, w * 0.14, h);
+        /* right fog */
+        const rFog = ctx.createLinearGradient(w * 0.86, 0, w, 0);
+        rFog.addColorStop(0, 'rgba(10,8,20,0)');
+        rFog.addColorStop(1, `rgba(10,8,20,${fogA})`);
+        ctx.fillStyle = rFog; ctx.fillRect(w * 0.86, 0, w * 0.14, h);
+      }
+
+      /* ── Day/night color grading tint ────────────────────── */
+      {
+        const _dayPG = (t / 300) % 1;
+        /* daytime: subtle warm golden overlay (midday) */
+        if (_dayPG > 0.25 && _dayPG < 0.65) {
+          const strength = Math.min((_dayPG - 0.25) / 0.10, 1) * Math.min((0.65 - _dayPG) / 0.10, 1);
+          ctx.fillStyle = `rgba(255,200,80,${strength * 0.04})`;
+          ctx.fillRect(0, 0, w, h);
+        }
+        /* night: cool blue-purple tint */
+        const _nightTint = _dayPG >= 0.87 ? 1 : _dayPG < 0.15 ? 1 : _dayPG > 0.75 ? (_dayPG - 0.75) / 0.12 : 0;
+        if (_nightTint > 0.02) {
+          ctx.fillStyle = `rgba(20,10,60,${_nightTint * 0.18})`;
+          ctx.fillRect(0, 0, w, h);
+        }
       }
 
       /* floating "+X crediti" texts (drawn on top of everything) */

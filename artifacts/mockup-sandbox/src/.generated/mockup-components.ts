@@ -16,6 +16,7 @@ export const modules: ModuleMap = {
   "./components/mockups/home-approaches2/QuickPlay.tsx": () => import("../components/mockups/home-approaches2/QuickPlay.tsx"),
   "./components/mockups/home-approaches2/SocialHub.tsx": () => import("../components/mockups/home-approaches2/SocialHub.tsx"),
   "./components/mockups/home-approaches2/StoryPath.tsx": () => import("../components/mockups/home-approaches2/StoryPath.tsx"),
+  "./components/mockups/home-percorso/PercorsoTappe.tsx": () => import("../components/mockups/home-percorso/PercorsoTappe.tsx"),
   "./components/mockups/home-layouts/ActivityFeed.tsx": () => import("../components/mockups/home-layouts/ActivityFeed.tsx"),
   "./components/mockups/home-layouts/BottomNav.tsx": () => import("../components/mockups/home-layouts/BottomNav.tsx"),
   "./components/mockups/home-layouts/CompactList.tsx": () => import("../components/mockups/home-layouts/CompactList.tsx"),
