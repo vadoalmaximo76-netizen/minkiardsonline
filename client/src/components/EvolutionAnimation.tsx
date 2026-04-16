@@ -10,6 +10,8 @@ interface EvolutionAnimationProps {
   playerName: string;
   pti?: number;
   stars?: number;
+  totalCount?: number;
+  durationMs?: number;
   onComplete?: () => void;
 }
 
@@ -59,10 +61,16 @@ export const EvolutionAnimation: React.FC<EvolutionAnimationProps> = ({
   playerName,
   pti,
   stars,
+  totalCount,
+  durationMs,
   onComplete
 }) => {
   const [phase, setPhase] = useState(0);
   const config = TYPE_CONFIG[type] || TYPE_CONFIG.evolution;
+  const animDuration = durationMs != null
+    ? durationMs
+    : Math.min(2500, Math.floor(5000 / Math.max(1, totalCount ?? 1)));
+  const scale = animDuration / 2500;
 
   const energyParticles = useMemo(() =>
     [...Array(30)].map((_, i) => ({
@@ -101,14 +109,14 @@ export const EvolutionAnimation: React.FC<EvolutionAnimationProps> = ({
     }
 
     setPhase(1);
-    const t2 = setTimeout(() => setPhase(2), 350);
-    const t3 = setTimeout(() => setPhase(3), 800);
-    const t4 = setTimeout(() => setPhase(4), 1300);
-    const t5 = setTimeout(() => setPhase(5), 1900);
+    const t2 = setTimeout(() => setPhase(2), Math.round(350 * scale));
+    const t3 = setTimeout(() => setPhase(3), Math.round(800 * scale));
+    const t4 = setTimeout(() => setPhase(4), Math.round(1300 * scale));
+    const t5 = setTimeout(() => setPhase(5), Math.round(1900 * scale));
     const t6 = setTimeout(() => {
       setPhase(0);
       onComplete?.();
-    }, 2500);
+    }, animDuration);
 
     return () => {
       clearTimeout(t2);
@@ -117,7 +125,7 @@ export const EvolutionAnimation: React.FC<EvolutionAnimationProps> = ({
       clearTimeout(t5);
       clearTimeout(t6);
     };
-  }, [isVisible, onComplete]);
+  }, [isVisible, onComplete, animDuration, scale]);
 
   const handleSkip = () => {
     setPhase(0);

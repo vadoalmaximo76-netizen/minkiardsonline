@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Button } from "./ui/button";
 import { X } from "lucide-react";
 
@@ -13,6 +13,17 @@ export const PlayerOrderNotification: React.FC<PlayerOrderNotificationProps> = (
   playerOrder,
   onClose
 }) => {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!isVisible) return;
+    const timer = setTimeout(() => {
+      onCloseRef.current();
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [isVisible]);
+
   if (!isVisible) return null;
 
   return (

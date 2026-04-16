@@ -270,7 +270,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     playerName: string;
     pti?: number;
     stars?: number;
-  }>({ visible: false, key: 0, type: 'evolution', oldName: '', newName: '', oldImage: '', newImage: '', playerName: '' });
+    totalCount: number;
+    durationMs: number;
+  }>({ visible: false, key: 0, type: 'evolution', oldName: '', newName: '', oldImage: '', newImage: '', playerName: '', totalCount: 1, durationMs: 2500 });
+  const evolutionQueueRef = useRef<Array<{
+    type: 'evolution' | 'transformation' | 'taroccata';
+    oldName: string;
+    newName: string;
+    oldImage: string;
+    newImage: string;
+    playerName: string;
+    pti?: number;
+    stars?: number;
+  }>>([]);
+  const evolutionPlayingRef = useRef(false);
+  const evolutionBatchCountRef = useRef(1);
+  const evolutionBatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const evolutionBatchStartRef = useRef(0);
   const [fusionAnim, setFusionAnim] = useState<{
     visible: boolean;
     key: number;
@@ -583,6 +599,38 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const fantaTournamentId = (gameState as any)?.fantaTournamentId as string | null | undefined;
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated, playMyTurn, playDeckShuffle, playEffectActivate, playHostageApplied, playHostageReleased, playPersonaggioEnter, playCardReveal, playErrorSound, playPlayerEliminated, playSorosActivation, playFusionSound, playCardPlayedToField, playVictory, playDefeat, playButtonClick, playPanelOpen, playPanelClose, playModalOpen, playModalClose, playConfirm } = useAudio();
 
+
+  const playNextEvolutionAnim = useCallback(() => {
+    const next = evolutionQueueRef.current.shift();
+    if (!next) {
+      evolutionPlayingRef.current = false;
+      evolutionBatchCountRef.current = 1;
+      evolutionBatchStartRef.current = 0;
+      return;
+    }
+    const now = Date.now();
+    if (evolutionBatchStartRef.current === 0) {
+      evolutionBatchStartRef.current = now;
+    }
+    const elapsed = now - evolutionBatchStartRef.current;
+    const remainingBudget = Math.max(0, 5000 - elapsed);
+    const remainingCount = evolutionQueueRef.current.length + 1;
+    const perDuration = Math.min(2500, Math.floor(remainingBudget / remainingCount));
+    setEvolutionAnim({
+      visible: true,
+      key: now,
+      type: next.type,
+      oldName: next.oldName,
+      newName: next.newName,
+      oldImage: next.oldImage,
+      newImage: next.newImage,
+      playerName: next.playerName,
+      pti: next.pti,
+      stars: next.stars,
+      totalCount: evolutionBatchCountRef.current,
+      durationMs: perDuration,
+    });
+  }, []);
 
   const shareInviteLink = () => {
     const link = `${window.location.origin}?game=${gameId}`;
@@ -1118,9 +1166,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       timestamp?: number;
     }) => {
       console.log(`🌟 Evolution animation: ${data.oldName} → ${data.newName} (${data.type})`);
-      setEvolutionAnim({
-        visible: true,
-        key: Date.now(),
+      evolutionQueueRef.current.push({
         type: data.type,
         oldName: data.oldName,
         newName: data.newName,
@@ -1128,8 +1174,22 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         newImage: data.newImage,
         playerName: data.playerName,
         pti: data.pti,
-        stars: data.stars
+        stars: data.stars,
       });
+      if (!evolutionPlayingRef.current) {
+        if (evolutionBatchTimerRef.current) clearTimeout(evolutionBatchTimerRef.current);
+        evolutionBatchTimerRef.current = setTimeout(() => {
+          evolutionBatchTimerRef.current = null;
+          evolutionPlayingRef.current = true;
+          evolutionBatchCountRef.current = evolutionQueueRef.current.length;
+          playNextEvolutionAnim();
+        }, 80);
+      } else {
+        const totalRemaining = evolutionQueueRef.current.length + 1;
+        if (totalRemaining > evolutionBatchCountRef.current) {
+          evolutionBatchCountRef.current = totalRemaining;
+        }
+      }
     };
 
     const handleFusionAnimation = (data: {
@@ -2751,6 +2811,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('player-extra-lives-update', handlePlayerExtraLivesUpdate);
       if (rewardsTimeoutId) clearTimeout(rewardsTimeoutId);
       if (cardEffectBannerTimerRef.current) clearTimeout(cardEffectBannerTimerRef.current);
+      if (evolutionBatchTimerRef.current) clearTimeout(evolutionBatchTimerRef.current);
     };
   }, []);
 
@@ -5355,7 +5416,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           playerName={evolutionAnim.playerName}
           pti={evolutionAnim.pti}
           stars={evolutionAnim.stars}
-          onComplete={() => setEvolutionAnim(prev => ({ ...prev, visible: false }))}
+          totalCount={evolutionAnim.totalCount}
+          durationMs={evolutionAnim.durationMs}
+          onComplete={() => {
+            setEvolutionAnim(prev => ({ ...prev, visible: false }));
+            playNextEvolutionAnim();
+          }}
         />
 
         {/* Fusion Animation */}

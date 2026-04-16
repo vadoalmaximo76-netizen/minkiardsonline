@@ -15,11 +15,11 @@ export const SorosActivation: React.FC<SorosActivationProps> = ({ activator, car
   useEffect(() => {
     const phaseTimer = setTimeout(() => {
       setPhase(2);
-    }, 3000);
+    }, 2000);
 
     const completeTimer = setTimeout(() => {
       onCompleteRef.current();
-    }, 8000);
+    }, 5000);
 
     return () => {
       clearTimeout(phaseTimer);
