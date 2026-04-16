@@ -211,7 +211,7 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
       }
 
       masterTl.call(() => {
-        coinEls.forEach(el => { try { el.remove(); } catch (e) {} });
+        coinEls.forEach(el => el.parentNode && el.remove());
       }, [], 3.0);
     });
 

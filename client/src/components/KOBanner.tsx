@@ -38,6 +38,22 @@ export function KOBanner({
       gsap.set(wrapper, { opacity: 0 });
       gsap.set(centre, { scale: eliminationMode ? 1.6 : 0.7, y: eliminationMode ? -30 : -60, opacity: 0 });
 
+      // Pulsing glow runs independently - NOT added to the master timeline
+      // so it never makes the master timeline non-terminating
+      let pulseAnim: gsap.core.Tween | null = null;
+      if (koText) {
+        pulseAnim = gsap.to(koText, {
+          textShadow: eliminationMode
+            ? `0 0 70px ${isCurrentPlayer ? 'rgba(255,37,80,0.9)' : 'rgba(255,144,0,0.9)'}, 0 0 120px ${isCurrentPlayer ? 'rgba(255,37,80,0.5)' : 'rgba(255,144,0,0.5)'}, 0 6px 0 #5a0010`
+            : '0 0 50px rgba(255,37,80,1), 0 0 90px rgba(255,37,80,0.8), 0 4px 0 #7a0020',
+          duration: 0.8,
+          repeat: -1,
+          yoyo: true,
+          ease: 'sine.inOut',
+          delay: eliminationMode ? 0.5 : 0.3,
+        });
+      }
+
       const tl = gsap.timeline({
         onComplete: () => onCompleteRef.current(),
       });
@@ -59,33 +75,21 @@ export function KOBanner({
           scale: 1,
           duration: holdMs / 1000 - 0.32 - (eliminationMode ? 0.3 : 0),
           ease: 'none',
-        });
-
-      if (koText) {
-        tl.to(koText, {
-          textShadow: eliminationMode
-            ? `0 0 70px ${isCurrentPlayer ? 'rgba(255,37,80,0.9)' : 'rgba(255,144,0,0.9)'}, 0 0 120px ${isCurrentPlayer ? 'rgba(255,37,80,0.5)' : 'rgba(255,144,0,0.5)'}, 0 6px 0 #5a0010`
-            : '0 0 50px rgba(255,37,80,1), 0 0 90px rgba(255,37,80,0.8), 0 4px 0 #7a0020',
-          duration: 0.8,
-          repeat: -1,
-          yoyo: true,
-          ease: 'sine.inOut',
-        }, eliminationMode ? 0.5 : 0.3);
-      }
-
-      tl.to(centre, {
-        scale: eliminationMode ? 0.92 : 1.05,
-        y: eliminationMode ? 20 : 40,
-        opacity: 0,
-        duration: eliminationMode ? 0.55 : 0.4,
-        ease: 'power2.in',
-      }, `>-0`);
-
-      tl.to(wrapper, {
-        opacity: 0,
-        duration: eliminationMode ? 0.55 : 0.3,
-        ease: 'power2.out',
-      }, `<`);
+        })
+        // Kill the pulse before the outro so the outro can resolve cleanly
+        .call(() => { if (pulseAnim) pulseAnim.kill(); })
+        .to(centre, {
+          scale: eliminationMode ? 0.92 : 1.05,
+          y: eliminationMode ? 20 : 40,
+          opacity: 0,
+          duration: eliminationMode ? 0.55 : 0.4,
+          ease: 'power2.in',
+        })
+        .to(wrapper, {
+          opacity: 0,
+          duration: eliminationMode ? 0.55 : 0.3,
+          ease: 'power2.out',
+        }, '<');
 
       const remaining = totalMs / 1000 - tl.duration();
       if (remaining > 0) tl.to({}, { duration: remaining });
