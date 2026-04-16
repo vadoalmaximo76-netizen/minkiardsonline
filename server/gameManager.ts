@@ -8250,6 +8250,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return undefined;
   }
 
+  private isMohamedKebabbaro(card: Card): boolean {
+    const name = (card.name || this.getCardNameFromUrl(card.frontImage || '')).toUpperCase().trim();
+    const exactNameMatch = name.includes('MOHAMED KEBABBARO DI FIDUCIA') || name.includes('KEBABBARO DI FIDUCIA');
+    const imageMatch = (card.frontImage || '').toLowerCase().includes('mohamed-kebabbaro-di-fiducia');
+    return exactNameMatch || imageMatch;
+  }
+
   private handleMultiEvolution(game: GameState, gameId: string, playerName: string, type: 'evolution' | 'transformation' | 'taroccata', includeHand: boolean = false): void {
     const io = (global as any).io;
     
@@ -12557,11 +12564,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         emitState(); break;
       }
 
-      // ─── CIPOLLA: se la prossima mossa è "Kebab", danno raddoppiato ──────────
+      // ─── CIPOLLA: se la prossima mossa è "Kebab", danno raddoppiato + PTI ──────────
       case 'cipolla': {
         (game as any).cipolla = (game as any).cipolla || {};
         (game as any).cipolla[playerName] = true;
-        emitChat(`🧅 CIPOLLA! Se ${playerName} usa "Kebab" come prossima mossa, il danno sarà raddoppiato!`);
+        if (myChar) {
+          const isMohamedKebabbaro = this.isMohamedKebabbaro(myChar);
+          const ptiBonus = isMohamedKebabbaro ? 500 : 10;
+          const multiplier = isMohamedKebabbaro ? 4 : 2;
+          const oldPti = myChar.pti || 0;
+          myChar.pti = oldPti + ptiBonus;
+          this.updateCardTextWithPTI(myChar);
+          emitChat(`🧅 CIPOLLA! ${myChar.name || playerName} +${ptiBonus} PTI (${oldPti} → ${myChar.pti}). Se usa "Kebab" come prossima mossa, il danno sarà x${multiplier}!`);
+        } else {
+          emitChat(`🧅 CIPOLLA! Se ${playerName} usa "Kebab" come prossima mossa, il danno sarà raddoppiato!`);
+        }
         emitState(); break;
       }
 
@@ -18615,21 +18632,23 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
-    // CIPOLLA: double Kebab damage if cipolla flag is active for this attacker
+    // CIPOLLA: multiply Kebab damage if cipolla flag is active for this attacker
     if ((game as any).cipolla && (game as any).cipolla[attackerName]) {
       const mosseNameCipolla = mosseCardName.toUpperCase().trim();
       if (mosseNameCipolla.includes('KEBAB')) {
+        const cipollaIsMohamed = this.isMohamedKebabbaro(attackerCharacter);
+        const cipollaMultiplier = cipollaIsMohamed ? 4 : 2;
         const oldDamageCipolla = finalDamageForDefense;
-        finalDamageForDefense = finalDamageForDefense * 2;
-        damageValue = damageValue * 2;
+        finalDamageForDefense = finalDamageForDefense * cipollaMultiplier;
+        damageValue = damageValue * cipollaMultiplier;
         delete (game as any).cipolla[attackerName];
-        console.log(`🧅 CIPOLLA: KEBAB damage doubled ${oldDamageCipolla} → ${finalDamageForDefense}`);
+        console.log(`🧅 CIPOLLA: KEBAB damage x${cipollaMultiplier} ${oldDamageCipolla} → ${finalDamageForDefense}`);
         const ioCipolla = (global as any).io;
         if (ioCipolla) {
           ioCipolla.to(gameId).emit('chat-message', {
             id: `${Date.now()}-cipolla-kebab`,
             playerName: 'Sistema',
-            message: `🧅 CIPOLLA! Il danno del KEBAB è raddoppiato: ${oldDamageCipolla} → ${finalDamageForDefense}!`,
+            message: `🧅 CIPOLLA! Il danno del KEBAB è x${cipollaMultiplier}: ${oldDamageCipolla} → ${finalDamageForDefense}!`,
             timestamp: Date.now()
           });
         }
