@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 
 export interface CinematicEventData {
@@ -163,6 +163,7 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
   const activeTimestamp = useRef<number | null>(null);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+  const phaseRef = useRef<'active' | 'done'>('done');
 
   // DOM refs for GSAP
   const flashRef = useRef<HTMLDivElement>(null);
@@ -173,6 +174,7 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
   const accentBottomRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const counterObjRef = useRef({ val: 0 });
+  const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const theme = data ? resolveTheme(data.type, data.animationType) : BASE_THEMES.big_attack;
   const duration = data ? DURATIONS[data.type] : 1800;
@@ -185,6 +187,17 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
   const cardDisplayName = data?.cardName;
   const displayDamage = data?.damage ?? 0;
 
+  // Shared "force complete" helper — idempotent, safe to call from anywhere.
+  // setPhase('done') causes the component to return null, removing bars from DOM automatically.
+  const forceComplete = useCallback(() => {
+    if (phaseRef.current === 'done') return;
+    phaseRef.current = 'done';
+    if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
+    if (timelineRef.current) { timelineRef.current.kill(); timelineRef.current = null; }
+    setPhase('done');
+    onCompleteRef.current();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!data) return;
     const ts = data.timestamp ?? Date.now();
@@ -194,7 +207,10 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
     const durationSec = duration / 1000;
     const dmg = data.damage ?? 0;
 
-    // Kill any running timeline
+    // Clear previous safety timer
+    if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
+
+    // Kill any running timeline (guard: if previous was active, complete it first)
     if (timelineRef.current) {
       timelineRef.current.kill();
       timelineRef.current = null;
@@ -203,7 +219,13 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
     setImpactFired(false);
     setCounter(0);
     counterObjRef.current.val = 0;
+    phaseRef.current = 'active';
     setPhase('active');
+
+    // Safety net: force-complete if GSAP timeline never fires onComplete
+    safetyTimerRef.current = setTimeout(() => {
+      forceComplete();
+    }, duration + 1200);
 
     // Small rAF delay to ensure DOM is mounted after setPhase('active')
     const rafId = requestAnimationFrame(() => {
@@ -214,7 +236,11 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
       const accentTop = accentTopRef.current;
       const accentBottom = accentBottomRef.current;
 
-      if (!barTop || !barBottom) return;
+      if (!barTop || !barBottom) {
+        // DOM not ready — force complete immediately so we don't stay stuck
+        forceComplete();
+        return;
+      }
 
       // Reset initial states
       gsap.set(flash, { opacity: 1 });
@@ -264,6 +290,8 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
 
       // ── DONE ──
       tl.add(() => {
+        phaseRef.current = 'done';
+        if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
         setPhase('done');
         onCompleteRef.current();
       }, durationSec);
@@ -271,12 +299,16 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
 
     return () => {
       cancelAnimationFrame(rafId);
-      if (timelineRef.current) {
-        timelineRef.current.kill();
-        timelineRef.current = null;
+      // If cleanup fires while overlay was still active (data changed mid-animation),
+      // force complete so GameBoard clears cinematicOverlayData and the game unblocks.
+      if (phaseRef.current === 'active') {
+        forceComplete();
+      } else {
+        if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
+        if (timelineRef.current) { timelineRef.current.kill(); timelineRef.current = null; }
       }
     };
-  }, [data, duration]);
+  }, [data, duration, forceComplete]);
 
   if (!data || phase === 'done') return null;
 
