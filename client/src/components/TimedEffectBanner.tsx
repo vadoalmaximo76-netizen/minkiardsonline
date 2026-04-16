@@ -16,23 +16,33 @@ export const TimedEffectBanner: React.FC<TimedEffectBannerProps> = ({
   onClose,
 }) => {
   const [countdown, setCountdown] = useState(4);
+  const [isExiting, setIsExiting] = useState(false);
+
+  const handleClose = () => {
+    setIsExiting(true);
+    setTimeout(() => {
+      setIsExiting(false);
+      onClose();
+    }, 200);
+  };
 
   useEffect(() => {
     if (!isVisible) {
       setCountdown(4);
+      setIsExiting(false);
       return;
     }
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          onClose();
+          handleClose();
           return 4;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isVisible, onClose]);
+  }, [isVisible]);
 
   const cleanDescription = (desc: string) => {
     return desc
@@ -49,7 +59,9 @@ export const TimedEffectBanner: React.FC<TimedEffectBannerProps> = ({
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-[200] pointer-events-none"
-      style={{ animation: 'timed-banner-fade 0.3s ease-out' }}
+      style={isExiting
+        ? { animation: 'timed-banner-out 0.2s ease-in forwards' }
+        : { animation: 'timed-banner-fade 0.3s ease-out' }}
     >
       <div
         className="w-full pointer-events-auto"
@@ -60,9 +72,9 @@ export const TimedEffectBanner: React.FC<TimedEffectBannerProps> = ({
           borderBottom: "3px solid rgba(255,80,0,0.9)",
           boxShadow:
             "0 0 60px rgba(255,60,0,0.5), 0 0 120px rgba(180,0,0,0.3)",
-          animation: 'timed-banner-scale 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+          animation: isExiting ? 'timed-banner-out 0.2s ease-in forwards' : 'timed-banner-scale 0.4s cubic-bezier(0.34,1.56,0.64,1)',
         }}
-        onClick={onClose}
+        onClick={handleClose}
       >
         <div className="max-w-4xl mx-auto px-6 py-5 flex items-center gap-6">
           <div

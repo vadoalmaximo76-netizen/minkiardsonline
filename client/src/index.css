@@ -3091,10 +3091,18 @@ button:not([disabled]):active {
   60%  { opacity: 1; transform: translateY(-4px) scale(1.02); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
+@keyframes hand-modal-out {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.88) translateY(16px); }
+}
 @keyframes hand-card-in {
   0%   { opacity: 0; transform: translateY(22px) scale(0.85); }
   60%  { opacity: 1; transform: translateY(-4px) scale(1.04); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes modal-backdrop-out {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* TimedEffectBanner */
@@ -3130,6 +3138,10 @@ button:not([disabled]):active {
   0%   { width: 100%; }
   100% { width: 0%; }
 }
+@keyframes timed-banner-out {
+  0%   { opacity: 1; transform: scaleY(1); }
+  100% { opacity: 0; transform: scaleY(0.6); }
+}
 
 /* FullScreenNotification */
 @keyframes fsn-backdrop {
@@ -3159,6 +3171,14 @@ button:not([disabled]):active {
   0%   { transform: scale(1); box-shadow: 0 0 0 0 rgba(168,85,247,0.6); }
   50%  { transform: scale(1.06); box-shadow: 0 0 0 10px rgba(168,85,247,0); }
   100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(168,85,247,0); }
+}
+@keyframes fsn-panel-out {
+  0%   { opacity: 1; transform: scale(1) translateY(0); }
+  100% { opacity: 0; transform: scale(0.85) translateY(20px); }
+}
+@keyframes fsn-backdrop-out {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* RecursiveDamagePanel */

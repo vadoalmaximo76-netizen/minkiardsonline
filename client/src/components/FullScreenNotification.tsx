@@ -17,7 +17,16 @@ export const FullScreenNotification: React.FC<FullScreenNotificationProps> = ({
   onClose
 }) => {
   const [countdown, setCountdown] = useState(5);
+  const [isExiting, setIsExiting] = useState(false);
   const { playNotification } = useAudio();
+
+  const handleClose = () => {
+    setIsExiting(true);
+    setTimeout(() => {
+      setIsExiting(false);
+      onClose();
+    }, 200);
+  };
 
   useEffect(() => {
     if (isVisible) {
@@ -28,13 +37,14 @@ export const FullScreenNotification: React.FC<FullScreenNotificationProps> = ({
   useEffect(() => {
     if (!isVisible) {
       setCountdown(5);
+      setIsExiting(false);
       return;
     }
 
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          onClose();
+          handleClose();
           return 5;
         }
         return prev - 1;
@@ -44,7 +54,7 @@ export const FullScreenNotification: React.FC<FullScreenNotificationProps> = ({
     return () => {
       clearInterval(timer);
     };
-  }, [isVisible, onClose]);
+  }, [isVisible]);
 
   const getNotificationText = () => {
     if (cardCount === 3) {
@@ -74,12 +84,16 @@ export const FullScreenNotification: React.FC<FullScreenNotificationProps> = ({
   return (
     <div
       className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100]"
-      style={{ animation: 'fsn-backdrop 0.5s ease-out' }}
-      onClick={onClose}
+      style={isExiting
+        ? { animation: 'fsn-backdrop-out 0.2s ease-in forwards' }
+        : { animation: 'fsn-backdrop 0.5s ease-out' }}
+      onClick={handleClose}
     >
       <div
         className={`bg-gradient-to-br ${notificationData.color} p-8 rounded-2xl shadow-2xl text-center max-w-md mx-4 border-4 border-white/20`}
-        style={{ animation: 'fsn-panel 0.45s cubic-bezier(0.34,1.56,0.64,1) 0.12s both' }}
+        style={isExiting
+          ? { animation: 'fsn-panel-out 0.2s ease-in forwards' }
+          : { animation: 'fsn-panel 0.45s cubic-bezier(0.34,1.56,0.64,1) 0.12s both' }}
         onClick={(e) => e.stopPropagation()}
       >
         <h1
@@ -114,7 +128,7 @@ export const FullScreenNotification: React.FC<FullScreenNotificationProps> = ({
 
         <button
           style={{ animation: 'fsn-slide-up 0.3s cubic-bezier(0.22,1,0.36,1) 1.25s both' }}
-          onClick={onClose}
+          onClick={handleClose}
           className="mt-4 px-6 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
         >
           Chiudi

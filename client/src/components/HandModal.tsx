@@ -12,6 +12,12 @@ interface HandModalProps {
 export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
   const { gameState, playerName, gameId } = useGameState();
   const [endTurnMessage, setEndTurnMessage] = useState<string>("");
+  const [isClosing, setIsClosing] = useState(false);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(onClose, 210);
+  };
   const playerCards = gameState?.players?.[playerName]?.hand || [];
 
   useEffect(() => {
@@ -39,10 +45,16 @@ export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
   };
 
   return (
-    <div data-modal="hand" className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+    <div
+      data-modal="hand"
+      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+      style={isClosing ? { animation: 'modal-backdrop-out 0.2s ease-in forwards' } : undefined}
+    >
       <div
         className="bg-slate-950 border border-purple-500/30 rounded-3xl p-8 w-full max-w-6xl max-h-[90vh] overflow-y-auto shadow-2xl shadow-purple-900/20"
-        style={{ animation: 'hand-modal-in 0.3s cubic-bezier(0.34,1.56,0.64,1)' }}
+        style={isClosing
+          ? { animation: 'hand-modal-out 0.2s ease-in forwards' }
+          : { animation: 'hand-modal-in 0.3s cubic-bezier(0.34,1.56,0.64,1)' }}
       >
         <div className="flex items-center justify-between mb-8 border-b border-purple-500/20 pb-6">
           <div className="flex items-center gap-6">
@@ -69,7 +81,7 @@ export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
           </div>
           <Button
             data-modal-cancel
-            onClick={onClose}
+            onClick={handleClose}
             className="bg-red-600 hover:bg-red-700 text-white rounded-full p-2"
             title="Chiudi"
           >

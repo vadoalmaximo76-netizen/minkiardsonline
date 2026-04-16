@@ -42,6 +42,7 @@ function getOriginalCardId(card: CardLike | null): string | null {
 }
 
 export const CardModal: React.FC = () => {
+  const [isClosing, setIsClosing] = useState(false);
   const [showScheda, setShowScheda] = useState(false);
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
   const [showTransferSelect, setShowTransferSelect] = useState(false);
@@ -116,7 +117,8 @@ export const CardModal: React.FC = () => {
 
   const handleClose = () => {
     playModalClose();
-    setSelectedCard(null);
+    setIsClosing(true);
+    setTimeout(() => setSelectedCard(null), 210);
   };
 
   const handleCedi = (targetPlayer: string) => {
@@ -437,8 +439,19 @@ export const CardModal: React.FC = () => {
   };
 
   return (
-    <div data-modal="card" className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-2 sm:p-4" style={{ animation: 'fsn-backdrop 0.25s ease-out' }}>
-      <div className="premium-panel p-4 sm:p-6 max-w-lg w-full relative rounded-lg max-h-[90vh] overflow-y-auto" style={{ animation: 'hand-modal-in 0.32s cubic-bezier(0.34,1.56,0.64,1)' }}>
+    <div
+      data-modal="card"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-2 sm:p-4"
+      style={isClosing
+        ? { animation: 'modal-backdrop-out 0.2s ease-in forwards' }
+        : { animation: 'fsn-backdrop 0.25s ease-out' }}
+    >
+      <div
+        className="premium-panel p-4 sm:p-6 max-w-lg w-full relative rounded-lg max-h-[90vh] overflow-y-auto"
+        style={isClosing
+          ? { animation: 'hand-modal-out 0.2s ease-in forwards' }
+          : { animation: 'hand-modal-in 0.32s cubic-bezier(0.34,1.56,0.64,1)' }}
+      >
         <div className="flex justify-between items-center mb-3 sm:mb-4">
           <div className="flex items-center gap-2 flex-1 pr-10 min-w-0">
             <h3 className="text-white font-bold text-base sm:text-lg truncate">{cardName}</h3>
