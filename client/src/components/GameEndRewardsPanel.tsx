@@ -261,7 +261,7 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
               type="button"
               onClick={(e) => {
                 e.stopPropagation(); e.preventDefault();
-                try { useGameState.getState().clearSession(); } catch (err) {}
+                try { useGameState.getState().clearSession(); } catch (err) { console.error('[REWARDS-PANEL] clearSession error:', err); }
                 window.location.href = window.location.origin;
               }}
               className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/30 cursor-pointer"
@@ -274,7 +274,7 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
               type="button"
               onClick={(e) => {
                 e.stopPropagation(); e.preventDefault();
-                try { useGameState.getState().clearSession(); } catch (err) {}
+                try { useGameState.getState().clearSession(); } catch (err) { console.error('[REWARDS-PANEL] clearSession error:', err); }
                 const newGameId = Math.random().toString(36).substring(2, 8).toUpperCase();
                 window.location.href = `${window.location.origin}?game=${newGameId}`;
               }}

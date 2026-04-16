@@ -66,7 +66,6 @@ export const MossaFlyer: React.FC<MossaFlyerProps> = ({
       const arcPeakY = (fy + ty) / 2 - Math.abs(dx) * 0.15 - 40;
 
       tl.to(card, {
-        motionPath: undefined,
         x: arcPeakX - CARD_W / 2,
         y: arcPeakY - CARD_H / 2,
         scale: 1.0,

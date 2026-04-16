@@ -149,6 +149,15 @@ export const FloatingNumber: React.FC<FloatingNumberProps> = ({
             { opacity: 0.7, duration: 0.06, ease: 'none' }
           )
           .to(criticalFlashRef.current, { opacity: 0, duration: 0.22, ease: 'power2.out' });
+
+        // Screen shake via document.body transform
+        gsap.timeline({ delay: 0.04 })
+          .to(document.body, { x: -7, y: 3, duration: 0.05, ease: 'none' })
+          .to(document.body, { x: 7, y: -3, duration: 0.05, ease: 'none' })
+          .to(document.body, { x: -5, y: 2, duration: 0.05, ease: 'none' })
+          .to(document.body, { x: 5, y: -2, duration: 0.05, ease: 'none' })
+          .to(document.body, { x: -3, y: 1, duration: 0.05, ease: 'none' })
+          .to(document.body, { x: 0, y: 0, duration: 0.05, ease: 'none' });
       }
     });
 

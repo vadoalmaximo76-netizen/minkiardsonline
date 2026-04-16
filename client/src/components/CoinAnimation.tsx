@@ -161,8 +161,8 @@ export const CoinAnimation: React.FC<CoinAnimationProps> = ({
       }
 
       gsap.delayedCall(3, () => {
-        coinEls.forEach(el => el.remove());
-        particleEls.forEach(el => el.remove());
+        coinEls.forEach(el => el.parentNode && el.remove());
+        particleEls.forEach(el => el.parentNode && el.remove());
         onComplete?.();
       });
     });
@@ -172,8 +172,8 @@ export const CoinAnimation: React.FC<CoinAnimationProps> = ({
         ctx.current.revert();
         ctx.current = null;
       }
-      coinEls.forEach(el => { try { el.remove(); } catch (e) {} });
-      particleEls.forEach(el => { try { el.remove(); } catch (e) {} });
+      coinEls.forEach(el => el.parentNode && el.remove());
+      particleEls.forEach(el => el.parentNode && el.remove());
     };
   }, [isActive, pointsAwarded]); // eslint-disable-line react-hooks/exhaustive-deps
 
