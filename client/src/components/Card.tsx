@@ -1481,6 +1481,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const handleMouseEnter = useCallback((e: React.MouseEvent) => {
     setIsHovered(true);
     try { useAudio.getState().playCardHover(); } catch {}
+    if (isMobile) return;
     if (location !== 'field') return;
     const rect = (e.target as HTMLElement).getBoundingClientRect();
     const viewportWidth = window.innerWidth;
@@ -1495,7 +1496,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     }
     setHoverPosition({ x, y });
     setShowHoverPreview(true);
-  }, [location]);
+  }, [location, isMobile]);
 
   const handleMouseLeave = useCallback(() => {
     setShowHoverPreview(false);
