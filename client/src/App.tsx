@@ -172,6 +172,7 @@ function App() {
   } | null>(null);
   // Track if session was successfully restored to prevent active-game-found from overriding
   const sessionRestoredRef = React.useRef(false);
+
   const { 
     setPlayerName, 
     playerName, 
@@ -183,6 +184,27 @@ function App() {
     isReconnecting,
     clearSession
   } = useGameState();
+
+  // Countdown displayed while reconnecting (mirrors the 27s client timeout)
+  const [reconnectCountdown, setReconnectCountdown] = useState(27);
+
+  useEffect(() => {
+    if (!isReconnecting) {
+      setReconnectCountdown(27);
+      return;
+    }
+    setReconnectCountdown(27);
+    const interval = setInterval(() => {
+      setReconnectCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isReconnecting]);
 
   const navigateToRef = useRef<((section: AppSection) => void) | null>(null);
 
@@ -589,11 +611,22 @@ function App() {
             </div>
             <p className="text-white text-lg">
               {!serverReady ? 'Caricamento dati di gioco...' : 
-               isInitializing ? 'Inizializzazione...' : 'Ripristino sessione...'}
+               isInitializing ? 'Inizializzazione...' : 'Riconnessione in corso...'}
             </p>
-            <p className="text-gray-400 text-sm mt-2">
-              {Math.round(loadingProgress)}%
-            </p>
+            {isReconnecting ? (
+              <div className="mt-3">
+                <p className="text-yellow-300 text-sm font-semibold">
+                  Il tuo turno è al sicuro per altri {reconnectCountdown}s
+                </p>
+                <p className="text-gray-400 text-xs mt-1">
+                  Riconnessione automatica in corso...
+                </p>
+              </div>
+            ) : (
+              <p className="text-gray-400 text-sm mt-2">
+                {Math.round(loadingProgress)}%
+              </p>
+            )}
           </div>
         </div>
       </QueryClientProvider>

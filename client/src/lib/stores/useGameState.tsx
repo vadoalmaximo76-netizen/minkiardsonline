@@ -321,7 +321,7 @@ export const useGameState = create<GameStateStore>()(
                 get().clearSession();
                 set({ isReconnecting: false });
                 resolve(false);
-              }, 5000); // Reduced to 5 second timeout
+              }, 27000); // 27s timeout aligns with server's 30s disconnect grace period
               
               // Listen for successful reconnection
               const handleReconnect = (gameState: GameState) => {
