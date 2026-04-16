@@ -267,51 +267,134 @@ export const CardAnimation: React.FC<CardAnimationProps> = ({ isVisible, cardNam
   const emojiRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const flashRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isVisible) return;
 
-    // gsap.context captures only the infinite-repeat tweens for cleanup via ctx.revert()
+    const choreography = getChoreographyType(cardName);
+
     const ctx = gsap.context(() => {
-      if (emojiRef.current) {
-        gsap.fromTo(emojiRef.current,
-          { scale: 0.3, opacity: 0, y: 20 },
-          { scale: 1, opacity: 1, y: 0, duration: 0.55, ease: 'elastic.out(1.4, 0.5)', delay: 0.05 }
-        );
-        gsap.to(emojiRef.current, {
-          y: -12,
-          duration: 1.0,
-          ease: 'sine.inOut',
-          yoyo: true,
-          repeat: -1,
-          delay: 0.6,
-        });
-      }
-
-      if (nameRef.current) {
-        gsap.fromTo(nameRef.current,
-          { scale: 0.6, opacity: 0, y: 15 },
-          { scale: 1, opacity: 1, y: 0, duration: 0.45, ease: 'back.out(1.7)', delay: 0.2 }
-        );
-        gsap.to(nameRef.current, {
-          textShadow: '0 0 30px rgba(255,255,255,1), 0 0 60px rgba(255,255,255,0.7)',
-          duration: 0.9,
-          ease: 'sine.inOut',
-          yoyo: true,
-          repeat: -1,
-          delay: 0.65,
-        });
-      }
-
       if (overlayRef.current) {
         gsap.fromTo(overlayRef.current,
           { opacity: 0 },
           { opacity: 1, duration: 0.35, ease: 'power2.out' }
         );
       }
+
+      if (choreography === 'physical') {
+        // ── PHYSICAL: snap entry with hard bounce + mini-shake ──
+        if (emojiRef.current) {
+          gsap.fromTo(emojiRef.current,
+            { scale: 0.1, opacity: 0, y: 0 },
+            { scale: 1, opacity: 1, y: 0, duration: 0.28, ease: 'back.out(4)', delay: 0.05 }
+          );
+          // Mini-shake: rapid x oscillation
+          gsap.to(emojiRef.current, {
+            keyframes: [
+              { x: 10, duration: 0.05 },
+              { x: -9, duration: 0.05 },
+              { x: 7, duration: 0.05 },
+              { x: -5, duration: 0.05 },
+              { x: 3, duration: 0.05 },
+              { x: 0, duration: 0.05 },
+            ],
+            delay: 0.33,
+          });
+          // Subtle idle bounce after shake settles
+          gsap.to(emojiRef.current, {
+            y: -8,
+            duration: 1.1,
+            ease: 'sine.inOut',
+            yoyo: true,
+            repeat: -1,
+            delay: 0.75,
+          });
+        }
+        if (nameRef.current) {
+          gsap.fromTo(nameRef.current,
+            { scale: 0.7, opacity: 0, y: 10 },
+            { scale: 1, opacity: 1, y: 0, duration: 0.25, ease: 'back.out(2)', delay: 0.18 }
+          );
+          gsap.to(nameRef.current, {
+            textShadow: '0 0 30px rgba(255,255,255,1), 0 0 60px rgba(255,255,255,0.7)',
+            duration: 0.9,
+            ease: 'sine.inOut',
+            yoyo: true,
+            repeat: -1,
+            delay: 0.65,
+          });
+        }
+      } else if (choreography === 'explosion' || choreography === 'nuclear') {
+        // ── EXPLOSION / NUCLEAR: current float + white flash synced to name entry ──
+        if (emojiRef.current) {
+          gsap.fromTo(emojiRef.current,
+            { scale: 0.3, opacity: 0, y: 20 },
+            { scale: 1, opacity: 1, y: 0, duration: 0.55, ease: 'elastic.out(1.4, 0.5)', delay: 0.05 }
+          );
+          gsap.to(emojiRef.current, {
+            y: -12,
+            duration: 1.0,
+            ease: 'sine.inOut',
+            yoyo: true,
+            repeat: -1,
+            delay: 0.6,
+          });
+        }
+        if (nameRef.current) {
+          gsap.fromTo(nameRef.current,
+            { scale: 0.6, opacity: 0, y: 15 },
+            { scale: 1, opacity: 1, y: 0, duration: 0.45, ease: 'back.out(1.7)', delay: 0.2 }
+          );
+          gsap.to(nameRef.current, {
+            textShadow: '0 0 30px rgba(255,255,255,1), 0 0 60px rgba(255,255,255,0.7)',
+            duration: 0.9,
+            ease: 'sine.inOut',
+            yoyo: true,
+            repeat: -1,
+            delay: 0.65,
+          });
+        }
+        // White flash synced with name text entry (delay 0.2s)
+        if (flashRef.current) {
+          gsap.fromTo(flashRef.current,
+            { opacity: 0.75 },
+            { opacity: 0, duration: 0.4, ease: 'power3.out', delay: 0.2 }
+          );
+        }
+      } else {
+        // ── DEFAULT / MAGIC / POISON / ENERGY / FIRE / etc.: original float ──
+        if (emojiRef.current) {
+          gsap.fromTo(emojiRef.current,
+            { scale: 0.3, opacity: 0, y: 20 },
+            { scale: 1, opacity: 1, y: 0, duration: 0.55, ease: 'elastic.out(1.4, 0.5)', delay: 0.05 }
+          );
+          gsap.to(emojiRef.current, {
+            y: -12,
+            duration: 1.0,
+            ease: 'sine.inOut',
+            yoyo: true,
+            repeat: -1,
+            delay: 0.6,
+          });
+        }
+        if (nameRef.current) {
+          gsap.fromTo(nameRef.current,
+            { scale: 0.6, opacity: 0, y: 15 },
+            { scale: 1, opacity: 1, y: 0, duration: 0.45, ease: 'back.out(1.7)', delay: 0.2 }
+          );
+          gsap.to(nameRef.current, {
+            textShadow: '0 0 30px rgba(255,255,255,1), 0 0 60px rgba(255,255,255,0.7)',
+            duration: 0.9,
+            ease: 'sine.inOut',
+            yoyo: true,
+            repeat: -1,
+            delay: 0.65,
+          });
+        }
+      }
     });
 
-    // Timeout is hoisted to effect scope — guaranteed cleanup on unmount
     const exitTimer = setTimeout(() => {
       gsap.to([emojiRef.current, nameRef.current, overlayRef.current].filter(Boolean), {
         opacity: 0,
@@ -326,24 +409,12 @@ export const CardAnimation: React.FC<CardAnimationProps> = ({ isVisible, cardNam
       ctx.revert();
       clearTimeout(exitTimer);
     };
-  }, [isVisible]);
+  }, [isVisible, cardName]);
 
   if (!isVisible) return null;
 
-  const getAnimationType = (): string => {
-    const n = cardName.toUpperCase().trim();
-    if (['BOMBA', 'ATTACCO KAMIKAZE', 'MINA VAGANTE', 'BOMBA SENZA DETONATORE'].includes(n)) return 'explosion';
-    if (['ONDA ENERGETICA', 'PARTITA DI TENNIS'].includes(n)) return 'energy';
-    if (['OMBELICO LANCIAFIAMME', 'ACCHIAPPT CHESSA'].includes(n)) return 'fire';
-    if (['SAETTA', 'UNA TEMPESTA BABY'].includes(n)) return 'lightning';
-    if (['AGO DI PINO', 'INFLUENZA', 'VIRUS'].includes(n)) return 'poison';
-    if (['BAMBOLA VOODOO', 'BAMBOLA-VOODOO', 'MACUMBA', 'ROULETTE RUSSA'].includes(n)) return 'magic';
-    if (['PIOGGIA DI METEORITI'].includes(n)) return 'storm';
-    if (['ESPLOSIONE ATOMICA'].includes(n)) return 'nuclear';
-    return 'default';
-  };
-
-  const animationType = getAnimationType();
+  const animationType = getAnimationType(cardName);
+  const choreography = getChoreographyType(cardName);
   const normalizedName = cardName.toUpperCase().trim();
 
   const getEmoji = () => {
@@ -372,6 +443,7 @@ export const CardAnimation: React.FC<CardAnimationProps> = ({ isVisible, cardNam
       case 'magic': return 'from-purple-900/80 via-pink-900/60 to-violet-900/40';
       case 'storm': return 'from-gray-900/80 via-slate-900/60 to-blue-900/40';
       case 'nuclear': return 'from-yellow-900/80 via-orange-900/60 to-red-900/80';
+      case 'physical': return 'from-stone-900/80 via-zinc-900/60 to-neutral-800/40';
       default: return 'from-gray-900/80 via-gray-800/60 to-gray-700/40';
     }
   };
@@ -379,6 +451,15 @@ export const CardAnimation: React.FC<CardAnimationProps> = ({ isVisible, cardNam
   return (
     <div ref={overlayRef} className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none" style={{ opacity: 0 }}>
       <div className={`absolute inset-0 bg-gradient-radial ${getBackgroundGradient()}`} />
+
+      {/* White flash overlay for explosion/nuclear choreography */}
+      {(choreography === 'explosion' || choreography === 'nuclear') && (
+        <div
+          ref={flashRef}
+          className="absolute inset-0 bg-white pointer-events-none"
+          style={{ opacity: 0 }}
+        />
+      )}
 
       <div className="absolute inset-0" style={{ pointerEvents: 'none' }}>
         <Canvas
@@ -421,3 +502,39 @@ export const CardAnimation: React.FC<CardAnimationProps> = ({ isVisible, cardNam
     </div>
   );
 };
+
+function getAnimationType(cardName: string): string {
+  const n = cardName.toUpperCase().trim();
+  if (['BOMBA', 'ATTACCO KAMIKAZE', 'MINA VAGANTE', 'BOMBA SENZA DETONATORE'].includes(n)) return 'explosion';
+  if (['ONDA ENERGETICA', 'PARTITA DI TENNIS'].includes(n)) return 'energy';
+  if (['OMBELICO LANCIAFIAMME', 'ACCHIAPPT CHESSA'].includes(n)) return 'fire';
+  if (['SAETTA', 'UNA TEMPESTA BABY'].includes(n)) return 'lightning';
+  if (['AGO DI PINO', 'INFLUENZA', 'VIRUS'].includes(n)) return 'poison';
+  if (['BAMBOLA VOODOO', 'BAMBOLA-VOODOO', 'MACUMBA', 'ROULETTE RUSSA'].includes(n)) return 'magic';
+  if (['PIOGGIA DI METEORITI'].includes(n)) return 'storm';
+  if (['ESPLOSIONE ATOMICA'].includes(n)) return 'nuclear';
+  if (PHYSICAL_CARDS.has(n)) return 'physical';
+  return 'default';
+}
+
+const PHYSICAL_CARDS = new Set([
+  'PADELLATA IN FACCIA',
+  'PUGNO',
+  'CIAVATTA',
+  'MAZZA DA BASEBALL',
+  'MOTOSEGA',
+  'ACCETTATA',
+  'LU TRATTORE',
+  'FUCILE A POMPA',
+  'DUELLO',
+  'PRETA',
+  'FURTO',
+]);
+
+function getChoreographyType(cardName: string): 'physical' | 'explosion' | 'nuclear' | 'default' {
+  const n = cardName.toUpperCase().trim();
+  if (PHYSICAL_CARDS.has(n)) return 'physical';
+  if (['BOMBA', 'ATTACCO KAMIKAZE', 'MINA VAGANTE', 'BOMBA SENZA DETONATORE'].includes(n)) return 'explosion';
+  if (['ESPLOSIONE ATOMICA'].includes(n)) return 'nuclear';
+  return 'default';
+}

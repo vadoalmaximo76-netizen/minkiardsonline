@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { gsap } from 'gsap';
 
 export interface CinematicEventData {
   type: 'big_attack' | 'mega_attack' | 'special_bonus' | 'lethal';
@@ -10,9 +11,8 @@ export interface CinematicEventData {
   label?: string;
   defenderName?: string;
   defenderCharName?: string;
-  // Card images (frontImage URLs)
-  attackerCardImage?: string;   // mossa card used (the attacking move)
-  defenderCardImage?: string;   // defender's personaggi card being hit
+  attackerCardImage?: string;
+  defenderCardImage?: string;
   timestamp?: number;
 }
 
@@ -155,42 +155,35 @@ function resolveTheme(type: CinematicEventData['type'], animationType?: string):
   return { ...base, ...override };
 }
 
-function useCountUp(target: number, duration: number, active: boolean): number {
-  const [count, setCount] = useState(0);
-  const rafRef = useRef<number>(0);
-
-  useEffect(() => {
-    if (!active || target === 0) { setCount(0); return; }
-    const start = performance.now();
-    const tick = (now: number) => {
-      const elapsed = now - start;
-      const progress = Math.min(elapsed / (duration * 0.55), 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.round(eased * target));
-      if (progress < 1) rafRef.current = requestAnimationFrame(tick);
-      else setCount(target);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [target, duration, active]);
-
-  return count;
-}
-
 export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
-  const [phase, setPhase] = useState<'enter' | 'hold' | 'exit' | 'done'>('done');
+  const [phase, setPhase] = useState<'active' | 'done'>('done');
   const [impactFired, setImpactFired] = useState(false);
+  const [counter, setCounter] = useState(0);
+
   const activeTimestamp = useRef<number | null>(null);
-  // Stable ref for onComplete so it never triggers effect re-runs
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
+  // DOM refs for GSAP
+  const flashRef = useRef<HTMLDivElement>(null);
+  const barTopRef = useRef<HTMLDivElement>(null);
+  const barBottomRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const accentTopRef = useRef<HTMLDivElement>(null);
+  const accentBottomRef = useRef<HTMLDivElement>(null);
+  const timelineRef = useRef<gsap.core.Timeline | null>(null);
+  const counterObjRef = useRef({ val: 0 });
+
   const theme = data ? resolveTheme(data.type, data.animationType) : BASE_THEMES.big_attack;
   const duration = data ? DURATIONS[data.type] : 1800;
-  const displayDamage = data?.damage ?? 0;
-  const counter = useCountUp(displayDamage, duration, phase === 'hold' || phase === 'exit');
 
   const isAttackType = data?.type === 'big_attack' || data?.type === 'mega_attack' || data?.type === 'lethal';
+
+  const attackerCharName = data?.attackerCharName || data?.attackerName;
+  const defenderCharName = data?.defenderCharName || data?.defenderName;
+  const labelText = data?.label || theme.label;
+  const cardDisplayName = data?.cardName;
+  const displayDamage = data?.damage ?? 0;
 
   useEffect(() => {
     if (!data) return;
@@ -198,53 +191,94 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
     if (ts === activeTimestamp.current) return;
     activeTimestamp.current = ts;
 
-    // Cancelled flag — set when this effect run is superseded (data changed or unmount)
-    let cancelled = false;
-    let t2: ReturnType<typeof setTimeout>;
-    let t3: ReturnType<typeof setTimeout>;
-    let t4: ReturnType<typeof setTimeout>;
+    const durationSec = duration / 1000;
+    const dmg = data.damage ?? 0;
+
+    // Kill any running timeline
+    if (timelineRef.current) {
+      timelineRef.current.kill();
+      timelineRef.current = null;
+    }
 
     setImpactFired(false);
-    setPhase('enter');
+    setCounter(0);
+    counterObjRef.current.val = 0;
+    setPhase('active');
 
-    const t1 = setTimeout(() => {
-      if (cancelled) return;
-      setPhase('hold');
+    // Small rAF delay to ensure DOM is mounted after setPhase('active')
+    const rafId = requestAnimationFrame(() => {
+      const flash = flashRef.current;
+      const barTop = barTopRef.current;
+      const barBottom = barBottomRef.current;
+      const content = contentRef.current;
+      const accentTop = accentTopRef.current;
+      const accentBottom = accentBottomRef.current;
 
-      t2 = setTimeout(() => {
-        if (!cancelled) setImpactFired(true);
-      }, 300);
+      if (!barTop || !barBottom) return;
 
-      t3 = setTimeout(() => {
-        if (cancelled) return;
-        setPhase('exit');
+      // Reset initial states
+      gsap.set(flash, { opacity: 1 });
+      gsap.set(barTop, { y: '-100%' });
+      gsap.set(barBottom, { y: '100%' });
+      gsap.set([accentTop, accentBottom], { opacity: 0 });
+      if (content) gsap.set(content, { opacity: 0, scale: 0.85 });
 
-        t4 = setTimeout(() => {
-          if (cancelled) return;
-          setPhase('done');
-          onCompleteRef.current();
-        }, 380);
-      }, duration - 580);
-    }, 200);
+      const tl = gsap.timeline();
+      timelineRef.current = tl;
+
+      // ── ENTER: flash + letterbox bars slide in ──
+      tl.to(flash, { opacity: 0, duration: 0.25, ease: 'power2.out' }, 0)
+        .to(barTop, { y: '0%', duration: 0.2, ease: 'power3.out' }, 0)
+        .to(barBottom, { y: '0%', duration: 0.2, ease: 'power3.out' }, 0)
+        .to([accentTop, accentBottom], { opacity: 1, duration: 0.15, ease: 'power2.out' }, 0.15);
+
+      // ── CONTENT: scale up with overshoot ──
+      if (content) {
+        tl.to(content, { opacity: 1, scale: 1.04, duration: 0.15, ease: 'power2.out' }, 0.2)
+          .to(content, { scale: 1, duration: 0.15, ease: 'power2.inOut' }, 0.35);
+      }
+
+      // ── IMPACT: trigger at 0.5s ──
+      tl.add(() => setImpactFired(true), 0.5);
+
+      // ── COUNTER: count up via gsap tween ──
+      if (dmg > 0) {
+        const obj = counterObjRef.current;
+        obj.val = 0;
+        tl.to(obj, {
+          val: dmg,
+          duration: durationSec * 0.55,
+          ease: 'power3.out',
+          onUpdate: () => setCounter(Math.round(obj.val)),
+        }, 0.5);
+      }
+
+      // ── EXIT: content fades out, bars retract ──
+      const exitAt = durationSec - 0.38;
+      if (content) {
+        tl.to(content, { opacity: 0, scale: 0.9, duration: 0.35, ease: 'power2.in' }, exitAt);
+      }
+      tl.to(barTop, { y: '-100%', duration: 0.35, ease: 'power2.in' }, exitAt)
+        .to(barBottom, { y: '100%', duration: 0.35, ease: 'power2.in' }, exitAt)
+        .to([accentTop, accentBottom], { opacity: 0, duration: 0.25, ease: 'power2.in' }, exitAt);
+
+      // ── DONE ──
+      tl.add(() => {
+        setPhase('done');
+        onCompleteRef.current();
+      }, durationSec);
+    });
 
     return () => {
-      cancelled = true;
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
+      cancelAnimationFrame(rafId);
+      if (timelineRef.current) {
+        timelineRef.current.kill();
+        timelineRef.current = null;
+      }
     };
-  }, [data, duration]); // onComplete intentionally excluded — stable via ref
+  }, [data, duration]);
 
   if (!data || phase === 'done') return null;
-
-  const isEntering = phase === 'enter';
-  const isExiting = phase === 'exit';
-
-  const attackerCharName = data.attackerCharName || data.attackerName;
-  const defenderCharName = data.defenderCharName || data.defenderName;
-  const labelText = data.label || theme.label;
-  const cardDisplayName = data.cardName;
 
   return (
     <div
@@ -252,77 +286,6 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
       style={{ zIndex: 10000 }}
     >
       <style>{`
-        @keyframes cin-flash {
-          0% { opacity: 1; }
-          100% { opacity: 0; }
-        }
-        @keyframes cin-bar-top {
-          0% { transform: translateY(-100%); }
-          100% { transform: translateY(0); }
-        }
-        @keyframes cin-bar-top-out {
-          0% { transform: translateY(0); }
-          100% { transform: translateY(-100%); }
-        }
-        @keyframes cin-bar-bottom {
-          0% { transform: translateY(100%); }
-          100% { transform: translateY(0); }
-        }
-        @keyframes cin-bar-bottom-out {
-          0% { transform: translateY(0); }
-          100% { transform: translateY(100%); }
-        }
-        @keyframes cin-content-in {
-          0% { opacity: 0; transform: scale(0.85); }
-          60% { opacity: 1; transform: scale(1.04); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-        @keyframes cin-content-out {
-          0% { opacity: 1; transform: scale(1); }
-          100% { opacity: 0; transform: scale(0.9); }
-        }
-        @keyframes cin-damage-pop {
-          0% { transform: scale(0.6); opacity: 0; }
-          50% { transform: scale(1.15); opacity: 1; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-        @keyframes cin-label-slide {
-          0% { transform: translateX(-40px); opacity: 0; }
-          100% { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes cin-attacker-in {
-          0% { transform: translateX(-80px); opacity: 0; }
-          100% { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes cin-defender-in {
-          0% { transform: translateX(80px); opacity: 0; }
-          100% { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes cin-defender-hit {
-          0%   { transform: translateX(0)    rotate(0deg);   filter: brightness(1); }
-          15%  { transform: translateX(-14px) rotate(-4deg); filter: brightness(3) saturate(0); }
-          30%  { transform: translateX(14px)  rotate(3deg);  filter: brightness(2); }
-          45%  { transform: translateX(-10px) rotate(-2deg); filter: brightness(1.5); }
-          60%  { transform: translateX(8px)   rotate(1deg);  filter: brightness(1.2); }
-          75%  { transform: translateX(-5px)  rotate(0deg);  filter: brightness(1); }
-          100% { transform: translateX(0)    rotate(0deg);   filter: brightness(1); }
-        }
-        @keyframes cin-impact-burst {
-          0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
-          60%  { transform: translate(-50%, -50%) scale(1.4); opacity: 0.9; }
-          100% { transform: translate(-50%, -50%) scale(2);   opacity: 0; }
-        }
-        @keyframes cin-impact-text {
-          0%   { transform: translate(-50%, -50%) scale(0.3) rotate(-15deg); opacity: 0; }
-          40%  { transform: translate(-50%, -50%) scale(1.3) rotate(8deg);  opacity: 1; }
-          70%  { transform: translate(-50%, -50%) scale(1)   rotate(-3deg); opacity: 1; }
-          100% { transform: translate(-50%, -50%) scale(0.8) rotate(0deg);  opacity: 0; }
-        }
-        @keyframes cin-mossa-fly {
-          0%   { transform: translateX(0) rotate(-6deg) scale(1); opacity: 1; }
-          70%  { transform: translateX(130%) rotate(10deg) scale(1.1); opacity: 0.6; }
-          100% { transform: translateX(180%) rotate(15deg) scale(0.9); opacity: 0; }
-        }
         @keyframes cin-card-attacker-in {
           0%   { transform: translateX(-120px) rotate(-15deg) scale(0.7); opacity: 0; }
           70%  { transform: translateX(8px)   rotate(3deg)  scale(1.05); opacity: 1; }
@@ -342,6 +305,39 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
           70%  { transform: rotate(-3deg)   scale(1);    filter: brightness(1); }
           100% { transform: rotate(4deg)    scale(1);    filter: brightness(1); }
         }
+        @keyframes cin-mossa-fly {
+          0%   { transform: translateX(0) rotate(-6deg) scale(1); opacity: 1; }
+          70%  { transform: translateX(130%) rotate(10deg) scale(1.1); opacity: 0.6; }
+          100% { transform: translateX(180%) rotate(15deg) scale(0.9); opacity: 0; }
+        }
+        @keyframes cin-impact-burst {
+          0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
+          60%  { transform: translate(-50%, -50%) scale(1.4); opacity: 0.9; }
+          100% { transform: translate(-50%, -50%) scale(2);   opacity: 0; }
+        }
+        @keyframes cin-impact-text {
+          0%   { transform: translate(-50%, -50%) scale(0.3) rotate(-15deg); opacity: 0; }
+          40%  { transform: translate(-50%, -50%) scale(1.3) rotate(8deg);  opacity: 1; }
+          70%  { transform: translate(-50%, -50%) scale(1)   rotate(-3deg); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(0.8) rotate(0deg);  opacity: 0; }
+        }
+        @keyframes cin-damage-pop {
+          0% { transform: scale(0.6); opacity: 0; }
+          50% { transform: scale(1.15); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes cin-label-slide {
+          0% { transform: translateX(-40px); opacity: 0; }
+          100% { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes cin-attacker-in {
+          0% { transform: translateX(-80px); opacity: 0; }
+          100% { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes cin-flash {
+          0% { opacity: 1; }
+          100% { opacity: 0; }
+        }
         @keyframes cin-glow-pulse {
           0%, 100% { opacity: 0.4; }
           50% { opacity: 0.85; }
@@ -356,32 +352,25 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
         }
       `}</style>
 
-      {/* Entry flash */}
-      {isEntering && (
-        <div
-          className="absolute inset-0"
-          style={{ background: 'white', animation: 'cin-flash 0.25s ease-out forwards' }}
-        />
-      )}
-
-      {/* Letterbox top */}
+      {/* Entry flash — always rendered, GSAP controls opacity */}
       <div
-        className="absolute top-0 left-0 right-0"
-        style={{
-          height: 90,
-          background: '#000',
-          animation: isExiting ? 'cin-bar-top-out 0.35s ease-in forwards' : 'cin-bar-top 0.2s ease-out forwards',
-        }}
+        ref={flashRef}
+        className="absolute inset-0"
+        style={{ background: 'white', opacity: 0, pointerEvents: 'none' }}
       />
 
-      {/* Letterbox bottom */}
+      {/* Letterbox top — GSAP controls translateY */}
       <div
+        ref={barTopRef}
+        className="absolute top-0 left-0 right-0"
+        style={{ height: 90, background: '#000' }}
+      />
+
+      {/* Letterbox bottom — GSAP controls translateY */}
+      <div
+        ref={barBottomRef}
         className="absolute bottom-0 left-0 right-0"
-        style={{
-          height: 90,
-          background: '#000',
-          animation: isExiting ? 'cin-bar-bottom-out 0.35s ease-in forwards' : 'cin-bar-bottom 0.2s ease-out forwards',
-        }}
+        style={{ height: 90, background: '#000' }}
       />
 
       {/* Full-screen background */}
@@ -417,13 +406,9 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
         {/* ── ATTACK LAYOUT: Attacker card vs Defender card ── */}
         {isAttackType && (attackerCharName || defenderCharName) ? (
           <div
+            ref={contentRef}
             className="absolute inset-0 flex flex-col items-center justify-center"
-            style={{
-              animation: isExiting
-                ? 'cin-content-out 0.35s ease-in forwards'
-                : 'cin-content-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
-              padding: '0 8px',
-            }}
+            style={{ padding: '0 8px', opacity: 0 }}
           >
             {/* Label row */}
             <div style={{
@@ -454,7 +439,6 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
                   animationDelay: '0.12s',
                 }}
               >
-                {/* Card image */}
                 <div style={{
                   width: 'clamp(80px, 14vw, 130px)',
                   aspectRatio: '63/88',
@@ -472,7 +456,6 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
                       style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                     />
                   ) : (
-                    /* Fallback: styled card placeholder */
                     <div style={{
                       width: '100%', height: '100%',
                       background: `linear-gradient(145deg, ${theme.accent}44, ${theme.bg})`,
@@ -496,7 +479,6 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
                     </div>
                   )}
                 </div>
-                {/* Attacker char name */}
                 <div style={{
                   color: theme.accentLight,
                   fontFamily: 'monospace',
@@ -542,7 +524,6 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
                   opacity: impactFired ? 0 : 0.6,
                   transition: 'opacity 0.1s',
                 }}>VS</div>
-                {/* Impact burst circle */}
                 {impactFired && (
                   <div style={{
                     position: 'absolute',
@@ -578,7 +559,6 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
                   animationDelay: '0.12s',
                 }}
               >
-                {/* Card image wrapper — shakes on impact */}
                 <div style={{
                   width: 'clamp(80px, 14vw, 130px)',
                   aspectRatio: '63/88',
@@ -621,7 +601,6 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
                       </div>
                     </div>
                   )}
-                  {/* Red hit overlay flash */}
                   {impactFired && (
                     <div style={{
                       position: 'absolute', inset: 0,
@@ -631,7 +610,6 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
                     }} />
                   )}
                 </div>
-                {/* Defender name */}
                 <div style={{
                   color: impactFired ? '#FF8A80' : '#ffcccc',
                   fontFamily: 'monospace',
@@ -691,14 +669,11 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
             )}
           </div>
         ) : (
-          /* ── SPECIAL BONUS / non-attack layout (original) ── */
+          /* ── SPECIAL BONUS / non-attack layout ── */
           <div
+            ref={contentRef}
             className="absolute inset-0 flex flex-col items-center justify-center"
-            style={{
-              animation: isExiting
-                ? 'cin-content-out 0.35s ease-in forwards'
-                : 'cin-content-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
-            }}
+            style={{ opacity: 0 }}
           >
             <div style={{ fontSize: 42, lineHeight: 1, marginBottom: 8 }}>{theme.emoji}</div>
             <div style={{
@@ -810,16 +785,16 @@ export function CinematicOverlay({ data, onComplete }: CinematicOverlayProps) {
         )}
       </div>
 
-      {/* Accent border lines on letterbox */}
-      <div className="absolute" style={{
+      {/* Accent border lines on letterbox — GSAP controls opacity */}
+      <div ref={accentTopRef} className="absolute" style={{
         top: 88, left: 0, right: 0, height: 3,
         background: `linear-gradient(to right, transparent 0%, ${theme.accent} 20%, ${theme.accentLight} 50%, ${theme.accent} 80%, transparent 100%)`,
-        opacity: isExiting ? 0 : 1, transition: 'opacity 0.2s',
+        opacity: 0,
       }} />
-      <div className="absolute" style={{
+      <div ref={accentBottomRef} className="absolute" style={{
         bottom: 88, left: 0, right: 0, height: 3,
         background: `linear-gradient(to right, transparent 0%, ${theme.accent} 20%, ${theme.accentLight} 50%, ${theme.accent} 80%, transparent 100%)`,
-        opacity: isExiting ? 0 : 1, transition: 'opacity 0.2s',
+        opacity: 0,
       }} />
     </div>
   );
