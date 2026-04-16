@@ -143,6 +143,19 @@ export const RecursiveDamagePanel: React.FC = () => {
   const isAttackerEliminated = lastStep?.eliminated && lastStep?.target === 'attacker';
   const isDefenderEliminated = lastStep?.eliminated && lastStep?.target === 'defender';
 
+  const getShakeTier = (damage: number): 'sm' | 'md' | 'lg' => {
+    if (damage <= 30) return 'sm';
+    if (damage <= 80) return 'md';
+    return 'lg';
+  };
+
+  const attackerShakeClass = showDamage?.target === 'attacker'
+    ? `rdp-card-shake-left-${getShakeTier(showDamage.value)}`
+    : '';
+  const defenderShakeClass = showDamage?.target === 'defender'
+    ? `rdp-card-shake-right-${getShakeTier(showDamage.value)}`
+    : '';
+
   const panelStyles = isTennis
     ? "bg-gradient-to-br from-green-800 via-green-600 to-green-800 border-white"
     : "bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 border-purple-500";
@@ -191,7 +204,7 @@ export const RecursiveDamagePanel: React.FC = () => {
         <div className="flex items-center justify-between gap-8 relative z-10">
           {/* Attacker column */}
           <div
-            className={`flex-1 text-center ${isAttackerEliminated ? 'opacity-50' : ''} ${showDamage?.target === 'attacker' ? 'rdp-card-shake-left' : ''}`}
+            className={`flex-1 text-center ${isAttackerEliminated ? 'opacity-50' : ''} ${attackerShakeClass}`}
           >
             <div className="text-lg font-semibold text-white mb-2 drop-shadow-lg">
               {event.attackerName}
@@ -264,7 +277,7 @@ export const RecursiveDamagePanel: React.FC = () => {
 
           {/* Defender column */}
           <div
-            className={`flex-1 text-center ${isDefenderEliminated ? 'opacity-50' : ''} ${showDamage?.target === 'defender' ? 'rdp-card-shake-right' : ''}`}
+            className={`flex-1 text-center ${isDefenderEliminated ? 'opacity-50' : ''} ${defenderShakeClass}`}
           >
             <div className="text-lg font-semibold text-white mb-2 drop-shadow-lg">
               {event.defenderName}
