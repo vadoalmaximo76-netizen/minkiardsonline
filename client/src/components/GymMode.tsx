@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, Shield, Star, Lock, CheckCircle, Swords, Trophy, ChevronRight, Sparkles, Heart, Target, Users, BookOpen, X, ClipboardList } from 'lucide-react';
+import gsap from 'gsap';
 import { CardInfoSheet } from './CardInfoSheet';
 import { GuestWall } from './GuestWall';
 import { GameBoard } from './GameBoard';
@@ -373,6 +374,10 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [resetError, setResetError] = useState<string | null>(null);
   const [showInfermeria, setShowInfermeria] = useState(false);
   const [showSecretRoom, setShowSecretRoom] = useState(false);
+  const [secretRoomRevealing, setSecretRoomRevealing] = useState(false);
+  const secretRoomEverRevealedRef = useRef(false);
+  const secretRevealMarksRef = useRef<HTMLDivElement>(null);
+  const secretRevealTitleRef = useRef<HTMLDivElement>(null);
   const [storyViewMode, setStoryViewMode] = useState<'3d' | '2d'>(() => {
     try { return (localStorage.getItem('storyViewMode') as '3d' | '2d') || '3d'; } catch { return '3d'; }
   });
@@ -690,6 +695,28 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     return () => clearTimeout(t);
   }, [phase]);
 
+  // ── Secret Room GSAP reveal animation ────────────────────────────────────
+  useEffect(() => {
+    if (!secretRoomRevealing) return;
+    const marks = secretRevealMarksRef.current;
+    const title = secretRevealTitleRef.current;
+    if (!marks || !title) {
+      // Fallback: no DOM yet, open directly
+      setSecretRoomRevealing(false);
+      setShowSecretRoom(true);
+      return;
+    }
+    gsap.set(title, { scale: 0.4, opacity: 0, rotate: -10 });
+    const tl = gsap.timeline({
+      onComplete: () => {
+        setSecretRoomRevealing(false);
+        setShowSecretRoom(true);
+      },
+    });
+    tl.to(marks, { scale: 2.2, opacity: 0, duration: 0.35, ease: 'power2.in' })
+      .to(title, { scale: 1, opacity: 1, rotate: 0, duration: 0.65, ease: 'elastic.out(1, 0.45)' }, '-=0.05')
+      .to({}, { duration: 0.5 });
+  }, [secretRoomRevealing]);
 
   const startBattle = useCallback(async (leader: GymLeader) => {
     battleStartingRef.current = false;
@@ -949,7 +976,13 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
 
   const currentLeader = regularLeaders.find(l => getLeaderStatus(l) === 'available');
   const activeLeaders = regularLeaders.filter(l => l.isActive).sort((a, b) => a.orderIndex - b.orderIndex);
-  const allLeadersCompleted = activeLeaders.length > 0 && activeLeaders.every(l => completedIds.includes(l.id));
+  // Stage 13 status confirms server-side that all regular leaders (Stage 1-12) are completed.
+  // The secret room is unlocked only once Stage 13 status is loaded and story is confirmed complete.
+  const allLeadersCompleted =
+    stage13Status !== null &&
+    !!stage13Status?.storyCompleted &&
+    activeLeaders.length > 0 &&
+    activeLeaders.every(l => completedIds.includes(l.id));
 
   // ── INJURED DISCLAIMER — shown at root level regardless of current phase ───
   if (pendingBattle) {
@@ -1810,6 +1843,48 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         />
       )}
 
+      {/* ── La Stanza Segreta: GSAP Reveal Animation ── */}
+      {secretRoomRevealing && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 300,
+            background: 'rgba(0,0,0,0.96)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: 24,
+            pointerEvents: 'none',
+          }}
+        >
+          <div
+            ref={secretRevealMarksRef}
+            style={{
+              position: 'absolute',
+              color: '#fbbf24', fontWeight: 900,
+              fontSize: 'clamp(48px, 12vw, 88px)',
+              letterSpacing: '0.15em',
+              textShadow: '0 0 30px rgba(251,191,36,0.6)',
+              transformOrigin: 'center',
+            }}
+          >
+            ???
+          </div>
+          <div
+            ref={secretRevealTitleRef}
+            style={{
+              position: 'absolute',
+              color: '#fbbf24', fontWeight: 900,
+              fontSize: 'clamp(24px, 7vw, 52px)',
+              textShadow: '0 0 30px rgba(251,191,36,0.7), 0 0 60px rgba(245,158,11,0.4)',
+              opacity: 0,
+              transformOrigin: 'center',
+              textAlign: 'center',
+              padding: '0 20px',
+            }}
+          >
+            🚪 La Stanza Segreta
+          </div>
+        </div>
+      )}
+
       {/* ── La Stanza Segreta Easter Egg Overlay ── */}
       {showSecretRoom && (
         <div
@@ -2070,7 +2145,14 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           wizardCardReceived={wizardCardReceived}
           onWizardCard={handleWizardCard}
           allLeadersCompleted={allLeadersCompleted}
-          onOpenSecretRoom={() => setShowSecretRoom(true)}
+          onOpenSecretRoom={() => {
+            if (!secretRoomEverRevealedRef.current) {
+              secretRoomEverRevealedRef.current = true;
+              setSecretRoomRevealing(true);
+            } else {
+              setShowSecretRoom(true);
+            }
+          }}
           onTriggerQuadrato={() => {
             if (!quadratoLeader) return;
             quadratoAutoTriggeredRef.current = true;
