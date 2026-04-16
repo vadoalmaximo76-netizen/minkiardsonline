@@ -1932,6 +1932,86 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     this.gameManager = gameManager;
   }
 
+  /**
+   * Before the play phase, check if the CPU's active character is one of the four
+   * special characters with an activatable effect (Golden Freezer, Evil Fake,
+   * Cyber Geena, Il Pelux) and trigger it when strategic conditions are met.
+   * Each effect respects the server-side "once per game" guard flag.
+   */
+  private async maybeActivateSpecialCharacterEffect(gameState: any): Promise<void> {
+    if (!this.gameManager) return;
+
+    const cpuChar = gameState.field.find((c: any) =>
+      c.owner === this.playerName &&
+      (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+    );
+    if (!cpuChar) return;
+
+    const io = this.socketEmitter;
+    const img = (cpuChar.frontImage || '').toLowerCase();
+    const charName = (cpuChar.name || '').toLowerCase();
+
+    // ── GOLDEN FREEZER ─────────────────────────────────────────────────────────
+    // Activate before any MOSSE attack to roll the die and gain consecutive attacks.
+    if ((img.includes('golden-freezer') || /golden.?freezer/.test(charName)) && !(cpuChar as any).goldenFreezerUsed) {
+      console.log(`❄️ CPU ${this.playerName}: Golden Freezer in campo - attivo effetto dado`);
+      this.sendChatMessage(`❄️ Golden Freezer: attivo il potere del dado per gli attacchi consecutivi!`);
+      await this.gameManager.activateCustomEffect(this.gameId, cpuChar.id, this.playerName, io);
+      return;
+    }
+
+    // ── EVIL FAKE ──────────────────────────────────────────────────────────────
+    // Activate when at least one opponent's graveyard contains a character.
+    // Server auto-resolves the choice for CPU (picks highest-PTI cards).
+    if ((img.includes('evil-fake') || /evil.?fake/.test(charName)) && !(cpuChar as any).evilFakeUsed) {
+      const hasGraveyardTargets = Object.entries(gameState.players || {}).some(([pName, pData]: [string, any]) => {
+        if (pName === this.playerName) return false;
+        return (pData.graveyard || []).some((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      });
+      if (hasGraveyardTargets) {
+        console.log(`😈 CPU ${this.playerName}: Evil Fake in campo - attivo assorbimento cimiteri avversari`);
+        this.sendChatMessage(`😈 Evil Fake: assorbo il potere dai cimiteri avversari!`);
+        await this.gameManager.activateCustomEffect(this.gameId, cpuChar.id, this.playerName, io);
+      }
+      return;
+    }
+
+    // ── CYBER GEENA ────────────────────────────────────────────────────────────
+    // Activate when CPU's PTI is lower than the best enemy's PTI to swap upward.
+    // Server auto-resolves the target choice for CPU (picks highest-PTI enemy).
+    if ((img.includes('cyber-geena') || /cyber.?geena/.test(charName)) && !(cpuChar as any).cyberGeenaUsed) {
+      const cpuPTI = this.extractPtiFromCard(cpuChar);
+      const enemyChars = gameState.field.filter((c: any) =>
+        c.owner !== this.playerName &&
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      if (enemyChars.length > 0) {
+        const maxEnemyPTI = Math.max(...enemyChars.map((c: any) => this.extractPtiFromCard(c)));
+        if (cpuPTI < maxEnemyPTI) {
+          console.log(`🤖 CPU ${this.playerName}: Cyber Geena PTI=${cpuPTI} < enemy max PTI=${maxEnemyPTI} - attivo scambio`);
+          this.sendChatMessage(`🤖 Cyber Geena: scambio i PTI con il personaggio più forte!`);
+          await this.gameManager.activateCustomEffect(this.gameId, cpuChar.id, this.playerName, io);
+        }
+      }
+      return;
+    }
+
+    // ── IL PELUX (Stella Nera) ─────────────────────────────────────────────────
+    // Activate before a MOSSE attack when we have a MOSSE card ready, so the next
+    // attack instantly eliminates the target regardless of PTI.
+    if (/pelux/i.test(charName) || img.includes('pelux')) {
+      if (!(cpuChar as any).stellaNeraUsed) {
+        const hasMosse = (gameState.players[this.playerName]?.hand || []).some((c: any) => c.type === 'mosse') ||
+          gameState.field.some((c: any) => c.owner === this.playerName && c.type === 'mosse');
+        if (hasMosse) {
+          console.log(`⭐ CPU ${this.playerName}: Il Pelux in campo - attivo Stella Nera prima dell'attacco`);
+          this.sendChatMessage(`⭐ Il Pelux carica la Stella Nera! Il prossimo attacco eliminerà istantaneamente il bersaglio!`);
+          await this.gameManager.activateCustomEffect(this.gameId, cpuChar.id, this.playerName, io);
+        }
+      }
+    }
+  }
+
   // Analyze current game state and decide next move with conversation context
   async analyzeGameState(gameState: any): Promise<GameAnalysis> {
     try {
@@ -2949,6 +3029,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         gameState = finalState;
       }
       
+      // Phase 1b: Activate special character effects before attacking
+      // (Golden Freezer, Evil Fake, Cyber Geena, Il Pelux)
+      await this.maybeActivateSpecialCharacterEffect(gameState);
+
       // Phase 2: Play a card
       const playAction = await this.handlePlayPhase(cpuPlayer, gameState);
       if (!playAction) {
