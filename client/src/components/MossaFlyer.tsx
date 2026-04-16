@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { motion, useAnimation } from 'framer-motion';
+import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { gsap } from 'gsap';
 
 interface MossaFlyerProps {
   fromRect: DOMRect;
@@ -12,7 +13,7 @@ interface MossaFlyerProps {
 
 const CARD_W = 54;
 const CARD_H = 76;
-const FLY_DURATION = 0.26; // seconds
+const FLY_DURATION = 0.26;
 
 export const MossaFlyer: React.FC<MossaFlyerProps> = ({
   fromRect,
@@ -22,179 +23,244 @@ export const MossaFlyer: React.FC<MossaFlyerProps> = ({
   onImpact,
   onComplete,
 }) => {
-  const controls = useAnimation();
-  const impactFiredRef = useRef(false);
-  const [showImpact, setShowImpact] = useState(false);
-  const [impactPos, setImpactPos] = useState({ x: 0, y: 0 });
-
   const isHeavy = damage >= 30;
   const glowColor = isHeavy ? '#ef4444' : '#f97316';
 
+  const onImpactRef = useRef(onImpact);
+  const onCompleteRef = useRef(onComplete);
+  onImpactRef.current = onImpact;
+  onCompleteRef.current = onComplete;
+
+  const cardRef = useRef<HTMLDivElement>(null);
+  const flashRef = useRef<HTMLDivElement>(null);
+  const ringsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const sparksRef = useRef<(HTMLDivElement | null)[]>([]);
+  const screenPulseRef = useRef<HTMLDivElement>(null);
+
+  const fx = fromRect.left + fromRect.width / 2;
+  const fy = fromRect.top + fromRect.height / 2;
+  const tx = toRect.left + toRect.width / 2;
+  const ty = toRect.top + toRect.height / 2;
+  const dx = tx - fx;
+  const dy = ty - fy;
+  const angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
+
   useEffect(() => {
-    const fx = fromRect.left + fromRect.width / 2;
-    const fy = fromRect.top + fromRect.height / 2;
-    const tx = toRect.left + toRect.width / 2;
-    const ty = toRect.top + toRect.height / 2;
+    const card = cardRef.current;
+    if (!card) return;
 
-    const dx = tx - fx;
-    const dy = ty - fy;
-    const angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        onComplete: () => onCompleteRef.current(),
+      });
 
-    setImpactPos({ x: tx, y: ty });
-
-    const run = async () => {
-      // Phase 1: instantly place at source, pop up
-      await controls.start({
+      gsap.set(card, {
         x: fx - CARD_W / 2,
         y: fy - CARD_H / 2,
         scale: 1.15,
-        rotate: angleDeg - 90,
+        rotation: angleDeg - 90,
         opacity: 1,
-        transition: { duration: 0 },
       });
 
-      // Phase 2: fly toward target
-      await controls.start({
-        x: tx - CARD_W / 2,
-        y: ty - CARD_H / 2,
-        scale: 0.75,
-        rotate: angleDeg - 90,
-        opacity: 0.9,
-        transition: {
-          duration: FLY_DURATION,
-          ease: [0.18, 0, 0.72, 1],
-        },
-      });
+      const arcPeakX = (fx + tx) / 2 + dy * 0.1;
+      const arcPeakY = (fy + ty) / 2 - Math.abs(dx) * 0.15 - 40;
 
-      // Phase 3: impact — card briefly expands and vanishes
-      if (!impactFiredRef.current) {
-        impactFiredRef.current = true;
-        setShowImpact(true);
-        onImpact();
+      tl.to(card, {
+        motionPath: undefined,
+        x: arcPeakX - CARD_W / 2,
+        y: arcPeakY - CARD_H / 2,
+        scale: 1.0,
+        rotation: angleDeg - 90,
+        opacity: 1,
+        duration: FLY_DURATION * 0.45,
+        ease: 'power2.out',
+      })
+        .to(card, {
+          x: tx - CARD_W / 2,
+          y: ty - CARD_H / 2,
+          scale: 0.75,
+          rotation: angleDeg - 90,
+          opacity: 0.9,
+          duration: FLY_DURATION * 0.55,
+          ease: 'power3.in',
+        })
+        .call(() => onImpactRef.current())
+        .to(card, {
+          scale: 1.6,
+          opacity: 0,
+          duration: 0.12,
+          ease: 'power2.out',
+        });
+
+      const impactTime = FLY_DURATION;
+
+      if (flashRef.current) {
+        tl.fromTo(
+          flashRef.current,
+          { scale: 0.3, opacity: 0.85 },
+          { scale: 2.0, opacity: 0, duration: 0.25, ease: 'power2.out' },
+          impactTime
+        );
       }
 
-      await controls.start({
-        scale: 1.6,
-        opacity: 0,
-        transition: { duration: 0.12, ease: 'easeOut' },
+      ringsRef.current.forEach((ring, i) => {
+        if (!ring) return;
+        tl.fromTo(
+          ring,
+          { scale: 0.1, opacity: 0.9 },
+          {
+            scale: 2.8,
+            opacity: 0,
+            duration: 0.45 + i * 0.12,
+            ease: 'power2.out',
+          },
+          impactTime + i * 0.06
+        );
       });
 
-      setTimeout(onComplete, 200);
-    };
+      const sparkAngles = [0, 45, 90, 135, 180, 225, 270, 315];
+      sparksRef.current.forEach((spark, i) => {
+        if (!spark) return;
+        const angle = sparkAngles[i] * (Math.PI / 180);
+        const dist2 = 50 + (i * 13 % 40);
+        const sx = Math.cos(angle) * dist2;
+        const sy = Math.sin(angle) * dist2;
+        tl.fromTo(
+          spark,
+          { x: 0, y: 0, scale: 1, opacity: 1 },
+          {
+            x: sx,
+            y: sy,
+            scale: 0.2,
+            opacity: 0,
+            duration: 0.35 + (i * 7 % 15) / 100,
+            ease: 'power3.out',
+          },
+          impactTime + i * 0.02
+        );
+      });
 
-    run();
+      if (isHeavy && screenPulseRef.current) {
+        tl.fromTo(
+          screenPulseRef.current,
+          { opacity: 0.85, scale: 0.3 },
+          { opacity: 0, scale: 2.0, duration: 0.3, ease: 'power2.out' },
+          impactTime
+        );
+      }
+
+      tl.to({}, { duration: 0.2 });
+    });
+
+    return () => ctx.revert();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return (
-    <>
-      <style>{`
-        @keyframes mf-ring {
-          0%   { transform: translate(-50%,-50%) scale(0.1); opacity: 0.9; }
-          100% { transform: translate(-50%,-50%) scale(2.8); opacity: 0; }
-        }
-        @keyframes mf-flash {
-          0%   { opacity: 0.85; transform: translate(-50%,-50%) scale(0.3); }
-          100% { opacity: 0;    transform: translate(-50%,-50%) scale(2); }
-        }
-        @keyframes mf-spark {
-          0%   { opacity: 1; transform: translate(-50%,-50%) rotate(var(--sa)) translateX(0) scale(1); }
-          100% { opacity: 0; transform: translate(-50%,-50%) rotate(var(--sa)) translateX(var(--sd)) scale(0.2); }
-        }
-        @keyframes mf-trail {
-          0%   { opacity: 0.6; }
-          100% { opacity: 0; }
-        }
-      `}</style>
-
-      <div className="fixed inset-0 z-[99990] pointer-events-none">
-        {/* Flying card */}
-        <motion.div
-          animate={controls}
-          style={{
-            position: 'absolute',
-            width: CARD_W,
-            height: CARD_H,
-            borderRadius: 5,
-            boxShadow: `0 0 18px ${glowColor}, 0 0 40px ${glowColor}80`,
-            overflow: 'hidden',
-            willChange: 'transform',
-          }}
-        >
-          {cardImageSrc ? (
-            <img
-              src={cardImageSrc}
-              alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            />
-          ) : (
-            <div style={{
-              width: '100%', height: '100%',
+  return createPortal(
+    <div className="fixed inset-0 z-[99990] pointer-events-none">
+      <div
+        ref={cardRef}
+        style={{
+          position: 'absolute',
+          width: CARD_W,
+          height: CARD_H,
+          borderRadius: 5,
+          boxShadow: `0 0 18px ${glowColor}, 0 0 40px ${glowColor}80`,
+          overflow: 'hidden',
+          willChange: 'transform',
+          opacity: 0,
+        }}
+      >
+        {cardImageSrc ? (
+          <img
+            src={cardImageSrc}
+            alt=""
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        ) : (
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
               background: isHeavy
                 ? 'linear-gradient(135deg, #7f1d1d, #ef4444, #fca5a5)'
                 : 'linear-gradient(135deg, #78350f, #f97316, #fcd34d)',
-            }} />
-          )}
-          {/* Inner glow overlay */}
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: `radial-gradient(ellipse at center, ${glowColor}60, transparent 70%)`,
-          }} />
-        </motion.div>
-
-        {/* Impact effects — appear when card hits */}
-        {showImpact && (
-          <>
-            {/* White flash burst */}
-            <div style={{
-              position: 'absolute',
-              left: impactPos.x, top: impactPos.y,
-              width: 80, height: 80,
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, #ffffff, rgba(255,255,255,0) 70%)',
-              animation: 'mf-flash 0.25s ease-out forwards',
-            }} />
-
-            {/* Shockwave rings */}
-            {[0, 1, 2].map(i => (
-              <div key={i} style={{
-                position: 'absolute',
-                left: impactPos.x, top: impactPos.y,
-                width: isHeavy ? 120 : 80,
-                height: isHeavy ? 120 : 80,
-                borderRadius: '50%',
-                border: `2px solid ${glowColor}`,
-                animation: `mf-ring ${0.45 + i * 0.12}s ${i * 0.06}s ease-out forwards`,
-              }} />
-            ))}
-
-            {/* Spark particles */}
-            {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
-              <div key={i} style={{
-                position: 'absolute',
-                left: impactPos.x, top: impactPos.y,
-                width: 4 + (i % 3),
-                height: 4 + (i % 3),
-                borderRadius: '50%',
-                background: i % 2 === 0 ? glowColor : '#fff',
-                boxShadow: `0 0 6px ${glowColor}`,
-                '--sa': `${i * 45}deg`,
-                '--sd': `${50 + (i * 13 % 40)}px`,
-                animation: `mf-spark ${0.35 + (i * 7 % 15) / 100}s ${i * 0.02}s ease-out forwards`,
-              } as React.CSSProperties} />
-            ))}
-
-            {/* Heavy hit: extra screen pulse overlay */}
-            {isHeavy && (
-              <div style={{
-                position: 'fixed', inset: 0,
-                background: 'rgba(239,68,68,0.12)',
-                animation: 'mf-flash 0.3s ease-out forwards',
-                pointerEvents: 'none',
-              }} />
-            )}
-          </>
+            }}
+          />
         )}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: `radial-gradient(ellipse at center, ${glowColor}60, transparent 70%)`,
+          }}
+        />
       </div>
-    </>
+
+      <div
+        ref={flashRef}
+        style={{
+          position: 'absolute',
+          left: tx,
+          top: ty,
+          width: 80,
+          height: 80,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, #ffffff, rgba(255,255,255,0) 70%)',
+          transform: 'translate(-50%, -50%)',
+          opacity: 0,
+        }}
+      />
+
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          ref={(el) => { ringsRef.current[i] = el; }}
+          style={{
+            position: 'absolute',
+            left: tx,
+            top: ty,
+            width: isHeavy ? 120 : 80,
+            height: isHeavy ? 120 : 80,
+            borderRadius: '50%',
+            border: `2px solid ${glowColor}`,
+            transform: 'translate(-50%, -50%)',
+            opacity: 0,
+          }}
+        />
+      ))}
+
+      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+        <div
+          key={i}
+          ref={(el) => { sparksRef.current[i] = el; }}
+          style={{
+            position: 'absolute',
+            left: tx,
+            top: ty,
+            width: 4 + (i % 3),
+            height: 4 + (i % 3),
+            borderRadius: '50%',
+            background: i % 2 === 0 ? glowColor : '#fff',
+            boxShadow: `0 0 6px ${glowColor}`,
+            transform: 'translate(-50%, -50%)',
+            opacity: 0,
+          }}
+        />
+      ))}
+
+      {isHeavy && (
+        <div
+          ref={screenPulseRef}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(239,68,68,0.12)',
+            pointerEvents: 'none',
+            opacity: 0,
+          }}
+        />
+      )}
+    </div>,
+    document.body
   );
 };
