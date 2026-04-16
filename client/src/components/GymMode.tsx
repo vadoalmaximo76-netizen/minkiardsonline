@@ -372,6 +372,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const [showInfermeria, setShowInfermeria] = useState(false);
+  const [showSecretRoom, setShowSecretRoom] = useState(false);
   const [storyViewMode, setStoryViewMode] = useState<'3d' | '2d'>(() => {
     try { return (localStorage.getItem('storyViewMode') as '3d' | '2d') || '3d'; } catch { return '3d'; }
   });
@@ -948,6 +949,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
 
   const currentLeader = regularLeaders.find(l => getLeaderStatus(l) === 'available');
   const activeLeaders = regularLeaders.filter(l => l.isActive).sort((a, b) => a.orderIndex - b.orderIndex);
+  const allLeadersCompleted = activeLeaders.length > 0 && activeLeaders.every(l => completedIds.includes(l.id));
 
   // ── INJURED DISCLAIMER — shown at root level regardless of current phase ───
   if (pendingBattle) {
@@ -1808,6 +1810,176 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         />
       )}
 
+      {/* ── La Stanza Segreta Easter Egg Overlay ── */}
+      {showSecretRoom && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.92)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '0 16px',
+            animation: 'secretRoomFadeIn 0.35s ease-out',
+          }}
+          onClick={() => setShowSecretRoom(false)}
+        >
+          <style>{`
+            @keyframes secretRoomFadeIn {
+              from { opacity: 0; }
+              to   { opacity: 1; }
+            }
+            @keyframes secretRoomSlideUp {
+              from { opacity: 0; transform: translateY(32px) scale(0.96); }
+              to   { opacity: 1; transform: translateY(0)    scale(1); }
+            }
+            @keyframes secretRoomTitlePop {
+              0%   { opacity: 0; transform: scale(0.6) rotate(-4deg); }
+              65%  { transform: scale(1.08) rotate(1deg); }
+              100% { opacity: 1; transform: scale(1) rotate(0deg); }
+            }
+            @keyframes secretRoomGoldPulse {
+              0%,100% { text-shadow: 0 0 12px rgba(251,191,36,0.6), 0 0 24px rgba(245,158,11,0.3); }
+              50%      { text-shadow: 0 0 24px rgba(251,191,36,0.9), 0 0 48px rgba(245,158,11,0.5); }
+            }
+            @keyframes secretRoomCardIn {
+              from { opacity: 0; transform: translateY(16px) scale(0.9); }
+              to   { opacity: 1; transform: translateY(0)    scale(1); }
+            }
+          `}</style>
+          <div
+            style={{
+              width: '100%', maxWidth: 520,
+              background: 'linear-gradient(160deg,#0d0b1e 0%,#1a0f2e 100%)',
+              border: '1.5px solid rgba(251,191,36,0.4)',
+              borderRadius: 24, padding: '28px 24px 24px',
+              display: 'flex', flexDirection: 'column', gap: 20,
+              maxHeight: '88vh', overflow: 'hidden',
+              boxShadow: '0 0 60px rgba(251,191,36,0.15), 0 20px 60px rgba(0,0,0,0.8)',
+              animation: 'secretRoomSlideUp 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                fontSize: 44, marginBottom: 6,
+                animation: 'secretRoomTitlePop 0.55s cubic-bezier(0.34,1.56,0.64,1) both',
+              }}>🚪</div>
+              <h2 style={{
+                color: '#fbbf24', fontWeight: 900, fontSize: 22, margin: 0,
+                animation: 'secretRoomGoldPulse 2.5s ease-in-out infinite, secretRoomTitlePop 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.08s both',
+                letterSpacing: '0.02em',
+              }}>La Stanza Segreta</h2>
+              <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, marginTop: 8, lineHeight: 1.5 }}>
+                Hai sconfitto tutti i leader. Ora conosci il segreto.<br />
+                <span style={{ color: 'rgba(251,191,36,0.75)', fontWeight: 700 }}>
+                  Chi vuoi sfidare di nuovo? 😈
+                </span>
+              </p>
+            </div>
+
+            {/* Leader grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill,minmax(130px,1fr))',
+              gap: 10, overflowY: 'auto', maxHeight: '46vh',
+              scrollbarWidth: 'none',
+            }}>
+              {activeLeaders
+                .filter(l => completedIds.includes(l.id))
+                .sort((a, b) => a.orderIndex - b.orderIndex)
+                .map((leader, i) => (
+                  <button
+                    key={leader.id}
+                    onClick={() => {
+                      setShowSecretRoom(false);
+                      handleChallengeLeader(leader);
+                    }}
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(251,191,36,0.25)',
+                      borderRadius: 14, padding: '10px 8px',
+                      cursor: 'pointer', display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', gap: 6, transition: 'all 0.15s ease',
+                      animation: `secretRoomCardIn 0.35s ease-out ${i * 0.05}s both`,
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLButtonElement).style.background = 'rgba(251,191,36,0.12)';
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(251,191,36,0.6)';
+                      (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)';
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(251,191,36,0.25)';
+                      (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <div style={{
+                      width: 48, height: 48, borderRadius: '50%', overflow: 'hidden',
+                      border: '2px solid rgba(74,222,128,0.5)',
+                      background: 'linear-gradient(135deg,#052e16,#14532d)',
+                      flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {leader.leaderImageUrl ? (
+                        <img src={leader.leaderImageUrl} alt={leader.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <span style={{ fontSize: 20 }}>⚔️</span>
+                      )}
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <p style={{ color: 'white', fontWeight: 800, fontSize: 11, margin: 0, lineHeight: 1.2 }}>{leader.name}</p>
+                      <p style={{ color: 'rgba(74,222,128,0.7)', fontSize: 9, margin: '2px 0 0', fontWeight: 600 }}>{leader.gymName}</p>
+                    </div>
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, color: '#fbbf24',
+                      background: 'rgba(251,191,36,0.12)', borderRadius: 6, padding: '2px 6px',
+                    }}>Rivincita</span>
+                  </button>
+                ))}
+            </div>
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+              <button
+                onClick={() => {
+                  const completedLeaders = activeLeaders.filter(l => completedIds.includes(l.id));
+                  if (completedLeaders.length === 0) return;
+                  const randomLeader = completedLeaders[Math.floor(Math.random() * completedLeaders.length)];
+                  setShowSecretRoom(false);
+                  handleChallengeLeader(randomLeader);
+                }}
+                style={{
+                  flex: 1, padding: '12px 0',
+                  background: 'linear-gradient(135deg,#92400e,#fbbf24)',
+                  color: '#0d0b1e', border: 'none', borderRadius: 14,
+                  fontWeight: 900, fontSize: 14, cursor: 'pointer',
+                  boxShadow: '0 4px 20px rgba(251,191,36,0.3)',
+                  transition: 'opacity 0.15s',
+                }}
+                onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '0.85')}
+                onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '1')}
+              >
+                🎲 Sfida Casuale
+              </button>
+              <button
+                onClick={() => setShowSecretRoom(false)}
+                style={{
+                  padding: '12px 20px',
+                  background: 'rgba(255,255,255,0.07)',
+                  color: 'rgba(255,255,255,0.6)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: 14, fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.12)')}
+                onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.07)')}
+              >
+                Esci
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Badge strip: medaglie tappe completate — hidden in landscape ── */}
       {completedIds.length > 0 && !isLandscape && (
         <div className="flex-shrink-0 border-b border-white/5" style={{ background: 'rgba(0,0,0,0.25)' }}>
@@ -1897,6 +2069,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           chosenFaction={chosenFaction}
           wizardCardReceived={wizardCardReceived}
           onWizardCard={handleWizardCard}
+          allLeadersCompleted={allLeadersCompleted}
+          onOpenSecretRoom={() => setShowSecretRoom(true)}
           onTriggerQuadrato={() => {
             if (!quadratoLeader) return;
             quadratoAutoTriggeredRef.current = true;

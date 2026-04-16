@@ -58,6 +58,9 @@ export interface StoryWorldMapProps {
   chosenFaction?: string | null;
   wizardCardReceived?: boolean;
   onWizardCard?: () => void;
+  /* Secret Room Easter egg */
+  allLeadersCompleted?: boolean;
+  onOpenSecretRoom?: () => void;
 }
 
 interface OtherPlayer {
@@ -99,6 +102,9 @@ const STAR_DATA: { sx: number; sy: number; r: number; twinkle: number }[] = (() 
 
 /* ── Stage 13 position (remote corner of the map) ──────────────── */
 const STAGE13_WORLD_POS: [number, number] = [-145, -170];
+
+/* ── Secret Room position (opposite far corner — Campus Tecnopolis) ── */
+const SECRET_ROOM_WORLD_POS: [number, number] = [155, -155];
 
 /* ── City stage positions (progressive south→north scatter) ───── */
 const CITY_STAGE_POSITIONS: [number, number][] = [
@@ -1055,6 +1061,8 @@ export function StoryWorldMap({
   chosenFaction = null,
   wizardCardReceived = false,
   onWizardCard,
+  allLeadersCompleted = false,
+  onOpenSecretRoom,
 }: StoryWorldMapProps) {
 
   /* ── Canvas + container refs ────────────────────────────── */
@@ -1127,6 +1135,13 @@ export function StoryWorldMap({
     wizardDoneRef.current = wizardCardReceived;
     if (wizardCardReceived) { wizardRef.current = null; setWizardDialogue(false); }
   }, [wizardCardReceived]);
+
+  /* ── Secret Room refs ────────────────────────────────────── */
+  const allLeadersCompletedRef = useRef(allLeadersCompleted);
+  const onOpenSecretRoomRef    = useRef(onOpenSecretRoom);
+  const secretRevealedRef      = useRef(false);
+  useEffect(() => { allLeadersCompletedRef.current = allLeadersCompleted; }, [allLeadersCompleted]);
+  useEffect(() => { onOpenSecretRoomRef.current = onOpenSecretRoom; }, [onOpenSecretRoom]);
   useEffect(() => { onWizardCardRef.current = onWizardCard; }, [onWizardCard]);
 
   /* ── Detect arena unlocks → trigger animation ───────────────── */
@@ -1276,6 +1291,17 @@ export function StoryWorldMap({
     const pos = canvasScreenToWorld(e.clientX, e.clientY);
     if (!pos) return;
 
+    // Check Secret Room click (only when all leaders completed)
+    if (allLeadersCompletedRef.current) {
+      const [srx, srz] = SECRET_ROOM_WORLD_POS;
+      const srDist = Math.sqrt((pos.x - srx) ** 2 + (pos.z - srz) ** 2);
+      if (srDist < ARENA_HIT_RADIUS * 1.5) {
+        secretRevealedRef.current = true;
+        onOpenSecretRoomRef.current?.();
+        return;
+      }
+    }
+
     // Check Stage 13 click first
     const [s13x, s13z] = STAGE13_WORLD_POS;
     const s13Dist = Math.sqrt((pos.x - s13x) ** 2 + (pos.z - s13z) ** 2);
@@ -1307,6 +1333,17 @@ export function StoryWorldMap({
     const pos = canvasScreenToWorld(e.clientX, e.clientY);
     const canvas = canvasRef.current;
     if (!pos || !canvas) return;
+
+    // Cursor for Secret Room
+    if (allLeadersCompletedRef.current) {
+      const [srx, srz] = SECRET_ROOM_WORLD_POS;
+      if (Math.sqrt((pos.x - srx) ** 2 + (pos.z - srz) ** 2) < ARENA_HIT_RADIUS * 1.5) {
+        canvas.style.cursor = 'pointer';
+        setTooltip(null);
+        return;
+      }
+    }
+
     const lrs = leadersRef.current;
     const aps = arenaPositionsRef.current;
     for (let idx = 0; idx < lrs.length; idx++) {
@@ -3309,6 +3346,93 @@ export function StoryWorldMap({
           ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           ctx.fillStyle = color;
           ctx.fillText(label.substring(0, 20), cx, cy + bH / 2 + 13);
+          ctx.restore();
+        }});
+      }
+
+      /* Secret Room — shown only after all leaders completed */
+      if (allLeadersCompletedRef.current) {
+        const [srx, srz] = SECRET_ROOM_WORLD_POS;
+        sprites.push({ z: srz, draw: () => {
+          const [cx, cy] = w2s(srx, srz);
+          const pulse = 0.5 + Math.sin(t * 2.0) * 0.3;
+          const glow  = 0.5 + Math.sin(t * 1.3) * 0.3;
+          const bW = 3.0 * TILE;
+          const bH = 3.6 * TILE;
+
+          ctx.save();
+
+          // Outer golden glow
+          const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, bW * 1.4);
+          grad.addColorStop(0, `rgba(251,191,36,${glow * 0.35})`);
+          grad.addColorStop(0.5, `rgba(245,158,11,${glow * 0.15})`);
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.beginPath(); ctx.arc(cx, cy, bW * 1.4, 0, Math.PI * 2); ctx.fill();
+
+          // Pulsing golden ring
+          ctx.beginPath(); ctx.arc(cx, cy, bW * 0.85, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(251,191,36,${pulse * 0.8})`;
+          ctx.lineWidth = 2.5; ctx.stroke();
+
+          // Building body — dark stone
+          const topY = cy - bH / 2;
+          const sideW = Math.round(bW * 0.12);
+          const wallH = Math.round(bH * 0.25);
+
+          // Front wall (darker mossy stone)
+          ctx.fillStyle = '#1c1a2e';
+          ctx.fillRect(cx - bW / 2, topY + wallH, bW - sideW, bH - wallH);
+
+          // Roof (golden stone)
+          ctx.fillStyle = '#78350f';
+          ctx.fillRect(cx - bW / 2, topY, bW - sideW, wallH);
+
+          // Side wall (shadow)
+          ctx.fillStyle = '#0f0e1a';
+          ctx.fillRect(cx + bW / 2 - sideW, topY + wallH * 0.4, sideW, bH - wallH);
+
+          // Arch door
+          const doorW = bW * 0.28;
+          const doorH = bH * 0.42;
+          const doorX = cx - doorW / 2;
+          const doorY = cy + bH / 2 - doorH - wallH * 0.1;
+          const archRadius = doorW / 2;
+
+          // Door fill — glowing gold interior
+          ctx.fillStyle = `rgba(251,191,36,${0.15 + glow * 0.25})`;
+          ctx.beginPath();
+          ctx.arc(cx, doorY + archRadius, archRadius, Math.PI, 0);
+          ctx.lineTo(doorX + doorW, doorY + doorH);
+          ctx.lineTo(doorX, doorY + doorH);
+          ctx.closePath();
+          ctx.fill();
+
+          // Door outline — golden
+          ctx.strokeStyle = `rgba(251,191,36,${0.6 + pulse * 0.3})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(cx, doorY + archRadius, archRadius, Math.PI, 0);
+          ctx.lineTo(doorX + doorW, doorY + doorH);
+          ctx.lineTo(doorX, doorY + doorH);
+          ctx.closePath();
+          ctx.stroke();
+
+          // Lock icon in door centre
+          ctx.font = `${Math.round(TILE * 0.55)}px sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('🔑', cx, doorY + doorH * 0.55);
+
+          // Label badge
+          const label = secretRevealedRef.current ? '🚪 La Stanza Segreta' : '???';
+          const labelW = Math.max(90, label.length * (secretRevealedRef.current ? 7.5 : 9));
+          ctx.fillStyle = 'rgba(5,4,20,0.9)';
+          rrect(ctx, cx - labelW / 2, cy + bH / 2 + 4, labelW, 18, 5); ctx.fill();
+          ctx.strokeStyle = `rgba(251,191,36,${0.5 + pulse * 0.4})`; ctx.lineWidth = 1; ctx.stroke();
+          ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillStyle = `rgb(251,191,36)`;
+          ctx.fillText(label, cx, cy + bH / 2 + 13);
+
           ctx.restore();
         }});
       }
