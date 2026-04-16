@@ -9337,9 +9337,56 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const maxAttacks = isIlPelux ? 999 : 3;
         if (io) io.to(gameId).emit('target-acquired-animation', { playerName, isIlPelux, timestamp: Date.now() });
         if (isCPU || enemiesTA.length === 1) {
-          const tgtC = enemiesTA[Math.floor(Math.random() * enemiesTA.length)];
+          const tgtC = isCPU
+            ? this.cpuPickBestEnemy(enemiesTA)
+            : enemiesTA[0];
           (game as any).targetAcquired = { playerName, targetCardId: tgtC.id, targetOwner: tgtC.owner, attacksLeft: maxAttacks, isIlPelux };
           emitChat(`🎯 TARGET ACQUIRED! ${myChar?.name || playerName} → ${tgtC.name || tgtC.owner}${isIlPelux ? ' — IL PELUX: attacca finché non muore!' : ' — 3 attacchi!'}`);
+
+          // CPU: execute attacks server-side immediately (humans drive this via client UI)
+          if (isCPU) {
+            const taTargetId = tgtC.id;
+            const taTargetName = tgtC.name || tgtC.owner;
+            const attackerName = myChar?.name || playerName;
+            const attackerPti = myChar?.pti ?? 100;
+            const attackerStars = myChar?.stars ?? 1;
+            const attackDamage = Math.max(50, Math.floor(attackerPti * 0.3 * attackerStars));
+            const ioTA = io;
+            setTimeout(async () => {
+              const freshGame = this.games.get(gameId);
+              if (!freshGame) return;
+              const ta = (freshGame as any).targetAcquired;
+              if (!ta || ta.playerName !== playerName) return;
+              delete (freshGame as any).targetAcquired;
+
+              const attacksCount = isIlPelux ? 999 : maxAttacks;
+              let attacksDone = 0;
+              for (let i = 0; i < attacksCount; i++) {
+                const target = freshGame.field.find((c: Card) => c.id === taTargetId);
+                if (!target || (target.pti ?? 0) <= 0) break;
+                target.pti = Math.max(0, (target.pti || 0) - attackDamage);
+                this.updateCardTextWithPTI(target);
+                attacksDone++;
+                if (target.pti <= 0) {
+                  const dr = this.moveToGraveyard(gameId, target.id, target.owner!, playerName);
+                  if (dr.eliminationCheck) {
+                    this.processEliminationAfterDeath(gameId, target.owner!, ioTA, 'TARGET_ACQUIRED_CPU');
+                  }
+                  break;
+                }
+              }
+              if (ioTA) {
+                ioTA.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-ta-cpu-done`,
+                  playerName: 'Sistema',
+                  message: `🎯 TARGET ACQUIRED completato! ${attackerName} ha eseguito ${attacksDone} attacch${attacksDone === 1 ? 'o' : 'i'} su ${taTargetName} (${attackDamage} PTI ciascuno)!`,
+                  timestamp: Date.now()
+                });
+                ioTA.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+              }
+            }, 300);
+          }
+
           emitState();
         } else {
           const psId = (game.players[playerName] as any)?.socketId;
@@ -23606,6 +23653,83 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           io.to(gameId).emit('chat-message', { id: `${Date.now()}-tabula-rasa`, playerName: 'Sistema', message: `🪶 TABULA RASA! ${tabulaTarget.name || value} (${tabulaTarget.owner}) va a 1 PTI!`, timestamp: Date.now() });
           io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
         }
+      }
+      return true;
+    }
+
+    // ── RINCOGLIONIMENTO (safety-net — normally resolved via routes.ts for humans) ────
+    const pendingRincCPR = (game as any).pendingRincoglionimento;
+    if (pendingRincCPR && pendingRincCPR.choiceId === choiceId && pendingRincCPR.playerName === playerName) {
+      delete (game as any).pendingRincoglionimento;
+      if (!(game as any).selfAttackRedirect) (game as any).selfAttackRedirect = {};
+      (game as any).selfAttackRedirect[value] = ((game as any).selfAttackRedirect[value] || 0) + 1;
+      if (io) {
+        io.to(gameId).emit('chat-message', { id: `${Date.now()}-rinc-cpr`, playerName: 'Sistema', message: `🤪 RINCOGLIONIMENTO! Il prossimo attacco di ${value} colpirà sé stesso!`, timestamp: Date.now() });
+        io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      }
+      return true;
+    }
+
+    // ── TRAUMA (safety-net — normally resolved via routes.ts for humans) ─────
+    const pendingTraumaCPR = (game as any).pendingTraumaChoice;
+    if (pendingTraumaCPR && pendingTraumaCPR.choiceId === choiceId && pendingTraumaCPR.playerName === playerName) {
+      delete (game as any).pendingTraumaChoice;
+      if (!(game as any).pendingTrauma) (game as any).pendingTrauma = {};
+      (game as any).pendingTrauma[value] = { stunTurns: 5, poisonPerTurn: 10 };
+      if (io) {
+        io.to(gameId).emit('chat-message', { id: `${Date.now()}-trauma-cpr`, playerName: 'Sistema', message: `😱 TRAUMA! Il prossimo personaggio di ${value}: 5 turni senza attaccare e -10 PTI/turno per sempre!`, timestamp: Date.now() });
+        io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      }
+      return true;
+    }
+
+    // ── CARICA (safety-net — normally resolved via routes.ts for humans) ──────
+    const pendingCaricaCPR = (game as any).pendingCarica;
+    if (pendingCaricaCPR && pendingCaricaCPR.choiceId === choiceId && pendingCaricaCPR.playerName === playerName) {
+      delete (game as any).pendingCarica;
+      const tgtCaricaCPR = game.field.find((c: Card) => c.id === value);
+      if (tgtCaricaCPR) {
+        (game as any).forcedAttackTarget = { targetCardId: tgtCaricaCPR.id, targetOwner: tgtCaricaCPR.owner, turnsLeft: 1 };
+        if (io) {
+          io.to(gameId).emit('chat-message', { id: `${Date.now()}-carica-cpr`, playerName: 'Sistema', message: `⚡ CARICA! Tutti devono attaccare ${tgtCaricaCPR.name || tgtCaricaCPR.owner} per questo turno!`, timestamp: Date.now() });
+          io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+        }
+      }
+      return true;
+    }
+
+    // ── TARGET ACQUIRED (safety-net — normally resolved via routes.ts for humans,
+    //    and directly via CPU attack loop for CPU players) ────────────────────
+    const pendingTACPR = (game as any).pendingTargetAcquired;
+    if (pendingTACPR && pendingTACPR.choiceId === choiceId && pendingTACPR.playerName === playerName) {
+      delete (game as any).pendingTargetAcquired;
+      const tgtCardCPR = game.field.find((c: Card) => c.id === value);
+      if (tgtCardCPR) {
+        if (this.isPlayerCPU(gameId, playerName)) {
+          // CPU: execute all attacks immediately instead of setting pending state
+          const attackerCPR = this.getPlayerActiveCharacter(game, playerName);
+          const attackDamageCPR = Math.max(50, Math.floor(((attackerCPR?.pti ?? 100) * 0.3) * (attackerCPR?.stars ?? 1)));
+          const attacksCountCPR = pendingTACPR.isIlPelux ? 999 : (pendingTACPR.maxAttacks ?? 3);
+          let doneCountCPR = 0;
+          for (let i = 0; i < attacksCountCPR; i++) {
+            const tgt = game.field.find((c: Card) => c.id === value);
+            if (!tgt || (tgt.pti ?? 0) <= 0) break;
+            tgt.pti = Math.max(0, (tgt.pti || 0) - attackDamageCPR);
+            this.updateCardTextWithPTI(tgt);
+            doneCountCPR++;
+            if (tgt.pti <= 0) {
+              const dr = this.moveToGraveyard(gameId, tgt.id, tgt.owner!, playerName);
+              if (dr.eliminationCheck) this.processEliminationAfterDeath(gameId, tgt.owner!, io, 'TARGET_ACQUIRED_CPU');
+              break;
+            }
+          }
+          if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-ta-cpr`, playerName: 'Sistema', message: `🎯 TARGET ACQUIRED! ${attackerCPR?.name || playerName} esegue ${doneCountCPR} attacchi!`, timestamp: Date.now() });
+        } else {
+          // Human: set the targetAcquired state for client-driven attacks
+          (game as any).targetAcquired = { playerName, targetCardId: tgtCardCPR.id, targetOwner: tgtCardCPR.owner, attacksLeft: pendingTACPR.maxAttacks ?? 3, isIlPelux: pendingTACPR.isIlPelux };
+          if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-ta-cpr-human`, playerName: 'Sistema', message: `🎯 TARGET ACQUIRED! ${playerName} → ${tgtCardCPR.name || tgtCardCPR.owner}!`, timestamp: Date.now() });
+        }
+        if (io) io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
       }
       return true;
     }
