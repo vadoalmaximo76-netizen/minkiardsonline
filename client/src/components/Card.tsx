@@ -10,7 +10,6 @@ import { Input } from "./ui/input";
 import { FloatingNumber } from "./FloatingNumber";
 import { getOptimizedUrl, onCloudNameReady, getCloudinaryCloudName } from "../lib/imagePreloader";
 import { SkinSelectionPanel } from "./SkinSelectionPanel";
-import { motion } from "framer-motion";
 import { cardRegistry } from "../lib/cardRegistry";
 import { useGamepadStore } from "../lib/stores/useGamepadStore";
 
@@ -1470,48 +1469,20 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     transition: isHovered ? 'transform 0.1s ease-out' : 'transform 0.4s ease-out',
   } : {};
 
-  // On mobile: let CSS entry keyframes handle card placement (no double-animation conflict);
-  // for attack use a simple scale tween instead of JS-driven spring with y movement.
-  // attackDir: player's card attacks UP (-1 = negative y), opponent's card attacks DOWN (+1)
-  const attackDir = card.owner === playerName ? -1 : 1;
-  const motionAnimate = isMobile
-    ? (isAttacking && location === 'field'
-        ? {
-            scale: [1, 0.88, 1.2, 0.97, 1.0] as number[],
-            // wind-up opposite of attack, then lunge in attack direction
-            y: [0, -5 * attackDir, 18 * attackDir, 4 * attackDir, 0] as number[],
-          }
-        : location === 'hand' ? { rotate: 0 } : {})
-    : (isAttacking && location === 'field'
-        ? {
-            scale: [1, 0.84, 1.22, 0.97, 1.0],
-            y: [0, -6 * attackDir, 22 * attackDir, 5 * attackDir, 0],
-          }
-        : isNewlyPlaced && location === 'field'
-          ? { scale: [0.85, 1.05, 1.0] }
-          : location === 'hand'
-            ? { rotate: fanRotation }
-            : {});
-
-  const motionTransition = isMobile
-    ? (isAttacking && location === 'field'
-        ? { type: 'tween' as const, duration: 0.42, ease: 'easeInOut', times: [0, 0.12, 0.45, 0.78, 1] }
-        : { duration: 0 })
-    : (isAttacking && location === 'field'
-        ? { type: 'tween' as const, duration: 0.46, ease: 'easeInOut', times: [0, 0.1, 0.42, 0.78, 1] }
-        : location === 'hand'
-          ? { type: 'spring' as const, stiffness: 500, damping: 18 }
-          : { type: 'spring' as const, stiffness: 700, damping: 25 });
+  // CSS-driven attack animation class (replaces Framer Motion spring)
+  const attackClass = isAttacking && location === 'field'
+    ? (card.owner === playerName ? 'card-attack-player' : 'card-attack-enemy')
+    : '';
 
   return (
-    <motion.div
-      initial={(!isMobile && isNewlyPlaced && location === 'field') ? { scale: 0.85 } : false}
-      animate={motionAnimate}
-      whileHover={(!isMobile && location === 'hand') ? { y: -14, scale: 1.08 } : undefined}
-      transition={motionTransition}
+    <div
+      className={attackClass + (!isMobile && location === 'hand' ? ' card-hand-hover-lift' : '')}
       style={
         location === 'hand'
-          ? { transformOrigin: '50% 150%' }
+          ? {
+              transformOrigin: '50% 150%',
+              '--fan-rot': `${fanRotation}deg`,
+            } as React.CSSProperties
           : (location === 'field' && !isMobile)
             ? { willChange: 'transform' }
             : undefined
@@ -1936,7 +1907,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       {/* ATTACCA button for MOSSE cards on field (owned by player) - positioned AFTER text note */}
       {location === 'field' && card.type === 'mosse' && isOwner && !card.faceDown && (
         <div className="flex flex-col gap-1 mt-1">
-          <motion.button
+          <button
             onClick={() => {
               if (isAtaccoDisonesto) {
                 handleAttaccoDisonesto();
@@ -2008,13 +1979,10 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                 setShowAttackTargetSelect(true);
               }
             }}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-2 py-1 rounded"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.88 }}
-            transition={{ type: 'spring', stiffness: 600, damping: 20 }}
+            className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-2 py-1 rounded transition-transform hover:scale-110 active:scale-[0.88]"
           >
             ⚔️ ATTACCA
-          </motion.button>
+          </button>
         </div>
       )}
       
@@ -2860,15 +2828,12 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
             )}
 
             <div className="flex gap-3">
-              <motion.button
+              <button
                 onClick={targetCards.length > 0 ? handleMultiTargetDamageConfirm : handleDamageConfirm}
-                className={`flex-1 font-bold py-3 text-lg rounded-md ${isFurtoAttack ? 'bg-yellow-600 hover:bg-yellow-700 text-black' : 'bg-red-600 hover:bg-red-700 text-white'}`}
-                whileHover={{ scale: 1.06 }}
-                whileTap={{ scale: 0.9 }}
-                transition={{ type: 'spring', stiffness: 600, damping: 20 }}
+                className={`flex-1 font-bold py-3 text-lg rounded-md transition-transform hover:scale-[1.06] active:scale-[0.9] ${isFurtoAttack ? 'bg-yellow-600 hover:bg-yellow-700 text-black' : 'bg-red-600 hover:bg-red-700 text-white'}`}
               >
                 {isFurtoAttack ? '⭐ RUBA STELLE' : targetCards.length > 1 ? `⚔️ ATTACCA TUTTI (${targetCards.length})` : '⚔️ ATTACCA'}
-              </motion.button>
+              </button>
               <Button
                 onClick={() => {
                   handleDamageCancel();
@@ -2920,7 +2885,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       `}</style>
     </div>
       </div>{/* /tilt wrapper */}
-    </motion.div>
+    </div>
   );
 };
 

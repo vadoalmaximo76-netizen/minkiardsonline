@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import { Card } from "./Card";
-import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
 import { getAvatarEmoji } from "../lib/avatars";
@@ -46,18 +44,15 @@ export const PlayerHand: React.FC = () => {
           <span className="sm:hidden">MANO</span>
           <span className="ml-2 text-[10px] sm:text-xs text-blue-400/60 font-normal">🃏 MANO</span>
         </h2>
-        <motion.button
+        <button
           data-tutorial="end-turn"
           onClick={handleEndTurn}
-          className="sky-blue-button text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-2 rounded"
+          className="sky-blue-button text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-2 rounded transition-transform hover:scale-110 active:scale-[0.88]"
           title="Termina il turno del giocatore corrente e passa al successivo"
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.88 }}
-          transition={{ type: 'spring', stiffness: 600, damping: 20 }}
         >
           <span className="hidden sm:inline">FINE TURNO</span>
           <span className="sm:hidden">FINE</span>
-        </motion.button>
+        </button>
         {endTurnMessage && (
           <div className="text-xs sm:text-sm font-bold text-white bg-purple-600/20 border border-purple-500/30 px-2 sm:px-3 py-1 rounded-xl">
             {endTurnMessage}

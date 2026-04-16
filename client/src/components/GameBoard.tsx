@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Deck } from "./Deck";
 import { PlayerHand } from "./PlayerHand";
 import { OtherPlayersHands } from "./OtherPlayersHands";
@@ -3174,25 +3173,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         onComplete={() => setCardTrailParticles(prev => ({ ...prev, visible: false }))}
       />
 
-      {/* Victory/Defeat Animation — wrapped in AnimatePresence for result-phase transition */}
-      <AnimatePresence>
-        {victoryDefeatAnim.visible && (
-          <motion.div
-            key="victory-defeat"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <VictoryDefeatAnimation
-              visible={victoryDefeatAnim.visible}
-              type={victoryDefeatAnim.type}
-              playerName={victoryDefeatAnim.playerName}
-              stats={victoryDefeatAnim.stats}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Victory/Defeat Animation */}
+      {victoryDefeatAnim.visible && (
+        <VictoryDefeatAnimation
+          visible={victoryDefeatAnim.visible}
+          type={victoryDefeatAnim.type}
+          playerName={victoryDefeatAnim.playerName}
+          stats={victoryDefeatAnim.stats}
+        />
+      )}
 
       {/* TEAM MODE: Donate Card Modal */}
       {showDonateModal && gameState?.isTeamMode && gameState?.teams && playerName && (() => {
@@ -3302,21 +3291,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       )}
 
       {/* Screen damage vignette — red rim flash when player's card is hit */}
-      <AnimatePresence>
-        {damageVignetteVisible && (
-          <motion.div
-            key="damage-vignette"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, transition: { duration: 0.6 } }}
-            transition={{ duration: 0.18 }}
-            className="fixed inset-0 pointer-events-none z-[45]"
-            style={{
-              background: 'radial-gradient(ellipse at center, transparent 30%, rgba(239,68,68,0.3) 70%, rgba(239,68,68,0.55) 100%)'
-            }}
-          />
-        )}
-      </AnimatePresence>
+      {damageVignetteVisible && (
+        <div
+          className="fixed inset-0 pointer-events-none z-[45]"
+          style={{
+            background: 'radial-gradient(ellipse at center, transparent 30%, rgba(239,68,68,0.3) 70%, rgba(239,68,68,0.55) 100%)',
+            animation: 'gb-vignette-in 0.18s ease-out',
+          }}
+        />
+      )}
 
       {/* Animated gradient background - dynamic colors based on game events */}
       <div className="fixed inset-0 pointer-events-none dynamic-bg-transition animate-color-shift" style={{ background: bgColors.gradient }} />
@@ -5085,15 +5068,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </div>
         </div>
 
-        <AnimatePresence mode="wait">
         {!(gameState as any)?.isPlaying && gameState?.players && !gameId?.startsWith('tournament-') && !(gameState as any)?.fantaTournamentId && !gameId?.startsWith('gym-') ? (
-          <motion.div
-            key="pre-game-lobby"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2 }}
-          >
           <PreGameLobbyPanel
             gameId={gameId}
             playerName={playerName}
@@ -5106,14 +5081,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             roomCode={gameId?.replace('room-', '') || ''}
             isStartingGame={isStartingGame}
           />
-          </motion.div>
         ) : (
-        <motion.div
-          key="game-board"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.25 }}
-        >
         <>
         {/* Player Hand */}
         <PlayerHand />
@@ -5142,9 +5110,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </>
         )}
         </>
-        </motion.div>
         )}
-        </AnimatePresence>
 
         {/* Graveyard Modal */}
         {graveyardOpen && (
@@ -5169,15 +5135,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               boxShadow: '0 0 0 1px rgba(99,102,241,0.12), 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
             }}
           >
-            <motion.button
+            <button
               data-tutorial="hand"
               onClick={() => { playButtonClick(); playModalOpen(); setHandModalOpen(true); }}
-              className="relative p-2 rounded-xl transition-colors"
+              className="relative p-2 rounded-xl transition-all hover:scale-[1.12] active:scale-[0.88]"
               style={{ color: '#a78bfa', background: 'rgba(124,58,237,0.15)' }}
               title="Carte in Mano"
-              whileHover={{ scale: 1.12, background: 'rgba(124,58,237,0.32)' } as any}
-              whileTap={{ scale: 0.88 }}
-              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <Hand size={16} />
               {gameState?.players?.[playerName]?.hand?.length ? (
@@ -5185,20 +5148,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   {gameState.players[playerName].hand.length}
                 </span>
               ) : null}
-            </motion.button>
+            </button>
 
-            <motion.button
+            <button
               data-action="end-turn"
               onClick={() => { playButtonClick(); socket.emit('force-end-turn', { gameId }); }}
-              className="p-2 rounded-xl transition-colors"
+              className="p-2 rounded-xl transition-all hover:scale-[1.12] active:scale-[0.88]"
               style={{ color: '#a5f3fc', background: 'rgba(34,211,238,0.12)' }}
               title="Fine Turno"
-              whileHover={{ scale: 1.12, background: 'rgba(34,211,238,0.28)' } as any}
-              whileTap={{ scale: 0.88 }}
-              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <SkipForward size={16} />
-            </motion.button>
+            </button>
 
             {/* TEAM MODE: Donate Card button (only visible when team mode active and it's my turn) */}
             {gameState?.isTeamMode && gameState?.teams && playerName && (() => {
@@ -5209,30 +5169,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               const myDonateableCards = (gameState.players[playerName]?.hand || []).filter((c: any) => c.type === 'mosse' || c.type === 'bonus');
               if (teammates.length === 0 || !isMyTurn || myDonateableCards.length === 0 || alreadyDonated) return null;
               return (
-                <motion.button
+                <button
                   onClick={() => { playButtonClick(); setShowDonateModal(true); }}
-                  className="p-2 rounded-xl transition-colors"
+                  className="p-2 rounded-xl transition-all hover:scale-[1.12] active:scale-[0.88]"
                   style={{ color: '#86efac', background: 'rgba(34,197,94,0.12)' }}
                   title="Dona Carta a Compagno"
-                  whileHover={{ scale: 1.12, background: 'rgba(34,197,94,0.28)' } as any}
-                  whileTap={{ scale: 0.88 }}
-                  transition={{ type: 'spring', stiffness: 600, damping: 20 }}
                 >
                   <Gift size={16} />
-                </motion.button>
+                </button>
               );
             })()}
 
             <div className="w-px h-5 mx-0.5" style={{ background: 'rgba(99,102,241,0.25)' }} />
 
-            <motion.button
+            <button
               onClick={() => { playButtonClick(); if (chatOpen) { playPanelClose(); handleCloseChat(); } else { playPanelOpen(); handleOpenChat(); } }}
-              className="relative p-2 rounded-xl transition-colors"
+              className="relative p-2 rounded-xl transition-all hover:scale-[1.12] active:scale-[0.88]"
               style={{ color: '#93c5fd', background: 'rgba(59,130,246,0.12)' }}
               title="Chat"
-              whileHover={{ scale: 1.12, background: 'rgba(59,130,246,0.28)' } as any}
-              whileTap={{ scale: 0.88 }}
-              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <MessageCircle size={16} />
               {unreadMessages > 0 && (
@@ -5240,59 +5194,47 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   {unreadMessages > 9 ? '9+' : unreadMessages}
                 </span>
               )}
-            </motion.button>
+            </button>
 
-            <motion.button
+            <button
               onClick={() => { playButtonClick(); if (gameLogOpen) { playPanelClose(); } else { playPanelOpen(); } setGameLogOpen(!gameLogOpen); }}
-              className="p-2 rounded-xl transition-colors"
+              className="p-2 rounded-xl transition-all hover:scale-[1.12] active:scale-[0.88]"
               style={{ color: '#c4b5fd', background: 'rgba(124,58,237,0.12)' }}
               title="Game Log"
-              whileHover={{ scale: 1.12, background: 'rgba(124,58,237,0.28)' } as any}
-              whileTap={{ scale: 0.88 }}
-              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <ScrollText size={16} />
-            </motion.button>
+            </button>
 
             <div className="w-px h-5 mx-0.5" style={{ background: 'rgba(99,102,241,0.25)' }} />
 
-            <motion.button
+            <button
               onClick={() => { playButtonClick(); playModalOpen(); setDiceOpen(true); }}
-              className="p-2 rounded-xl transition-colors"
+              className="p-2 rounded-xl transition-all hover:scale-[1.12] active:scale-[0.88]"
               style={{ color: '#ddd6fe', background: 'rgba(124,58,237,0.15)' }}
               title="Dado"
-              whileHover={{ scale: 1.12, background: 'rgba(124,58,237,0.30)' } as any}
-              whileTap={{ scale: 0.88 }}
-              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <Dice6 size={16} />
-            </motion.button>
+            </button>
 
-            <motion.button
+            <button
               onClick={() => { playButtonClick(); if (calculatorOpen) { playPanelClose(); } else { playPanelOpen(); } setCalculatorOpen(!calculatorOpen); }}
-              className="p-2 rounded-xl transition-colors"
+              className="p-2 rounded-xl transition-all hover:scale-[1.12] active:scale-[0.88]"
               style={{ color: '#6ee7b7', background: 'rgba(16,185,129,0.12)' }}
               title="Calcolatrice"
-              whileHover={{ scale: 1.12, background: 'rgba(16,185,129,0.28)' } as any}
-              whileTap={{ scale: 0.88 }}
-              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <CalcIcon size={16} />
-            </motion.button>
+            </button>
 
-            <motion.button
+            <button
               onClick={() => { playButtonClick(); playModalOpen(); setGraveyardOpen(true); }}
-              className="p-2 rounded-xl transition-colors"
+              className="p-2 rounded-xl transition-all hover:scale-[1.12] active:scale-[0.88]"
               style={{ color: '#d1d5db', background: 'rgba(107,114,128,0.12)' }}
               title="Cimitero"
-              whileHover={{ scale: 1.12, background: 'rgba(107,114,128,0.28)' } as any}
-              whileTap={{ scale: 0.88 }}
-              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <Skull size={16} />
-            </motion.button>
+            </button>
 
-            <motion.button
+            <button
               onClick={() => {
                 playButtonClick();
                 playDeckShuffle();
@@ -5301,15 +5243,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   socket.emit('shuffle-deck', { deckType });
                 });
               }}
-              className="p-2 rounded-xl transition-colors"
+              className="p-2 rounded-xl transition-all hover:scale-[1.12] active:scale-[0.88]"
               style={{ color: '#93c5fd', background: 'rgba(59,130,246,0.12)' }}
               title="Mischia Mazzi"
-              whileHover={{ scale: 1.12, background: 'rgba(59,130,246,0.28)' } as any}
-              whileTap={{ scale: 0.88 }}
-              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <Shuffle size={16} />
-            </motion.button>
+            </button>
 
             <VoiceChat />
           </div>
@@ -5805,118 +5744,99 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         )}
 
         {/* General in-game toast (replaces all browser alert() calls) */}
-        <AnimatePresence>
-          {gameToast && (
-            <motion.div
-              key="game-toast"
-              initial={{ opacity: 0, y: -40, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -24, scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 460, damping: 30 }}
-              className="fixed top-16 left-1/2 z-[99999] pointer-events-none"
-              style={{ transform: 'translateX(-50%)' }}
+        {gameToast && (
+          <div
+            key="game-toast"
+            className="fixed top-16 left-1/2 z-[99999] pointer-events-none"
+            style={{ transform: 'translateX(-50%)', animation: 'gb-toast-in 0.3s cubic-bezier(0.34,1.56,0.64,1)' }}
+          >
+            <div
+              className="flex items-center gap-3 px-5 py-3 rounded-2xl border backdrop-blur-md shadow-2xl max-w-sm text-center"
+              style={{
+                background: gameToast.type === 'error'
+                  ? 'linear-gradient(135deg, rgba(30,5,5,0.97), rgba(80,10,10,0.94))'
+                  : gameToast.type === 'success'
+                    ? 'linear-gradient(135deg, rgba(5,25,5,0.97), rgba(10,60,20,0.94))'
+                    : 'linear-gradient(135deg, rgba(5,10,30,0.97), rgba(15,30,70,0.94))',
+                borderColor: gameToast.type === 'error'
+                  ? 'rgba(239,68,68,0.5)'
+                  : gameToast.type === 'success'
+                    ? 'rgba(34,197,94,0.5)'
+                    : 'rgba(99,102,241,0.5)',
+                boxShadow: gameToast.type === 'error'
+                  ? '0 0 20px rgba(239,68,68,0.3)'
+                  : gameToast.type === 'success'
+                    ? '0 0 20px rgba(34,197,94,0.3)'
+                    : '0 0 20px rgba(99,102,241,0.3)',
+              }}
             >
-              <div
-                className="flex items-center gap-3 px-5 py-3 rounded-2xl border backdrop-blur-md shadow-2xl max-w-sm text-center"
+              <span className="text-xl flex-shrink-0">{gameToast.emoji}</span>
+              <span
+                className="font-bold text-sm tracking-wide"
                 style={{
-                  background: gameToast.type === 'error'
-                    ? 'linear-gradient(135deg, rgba(30,5,5,0.97), rgba(80,10,10,0.94))'
-                    : gameToast.type === 'success'
-                      ? 'linear-gradient(135deg, rgba(5,25,5,0.97), rgba(10,60,20,0.94))'
-                      : 'linear-gradient(135deg, rgba(5,10,30,0.97), rgba(15,30,70,0.94))',
-                  borderColor: gameToast.type === 'error'
-                    ? 'rgba(239,68,68,0.5)'
-                    : gameToast.type === 'success'
-                      ? 'rgba(34,197,94,0.5)'
-                      : 'rgba(99,102,241,0.5)',
-                  boxShadow: gameToast.type === 'error'
-                    ? '0 0 20px rgba(239,68,68,0.3)'
-                    : gameToast.type === 'success'
-                      ? '0 0 20px rgba(34,197,94,0.3)'
-                      : '0 0 20px rgba(99,102,241,0.3)',
+                  color: gameToast.type === 'error' ? '#fca5a5' : gameToast.type === 'success' ? '#86efac' : '#a5b4fc'
                 }}
               >
-                <span className="text-xl flex-shrink-0">{gameToast.emoji}</span>
-                <span
-                  className="font-bold text-sm tracking-wide"
-                  style={{
-                    color: gameToast.type === 'error' ? '#fca5a5' : gameToast.type === 'success' ? '#86efac' : '#a5b4fc'
-                  }}
-                >
-                  {gameToast.msg}
-                </span>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                {gameToast.msg}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Cards-added in-game toast (replaces browser alert) */}
-        <AnimatePresence>
-          {cardsAddedToast && (
-            <motion.div
-              key="cards-added-toast"
-              initial={{ opacity: 0, y: -32, scale: 0.92 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-              className="fixed top-6 left-1/2 z-[99999] pointer-events-none"
-              style={{ transform: 'translateX(-50%)' }}
-            >
-              <div className="flex items-center gap-3 px-5 py-3 rounded-2xl border border-amber-400/50 backdrop-blur-md shadow-2xl"
-                style={{ background: 'linear-gradient(135deg, rgba(30,20,5,0.95), rgba(60,40,5,0.92))', boxShadow: '0 0 24px rgba(251,191,36,0.35)' }}>
-                <span className="text-2xl">🃏</span>
-                <span className="text-amber-200 font-bold text-sm tracking-wide">{cardsAddedToast}</span>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {cardsAddedToast && (
+          <div
+            key="cards-added-toast"
+            className="fixed top-6 left-1/2 z-[99999] pointer-events-none"
+            style={{ transform: 'translateX(-50%)', animation: 'gb-toast-in 0.3s cubic-bezier(0.34,1.56,0.64,1)' }}
+          >
+            <div className="flex items-center gap-3 px-5 py-3 rounded-2xl border border-amber-400/50 backdrop-blur-md shadow-2xl"
+              style={{ background: 'linear-gradient(135deg, rgba(30,20,5,0.95), rgba(60,40,5,0.92))', boxShadow: '0 0 24px rgba(251,191,36,0.35)' }}>
+              <span className="text-2xl">🃏</span>
+              <span className="text-amber-200 font-bold text-sm tracking-wide">{cardsAddedToast}</span>
+            </div>
+          </div>
+        )}
 
         {/* Card Effect Banner — shown whenever a card effect activates */}
-        <AnimatePresence>
-          {cardEffectBanner && (
-            <motion.div
-              key={`card-effect-banner-${cardEffectBanner.effectName}-${cardEffectBanner.playerName}-${cardEffectBanner.ts}`}
-              initial={{ opacity: 0, y: -50, scale: 0.88 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -30, scale: 0.92 }}
-              transition={{ type: 'spring', stiffness: 480, damping: 32 }}
-              className="fixed top-32 left-1/2 z-[99990] pointer-events-none"
-              style={{ transform: 'translateX(-50%)' }}
+        {cardEffectBanner && (
+          <div
+            className="fixed top-32 left-1/2 z-[99990] pointer-events-none"
+            style={{ transform: 'translateX(-50%)', animation: 'gb-toast-in 0.3s cubic-bezier(0.34,1.56,0.64,1)' }}
+          >
+            <div
+              className="flex items-center gap-3 px-4 py-3 rounded-2xl border backdrop-blur-md shadow-2xl max-w-xs"
+              style={{
+                background: 'linear-gradient(135deg, rgba(15,5,35,0.96), rgba(45,10,80,0.93))',
+                borderColor: 'rgba(212,175,55,0.6)',
+                boxShadow: '0 0 28px rgba(139,92,246,0.4), 0 0 12px rgba(212,175,55,0.3), 0 4px 24px rgba(0,0,0,0.6)',
+              }}
             >
-              <div
-                className="flex items-center gap-3 px-4 py-3 rounded-2xl border backdrop-blur-md shadow-2xl max-w-xs"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(15,5,35,0.96), rgba(45,10,80,0.93))',
-                  borderColor: 'rgba(212,175,55,0.6)',
-                  boxShadow: '0 0 28px rgba(139,92,246,0.4), 0 0 12px rgba(212,175,55,0.3), 0 4px 24px rgba(0,0,0,0.6)',
-                }}
-              >
-                {cardEffectBanner.cardImage ? (
-                  <img
-                    src={cardEffectBanner.cardImage}
-                    alt={cardEffectBanner.cardName}
-                    className="w-10 h-14 object-cover rounded-lg border border-purple-400/40 flex-shrink-0 shadow-lg"
-                  />
-                ) : (
-                  <span className="text-2xl flex-shrink-0">{cardEffectBanner.emoji || '✨'}</span>
+              {cardEffectBanner.cardImage ? (
+                <img
+                  src={cardEffectBanner.cardImage}
+                  alt={cardEffectBanner.cardName}
+                  className="w-10 h-14 object-cover rounded-lg border border-purple-400/40 flex-shrink-0 shadow-lg"
+                />
+              ) : (
+                <span className="text-2xl flex-shrink-0">{cardEffectBanner.emoji || '✨'}</span>
+              )}
+              <div className="flex flex-col min-w-0">
+                <span className="text-purple-200 font-black text-sm uppercase tracking-widest truncate leading-tight">
+                  {cardEffectBanner.emoji || '✨'} {cardEffectBanner.cardName}
+                </span>
+                <span className="text-purple-400 text-xs font-semibold">
+                  {cardEffectBanner.playerName}
+                </span>
+                {cardEffectBanner.effectText && (
+                  <span className="text-purple-300/80 text-xs mt-0.5 leading-snug line-clamp-2">
+                    {cardEffectBanner.effectText}
+                  </span>
                 )}
-                <div className="flex flex-col min-w-0">
-                  <span className="text-purple-200 font-black text-sm uppercase tracking-widest truncate leading-tight">
-                    {cardEffectBanner.emoji || '✨'} {cardEffectBanner.cardName}
-                  </span>
-                  <span className="text-purple-400 text-xs font-semibold">
-                    {cardEffectBanner.playerName}
-                  </span>
-                  {cardEffectBanner.effectText && (
-                    <span className="text-purple-300/80 text-xs mt-0.5 leading-snug line-clamp-2">
-                      {cardEffectBanner.effectText}
-                    </span>
-                  )}
-                </div>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </div>
+        )}
 
         {cardShatter3D.visible && (
           <CardShatter3D
@@ -5965,10 +5885,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
         {/* Turn Timer Widget */}
         {turnTimerState.active && (
-          <motion.div
-            className={`fixed top-20 right-4 z-40 flex flex-col items-center gap-1 pointer-events-none select-none`}
-            animate={turnTimerState.seconds <= 5 ? { x: [-3, 3, -3, 3, -2, 2, 0] } : { x: 0 }}
-            transition={{ duration: 0.4, repeat: turnTimerState.seconds <= 5 ? Infinity : 0, ease: 'easeInOut' }}
+          <div
+            className={`fixed top-20 right-4 z-40 flex flex-col items-center gap-1 pointer-events-none select-none${turnTimerState.seconds <= 5 ? ' gb-timer-wiggle' : ''}`}
           >
             <div className={`relative w-16 h-16 ${turnTimerState.isWarning ? 'drop-shadow-[0_0_12px_rgba(239,68,68,0.8)]' : 'drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]'}`}>
               <svg className="w-full h-full -rotate-90" viewBox="0 0 64 64">
@@ -5993,7 +5911,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${turnTimerState.isWarning ? 'bg-red-600/80 text-white' : 'bg-black/60 text-yellow-300'}`}>
               {turnTimerState.playerName === playerName ? 'Il tuo turno' : turnTimerState.playerName}
             </span>
-          </motion.div>
+          </div>
         )}
 
         {/* Rematch Panel (overlaid over game end rewards) */}

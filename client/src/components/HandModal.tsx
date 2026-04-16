@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "./Card";
 import { Button } from "./ui/button";
 import { X } from "lucide-react";
@@ -9,33 +8,6 @@ import { socket } from "../lib/socket";
 interface HandModalProps {
   onClose: () => void;
 }
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 28, scale: 0.88 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: {
-      delay: i * 0.055,
-      type: 'spring' as const,
-      stiffness: 420,
-      damping: 26,
-    },
-  }),
-  exit: { opacity: 0, scale: 0.85, transition: { duration: 0.15 } },
-};
-
-const panelVariants = {
-  hidden: { opacity: 0, y: 40, scale: 0.96 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { type: 'spring' as const, stiffness: 380, damping: 28 },
-  },
-  exit: { opacity: 0, y: 30, scale: 0.97, transition: { duration: 0.18 } },
-};
 
 export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
   const { gameState, playerName, gameId } = useGameState();
@@ -68,12 +40,9 @@ export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
 
   return (
     <div data-modal="hand" className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-      <motion.div
+      <div
         className="bg-slate-950 border border-purple-500/30 rounded-3xl p-8 w-full max-w-6xl max-h-[90vh] overflow-y-auto shadow-2xl shadow-purple-900/20"
-        variants={panelVariants}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
+        style={{ animation: 'hand-modal-in 0.3s cubic-bezier(0.34,1.56,0.64,1)' }}
       >
         <div className="flex items-center justify-between mb-8 border-b border-purple-500/20 pb-6">
           <div className="flex items-center gap-6">
@@ -93,14 +62,9 @@ export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
               </div>
             </div>
             {endTurnMessage && (
-              <motion.div
-                className="text-sm font-bold text-white bg-purple-600/20 border border-purple-500/30 px-4 py-2 rounded-xl"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-              >
+              <div className="text-sm font-bold text-white bg-purple-600/20 border border-purple-500/30 px-4 py-2 rounded-xl">
                 {endTurnMessage}
-              </motion.div>
+              </div>
             )}
           </div>
           <Button
@@ -114,26 +78,20 @@ export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
         </div>
 
         <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:flex-wrap md:justify-center md:overflow-x-visible scrollbar-thin" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <AnimatePresence>
-            {playerCards.map((card, i) => (
-              <motion.div
-                key={card.id}
-                data-modal-option
-                className="snap-center flex-shrink-0 md:flex-shrink"
-                custom={i}
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-              >
-                <Card
-                  card={card}
-                  location="hand"
-                  onCardPlayed={onClose}
-                />
-              </motion.div>
-            ))}
-          </AnimatePresence>
+          {playerCards.map((card, i) => (
+            <div
+              key={card.id}
+              data-modal-option
+              className="snap-center flex-shrink-0 md:flex-shrink"
+              style={{ animation: `hand-card-in 0.35s cubic-bezier(0.34,1.56,0.64,1) ${i * 0.055}s both` }}
+            >
+              <Card
+                card={card}
+                location="hand"
+                onCardPlayed={onClose}
+              />
+            </div>
+          ))}
           {playerCards.length === 0 && (
             <p className="text-white/70 italic text-center w-full py-8">
               Nessuna carta in mano
@@ -148,7 +106,7 @@ export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
             </p>
           </div>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 };

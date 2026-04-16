@@ -3108,3 +3108,193 @@ button:not([disabled]):active {
   70%  { transform: scale(1.15) rotate(5deg); opacity: 1; }
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
+
+/* ── Framer-Motion migration: replacement CSS animations ── */
+
+/* HandModal */
+@keyframes hand-modal-in {
+  0%   { opacity: 0; transform: translateY(24px) scale(0.94); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes hand-card-in {
+  0%   { opacity: 0; transform: translateY(20px) scale(0.88); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* TimedEffectBanner */
+@keyframes timed-banner-fade {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes timed-banner-scale {
+  0%   { opacity: 0; transform: scaleX(0.6); }
+  100% { opacity: 1; transform: scaleX(1); }
+}
+@keyframes timed-banner-icon {
+  0%   { opacity: 0; transform: scale(0.5) rotate(-10deg); }
+  70%  { transform: scale(1.15) rotate(4deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes timed-banner-slide {
+  0%   { opacity: 0; transform: translateX(-16px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes timed-banner-scale-in {
+  0%   { opacity: 0; transform: scale(0.7); }
+  70%  { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes timed-banner-pulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+@keyframes timed-banner-progress {
+  0%   { width: 100%; }
+  100% { width: 0%; }
+}
+
+/* FullScreenNotification */
+@keyframes fsn-backdrop {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes fsn-panel {
+  0%   { opacity: 0; transform: scale(0.88) translateY(24px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes fsn-scale {
+  0%   { opacity: 0; transform: scale(0.5); }
+  70%  { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes fsn-slide-up {
+  0%   { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes fsn-fade {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes fsn-pulse {
+  0%   { transform: scale(1); box-shadow: 0 0 0 0 rgba(168,85,247,0.6); }
+  50%  { transform: scale(1.06); box-shadow: 0 0 0 10px rgba(168,85,247,0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(168,85,247,0); }
+}
+
+/* RecursiveDamagePanel */
+@keyframes rdp-overlay-in {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes rdp-panel-in {
+  0%   { opacity: 0; transform: scale(0.88) translateY(20px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes rdp-damage-enter {
+  0%   { opacity: 0; transform: scale(0.6) translateY(-12px); }
+  70%  { transform: scale(1.2) translateY(2px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+.rdp-damage-enter { animation: rdp-damage-enter 0.4s ease-out forwards; }
+@keyframes rdp-damage-exit {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.7) translateY(8px); }
+}
+.rdp-damage-exit  { animation: rdp-damage-exit 0.3s ease-in forwards; }
+@keyframes rdp-card-shake-left {
+  0%,100% { transform: translateX(0); }
+  20%  { transform: translateX(-8px) rotate(-3deg); }
+  40%  { transform: translateX(6px) rotate(2deg); }
+  60%  { transform: translateX(-5px) rotate(-1deg); }
+  80%  { transform: translateX(3px) rotate(1deg); }
+}
+@keyframes rdp-card-shake-right {
+  0%,100% { transform: translateX(0); }
+  20%  { transform: translateX(8px) rotate(3deg); }
+  40%  { transform: translateX(-6px) rotate(-2deg); }
+  60%  { transform: translateX(5px) rotate(1deg); }
+  80%  { transform: translateX(-3px) rotate(-1deg); }
+}
+.rdp-card-shake-left { animation: rdp-card-shake-left 0.45s ease-in-out; }
+.rdp-card-shake-right { animation: rdp-card-shake-right 0.45s ease-in-out; }
+@keyframes rdp-skull-in {
+  0%   { opacity: 0; transform: scale(0.4) rotate(-15deg); }
+  70%  { transform: scale(1.2) rotate(5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes rdp-pti-pop {
+  0%   { opacity: 0; transform: scale(0.5); }
+  70%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.rdp-pti-pop { animation: rdp-pti-pop 0.35s ease-out; }
+@keyframes rdp-ball-bounce {
+  0%   { transform: scale(0) translateY(-20px); opacity: 0; }
+  60%  { transform: scale(1.2) translateY(4px); opacity: 1; }
+  80%  { transform: scale(0.9) translateY(-2px); }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+.rdp-ball-bounce { animation: rdp-ball-bounce 0.5s ease-out; }
+@keyframes rdp-fade-in {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes rdp-slide-up {
+  0%   { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Card: hand hover lift (preserves fan rotation via CSS var) */
+.card-hand-hover-lift {
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+.card-hand-hover-lift:hover {
+  transform: rotate(var(--fan-rot, 0deg)) translateY(-18px) scale(1.08) !important;
+  filter: brightness(1.1);
+  z-index: 50;
+}
+
+/* Card: field attack animations */
+@keyframes card-attack-player-anim {
+  0%   { transform: translateY(0); }
+  30%  { transform: translateY(-40px) scale(1.08); }
+  60%  { transform: translateY(80px) scale(0.95); }
+  80%  { transform: translateY(-10px); }
+  100% { transform: translateY(0); }
+}
+@keyframes card-attack-enemy-anim {
+  0%   { transform: translateY(0); }
+  30%  { transform: translateY(40px) scale(1.08); }
+  60%  { transform: translateY(-80px) scale(0.95); }
+  80%  { transform: translateY(10px); }
+  100% { transform: translateY(0); }
+}
+.card-attack-player { animation: card-attack-player-anim 0.55s ease-in-out; }
+.card-attack-enemy  { animation: card-attack-enemy-anim 0.55s ease-in-out; }
+
+/* GameBoard: damage vignette flash */
+@keyframes gb-vignette-in {
+  0%   { opacity: 0; }
+  30%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* GameBoard: toast pop-in */
+@keyframes gb-toast-in {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(-20px) scale(0.9); }
+  70%  { transform: translateX(-50%) translateY(3px) scale(1.02); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+/* GameBoard: turn timer low-time wiggle */
+@keyframes gb-timer-wiggle {
+  0%,100% { transform: translateX(0); }
+  15%  { transform: translateX(-3px); }
+  30%  { transform: translateX(3px); }
+  45%  { transform: translateX(-3px); }
+  60%  { transform: translateX(3px); }
+  75%  { transform: translateX(-2px); }
+  90%  { transform: translateX(2px); }
+}
+.gb-timer-wiggle { animation: gb-timer-wiggle 0.4s ease-in-out infinite; }

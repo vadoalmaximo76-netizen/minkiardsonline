@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { socket } from '../lib/socket';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Swords, Zap } from 'lucide-react';
 import { useAudio } from '../lib/stores/useAudio';
 
@@ -36,14 +35,6 @@ interface ShowDamage {
   stepObj: DamageStep;
 }
 
-// Damage display framer-motion variants
-// Note: exit has an 80ms delay baked in — eliminates one imperative setTimeout
-const damageVariants = {
-  hidden: { opacity: 0, scale: 2, y: -20 },
-  visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.1 } },
-  exit: { opacity: 0, scale: 0.5, transition: { delay: 0.08, duration: 0.07 } },
-};
-
 export const RecursiveDamagePanel: React.FC = () => {
   const [event, setEvent] = useState<RecursiveDamageEvent | null>(null);
   const [currentStep, setCurrentStep] = useState<number>(-1);
@@ -54,11 +45,13 @@ export const RecursiveDamagePanel: React.FC = () => {
   const { playBattleMusic, playTennisHit, playSempafaagaraHit } = useAudio();
   const battleMusicRef = useRef<{ stop: () => void } | null>(null);
 
-  // Refs for declarative step orchestration
   const stepIndexRef = useRef(0);
   const cancelledRef = useRef(false);
   const activeStepRef = useRef<ShowDamage | null>(null);
-  const exitProcessedRef = useRef(-1); // guard: only process exit once per step index
+  const exitProcessedRef = useRef(-1);
+
+  // Damage animation phase tracking
+  const [damagePhase, setDamagePhase] = useState<'entering' | 'exiting' | 'none'>('none');
 
   useEffect(() => {
     return () => { battleMusicRef.current?.stop(); };
@@ -67,12 +60,13 @@ export const RecursiveDamagePanel: React.FC = () => {
   useEffect(() => {
     const handleRecursiveDamage = (data: RecursiveDamageEvent) => {
       console.log('🎮 RECURSIVE DAMAGE EVENT:', data);
-      cancelledRef.current = true; // cancel any previous sequence
+      cancelledRef.current = true;
       setEvent(data);
       setCurrentStep(-1);
       setAttackerPTI(data.attackerCard.initialPTI);
       setDefenderPTI(data.defenderCard.initialPTI);
       setShowDamage(null);
+      setDamagePhase('none');
       setBallPosition('center');
       battleMusicRef.current = playBattleMusic();
     };
@@ -80,7 +74,6 @@ export const RecursiveDamagePanel: React.FC = () => {
     return () => { socket.off('recursive-damage-animation', handleRecursiveDamage); };
   }, []);
 
-  // Start step sequence when event is set (replaces old setTimeout cascade)
   useEffect(() => {
     if (!event) return;
     stepIndexRef.current = 0;
@@ -91,7 +84,13 @@ export const RecursiveDamagePanel: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event]);
 
-  // Present the current step's damage display
+  // When showDamage is set, start entering animation
+  useEffect(() => {
+    if (showDamage) {
+      setDamagePhase('entering');
+    }
+  }, [showDamage]);
+
   const advanceStep = (ev: RecursiveDamageEvent) => {
     if (cancelledRef.current) return;
     const idx = stepIndexRef.current;
@@ -109,31 +108,31 @@ export const RecursiveDamagePanel: React.FC = () => {
     if (ev.type === 'PARTITA_DI_TENNIS') playTennisHit(); else playSempafaagaraHit();
   };
 
-  // Called by motion.div onAnimationComplete (enter phase) — update PTI then hide immediately
-  // The exit variant has an 80ms built-in delay before actually fading out
-  const onDamageEnterComplete = () => {
-    if (cancelledRef.current || !activeStepRef.current) return;
-    const step = activeStepRef.current.stepObj;
-    if (step.target === 'attacker') setAttackerPTI(step.newPTI);
-    else setDefenderPTI(step.newPTI);
-    setCurrentStep(stepIndexRef.current);
-    setShowDamage(null); // triggers exit variant which has 80ms delay baked in
-  };
-
-  // Called by AnimatePresence onExitComplete — advance to next step or close
-  const onDamageExitComplete = () => {
-    if (cancelledRef.current || !event) return;
-    // Guard: only process once per step
-    if (exitProcessedRef.current === stepIndexRef.current) return;
-    exitProcessedRef.current = stepIndexRef.current;
-    const step = event.steps[stepIndexRef.current];
-    if (step?.eliminated) {
-      setTimeout(() => {
-        if (!cancelledRef.current) { battleMusicRef.current?.stop(); setEvent(null); setCurrentStep(-1); }
-      }, 800);
-    } else {
-      stepIndexRef.current++;
-      advanceStep(event); // advance immediately — enter delay handles pacing via framer-motion
+  const handleDamageAnimEnd = () => {
+    if (damagePhase === 'entering') {
+      // Enter animation done - update PTI and trigger exit
+      if (cancelledRef.current || !activeStepRef.current) return;
+      const step = activeStepRef.current.stepObj;
+      if (step.target === 'attacker') setAttackerPTI(step.newPTI);
+      else setDefenderPTI(step.newPTI);
+      setCurrentStep(stepIndexRef.current);
+      setDamagePhase('exiting');
+    } else if (damagePhase === 'exiting') {
+      // Exit animation done - advance to next step
+      if (cancelledRef.current || !event) return;
+      if (exitProcessedRef.current === stepIndexRef.current) return;
+      exitProcessedRef.current = stepIndexRef.current;
+      setShowDamage(null);
+      setDamagePhase('none');
+      const step = event.steps[stepIndexRef.current];
+      if (step?.eliminated) {
+        setTimeout(() => {
+          if (!cancelledRef.current) { battleMusicRef.current?.stop(); setEvent(null); setCurrentStep(-1); }
+        }, 800);
+      } else {
+        stepIndexRef.current++;
+        advanceStep(event);
+      }
     }
   };
 
@@ -144,221 +143,185 @@ export const RecursiveDamagePanel: React.FC = () => {
   const isAttackerEliminated = lastStep?.eliminated && lastStep?.target === 'attacker';
   const isDefenderEliminated = lastStep?.eliminated && lastStep?.target === 'defender';
 
-  const panelStyles = isTennis 
+  const panelStyles = isTennis
     ? "bg-gradient-to-br from-green-800 via-green-600 to-green-800 border-white"
     : "bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 border-purple-500";
 
+  const damageAnimClass = damagePhase === 'entering'
+    ? 'rdp-damage-enter'
+    : damagePhase === 'exiting'
+      ? 'rdp-damage-exit'
+      : '';
+
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      style={{ animation: 'rdp-overlay-in 0.3s ease-out' }}
+    >
+      <div
+        className={`rounded-2xl p-8 max-w-4xl w-full mx-4 border-4 shadow-2xl relative overflow-hidden ${panelStyles}`}
+        style={{ animation: 'rdp-panel-in 0.3s ease-out' }}
       >
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.8, opacity: 0 }}
-          className={`rounded-2xl p-8 max-w-4xl w-full mx-4 border-4 shadow-2xl relative overflow-hidden ${panelStyles}`}
-        >
-          {isTennis && (
-            <>
-              <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-1/2 left-0 right-0 h-1 bg-white/40 transform -translate-y-1/2" />
-                <div className="absolute top-0 bottom-0 left-1/2 w-1 bg-white/40 transform -translate-x-1/2" />
-                <div className="absolute top-4 bottom-4 left-4 right-4 border-2 border-white/30 rounded-lg" />
-              </div>
-            </>
+        {isTennis && (
+          <>
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-1/2 left-0 right-0 h-1 bg-white/40 transform -translate-y-1/2" />
+              <div className="absolute top-0 bottom-0 left-1/2 w-1 bg-white/40 transform -translate-x-1/2" />
+              <div className="absolute top-4 bottom-4 left-4 right-4 border-2 border-white/30 rounded-lg" />
+            </div>
+          </>
+        )}
+        
+        <div className="flex items-center justify-center gap-4 mb-8 relative z-10">
+          {isTennis ? (
+            <span className="text-4xl">🎾</span>
+          ) : (
+            <Zap className="w-8 h-8 text-yellow-400" />
           )}
-          
-          <div className="flex items-center justify-center gap-4 mb-8 relative z-10">
-            {isTennis ? (
-              <span className="text-4xl">🎾</span>
-            ) : (
-              <Zap className="w-8 h-8 text-yellow-400" />
-            )}
-            <h2 className="text-3xl font-bold text-white text-center drop-shadow-lg">
-              {isTennis ? 'PARTITA DI TENNIS' : 'SEMPAFAAGARA'}
-            </h2>
-            {isTennis ? (
-              <span className="text-4xl">🎾</span>
-            ) : (
-              <Zap className="w-8 h-8 text-yellow-400" />
-            )}
-          </div>
+          <h2 className="text-3xl font-bold text-white text-center drop-shadow-lg">
+            {isTennis ? 'PARTITA DI TENNIS' : 'SEMPAFAAGARA'}
+          </h2>
+          {isTennis ? (
+            <span className="text-4xl">🎾</span>
+          ) : (
+            <Zap className="w-8 h-8 text-yellow-400" />
+          )}
+        </div>
 
-          <div className="flex items-center justify-between gap-8 relative z-10">
-            <motion.div
-              className={`flex-1 text-center ${isAttackerEliminated ? 'opacity-50' : ''}`}
-              animate={showDamage?.target === 'attacker' ? { scale: [1, 0.95, 1], x: [0, -10, 10, 0] } : {}}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="text-lg font-semibold text-white mb-2 drop-shadow-lg">
-                {event.attackerName}
-              </div>
-              {isTennis && (
-                <div className="text-4xl mb-2">🏸</div>
-              )}
-              <div className="relative inline-block">
-                <img
-                  src={event.attackerCard.frontImage}
-                  alt={event.attackerCard.name}
-                  className={`w-48 h-auto rounded-lg shadow-xl border-4 ${isAttackerEliminated ? 'border-red-600 grayscale' : isTennis ? 'border-white' : 'border-blue-500'}`}
-                />
-                <AnimatePresence onExitComplete={onDamageExitComplete}>
-                  {showDamage?.target === 'attacker' && (
-                    <motion.div
-                      key={`atk-${stepIndexRef.current}`}
-                      variants={damageVariants}
-                      initial="hidden"
-                      animate="visible"
-                      exit="exit"
-                      onAnimationComplete={(def) => { if (def === 'visible') onDamageEnterComplete(); }}
-                      className="absolute inset-0 flex items-center justify-center"
-                    >
-                      <span className="text-6xl font-bold text-red-500 drop-shadow-lg">
-                        -{showDamage.value}
-                      </span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                {isAttackerEliminated && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="absolute inset-0 flex items-center justify-center"
-                  >
-                    <span className="text-6xl">💀</span>
-                  </motion.div>
-                )}
-              </div>
-              <div className="mt-4">
-                <div className="text-sm text-white/80 mb-1 drop-shadow">{event.attackerCard.name}</div>
-                <motion.div
-                  key={attackerPTI}
-                  initial={{ scale: 1.5, color: '#ef4444' }}
-                  animate={{ scale: 1, color: attackerPTI > 0 ? '#22c55e' : '#ef4444' }}
-                  className="text-4xl font-bold drop-shadow-lg"
+        <div className="flex items-center justify-between gap-8 relative z-10">
+          {/* Attacker column */}
+          <div
+            className={`flex-1 text-center ${isAttackerEliminated ? 'opacity-50' : ''} ${showDamage?.target === 'attacker' ? 'rdp-card-shake-left' : ''}`}
+          >
+            <div className="text-lg font-semibold text-white mb-2 drop-shadow-lg">
+              {event.attackerName}
+            </div>
+            {isTennis && (
+              <div className="text-4xl mb-2">🏸</div>
+            )}
+            <div className="relative inline-block">
+              <img
+                src={event.attackerCard.frontImage}
+                alt={event.attackerCard.name}
+                className={`w-48 h-auto rounded-lg shadow-xl border-4 ${isAttackerEliminated ? 'border-red-600 grayscale' : isTennis ? 'border-white' : 'border-blue-500'}`}
+              />
+              {showDamage?.target === 'attacker' && (
+                <div
+                  key={`atk-${stepIndexRef.current}`}
+                  className={`absolute inset-0 flex items-center justify-center ${damageAnimClass}`}
+                  onAnimationEnd={handleDamageAnimEnd}
                 >
-                  PTI: {attackerPTI}
-                </motion.div>
-              </div>
-            </motion.div>
-
-            <div className="flex flex-col items-center gap-4 relative">
-              {isTennis ? (
-                <div className="relative w-20 h-32 flex items-center justify-center">
-                  <AnimatePresence>
-                    <motion.div
-                      key={ballPosition}
-                      initial={{ 
-                        x: ballPosition === 'attacker' ? 100 : ballPosition === 'defender' ? -100 : 0,
-                        y: -50,
-                        scale: 0.5
-                      }}
-                      animate={{ 
-                        x: 0, 
-                        y: 0,
-                        scale: 1
-                      }}
-                      transition={{ 
-                        type: "spring", 
-                        stiffness: 300, 
-                        damping: 20 
-                      }}
-                      className="text-5xl"
-                    >
-                      🎾
-                    </motion.div>
-                  </AnimatePresence>
+                  <span className="text-6xl font-bold text-red-500 drop-shadow-lg">
+                    -{showDamage.value}
+                  </span>
                 </div>
-              ) : (
-                <Swords className="w-16 h-16 text-yellow-400" />
               )}
-              <div className="text-white text-xl font-bold drop-shadow-lg">VS</div>
-              {currentStep >= 0 && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-sm text-white/80 text-center drop-shadow"
+              {isAttackerEliminated && (
+                <div
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ animation: 'rdp-skull-in 0.4s ease-out' }}
                 >
-                  Colpo {currentStep + 1} / {event.steps.length}
-                </motion.div>
+                  <span className="text-6xl">💀</span>
+                </div>
               )}
             </div>
-
-            <motion.div
-              className={`flex-1 text-center ${isDefenderEliminated ? 'opacity-50' : ''}`}
-              animate={showDamage?.target === 'defender' ? { scale: [1, 0.95, 1], x: [0, 10, -10, 0] } : {}}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="text-lg font-semibold text-white mb-2 drop-shadow-lg">
-                {event.defenderName}
+            <div className="mt-4">
+              <div className="text-sm text-white/80 mb-1 drop-shadow">{event.attackerCard.name}</div>
+              <div
+                key={attackerPTI}
+                className="text-4xl font-bold drop-shadow-lg rdp-pti-pop"
+                style={{ color: attackerPTI > 0 ? '#22c55e' : '#ef4444' }}
+              >
+                PTI: {attackerPTI}
               </div>
-              {isTennis && (
-                <div className="text-4xl mb-2">🏸</div>
-              )}
-              <div className="relative inline-block">
-                <img
-                  src={event.defenderCard.frontImage}
-                  alt={event.defenderCard.name}
-                  className={`w-48 h-auto rounded-lg shadow-xl border-4 ${isDefenderEliminated ? 'border-red-600 grayscale' : isTennis ? 'border-white' : 'border-red-500'}`}
-                />
-                <AnimatePresence onExitComplete={onDamageExitComplete}>
-                  {showDamage?.target === 'defender' && (
-                    <motion.div
-                      key={`def-${stepIndexRef.current}`}
-                      variants={damageVariants}
-                      initial="hidden"
-                      animate="visible"
-                      exit="exit"
-                      onAnimationComplete={(def) => { if (def === 'visible') onDamageEnterComplete(); }}
-                      className="absolute inset-0 flex items-center justify-center"
-                    >
-                      <span className="text-6xl font-bold text-red-500 drop-shadow-lg">
-                        -{showDamage.value}
-                      </span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                {isDefenderEliminated && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="absolute inset-0 flex items-center justify-center"
-                  >
-                    <span className="text-6xl">💀</span>
-                  </motion.div>
-                )}
-              </div>
-              <div className="mt-4">
-                <div className="text-sm text-white/80 mb-1 drop-shadow">{event.defenderCard.name}</div>
-                <motion.div
-                  key={defenderPTI}
-                  initial={{ scale: 1.5, color: '#ef4444' }}
-                  animate={{ scale: 1, color: defenderPTI > 0 ? '#22c55e' : '#ef4444' }}
-                  className="text-4xl font-bold drop-shadow-lg"
-                >
-                  PTI: {defenderPTI}
-                </motion.div>
-              </div>
-            </motion.div>
+            </div>
           </div>
 
-          {lastStep?.eliminated && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-8 text-center relative z-10"
-            >
-              <div className="text-2xl font-bold text-red-400 drop-shadow-lg">
-                {lastStep.target === 'attacker' ? event.attackerCard.name : event.defenderCard.name} eliminato!
+          {/* Center column */}
+          <div className="flex flex-col items-center gap-4 relative">
+            {isTennis ? (
+              <div className="relative w-20 h-32 flex items-center justify-center">
+                <span
+                  key={ballPosition}
+                  className="text-5xl rdp-ball-bounce"
+                >
+                  🎾
+                </span>
               </div>
-            </motion.div>
-          )}
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+            ) : (
+              <Swords className="w-16 h-16 text-yellow-400" />
+            )}
+            <div className="text-white text-xl font-bold drop-shadow-lg">VS</div>
+            {currentStep >= 0 && (
+              <div
+                className="text-sm text-white/80 text-center drop-shadow"
+                style={{ animation: 'rdp-fade-in 0.3s ease-out' }}
+              >
+                Colpo {currentStep + 1} / {event.steps.length}
+              </div>
+            )}
+          </div>
+
+          {/* Defender column */}
+          <div
+            className={`flex-1 text-center ${isDefenderEliminated ? 'opacity-50' : ''} ${showDamage?.target === 'defender' ? 'rdp-card-shake-right' : ''}`}
+          >
+            <div className="text-lg font-semibold text-white mb-2 drop-shadow-lg">
+              {event.defenderName}
+            </div>
+            {isTennis && (
+              <div className="text-4xl mb-2">🏸</div>
+            )}
+            <div className="relative inline-block">
+              <img
+                src={event.defenderCard.frontImage}
+                alt={event.defenderCard.name}
+                className={`w-48 h-auto rounded-lg shadow-xl border-4 ${isDefenderEliminated ? 'border-red-600 grayscale' : isTennis ? 'border-white' : 'border-red-500'}`}
+              />
+              {showDamage?.target === 'defender' && (
+                <div
+                  key={`def-${stepIndexRef.current}`}
+                  className={`absolute inset-0 flex items-center justify-center ${damageAnimClass}`}
+                  onAnimationEnd={handleDamageAnimEnd}
+                >
+                  <span className="text-6xl font-bold text-red-500 drop-shadow-lg">
+                    -{showDamage.value}
+                  </span>
+                </div>
+              )}
+              {isDefenderEliminated && (
+                <div
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ animation: 'rdp-skull-in 0.4s ease-out' }}
+                >
+                  <span className="text-6xl">💀</span>
+                </div>
+              )}
+            </div>
+            <div className="mt-4">
+              <div className="text-sm text-white/80 mb-1 drop-shadow">{event.defenderCard.name}</div>
+              <div
+                key={defenderPTI}
+                className="text-4xl font-bold drop-shadow-lg rdp-pti-pop"
+                style={{ color: defenderPTI > 0 ? '#22c55e' : '#ef4444' }}
+              >
+                PTI: {defenderPTI}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {lastStep?.eliminated && (
+          <div
+            className="mt-8 text-center relative z-10"
+            style={{ animation: 'rdp-slide-up 0.4s ease-out' }}
+          >
+            <div className="text-2xl font-bold text-red-400 drop-shadow-lg">
+              {lastStep.target === 'attacker' ? event.attackerCard.name : event.defenderCard.name} eliminato!
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };

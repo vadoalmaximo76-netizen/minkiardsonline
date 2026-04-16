@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { motion } from "framer-motion";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
@@ -496,16 +495,13 @@ export const CardModal: React.FC = () => {
           <div className="grid grid-cols-3 gap-3">
             {/* MOSSE card ATTACCA button - only for field cards (hand has its own banner below) */}
             {selectedCard.type === 'mosse' && isOwner && isInField && (
-            <motion.button
+            <button
               onClick={handleAttacca}
-              className="aspect-square bg-red-600 hover:bg-red-700 text-white font-bold p-2 flex flex-col items-center justify-center gap-1 text-xs rounded-md"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.88 }}
-              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
+              className="aspect-square bg-red-600 hover:bg-red-700 text-white font-bold p-2 flex flex-col items-center justify-center gap-1 text-xs rounded-md transition-transform hover:scale-110 active:scale-[0.88]"
             >
               <Sword size={16} />
               ATTACCA
-            </motion.button>
+            </button>
           )}
 
           {/* Field card actions - available for all field cards (own and opponent's) */}
@@ -679,15 +675,12 @@ export const CardModal: React.FC = () => {
           {!isInField && !isInGraveyard && isOwner && (
             <>
               {/* GIOCA — full width, unmissable primary action */}
-              <motion.button
+              <button
                 onClick={handlePlay}
-                className="col-span-3 w-full bg-green-500 hover:bg-green-400 text-white font-extrabold py-4 flex items-center justify-center gap-3 text-lg rounded-xl shadow-lg shadow-green-900/50 border-2 border-green-300"
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.88 }}
-                transition={{ type: 'spring', stiffness: 600, damping: 20 }}
+                className="col-span-3 w-full bg-green-500 hover:bg-green-400 text-white font-extrabold py-4 flex items-center justify-center gap-3 text-lg rounded-xl shadow-lg shadow-green-900/50 border-2 border-green-300 transition-transform hover:scale-[1.04] active:scale-[0.88]"
               >
                 🎮 GIOCA
-              </motion.button>
+              </button>
 
               <Button
                 onClick={handlePlayFaceDown}
