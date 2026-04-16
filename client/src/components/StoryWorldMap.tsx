@@ -1139,7 +1139,14 @@ export function StoryWorldMap({
   /* ── Secret Room refs ────────────────────────────────────── */
   const allLeadersCompletedRef = useRef(allLeadersCompleted);
   const onOpenSecretRoomRef    = useRef(onOpenSecretRoom);
-  const secretRevealedRef      = useRef(false);
+  const secretRevealedRef      = useRef(
+    userId ? localStorage.getItem(`secretRoomRevealed_${userId}`) === 'true' : false
+  );
+  useEffect(() => {
+    secretRevealedRef.current = userId
+      ? localStorage.getItem(`secretRoomRevealed_${userId}`) === 'true'
+      : false;
+  }, [userId]);
   useEffect(() => { allLeadersCompletedRef.current = allLeadersCompleted; }, [allLeadersCompleted]);
   useEffect(() => { onOpenSecretRoomRef.current = onOpenSecretRoom; }, [onOpenSecretRoom]);
   useEffect(() => { onWizardCardRef.current = onWizardCard; }, [onWizardCard]);
@@ -1297,6 +1304,7 @@ export function StoryWorldMap({
       const srDist = Math.sqrt((pos.x - srx) ** 2 + (pos.z - srz) ** 2);
       if (srDist < ARENA_HIT_RADIUS * 1.5) {
         secretRevealedRef.current = true;
+        if (userId) localStorage.setItem(`secretRoomRevealed_${userId}`, 'true');
         onOpenSecretRoomRef.current?.();
         return;
       }
