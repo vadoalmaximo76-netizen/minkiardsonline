@@ -132,6 +132,7 @@ interface GameStateStore {
   handModalOpen: boolean;
   showAttackTargetSelectCardId: string | null;
   isAdmin: boolean;
+  attackTimeline: { defenderCardId: string; timestamp: number } | null;
   
   setGameState: (state: GameState) => void;
   setPlayerName: (name: string) => void;
@@ -153,6 +154,8 @@ interface GameStateStore {
   setHandModalOpen: (open: boolean) => void;
   setShowAttackTargetSelectCardId: (cardId: string | null) => void;
   setIsAdmin: (isAdmin: boolean) => void;
+  fireAttackTimeline: (defenderCardId: string) => void;
+  clearAttackTimeline: () => void;
 }
 
 export const useGameState = create<GameStateStore>()(
@@ -245,6 +248,7 @@ export const useGameState = create<GameStateStore>()(
         handModalOpen: false,
         showAttackTargetSelectCardId: null,
         isAdmin: false,
+        attackTimeline: null,
         
         setGameState: (gameState) => set({ gameState }),
         setPlayerName: (playerName) => set({ playerName }),
@@ -270,6 +274,8 @@ export const useGameState = create<GameStateStore>()(
         setHandModalOpen: (handModalOpen) => set({ handModalOpen }),
         setShowAttackTargetSelectCardId: (showAttackTargetSelectCardId) => set({ showAttackTargetSelectCardId }),
         setIsAdmin: (isAdmin) => set({ isAdmin }),
+        fireAttackTimeline: (defenderCardId) => set({ attackTimeline: { defenderCardId, timestamp: Date.now() } }),
+        clearAttackTimeline: () => set({ attackTimeline: null }),
         
         generateSessionId: () => {
           const sessionId = 'session-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now();
@@ -290,7 +296,8 @@ export const useGameState = create<GameStateStore>()(
             selectedCard: null,
             selectedMosseCard: null,
             shakingCards: new Set(),
-            isReconnecting: false
+            isReconnecting: false,
+            attackTimeline: null,
           });
         },
         

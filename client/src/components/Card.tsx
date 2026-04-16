@@ -298,7 +298,12 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     showAttackTargetSelectCardId,
     setShowAttackTargetSelectCardId,
     isAdmin,
+    attackTimeline,
+    fireAttackTimeline,
+    clearAttackTimeline,
   } = useGameState();
+
+  const lastBusShakeAt = useRef<number>(0);
   const showAttackTargetSelect = showAttackTargetSelectCardId === card.id;
   const setShowAttackTargetSelect = (show: boolean) => setShowAttackTargetSelectCardId(show ? card.id : null);
 
@@ -328,6 +333,23 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       .to(el, { x: 0, duration: 0.055, ease: "power2.in", clearProps: "transform,filter" });
     return () => { tl.kill(); };
   }, [hitShake]);
+
+  // Attack coordination bus — defender shake triggered precisely at lunge peak (~150ms)
+  useEffect(() => {
+    if (!attackTimeline || attackTimeline.defenderCardId !== card.id) return;
+    const elapsed = Date.now() - attackTimeline.timestamp;
+    const delay = Math.max(0, 150 - elapsed);
+    const shakeTimer = setTimeout(() => {
+      lastBusShakeAt.current = Date.now();
+      setHitShake(true);
+      setTimeout(() => setHitShake(false), 400);
+    }, delay);
+    const clearTimer = setTimeout(() => clearAttackTimeline(), 700);
+    return () => {
+      clearTimeout(shakeTimer);
+      clearTimeout(clearTimer);
+    };
+  }, [attackTimeline, card.id, clearAttackTimeline]);
 
   // GSAP: card play arc/flip — satisfying entry when card moves to field
   useEffect(() => {
@@ -417,9 +439,11 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           playPointLoss();
           setStatGlowEffect('pti-down');
           setDamageFlash(true);
-          setHitShake(true);
           setTimeout(() => { setDamageFlash(false); }, 500);
-          setTimeout(() => setHitShake(false), 400);
+          if (Date.now() - lastBusShakeAt.current > 600) {
+            setHitShake(true);
+            setTimeout(() => setHitShake(false), 400);
+          }
         }
         
         // Clear glow effect after animation
@@ -639,7 +663,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         const isGambleDeath = mosseDmgEffect === 'gamble_death' || mosseCardUrl.includes('roulette-russa');
         if (isGambleDeath) {
           console.log(`🎲 GAMBLE_DEATH: emitting mosse-attack directly for ${card.owner}`);
-          if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); }
+          if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); fireAttackTimeline(card.id); }
           if (selectedMosseCard?.id) cardRegistry.storePendingMosse(selectedMosseCard.id);
           socket.emit('mosse-attack', {
             mosseCardId: selectedMosseCard?.id,
@@ -662,7 +686,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         const isAcchiappt = mosseCardUrl.includes('acchiappt-chessa');
         if (isAcchiappt) {
           console.log(`🎯 ACCHIAPPT CHESSA: emitting mosse-attack directly (mini-game handled server-side)`);
-          if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); }
+          if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); fireAttackTimeline(card.id); }
           if (selectedMosseCard?.id) cardRegistry.storePendingMosse(selectedMosseCard.id);
           const presetDmg = (selectedMosseCard as any)?.mosseDamageValue || 100;
           socket.emit('mosse-attack', {
@@ -825,7 +849,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       }
 
       // Attacker thrust animation — 160ms pulse toward target
-      if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); }
+      if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); if (targetCard?.id) fireAttackTimeline(targetCard.id); }
 
       // Capture MOSSE card rect BEFORE emitting so MossaFlyer can use it even after game-state-update removes the card
       if (selectedMosseCard?.id) cardRegistry.storePendingMosse(selectedMosseCard.id);
@@ -1010,7 +1034,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       const firstTarget = targets[0];
       if (firstTarget) {
         console.log(`🤝 CONTRATTAZIONE: emitting mosse-attack directly for ${firstTarget.owner}`);
-        if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); }
+        if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); fireAttackTimeline(firstTarget.id); }
         if (mosseCardArg?.id) cardRegistry.storePendingMosse(mosseCardArg.id);
         socket.emit('mosse-attack', {
           mosseCardId: mosseCardArg?.id,
@@ -1073,6 +1097,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           const target = targetCards[i];
           setIsAttacking(true);
           setTimeout(() => setIsAttacking(false), 400);
+          fireAttackTimeline(target.id);
           if (selectedMosseCard?.id) cardRegistry.storePendingMosse(selectedMosseCard.id);
           socket.emit('mosse-attack', { 
             mosseCardId: selectedMosseCard?.id,
