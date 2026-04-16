@@ -109,11 +109,17 @@ export const ClashBattle: React.FC<ClashBattleProps> = ({
     
     playClashTap();
     
+    if (isAttacker) {
+      setAttackerTaps(prev => prev + 1);
+    } else if (isDefender) {
+      setDefenderTaps(prev => prev + 1);
+    }
+    
     socket.emit('clash-tap', {
       clashId,
       playerName
     });
-  }, [clashId, playerName, isActive, isParticipant, playClashTap]);
+  }, [clashId, playerName, isActive, isParticipant, isAttacker, isDefender, playClashTap]);
 
   const totalTaps = attackerTaps + defenderTaps;
   const attackerProgress = totalTaps > 0 ? (attackerTaps / totalTaps) * 100 : 50;

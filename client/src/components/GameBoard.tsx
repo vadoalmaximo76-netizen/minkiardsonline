@@ -313,6 +313,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [cardShatter3D, setCardShatter3D] = useState<{ visible: boolean; cardImage: string; cardName: string }>({ visible: false, cardImage: '', cardName: '' });
   const [koBanner, setKoBanner] = useState<{ visible: boolean; cardName: string; cardOwner: string; cardImage: string; eliminationMode: boolean; isCurrentPlayer: boolean }>({ visible: false, cardName: '', cardOwner: '', cardImage: '', eliminationMode: false, isCurrentPlayer: false });
   const [tekkenMode, setTekkenMode] = useState(false);
+
+  type NotifQueueItem =
+    | { type: 'fullscreen'; player: string; cardCount: number; title: string }
+    | { type: 'personaggio'; cardName: string; message: string; cardImage: string }
+    | { type: 'kobanner'; cardName: string; cardOwner: string; cardImage: string; eliminationMode: boolean; isCurrentPlayer: boolean };
+
+  const notifQueueRef = useRef<NotifQueueItem[]>([]);
+  const activeNotifTypeRef = useRef<string | null>(null);
+  const showNotifItemRef = useRef<(item: NotifQueueItem) => void>(null!);
   const [attackEffectKey, setAttackEffectKey] = useState(0);
   const [deathEffectVisible, setDeathEffectVisible] = useState(false);
   const [deadCharacterName, setDeadCharacterName] = useState<string>("");
@@ -632,6 +641,54 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     setChatNotifications(prev => prev.filter(n => n.id !== notificationId));
   };
 
+  const advanceNotifQueue = useCallback(() => {
+    setTimeout(() => {
+      const next = notifQueueRef.current.shift() ?? null;
+      if (next) {
+        showNotifItemRef.current(next);
+      } else {
+        activeNotifTypeRef.current = null;
+      }
+    }, 400);
+  }, []);
+
+  showNotifItemRef.current = (item: NotifQueueItem) => {
+    activeNotifTypeRef.current = item.type;
+    if (item.type === 'fullscreen') {
+      setNotificationPlayer(item.player);
+      setNotificationCardCount(item.cardCount);
+      setNotificationTitle(item.title);
+      setNotificationVisible(true);
+    } else if (item.type === 'personaggio') {
+      setPersonaggioCardName(item.cardName);
+      setPersonaggioMessage(item.message);
+      setPersonaggioCardImage(item.cardImage);
+      setPersonaggioNotificationVisible(true);
+      setTimeout(() => {
+        setPersonaggioNotificationVisible(false);
+        activeNotifTypeRef.current = null;
+        advanceNotifQueue();
+      }, 4000);
+    } else if (item.type === 'kobanner') {
+      setKoBanner({
+        visible: true,
+        cardName: item.cardName,
+        cardOwner: item.cardOwner,
+        cardImage: item.cardImage,
+        eliminationMode: item.eliminationMode,
+        isCurrentPlayer: item.isCurrentPlayer,
+      });
+    }
+  };
+
+  const enqueueNotif = useCallback((item: NotifQueueItem) => {
+    if (activeNotifTypeRef.current === null) {
+      showNotifItemRef.current(item);
+    } else {
+      notifQueueRef.current.push(item);
+    }
+  }, []);
+
   const handleResetGame = () => {
     if (confirm("Sei sicuro di voler ricominciare la partita? Tutte le carte verranno rimesse nei mazzi.")) {
       socket.emit('reset-game', { gameId });
@@ -836,10 +893,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
 
     const handleGraveyardMilestone = ({ playerName: achievingPlayer, cardCount, title }: { playerName: string, cardCount: number, title: string }) => {
-      setNotificationPlayer(achievingPlayer);
-      setNotificationCardCount(cardCount);
-      setNotificationTitle(title);
-      setNotificationVisible(true);
+      enqueueNotif({ type: 'fullscreen', player: achievingPlayer, cardCount, title });
     };
 
     const handleChatMessage = (message: { id: string; playerName: string; message: string; timestamp: number; isHelp?: boolean; isGymLeader?: boolean; gymLeaderImageUrl?: string }) => {
@@ -977,7 +1031,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         playDeathSound();
         /* K.O. banner — delay slightly so it appears after the initial flash */
         setTimeout(() => {
-          setKoBanner({ visible: true, cardName, cardOwner: cardOwner || '???', cardImage: cardImage || '', eliminationMode: false, isCurrentPlayer: false });
+          enqueueNotif({ type: 'kobanner', cardName, cardOwner: cardOwner || '???', cardImage: cardImage || '', eliminationMode: false, isCurrentPlayer: false });
         }, 350);
       }
       
@@ -989,15 +1043,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     const handlePersonaggioEnters = ({ cardName, message, cardImage }: { cardName: string, message: string, cardImage: string }) => {
       console.log('Personaggio enters:', { cardName, message, cardImage });
       playPersonaggioEnter();
-      setPersonaggioCardName(cardName);
-      setPersonaggioMessage(message);
-      setPersonaggioCardImage(cardImage);
-      setPersonaggioNotificationVisible(true);
-      
-      // Auto-hide after 4 seconds
-      setTimeout(() => {
-        setPersonaggioNotificationVisible(false);
-      }, 4000);
+      enqueueNotif({ type: 'personaggio', cardName, message, cardImage });
     };
 
     const handleCardsAdded = ({ playerName: addingPlayer, deckLabel, count }: { playerName: string, deckLabel: string, count: number }) => {
@@ -2018,16 +2064,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       playEffectActivate();
       
       // Show attachment notification to all players
-      setPersonaggioNotificationVisible(true);
-      setPersonaggioCardName(parasiticType);
-      setPersonaggioMessage(`${parasiticType} di ${ownerPlayer} si è agganciato a ${targetName} di ${targetPlayer}!`);
-      setPersonaggioCardImage(parasiticType === 'PARASSITA' 
-        ? 'https://i.postimg.cc/j5X32dn7/parassita.png'
-        : 'https://i.postimg.cc/RFs123nX/saibaim.png');
-      
-      setTimeout(() => {
-        setPersonaggioNotificationVisible(false);
-      }, 4000);
+      enqueueNotif({
+        type: 'personaggio',
+        cardName: parasiticType,
+        message: `${parasiticType} di ${ownerPlayer} si è agganciato a ${targetName} di ${targetPlayer}!`,
+        cardImage: parasiticType === 'PARASSITA'
+          ? 'https://i.postimg.cc/j5X32dn7/parassita.png'
+          : 'https://i.postimg.cc/RFs123nX/saibaim.png',
+      });
     };
     socket.on('parasitic-attached', handleParasiticAttached);
 
@@ -2057,19 +2101,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     }) => {
       console.log(`⛓️ OSTAGGIO applied: ${targetName} captured by ${captorPlayer}`);
       playHostageApplied();
-      setPersonaggioNotificationVisible(true);
-      setPersonaggioCardName('OSTAGGIO');
-      setPersonaggioMessage(`⛓️ ${captorPlayer} prende ${targetName} in OSTAGGIO per ${turnsRemaining} turni! (${damageDealt} danni inflitti)`);
-      setPersonaggioCardImage('');
+      enqueueNotif({ type: 'personaggio', cardName: 'OSTAGGIO', message: `⛓️ ${captorPlayer} prende ${targetName} in OSTAGGIO per ${turnsRemaining} turni! (${damageDealt} danni inflitti)`, cardImage: '' });
       // Vignette when our card is taken hostage and damaged
       if (originalOwner === playerName && damageDealt > 0) {
         if (damageVignetteTimerRef.current) clearTimeout(damageVignetteTimerRef.current);
         setDamageVignetteVisible(true);
         damageVignetteTimerRef.current = setTimeout(() => setDamageVignetteVisible(false), 700);
       }
-      setTimeout(() => {
-        setPersonaggioNotificationVisible(false);
-      }, 4000);
     };
     socket.on('hostage-applied', handleHostageApplied);
 
@@ -2090,14 +2128,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     }) => {
       console.log(`⛓️🔓 OSTAGGIO released: ${targetName} freed`);
       playHostageReleased();
-      setPersonaggioNotificationVisible(true);
-      setPersonaggioCardName('OSTAGGIO TERMINATO');
-      setPersonaggioMessage(`⛓️🔓 ${targetName} è stato liberato dall'OSTAGGIO e torna a ${originalOwner}!`);
-      setPersonaggioCardImage('');
-      
-      setTimeout(() => {
-        setPersonaggioNotificationVisible(false);
-      }, 4000);
+      enqueueNotif({ type: 'personaggio', cardName: 'OSTAGGIO TERMINATO', message: `⛓️🔓 ${targetName} è stato liberato dall'OSTAGGIO e torna a ${originalOwner}!`, cardImage: '' });
     };
     socket.on('hostage-released', handleHostageReleased);
 
@@ -2109,14 +2140,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     }) => {
       console.log(`⛓️💀 OSTAGGIO death: ${targetName} died`);
       playDeathSound();
-      setPersonaggioNotificationVisible(true);
-      setPersonaggioCardName('OSTAGGIO - MORTE');
-      setPersonaggioMessage(`⛓️💀 ${targetName} aveva meno di 300 PTI ed è morto sotto OSTAGGIO!`);
-      setPersonaggioCardImage('');
-      
-      setTimeout(() => {
-        setPersonaggioNotificationVisible(false);
-      }, 4000);
+      enqueueNotif({ type: 'personaggio', cardName: 'OSTAGGIO - MORTE', message: `⛓️💀 ${targetName} aveva meno di 300 PTI ed è morto sotto OSTAGGIO!`, cardImage: '' });
     };
     socket.on('hostage-died', handleHostageDied);
 
@@ -2321,8 +2345,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setTekkenMode(true);
       /* 2. Brief freeze before the banner pops */
       setTimeout(() => {
-        setKoBanner({
-          visible: true,
+        enqueueNotif({
+          type: 'kobanner',
           cardName: '',
           cardOwner: eliminatedPlayer,
           cardImage: '',
@@ -5857,6 +5881,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             onComplete={() => {
               if (koBanner.eliminationMode) setTekkenMode(false);
               setKoBanner({ visible: false, cardName: '', cardOwner: '', cardImage: '', eliminationMode: false, isCurrentPlayer: false });
+              activeNotifTypeRef.current = null;
+              advanceNotifQueue();
             }}
           />
         )}
@@ -6585,7 +6611,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           playerName={notificationPlayer}
           cardCount={notificationCardCount}
           title={notificationTitle}
-          onClose={() => setNotificationVisible(false)}
+          onClose={() => {
+            setNotificationVisible(false);
+            activeNotifTypeRef.current = null;
+            advanceNotifQueue();
+          }}
         />
 
         {/* Timed Effect Activated Banner */}
