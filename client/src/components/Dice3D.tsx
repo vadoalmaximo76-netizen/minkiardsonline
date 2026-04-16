@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { RoundedBox, Text } from '@react-three/drei';
 import * as THREE from 'three';
+import gsap from 'gsap';
 
 interface Dice3DProps {
   isRolling: boolean;
@@ -74,31 +75,14 @@ export const Dice3D: React.FC<Dice3DProps> = ({
   onRollComplete,
 }) => {
   const effectiveResult = result ?? finalValue ?? null;
+  const cubeRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const shadowRef = useRef<HTMLDivElement>(null);
   const wasRolling = useRef(false);
-  const styleId = useRef(`dice3d-${Math.random().toString(36).slice(2, 8)}`);
-
-  useEffect(() => {
-    if (isRolling) {
-      wasRolling.current = true;
-    } else if (wasRolling.current) {
-      wasRolling.current = false;
-      const timer = setTimeout(() => {
-        onRollComplete?.();
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [isRolling, onRollComplete]);
-
-  const rot = effectiveResult != null ? resultRotations[effectiveResult] : { x: 0, y: 0 };
-
-  let cubeTransform: string;
-  if (isRolling) {
-    cubeTransform = '';
-  } else {
-    cubeTransform = `rotateX(${rot.x}deg) rotateY(${rot.y}deg)`;
-  }
+  const rollingCtx = useRef<gsap.Context | null>(null);
 
   const half = size / 2;
+  const bounceHeight = Math.round(size * 0.6);
 
   const faces: { value: number; transform: string }[] = [
     { value: 1, transform: `rotateY(0deg) translateZ(${half}px)` },
@@ -109,53 +93,99 @@ export const Dice3D: React.FC<Dice3DProps> = ({
     { value: 4, transform: `rotateX(-90deg) translateZ(${half}px)` },
   ];
 
-  const sid = styleId.current;
-  const bounceHeight = Math.round(size * 0.6);
+  useEffect(() => {
+    if (isRolling) {
+      wasRolling.current = true;
+
+      rollingCtx.current?.kill();
+      rollingCtx.current = gsap.context(() => {
+        if (!cubeRef.current || !wrapperRef.current) return;
+
+        // Bounce timeline (looping)
+        const bounceTl = gsap.timeline({ repeat: -1 });
+        bounceTl
+          .to(wrapperRef.current, { y: -bounceHeight, scaleX: 0.95, scaleY: 0.95, duration: 0.1, ease: 'power1.out' }, 0)
+          .to(wrapperRef.current, { y: 0, scaleX: 1.05, scaleY: 0.95, duration: 0.1, ease: 'power1.in' }, 0.1)
+          .to(wrapperRef.current, { scaleX: 1, scaleY: 1, duration: 0.04, ease: 'none' }, 0.2)
+          .to(wrapperRef.current, { y: -bounceHeight * 0.55, duration: 0.08, ease: 'power1.out' }, 0.25)
+          .to(wrapperRef.current, { y: 0, duration: 0.08, ease: 'power1.in' }, 0.33)
+          .to(wrapperRef.current, { y: -bounceHeight * 0.3, duration: 0.06, ease: 'power1.out' }, 0.42)
+          .to(wrapperRef.current, { y: 0, duration: 0.06, ease: 'power1.in' }, 0.48)
+          .to(wrapperRef.current, { y: -bounceHeight * 0.12, duration: 0.04, ease: 'power1.out' }, 0.55)
+          .to(wrapperRef.current, { y: 0, duration: 0.04, ease: 'power1.in' }, 0.59)
+          .to(wrapperRef.current, { duration: 0.61 }, 0.6);
+
+        // Continuous cube tumble
+        gsap.to(cubeRef.current, {
+          rotateX: '+=1080',
+          rotateY: '+=800',
+          rotateZ: '+=560',
+          duration: 1.2,
+          ease: 'none',
+          repeat: -1,
+        });
+
+        // Shadow animation
+        if (shadowRef.current) {
+          gsap.set(shadowRef.current, { opacity: 0.4, scaleX: 1 });
+          const shadowTl = gsap.timeline({ repeat: -1 });
+          shadowTl
+            .to(shadowRef.current, { opacity: 0.15, scaleX: 1.8, duration: 0.1 }, 0.08)
+            .to(shadowRef.current, { opacity: 0.5, scaleX: 0.85, duration: 0.1 }, 0.16)
+            .to(shadowRef.current, { opacity: 0.2, scaleX: 1.4, duration: 0.1 }, 0.28)
+            .to(shadowRef.current, { opacity: 0.45, scaleX: 0.9, duration: 0.1 }, 0.36)
+            .to(shadowRef.current, { opacity: 0.4, scaleX: 1, duration: 0.1 }, 0.68)
+            .to(shadowRef.current, { duration: 0.52 }, 0.7);
+        }
+      });
+    } else if (wasRolling.current) {
+      wasRolling.current = false;
+
+      // Kill rolling animations
+      rollingCtx.current?.kill();
+      rollingCtx.current = null;
+
+      if (wrapperRef.current) {
+        gsap.set(wrapperRef.current, { y: 0, scaleX: 1, scaleY: 1 });
+      }
+      if (shadowRef.current) {
+        gsap.to(shadowRef.current, { opacity: 0.4, scaleX: 1, duration: 0.4 });
+      }
+
+      // Settle cube onto the correct face
+      const rot = effectiveResult != null ? resultRotations[effectiveResult] : { x: 0, y: 0 };
+      gsap.to(cubeRef.current, {
+        rotateX: rot.x,
+        rotateY: rot.y,
+        rotateZ: 0,
+        duration: 0.9,
+        ease: 'elastic.out(1, 0.5)',
+        onComplete: () => onRollComplete?.(),
+      });
+    }
+
+    return () => {
+      rollingCtx.current?.kill();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRolling]);
+
+  // Update face when result changes while not rolling
+  useEffect(() => {
+    if (!isRolling && !wasRolling.current && effectiveResult != null) {
+      const rot = resultRotations[effectiveResult];
+      gsap.to(cubeRef.current, {
+        rotateX: rot.x,
+        rotateY: rot.y,
+        rotateZ: 0,
+        duration: 0.4,
+        ease: 'power2.out',
+      });
+    }
+  }, [effectiveResult, isRolling]);
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <style>{`
-        @keyframes ${sid}-tumble {
-          0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
-          10% { transform: rotateX(120deg) rotateY(80deg) rotateZ(45deg); }
-          20% { transform: rotateX(250deg) rotateY(190deg) rotateZ(100deg); }
-          30% { transform: rotateX(400deg) rotateY(270deg) rotateZ(180deg); }
-          40% { transform: rotateX(520deg) rotateY(380deg) rotateZ(230deg); }
-          50% { transform: rotateX(650deg) rotateY(460deg) rotateZ(310deg); }
-          60% { transform: rotateX(790deg) rotateY(560deg) rotateZ(370deg); }
-          70% { transform: rotateX(900deg) rotateY(650deg) rotateZ(440deg); }
-          80% { transform: rotateX(980deg) rotateY(720deg) rotateZ(490deg); }
-          90% { transform: rotateX(1040deg) rotateY(770deg) rotateZ(530deg); }
-          100% { transform: rotateX(1080deg) rotateY(800deg) rotateZ(560deg); }
-        }
-        @keyframes ${sid}-bounce {
-          0% { transform: translateY(0) scale(1); }
-          8% { transform: translateY(-${bounceHeight}px) scale(0.95); }
-          16% { transform: translateY(0) scale(1.05, 0.95); }
-          20% { transform: translateY(0) scale(1); }
-          28% { transform: translateY(-${Math.round(bounceHeight * 0.55)}px) scale(0.97); }
-          36% { transform: translateY(0) scale(1.03, 0.97); }
-          40% { transform: translateY(0) scale(1); }
-          46% { transform: translateY(-${Math.round(bounceHeight * 0.3)}px) scale(0.98); }
-          52% { transform: translateY(0) scale(1.02, 0.98); }
-          56% { transform: translateY(0) scale(1); }
-          60% { transform: translateY(-${Math.round(bounceHeight * 0.12)}px) scale(0.99); }
-          64% { transform: translateY(0) scale(1.01, 0.99); }
-          68% { transform: translateY(0) scale(1); }
-          100% { transform: translateY(0) scale(1); }
-        }
-        @keyframes ${sid}-shadow {
-          0% { opacity: 0.4; transform: translateX(-50%) scale(1); }
-          8% { opacity: 0.15; transform: translateX(-50%) scale(1.8); }
-          16% { opacity: 0.5; transform: translateX(-50%) scale(0.85); }
-          28% { opacity: 0.2; transform: translateX(-50%) scale(1.4); }
-          36% { opacity: 0.45; transform: translateX(-50%) scale(0.9); }
-          46% { opacity: 0.25; transform: translateX(-50%) scale(1.2); }
-          52% { opacity: 0.4; transform: translateX(-50%) scale(0.95); }
-          68% { opacity: 0.4; transform: translateX(-50%) scale(1); }
-          100% { opacity: 0.4; transform: translateX(-50%) scale(1); }
-        }
-      `}</style>
       <div
         style={{
           position: 'relative',
@@ -166,27 +196,25 @@ export const Dice3D: React.FC<Dice3DProps> = ({
           justifyContent: 'center',
         }}
       >
-        {isRolling && (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '-4px',
-              left: '50%',
-              width: `${size * 0.7}px`,
-              height: `${size * 0.08}px`,
-              background: 'radial-gradient(ellipse, rgba(0,0,0,0.5) 0%, transparent 70%)',
-              borderRadius: '50%',
-              animation: `${sid}-shadow 1.2s cubic-bezier(0.25, 0.1, 0.25, 1) infinite`,
-              transformOrigin: 'center',
-            }}
-          />
-        )}
         <div
+          ref={shadowRef}
           style={{
-            animation: isRolling
-              ? `${sid}-bounce 1.2s cubic-bezier(0.25, 0.1, 0.25, 1) infinite`
-              : 'none',
+            position: 'absolute',
+            bottom: '-4px',
+            left: '50%',
+            width: `${size * 0.7}px`,
+            height: `${size * 0.08}px`,
+            background: 'radial-gradient(ellipse, rgba(0,0,0,0.5) 0%, transparent 70%)',
+            borderRadius: '50%',
+            transformOrigin: 'center',
+            transform: 'translateX(-50%)',
+            opacity: 0,
+            pointerEvents: 'none',
           }}
+        />
+        <div
+          ref={wrapperRef}
+          style={{ transformOrigin: 'center bottom' }}
         >
           <div
             style={{
@@ -196,16 +224,12 @@ export const Dice3D: React.FC<Dice3DProps> = ({
             }}
           >
             <div
+              ref={cubeRef}
               style={{
                 width: `${size}px`,
                 height: `${size}px`,
                 position: 'relative',
                 transformStyle: 'preserve-3d',
-                animation: isRolling
-                  ? `${sid}-tumble 1.2s cubic-bezier(0.25, 0.1, 0.25, 1) infinite`
-                  : 'none',
-                transform: !isRolling ? cubeTransform : undefined,
-                transition: !isRolling ? 'transform 0.9s cubic-bezier(0.22, 0.68, 0.35, 1.2)' : 'none',
               }}
             >
               {faces.map((face) => (
