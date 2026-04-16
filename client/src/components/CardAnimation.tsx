@@ -271,6 +271,7 @@ export const CardAnimation: React.FC<CardAnimationProps> = ({ isVisible, cardNam
   useEffect(() => {
     if (!isVisible) return;
 
+    // gsap.context captures only the infinite-repeat tweens for cleanup via ctx.revert()
     const ctx = gsap.context(() => {
       if (emojiRef.current) {
         gsap.fromTo(emojiRef.current,
@@ -308,21 +309,23 @@ export const CardAnimation: React.FC<CardAnimationProps> = ({ isVisible, cardNam
           { opacity: 1, duration: 0.35, ease: 'power2.out' }
         );
       }
-
-      const timer = setTimeout(() => {
-        gsap.to([emojiRef.current, nameRef.current, overlayRef.current].filter(Boolean), {
-          opacity: 0,
-          scale: 0.9,
-          duration: 0.3,
-          ease: 'power2.in',
-          onComplete: () => onCompleteRef.current(),
-        });
-      }, 2700);
-
-      return () => clearTimeout(timer);
     });
 
-    return () => ctx.revert();
+    // Timeout is hoisted to effect scope — guaranteed cleanup on unmount
+    const exitTimer = setTimeout(() => {
+      gsap.to([emojiRef.current, nameRef.current, overlayRef.current].filter(Boolean), {
+        opacity: 0,
+        scale: 0.9,
+        duration: 0.3,
+        ease: 'power2.in',
+        onComplete: () => onCompleteRef.current(),
+      });
+    }, 2700);
+
+    return () => {
+      ctx.revert();
+      clearTimeout(exitTimer);
+    };
   }, [isVisible]);
 
   if (!isVisible) return null;

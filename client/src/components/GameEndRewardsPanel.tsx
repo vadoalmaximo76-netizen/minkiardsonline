@@ -73,9 +73,11 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
     setDisplayedPoints(previousTotal);
     const container = panelRef.current?.parentElement;
 
+    // Declared outside context so cleanup can remove nodes on early unmount
+    const coinEls: HTMLDivElement[] = [];
+
     gsapCtx.current = gsap.context(() => {
       const coinCount = Math.min(Math.max(8, Math.floor(pointsEarned * 2)), 25);
-      const coinEls: HTMLDivElement[] = [];
 
       if (container) {
         for (let i = 0; i < coinCount; i++) {
@@ -217,6 +219,8 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
 
     return () => {
       if (gsapCtx.current) { gsapCtx.current.revert(); gsapCtx.current = null; }
+      // Remove any coin nodes that weren't cleaned up by the scheduled timeline callback
+      coinEls.forEach(el => el.parentNode && el.remove());
     };
   }, [visible, pointsEarned, previousTotal, newTotal]); // eslint-disable-line react-hooks/exhaustive-deps
 
