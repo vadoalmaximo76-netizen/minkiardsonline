@@ -2244,8 +2244,65 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                 <p className="text-white/20 text-xs mt-1">Tutti gli stage sono temporaneamente disabilitati</p>
               </div>
             ) : (
-              <div style={{ position: 'relative', width: '100%', minHeight: GYM_PATH_TOP_PAD + activeLeaders.length * GYM_PATH_NODE_H + 32 }}>
+              <div style={{ position: 'relative', width: '100%', minHeight: GYM_PATH_TOP_PAD + activeLeaders.length * GYM_PATH_NODE_H + (allLeadersCompleted ? GYM_PATH_NODE_H + 32 : 32) }}>
                 <GymPathSVG count={activeLeaders.length} />
+
+                {allLeadersCompleted && (
+                  <div style={{ position: 'absolute', top: GYM_PATH_TOP_PAD + activeLeaders.length * GYM_PATH_NODE_H, left: 0, right: 0, height: GYM_PATH_NODE_H, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
+                    {/* Connector line from last leader */}
+                    <div style={{ width: 3, height: 28, background: 'linear-gradient(to bottom, rgba(251,191,36,0.4), rgba(251,191,36,0.9))', borderRadius: 99, marginBottom: 6 }} />
+                    <button
+                      onClick={() => {
+                        if (!secretRoomEverRevealedRef.current) {
+                          secretRoomEverRevealedRef.current = true;
+                          setSecretRoomRevealing(true);
+                        } else {
+                          setShowSecretRoom(true);
+                        }
+                      }}
+                      style={{
+                        background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                      }}
+                    >
+                      <div style={{ position: 'relative' }}>
+                        <div style={{
+                          position: 'absolute', inset: -8, borderRadius: '50%',
+                          border: '2.5px solid rgba(251,191,36,0.6)',
+                          animation: 'gymNodePulse 1.9s ease-out infinite',
+                        }} />
+                        <div style={{
+                          position: 'absolute', inset: -12, borderRadius: '50%',
+                          border: '2px dashed rgba(251,191,36,0.25)',
+                          animation: 'gymNodeSpin 6s linear infinite',
+                        }} />
+                        <div style={{
+                          width: 66, height: 66, borderRadius: '50%',
+                          border: '3px solid #fbbf24',
+                          background: 'linear-gradient(135deg,#78350f,#92400e,#1c0a00)',
+                          boxShadow: '0 0 24px #fbbf24aa, 0 0 48px rgba(251,191,36,0.3)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          animation: 'gymNodeGlow 2.4s ease-in-out infinite',
+                          position: 'relative',
+                          overflow: 'hidden',
+                        }}>
+                          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(105deg,transparent 25%,rgba(255,255,255,0.12) 50%,transparent 75%)', backgroundSize: '400% auto', animation: 'gymCardShimmer 3s linear infinite' }} />
+                          <span style={{ fontSize: 22, fontWeight: 900, color: '#fbbf24', letterSpacing: '0.05em', position: 'relative', zIndex: 1, textShadow: '0 0 12px #fbbf24' }}>???</span>
+                        </div>
+                      </div>
+                      <div style={{
+                        background: 'linear-gradient(135deg,rgba(120,53,15,0.85),rgba(30,10,0,0.9))',
+                        border: '1.5px solid rgba(251,191,36,0.5)',
+                        borderRadius: 14, padding: '7px 20px',
+                        boxShadow: '0 4px 20px rgba(251,191,36,0.2)',
+                        textAlign: 'center',
+                      }}>
+                        <p style={{ margin: 0, fontSize: 13, fontWeight: 900, color: '#fbbf24', letterSpacing: '0.12em', textTransform: 'uppercase', textShadow: '0 0 8px rgba(251,191,36,0.6)' }}>La Stanza Segreta</p>
+                        <p style={{ margin: '3px 0 0', fontSize: 10, color: 'rgba(251,191,36,0.6)', fontWeight: 700 }}>Tocca per scoprire…</p>
+                      </div>
+                    </button>
+                  </div>
+                )}
 
                 {activeLeaders.map((leader, idx) => {
                   const status = getLeaderStatus(leader);
