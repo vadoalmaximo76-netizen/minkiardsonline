@@ -3,8 +3,9 @@ import {
   Gamepad2, GraduationCap, Users, User, Trophy, Clock, Star, Award, Sparkles,
   Settings, Shuffle, Shield, Crown, Sword, Swords, Zap, Flame, Heart, BookOpen, Globe,
   Lock, Bell, Gift, Target, Rocket, ChevronUp, ChevronDown, Trash2, Edit3,
-  Plus, X, Check, GripVertical, Play, TrendingUp
+  Plus, X, Check, GripVertical, Play, TrendingUp, RotateCcw
 } from 'lucide-react';
+import { socket } from '../lib/socket';
 import { TournamentPanel } from './TournamentPanel';
 import { ClubPanel } from './ClubPanel';
 import { SeasonalEventsPanel } from './SeasonalEventsPanel';
@@ -44,6 +45,7 @@ interface HomeScreenProps {
   onInitialShowTournamentsHandled?: () => void;
   pendingTournamentGame?: { gameId: string };
   onResumeTournamentGame?: (gameId: string) => void;
+  onRejoinLastGame?: (gameId: string) => void;
 }
 
 interface UserStats {
@@ -505,8 +507,10 @@ const PARTICLES = Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
   color: PARTICLE_COLORS[i % 7],
 }));
 
-export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMatch, userEmail, initialShowTournaments, onInitialShowTournamentsHandled, pendingTournamentGame, onResumeTournamentGame }: HomeScreenProps) {
+export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMatch, userEmail, initialShowTournaments, onInitialShowTournamentsHandled, pendingTournamentGame, onResumeTournamentGame, onRejoinLastGame }: HomeScreenProps) {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [lastGameId, setLastGameId] = useState<string | null>(() => localStorage.getItem('mink_lastGameId'));
+  const [rejoining, setRejoining] = useState(false);
   const [activeRoomsCount, setActiveRoomsCount] = useState(0);
   const [tickerQuotes, setTickerQuotes] = useState<string[]>([]);
   const [tickerEditOpen, setTickerEditOpen] = useState(false);
@@ -637,6 +641,16 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
   }, []);
 
   useEffect(() => {
+    const handleRejoinError = () => {
+      setLastGameId(null);
+      setRejoining(false);
+      localStorage.removeItem('mink_lastGameId');
+    };
+    socket.on('join-game-error', handleRejoinError);
+    return () => { socket.off('join-game-error', handleRejoinError); };
+  }, []);
+
+  useEffect(() => {
     if (userStats) {
       const { progress } = getTierInfo(userStats.puntiRankiard, rankiardTiers);
       const timer = setTimeout(() => setBarWidth(progress), 200);
@@ -702,6 +716,12 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
     } else if (action === 'modal:leaderboard' || action === 'navigate:leaderboard') {
       onNavigate('leaderboard');
     }
+  };
+
+  const handleRejoinClick = () => {
+    if (!lastGameId || !onRejoinLastGame) return;
+    setRejoining(true);
+    onRejoinLastGame(lastGameId);
   };
 
   const visiblePanels = panels.filter(p => !p.adminOnly || isAdmin);
@@ -777,6 +797,50 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
             )}
           </div>
         </header>
+
+        {/* ── Rejoin last game banner ── */}
+        {lastGameId && onRejoinLastGame && (
+          <div style={{ padding: '10px 16px 0' }}>
+            <button
+              onClick={handleRejoinClick}
+              disabled={rejoining}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                padding: '12px 20px',
+                borderRadius: 14,
+                border: '1px solid rgba(251,191,36,0.45)',
+                background: rejoining
+                  ? 'rgba(120,90,10,0.45)'
+                  : 'linear-gradient(135deg, rgba(120,70,0,0.7) 0%, rgba(161,98,7,0.65) 100%)',
+                cursor: rejoining ? 'default' : 'pointer',
+                boxShadow: rejoining ? 'none' : '0 0 18px rgba(251,191,36,0.22), 0 4px 16px rgba(0,0,0,0.4)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <RotateCcw
+                size={16}
+                style={{
+                  color: '#fbbf24',
+                  animation: rejoining ? 'spin 1s linear infinite' : 'none',
+                  flexShrink: 0,
+                }}
+              />
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#fde68a', letterSpacing: '-0.01em', lineHeight: 1.2 }}>
+                  {rejoining ? 'Connessione in corso…' : 'Torna alla partita'}
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(253,230,138,0.65)', fontWeight: 500, marginTop: 1 }}>
+                  Hai una partita in sospeso — rientra ora
+                </div>
+              </div>
+            </button>
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+          </div>
+        )}
 
         {/* ── Top two-column section: score/rank + daily challenge ── */}
         <section style={{ padding: '16px 16px 0' }}>

@@ -845,6 +845,7 @@ function App() {
             onInitialShowTournamentsHandled={() => setOpenHomeTournaments(false)}
             pendingTournamentGame={pendingTournamentGame ?? undefined}
             onResumeTournamentGame={(gameId) => handleResumeGame(gameId, authenticatedUser?.username || playerName)}
+            onRejoinLastGame={(gameId) => handleResumeGame(gameId, authenticatedUser?.username || playerName)}
           />
         </div>
         <SpotifyPlayer disabled={false} />
