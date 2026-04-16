@@ -437,6 +437,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [chosenFaction, setChosenFaction] = useState<string | null>(null);
   const [showWizardCardReveal, setShowWizardCardReveal] = useState(false);
   const [cardEffects, setCardEffects] = useState<Record<string, string>>({});
+  const [introTaunt, setIntroTaunt] = useState<string | null>(null);
   const [defeatMsgVisible, setDefeatMsgVisible] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
@@ -683,6 +684,19 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   useEffect(() => {
     selectedLeaderRef.current = selectedLeader;
   }, [selectedLeader]);
+
+  useEffect(() => {
+    if (phase === 'intro' && selectedLeader) {
+      const msgs = selectedLeader.leaderMessages?.gameStart;
+      if (Array.isArray(msgs) && msgs.length > 0) {
+        setIntroTaunt(msgs[Math.floor(Math.random() * msgs.length)]);
+      } else {
+        setIntroTaunt(null);
+      }
+    } else {
+      setIntroTaunt(null);
+    }
+  }, [phase, selectedLeader]);
 
   useEffect(() => {
     gameIdRef.current = gameId;
@@ -1752,6 +1766,44 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                     } as React.CSSProperties}
                   />
                 ))}
+              </div>
+            )}
+
+            {/* Boss opening taunt — speech bubble slides up ~500ms after boss image lands (~700ms entry + 500ms delay) */}
+            {introTaunt && (
+              <div
+                className="flex items-start gap-2 max-w-xs w-full"
+                style={{ animation: 'gymIntroSlideUp 480ms ease-out 1200ms both' }}
+              >
+                {/* Tail + bubble layout */}
+                <div className="flex items-start gap-0 w-full">
+                  {/* Bubble */}
+                  <div
+                    className="relative rounded-2xl rounded-tl-sm flex-1"
+                    style={{
+                      background: 'linear-gradient(135deg,rgba(0,0,0,0.88),rgba(10,5,0,0.92))',
+                      border: '1.5px solid rgba(245,158,11,0.40)',
+                      boxShadow: '0 4px 24px rgba(0,0,0,0.55), inset 0 1px 0 rgba(245,158,11,0.08)',
+                      backdropFilter: 'blur(14px)',
+                      padding: '10px 14px',
+                    }}
+                  >
+                    {/* Top-left tail */}
+                    <div style={{
+                      position: 'absolute', top: 10, left: -7,
+                      width: 0, height: 0,
+                      borderTop: '7px solid transparent',
+                      borderBottom: '7px solid transparent',
+                      borderRight: '8px solid rgba(245,158,11,0.40)',
+                    }} />
+                    <div className="font-black text-[10px] mb-1 flex items-center gap-1" style={{ color: '#fbbf24', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+                      💬 {selectedLeader.name}
+                    </div>
+                    <p className="text-sm font-semibold leading-snug italic" style={{ color: 'rgba(255,235,180,0.90)' }}>
+                      "{introTaunt}"
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
