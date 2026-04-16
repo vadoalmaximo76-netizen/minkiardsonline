@@ -3335,3 +3335,159 @@ button:not([disabled]):active {
   90%  { transform: translateX(2px); }
 }
 .gb-timer-wiggle { animation: gb-timer-wiggle 0.4s ease-in-out infinite; }
+
+/* ═══════════════════════════════════════════════════════════════
+   CARD VISUAL EFFECTS — card-vfx-* classes
+   Base state: subtle idle loop. Active turn: amplified via GSAP.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Holographic ─────────────────────────────────────────────── */
+@keyframes vfx-holo-sweep {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.card-vfx-holographic {
+  background: linear-gradient(
+    125deg,
+    rgba(255,0,128,0.0) 0%,
+    rgba(255,0,128,0.28) 15%,
+    rgba(255,165,0,0.28) 30%,
+    rgba(255,255,0,0.20) 45%,
+    rgba(0,255,128,0.28) 60%,
+    rgba(0,128,255,0.28) 75%,
+    rgba(128,0,255,0.20) 90%,
+    rgba(255,0,128,0.0) 100%
+  );
+  background-size: 300% 300%;
+  animation: vfx-holo-sweep 3.5s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+.card-vfx-holographic[data-active="true"] {
+  animation-duration: 1.4s;
+}
+
+/* ── Gloss ───────────────────────────────────────────────────── */
+@keyframes vfx-gloss-sweep {
+  0%   { transform: translateX(-120%) skewX(-15deg); opacity: 0; }
+  20%  { opacity: 1; }
+  50%  { transform: translateX(120%) skewX(-15deg); opacity: 1; }
+  51%  { opacity: 0; }
+  100% { transform: translateX(120%) skewX(-15deg); opacity: 0; }
+}
+.card-vfx-gloss {
+  background: transparent;
+  overflow: hidden;
+}
+.card-vfx-gloss::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255,255,255,0.55) 50%,
+    transparent 65%
+  );
+  animation: vfx-gloss-sweep 3s ease-in-out infinite;
+}
+.card-vfx-gloss[data-active="true"]::before {
+  animation-duration: 1.2s;
+}
+
+/* ── Sparkle ─────────────────────────────────────────────────── */
+@keyframes vfx-sparkle {
+  0%   { opacity: 0; transform: scale(0) rotate(0deg); }
+  30%  { opacity: 1; transform: scale(1.1) rotate(90deg); }
+  70%  { opacity: 0.8; transform: scale(0.9) rotate(180deg); }
+  100% { opacity: 0; transform: scale(0) rotate(270deg); }
+}
+.card-sparkle-dot {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 30%, rgba(255,220,100,0.8) 70%, transparent 100%);
+  box-shadow: 0 0 6px 2px rgba(255,220,100,0.7), 0 0 3px 1px #fff;
+  animation: vfx-sparkle 1.8s ease-in-out infinite;
+  animation-delay: calc(var(--sp-i, 0) * 0.26s);
+  left: calc(14% + var(--sp-i, 0) * 11%);
+  top: calc(18% + (var(--sp-i, 0) % 3) * 23%);
+}
+.card-vfx-sparkle[data-active="true"] .card-sparkle-dot {
+  animation-duration: 0.8s;
+  width: 7px;
+  height: 7px;
+}
+
+/* ── Aurora ──────────────────────────────────────────────────── */
+@keyframes vfx-aurora {
+  0%   { background-position: 0% 0%; }
+  50%  { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
+}
+.card-vfx-aurora {
+  background: linear-gradient(
+    160deg,
+    rgba(0,255,180,0.0) 0%,
+    rgba(0,200,255,0.22) 25%,
+    rgba(120,0,255,0.22) 50%,
+    rgba(0,255,180,0.20) 75%,
+    rgba(0,200,255,0.0) 100%
+  );
+  background-size: 200% 200%;
+  animation: vfx-aurora 4s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+.card-vfx-aurora[data-active="true"] {
+  animation-duration: 1.6s;
+}
+
+/* ── Fire ────────────────────────────────────────────────────── */
+@keyframes vfx-fire-rise {
+  0%   { transform: translateY(0%) scaleX(1); opacity: 0.9; }
+  50%  { transform: translateY(-8%) scaleX(1.04); opacity: 1; }
+  100% { transform: translateY(0%) scaleX(1); opacity: 0.9; }
+}
+@keyframes vfx-fire-flicker {
+  0%   { transform: translateY(0%) scaleX(1) skewX(0deg); }
+  25%  { transform: translateY(-5%) scaleX(0.97) skewX(1deg); }
+  50%  { transform: translateY(-10%) scaleX(1.03) skewX(-1deg); }
+  75%  { transform: translateY(-5%) scaleX(0.98) skewX(1deg); }
+  100% { transform: translateY(0%) scaleX(1) skewX(0deg); }
+}
+.card-fire-layer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 45%;
+  border-radius: 0 0 12px 12px;
+}
+.card-fire-layer-1 {
+  background: linear-gradient(
+    to top,
+    rgba(255,60,0,0.72) 0%,
+    rgba(255,140,0,0.50) 40%,
+    rgba(255,200,0,0.25) 75%,
+    transparent 100%
+  );
+  animation: vfx-fire-rise 1.4s ease-in-out infinite;
+}
+.card-fire-layer-2 {
+  background: linear-gradient(
+    to top,
+    rgba(255,100,0,0.45) 0%,
+    rgba(255,200,50,0.25) 50%,
+    transparent 100%
+  );
+  height: 35%;
+  animation: vfx-fire-flicker 1s ease-in-out infinite;
+}
+.card-vfx-fire[data-active="true"] .card-fire-layer-1 {
+  animation-duration: 0.7s;
+  height: 60%;
+}
+.card-vfx-fire[data-active="true"] .card-fire-layer-2 {
+  animation-duration: 0.5s;
+}

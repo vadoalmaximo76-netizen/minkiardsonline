@@ -110,6 +110,7 @@ export const cardModifications = pgTable("card_modifications", {
   modifiedBy: text("modified_by"), // Admin email who modified
   modifiedAt: timestamp("modified_at").notNull().defaultNow(),
   draftCost: integer("draft_cost").default(0), // Cost in draft credits to buy this card
+  visualEffect: text("visual_effect"), // Animated visual effect: holographic, gloss, sparkle, aurora, fire
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({

@@ -835,6 +835,7 @@ interface ExistingCard {
   isDeleted: boolean;
   isModified: boolean;
   draftCost: number | null;
+  visualEffect: string | null;
 }
 
 export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose }) => {
@@ -880,7 +881,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     specialCategory: '',
     evolvedMoves: { range1: { name: '', damage: '' }, range2: { name: '', damage: '' } },
     superAttacco: { name: '', damage: '' },
-    draftCost: '0'
+    draftCost: '0',
+    visualEffect: ''
   });
   const [pendingChanges, setPendingChanges] = useState<Map<string, {card: ExistingCard, formData: typeof existingEditForm}>>(new Map());
   const [isBulkSaving, setIsBulkSaving] = useState(false);
@@ -1605,7 +1607,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         specialCategory: card.specialCategory || '',
         evolvedMoves: card.evolvedMoves || { range1: { name: '', damage: '' }, range2: { name: '', damage: '' } },
         superAttacco: card.superAttacco || { name: '', damage: '' },
-        draftCost: (card.draftCost ?? 0).toString()
+        draftCost: (card.draftCost ?? 0).toString(),
+        visualEffect: card.visualEffect || ''
       });
     }
     setEditingExistingCard(card.id);
@@ -1654,7 +1657,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         specialCategory: formData.specialCategory || null,
         evolvedMoves: (formData.evolvedMoves?.range1?.name || formData.evolvedMoves?.range1?.damage || formData.evolvedMoves?.range2?.name || formData.evolvedMoves?.range2?.damage) ? formData.evolvedMoves : null,
         superAttacco: (formData.superAttacco?.name || formData.superAttacco?.damage) ? formData.superAttacco : null,
-        draftCost: formData.draftCost ? parseInt(formData.draftCost) : 0
+        draftCost: formData.draftCost ? parseInt(formData.draftCost) : 0,
+        visualEffect: formData.visualEffect || null
       };
 
       const response = await fetch('/api/admin/card-modifications-bulk', {
@@ -1729,7 +1733,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         specialCategory: formData.specialCategory || null,
         evolvedMoves: (formData.evolvedMoves?.range1?.name || formData.evolvedMoves?.range1?.damage || formData.evolvedMoves?.range2?.name || formData.evolvedMoves?.range2?.damage) ? formData.evolvedMoves : null,
         superAttacco: (formData.superAttacco?.name || formData.superAttacco?.damage) ? formData.superAttacco : null,
-        draftCost: formData.draftCost ? parseInt(formData.draftCost) : 0
+        draftCost: formData.draftCost ? parseInt(formData.draftCost) : 0,
+        visualEffect: formData.visualEffect || null
       }));
       
       const response = await fetch('/api/admin/card-modifications-bulk', {
@@ -3447,6 +3452,32 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                 placeholder="0"
                                 className="bg-gray-600 text-white border-gray-500 w-40"
                               />
+                            </div>
+
+                            {/* Visual Effect */}
+                            <div className="p-3 bg-purple-900/30 rounded-lg border border-purple-500/50">
+                              <div className="text-purple-300 text-sm font-bold mb-2">✨ EFFETTO VISIVO</div>
+                              <p className="text-gray-400 text-xs mb-3">Effetto animato persistente sulla carta, visibile ovunque sia in uso. A riposo è sottile; si amplifica durante il turno attivo della carta.</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                {[
+                                  { value: '', label: '⬜ Nessuno', desc: 'Nessun effetto visivo' },
+                                  { value: 'holographic', label: '🌈 Olografico', desc: 'Riflesso arcobaleno rotante' },
+                                  { value: 'gloss', label: '✨ Gloss', desc: 'Lucido con riflesso bianco' },
+                                  { value: 'sparkle', label: '⭐ Scintillio', desc: 'Particelle luminose danzanti' },
+                                  { value: 'aurora', label: '🌌 Aurora', desc: 'Bagliore aurora boreale' },
+                                  { value: 'fire', label: '🔥 Fuoco', desc: 'Fiamme animate sulla carta' },
+                                ].map(opt => (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => setExistingEditForm(prev => ({ ...prev, visualEffect: opt.value }))}
+                                    className={`text-left px-3 py-2 rounded-lg border transition-all text-xs ${existingEditForm.visualEffect === opt.value ? 'border-purple-400 bg-purple-800/50 text-white' : 'border-gray-600 bg-gray-700/50 text-gray-300 hover:border-purple-500/60'}`}
+                                  >
+                                    <div className="font-semibold">{opt.label}</div>
+                                    <div className="text-gray-400 text-[10px] mt-0.5">{opt.desc}</div>
+                                  </button>
+                                ))}
+                              </div>
                             </div>
                             
                             {/* MOSSE Damage Settings */}

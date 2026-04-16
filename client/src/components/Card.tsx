@@ -159,6 +159,7 @@ interface CardProps {
     barrieraProtecting?: string;
     barrieraPTI?: number;
     appliedSkinUrl?: string | null;
+    visualEffect?: string | null;
     stars?: number;
     pti?: number;
     mosseDamageValue?: number;
@@ -207,6 +208,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   }>>([]);
   const cardRef = useRef<HTMLDivElement>(null);
   const attackWrapperRef = useRef<HTMLDivElement>(null);
+  const visualEffectRef = useRef<HTMLDivElement>(null);
   const [showDamageInput, setShowDamageInput] = useState(false);
   const [damageValue, setDamageValue] = useState("");
   const [starsToRemove, setStarsToRemove] = useState("");
@@ -368,7 +370,32 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   }, [isNewlyPlaced, location]);
 
   const currentTurnPlayer = gameState?.turnOrder?.[gameState?.currentTurnIndex ?? -1];
+  const isCardActiveTurn = currentTurnPlayer === card.owner;
   const isMyTurn = currentTurnPlayer === playerName;
+
+  // GSAP: visual effect overlay — amplify on active turn, idle loop otherwise
+  useEffect(() => {
+    const el = visualEffectRef.current;
+    if (!el || !card.visualEffect) return;
+    const isActive = isCardActiveTurn && (location === 'field' || location === 'hand');
+    if (isActive) {
+      gsap.to(el, {
+        opacity: 1,
+        filter: 'brightness(1.35) saturate(1.6)',
+        duration: 0.45,
+        ease: 'power2.out',
+      });
+      el.setAttribute('data-active', 'true');
+    } else {
+      gsap.to(el, {
+        opacity: 0.55,
+        filter: 'brightness(1) saturate(1)',
+        duration: 0.6,
+        ease: 'power2.out',
+      });
+      el.setAttribute('data-active', 'false');
+    }
+  }, [isCardActiveTurn, card.visualEffect, location]);
   const isPlayable = location === 'hand' && isMyTurn;
 
   const gamepadFocusZone = useGamepadStore(s => s.focusZone);
@@ -1786,6 +1813,30 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               ${skinAnimation || ''}`}
           style={isNewlyDrawn && location === 'hand' ? { animationDelay: `${drawAnimationDelay}ms` } : undefined}
           />
+
+          {/* ── VISUAL EFFECT OVERLAY ───────────────────────────────────────── */}
+          {card.visualEffect && !card.faceDown && !showBack && (
+            <div
+              ref={visualEffectRef}
+              className={`absolute inset-0 rounded-xl pointer-events-none overflow-hidden card-vfx card-vfx-${card.visualEffect}`}
+              style={{ opacity: 0.55 }}
+            >
+              {card.visualEffect === 'sparkle' && (
+                <>
+                  {[...Array(7)].map((_, i) => (
+                    <div key={i} className="card-sparkle-dot" style={{ '--sp-i': i } as React.CSSProperties} />
+                  ))}
+                </>
+              )}
+              {card.visualEffect === 'fire' && (
+                <>
+                  <div className="card-fire-layer card-fire-layer-1" />
+                  <div className="card-fire-layer card-fire-layer-2" />
+                </>
+              )}
+            </div>
+          )}
+
           {isHovered && location === 'field' && !card.faceDown && !showBack && (
             <>
               <div 
@@ -2962,6 +3013,7 @@ export const Card = memo(CardComponent, (prevProps, nextProps) => {
     prevCard.isBarrieraShield === nextCard.isBarrieraShield &&
     prevCard.barrieraPTI === nextCard.barrieraPTI &&
     prevCard.appliedSkinUrl === nextCard.appliedSkinUrl &&
+    prevCard.visualEffect === nextCard.visualEffect &&
     prevCard.frozenTurns === nextCard.frozenTurns &&
     prevCard.poisonTurns === nextCard.poisonTurns &&
     prevCard.isLocked === nextCard.isLocked &&

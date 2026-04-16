@@ -44,6 +44,7 @@ interface Card {
   used?: boolean; // Whether this MOSSE card has been used this turn
   usedBy?: string; // Player who used this MOSSE card
   // Audio for custom cards
+  visualEffect?: string | null; // Animated visual effect: holographic, gloss, sparkle, aurora, fire
   audioUrl?: string; // URL to audio file to play when card is placed on field
   attackLowAudioUrl?: string; // Audio URL to play when character attacks with a MOSSE that has < 150 base PTI damage
   attackHighAudioUrl?: string; // Audio URL to play when character attacks with a MOSSE that has >= 150 base PTI damage
@@ -932,7 +933,8 @@ export class GameManager {
     if (mod.pti !== null && mod.pti !== undefined) card.pti = mod.pti;
     if (mod.stars !== null && mod.stars !== undefined) card.stars = mod.stars;
     if (mod.effect) card.effect = mod.effect;
-    // Always update audioUrl and youtubeUrl (including clearing if null/undefined)
+    // Always update visualEffect and audioUrl (including clearing if null/undefined)
+    card.visualEffect = mod.visualEffect || undefined;
     card.audioUrl = mod.audioUrl || undefined;
     card.attackLowAudioUrl = mod.attackLowAudioUrl || undefined;
     card.attackHighAudioUrl = mod.attackHighAudioUrl || undefined;
@@ -8679,6 +8681,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             pti: mod?.pti ?? computedPti,
             stars: mod?.stars ?? computedStars,
             placedBy: activeChar.placedBy || playerName,
+            visualEffect: mod?.visualEffect || undefined,
             audioUrl: mod?.audioUrl || undefined,
             attackLowAudioUrl: mod?.attackLowAudioUrl || undefined,
             attackHighAudioUrl: mod?.attackHighAudioUrl || undefined,
