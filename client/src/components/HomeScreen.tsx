@@ -273,6 +273,30 @@ const HOME_STYLES = `
     0%, 100% { box-shadow: 0 0 20px rgba(34,197,94,0.4), 0 8px 32px rgba(0,0,0,0.4); }
     50%       { box-shadow: 0 0 36px rgba(34,197,94,0.65), 0 8px 32px rgba(0,0,0,0.4); }
   }
+  @keyframes trainingPulseGlow {
+    0%, 100% {
+      box-shadow:
+        0 0 0 0 rgba(0,219,154,0),
+        0 0 18px rgba(0,219,154,0.45),
+        0 0 36px rgba(0,224,240,0.3),
+        0 10px 30px rgba(0,0,0,0.4);
+    }
+    50% {
+      box-shadow:
+        0 0 0 6px rgba(0,219,154,0.18),
+        0 0 32px rgba(0,219,154,0.75),
+        0 0 64px rgba(0,224,240,0.55),
+        0 10px 30px rgba(0,0,0,0.4);
+    }
+  }
+  @keyframes trainingBorderGlow {
+    0%, 100% { opacity: 0.55; transform: scale(1); }
+    50%       { opacity: 1;    transform: scale(1.03); }
+  }
+  @keyframes trainingBeacon {
+    0%   { transform: scale(0.8); opacity: 0.9; }
+    100% { transform: scale(2.4); opacity: 0; }
+  }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 `;
@@ -497,6 +521,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
   const [saving, setSaving] = useState(false);
   const [barWidth, setBarWidth] = useState(0);
   const [giocaHovered, setGiocaHovered] = useState(false);
+  const [trainingHighlight, setTrainingHighlight] = useState(false);
   const [homeConfig, setHomeConfig] = useState<HomeConfig>(DEFAULT_HOME_CONFIG);
   const [rankiardTiers, setRankiardTiers] = useState<RankTier[]>(DEFAULT_RANK_TIERS);
   const [editingHomeConfig, setEditingHomeConfig] = useState(false);
@@ -580,6 +605,13 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
           if (statsRes.ok) {
             const data = await statsRes.json();
             setUserStats({ puntiRankiard: data.user.puntiRankiard || 0, gamesPlayed: data.user.gamesPlayed || 0, gamesWon: data.user.gamesWon || 0 });
+            const alreadyPrompted = localStorage.getItem('minkiards-training-prompted');
+            const tutorialLocallyCompleted = localStorage.getItem('minkiards-tutorial-completed');
+            if (!data.user.tutorialCompleted && !alreadyPrompted && !tutorialLocallyCompleted) {
+              setTrainingHighlight(true);
+            } else {
+              setTrainingHighlight(false);
+            }
           }
         }
         const roomsRes = await fetch('/api/active-rooms');
@@ -653,6 +685,10 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
 
   const handlePanelClick = (panel: HomePanel) => {
     if (editMode) return;
+    if (panel.panelKey === 'training') {
+      if (trainingHighlight) setTrainingHighlight(false);
+      localStorage.setItem('minkiards-training-prompted', '1');
+    }
     const action = PANEL_KEY_ACTIONS[panel.panelKey];
     if (!action) return;
     if (action.startsWith('navigate:')) {
@@ -976,12 +1012,50 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
                 ? (activeRoomsCount > 0 ? `${activeRoomsCount} attive` : (panel.badge || 'Nessuna'))
                 : panel.badge;
 
+              const isTrainingNew = trainingHighlight && panel.panelKey === 'training';
               return (
                 <div key={panel.id} style={{ position: 'relative' }}>
-                  {isHovered && !editMode && (
+                  {isTrainingNew && !editMode && (
+                    <div style={{
+                      position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)',
+                      zIndex: 10, whiteSpace: 'nowrap',
+                      background: 'linear-gradient(90deg, #00db9a, #00c4f5)',
+                      color: '#003d2e', fontWeight: 800, fontSize: 10,
+                      padding: '3px 10px', borderRadius: 999,
+                      boxShadow: '0 2px 12px rgba(0,219,154,0.5)',
+                      letterSpacing: '0.06em', textTransform: 'uppercase',
+                      pointerEvents: 'none',
+                    }}>
+                      ✦ Inizia qui
+                    </div>
+                  )}
+                  {isTrainingNew && !editMode && (
+                    <>
+                      <div style={{
+                        position: 'absolute', inset: -4, borderRadius: 30, pointerEvents: 'none', zIndex: 0,
+                        background: 'linear-gradient(135deg, #00db9a, #00e0f0)',
+                        animation: 'trainingBorderGlow 1.6s ease-in-out infinite',
+                        filter: 'blur(10px)',
+                      }} />
+                      <div style={{
+                        position: 'absolute', inset: -10, borderRadius: 36, pointerEvents: 'none', zIndex: 0,
+                        background: 'radial-gradient(circle, rgba(0,219,154,0.25) 0%, transparent 70%)',
+                        animation: 'trainingBorderGlow 1.6s ease-in-out infinite',
+                      }} />
+                    </>
+                  )}
+                  {isHovered && !editMode && !isTrainingNew && (
                     <div style={{
                       position: 'absolute', inset: -3, borderRadius: 28, pointerEvents: 'none', zIndex: 0,
                       background: `linear-gradient(135deg, ${panel.gradientFrom}, ${panel.gradientTo})`,
+                      animation: 'cardGlowBorder 1.4s ease-in-out infinite',
+                      filter: 'blur(8px)',
+                    }} />
+                  )}
+                  {isHovered && !editMode && isTrainingNew && (
+                    <div style={{
+                      position: 'absolute', inset: -3, borderRadius: 28, pointerEvents: 'none', zIndex: 0,
+                      background: 'linear-gradient(135deg, #00db9a, #00e0f0)',
                       animation: 'cardGlowBorder 1.4s ease-in-out infinite',
                       filter: 'blur(8px)',
                     }} />
@@ -1002,13 +1076,20 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
                         aspectRatio: '1 / 1',
                         background: `linear-gradient(135deg, ${panel.gradientFrom}, ${panel.gradientTo})`,
                         borderRadius: 22, padding: '28px 16px',
-                        border: editMode ? '2px dashed rgba(255,255,255,0.4)' : `1px solid ${isHovered ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)'}`,
+                        border: editMode
+                          ? '2px dashed rgba(255,255,255,0.4)'
+                          : isTrainingNew
+                            ? '2px solid rgba(0,219,154,0.9)'
+                            : `1px solid ${isHovered ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)'}`,
                         cursor: editMode ? 'default' : 'pointer',
                         transform: !editMode && isHovered ? 'scale(1.04) translateY(-5px)' : 'scale(1)',
                         transition: 'transform 0.35s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.35s ease, border-color 0.2s',
                         boxShadow: isHovered
                           ? `0 30px 60px -10px ${panel.gradientFrom}88, 0 0 0 1px ${panel.gradientFrom}44`
-                          : '0 10px 30px rgba(0,0,0,0.3)',
+                          : isTrainingNew
+                            ? undefined
+                            : '0 10px 30px rgba(0,0,0,0.3)',
+                        animation: isTrainingNew && !editMode ? 'trainingPulseGlow 1.8s ease-in-out infinite' : undefined,
                         overflow: 'hidden',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}
@@ -1020,6 +1101,28 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
                           animation: 'shimmerSweep 0.7s ease-out forwards',
                           pointerEvents: 'none', zIndex: 2,
                         }} />
+                      )}
+                      {isTrainingNew && !editMode && (
+                        <>
+                          <div style={{
+                            position: 'absolute', inset: 0, borderRadius: 22, pointerEvents: 'none', zIndex: 2,
+                            background: 'linear-gradient(135deg, rgba(0,219,154,0.12) 0%, rgba(0,224,240,0.08) 100%)',
+                          }} />
+                          <div style={{
+                            position: 'absolute', top: 10, right: 10, zIndex: 4,
+                            width: 12, height: 12, borderRadius: '50%',
+                            background: '#00db9a',
+                            boxShadow: '0 0 0 0 rgba(0,219,154,0.7)',
+                            animation: 'trainingBeacon 1.4s ease-out infinite',
+                            pointerEvents: 'none',
+                          }} />
+                          <div style={{
+                            position: 'absolute', top: 10, right: 10, zIndex: 3,
+                            width: 12, height: 12, borderRadius: '50%',
+                            background: '#00db9a',
+                            pointerEvents: 'none',
+                          }} />
+                        </>
                       )}
                       <div style={{ position: 'relative', zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '100%' }}>
                         <div style={{
