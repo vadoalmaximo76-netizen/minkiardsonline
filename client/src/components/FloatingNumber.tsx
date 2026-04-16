@@ -150,15 +150,15 @@ export const FloatingNumber: React.FC<FloatingNumberProps> = ({
           )
           .to(criticalFlashRef.current, { opacity: 0, duration: 0.22, ease: 'power2.out' });
 
-        // Screen shake via document.body transform
+        // Screen shake via margin (safe: margins never break position:fixed)
         gsap.timeline({ delay: 0.04 })
-          .to(document.body, { x: -7, y: 3, duration: 0.05, ease: 'none' })
-          .to(document.body, { x: 7, y: -3, duration: 0.05, ease: 'none' })
-          .to(document.body, { x: -5, y: 2, duration: 0.05, ease: 'none' })
-          .to(document.body, { x: 5, y: -2, duration: 0.05, ease: 'none' })
-          .to(document.body, { x: -3, y: 1, duration: 0.05, ease: 'none' })
-          .to(document.body, { x: 0, y: 0, duration: 0.05, ease: 'none' })
-          .call(() => gsap.set(document.body, { clearProps: 'transform' }));
+          .to(document.body, { marginLeft: -7, marginTop: 3, duration: 0.05, ease: 'none' })
+          .to(document.body, { marginLeft: 7, marginTop: -3, duration: 0.05, ease: 'none' })
+          .to(document.body, { marginLeft: -5, marginTop: 2, duration: 0.05, ease: 'none' })
+          .to(document.body, { marginLeft: 5, marginTop: -2, duration: 0.05, ease: 'none' })
+          .to(document.body, { marginLeft: -3, marginTop: 1, duration: 0.05, ease: 'none' })
+          .to(document.body, { marginLeft: 0, marginTop: 0, duration: 0.05, ease: 'none' })
+          .call(() => gsap.set(document.body, { clearProps: 'marginLeft,marginTop' }));
       }
     });
 

@@ -16,21 +16,22 @@ export function useScreenShake() {
   const shake = useCallback((intensity: ShakeIntensity = 'medium') => {
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
-      const gameContainer = document.getElementById('game-root') || document.body;
-      gameContainer.style.transform = '';
+      // Use margins to avoid creating a containing block that breaks position:fixed
+      document.body.style.marginLeft = '';
+      document.body.style.marginTop = '';
     }
     isShakingRef.current = true;
 
     const config = SHAKE_CONFIG[intensity];
     const startTime = performance.now();
-    const gameContainer = document.getElementById('game-root') || document.body;
 
     const doShake = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = elapsed / config.duration;
 
       if (progress >= 1) {
-        gameContainer.style.transform = '';
+        document.body.style.marginLeft = '';
+        document.body.style.marginTop = '';
         isShakingRef.current = false;
         return;
       }
@@ -39,9 +40,11 @@ export function useScreenShake() {
       const amp = config.amplitude * decay;
       const offsetX = (Math.random() * 2 - 1) * amp;
       const offsetY = (Math.random() * 2 - 1) * amp;
-      const rotation = (Math.random() * 2 - 1) * (amp * 0.1);
 
-      gameContainer.style.transform = `translate(${offsetX}px, ${offsetY}px) rotate(${rotation}deg)`;
+      // Margin-based shake: does NOT create a containing block, so position:fixed elements
+      // remain viewport-anchored throughout the shake.
+      document.body.style.marginLeft = `${offsetX}px`;
+      document.body.style.marginTop = `${offsetY}px`;
 
       animationRef.current = requestAnimationFrame(doShake);
     };
