@@ -29,10 +29,10 @@ export const modules: ModuleMap = {
   "./components/mockups/home-reimagine/CardFan.tsx": () => import("../components/mockups/home-reimagine/CardFan.tsx"),
   "./components/mockups/home-reimagine/ClashHQ.tsx": () => import("../components/mockups/home-reimagine/ClashHQ.tsx"),
   "./components/mockups/home-reimagine/RetroArcade.tsx": () => import("../components/mockups/home-reimagine/RetroArcade.tsx"),
-  "./components/mockups/home-usability/AccessibilityFirst.tsx": () => import("../components/mockups/home-usability/AccessibilityFirst.tsx"),
-  "./components/mockups/home-usability/AffordanceFirst.tsx": () => import("../components/mockups/home-usability/AffordanceFirst.tsx"),
-  "./components/mockups/home-usability/HierarchyFirst.tsx": () => import("../components/mockups/home-usability/HierarchyFirst.tsx"),
   "./components/mockups/home-surprise/Editorial.tsx": () => import("../components/mockups/home-surprise/Editorial.tsx"),
   "./components/mockups/home-surprise/LightMode.tsx": () => import("../components/mockups/home-surprise/LightMode.tsx"),
-  "./components/mockups/home-surprise/PixelArt.tsx": () => import("../components/mockups/home-surprise/PixelArt.tsx")
+  "./components/mockups/home-surprise/PixelArt.tsx": () => import("../components/mockups/home-surprise/PixelArt.tsx"),
+  "./components/mockups/home-usability/AccessibilityFirst.tsx": () => import("../components/mockups/home-usability/AccessibilityFirst.tsx"),
+  "./components/mockups/home-usability/AffordanceFirst.tsx": () => import("../components/mockups/home-usability/AffordanceFirst.tsx"),
+  "./components/mockups/home-usability/HierarchyFirst.tsx": () => import("../components/mockups/home-usability/HierarchyFirst.tsx")
 };
