@@ -3105,6 +3105,15 @@ button:not([disabled]):active {
   100% { opacity: 0; }
 }
 
+@keyframes card-hand-idle-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-3px); }
+}
+
+.hand-card-wrapper:hover {
+  animation-play-state: paused !important;
+}
+
 /* TimedEffectBanner */
 @keyframes timed-banner-fade {
   0%   { opacity: 0; }

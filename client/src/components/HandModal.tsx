@@ -90,12 +90,20 @@ export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
         </div>
 
         <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:flex-wrap md:justify-center md:overflow-x-visible scrollbar-thin" style={{ WebkitOverflowScrolling: 'touch' }}>
-          {playerCards.map((card, i) => (
+          {playerCards.map((card, i) => {
+            const entryDelay = i * 0.055;
+            const floatDelay = entryDelay + 0.35 + i * 0.45;
+            return (
             <div
               key={card.id}
               data-modal-option
-              className="snap-center flex-shrink-0 md:flex-shrink"
-              style={{ animation: `hand-card-in 0.35s cubic-bezier(0.34,1.56,0.64,1) ${i * 0.055}s both` }}
+              className="snap-center flex-shrink-0 md:flex-shrink hand-card-wrapper"
+              style={{
+                animation: [
+                  `hand-card-in 0.35s cubic-bezier(0.34,1.56,0.64,1) ${entryDelay}s both`,
+                  `card-hand-idle-float 3s ease-in-out ${floatDelay}s infinite`,
+                ].join(', '),
+              }}
             >
               <Card
                 card={card}
@@ -103,7 +111,8 @@ export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
                 onCardPlayed={onClose}
               />
             </div>
-          ))}
+          );
+          })}
           {playerCards.length === 0 && (
             <p className="text-white/70 italic text-center w-full py-8">
               Nessuna carta in mano
