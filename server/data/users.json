@@ -33,8 +33,8 @@
     "avatar": "fox",
     "puntiRankiard": 0,
     "isAdmin": false,
-    "resetPasswordToken": null,
-    "resetPasswordExpires": null,
+    "resetPasswordToken": "42fc4fdea0afdd1d2796705b0d5bd5926f291d952b28d3b3d7b8d63ced2e0ecd",
+    "resetPasswordExpires": "2026-04-17T00:23:27.499Z",
     "id": 3,
     "createdAt": "2026-03-06T20:57:31.828Z"
   },

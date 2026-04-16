@@ -32897,6 +32897,47 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (game) game.pendingContrattazione = undefined;
   }
 
+  // Helper: calculate evolved counter-attack damage for a defending character using a MOSSE card.
+  // Mirrors the pre-defense damage calculation already used for attackers (executeMossaAttack).
+  // Returns evolvedDamage * stars when the character has evolvedMoves or superAttacco that match,
+  // otherwise falls back to mosseDamageValue * stars.
+  private calculateEvolvedCounterDamage(characterCard: any, mosseCard: any, stars: number): number {
+    const mosseDamageValue = mosseCard?.mosseDamageValue || 0;
+    const baseCounterDamage = mosseDamageValue * stars;
+
+    if (!characterCard || characterCard.type !== 'personaggi_speciali') {
+      return baseCounterDamage;
+    }
+
+    const mosseCardName = (mosseCard?.name || '').toUpperCase().trim();
+    const superAttaccoConfig = characterCard.superAttacco;
+    const evolvedMovesConfig = characterCard.evolvedMoves;
+
+    if (superAttaccoConfig && superAttaccoConfig.name && superAttaccoConfig.damage && mosseCardName === 'ATTACCO') {
+      const baseDmg = parseInt(superAttaccoConfig.damage);
+      if (!isNaN(baseDmg) && baseDmg > 0) {
+        console.log(`🔥 EVOLVED COUNTER (superAttacco): ${characterCard.name} → "${superAttaccoConfig.name}" - ${baseDmg} × ${stars} = ${baseDmg * stars} (base was ${baseCounterDamage})`);
+        return baseDmg * stars;
+      }
+    } else if (evolvedMovesConfig) {
+      if (evolvedMovesConfig.range1 && evolvedMovesConfig.range1.name && evolvedMovesConfig.range1.damage && mosseDamageValue >= 1 && mosseDamageValue <= 150) {
+        const evoBaseDmg = parseInt(evolvedMovesConfig.range1.damage);
+        if (!isNaN(evoBaseDmg) && evoBaseDmg > 0) {
+          console.log(`🔥 EVOLVED COUNTER (range1): ${characterCard.name} → "${evolvedMovesConfig.range1.name}" - ${evoBaseDmg} × ${stars} = ${evoBaseDmg * stars} (base was ${baseCounterDamage})`);
+          return evoBaseDmg * stars;
+        }
+      } else if (evolvedMovesConfig.range2 && evolvedMovesConfig.range2.name && evolvedMovesConfig.range2.damage && mosseDamageValue >= 151 && mosseDamageValue <= 300) {
+        const evoBaseDmg = parseInt(evolvedMovesConfig.range2.damage);
+        if (!isNaN(evoBaseDmg) && evoBaseDmg > 0) {
+          console.log(`🔥 EVOLVED COUNTER (range2): ${characterCard.name} → "${evolvedMovesConfig.range2.name}" - ${evoBaseDmg} × ${stars} = ${evoBaseDmg * stars} (base was ${baseCounterDamage})`);
+          return evoBaseDmg * stars;
+        }
+      }
+    }
+
+    return baseCounterDamage;
+  }
+
   // Helper method to emit defense:request when Socket.IO is available
   async emitDefenseRequest(gameId: string, io: any): Promise<boolean> {
     const pendingDefense = this.getPendingDefense(gameId);
@@ -32961,16 +33002,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         // Find the first counter MOSSE that meets damage requirement
         const attackDamage = pendingDefense.damage || 0;
         const eligibleCounterCard = counterMosseCards.find((card: any) => {
-          const mossePti = card.mosseDamageValue || 0;
-          const counterDamage = mossePti * defenderStars;
-          console.log(`🤖 Evaluating ${getCardName(card)}: PTI=${mossePti} × ${defenderStars} stelle = ${counterDamage} vs attack ${attackDamage}`);
+          const counterDamage = this.calculateEvolvedCounterDamage(targetCard, card, defenderStars);
+          console.log(`🤖 Evaluating ${getCardName(card)}: evolved counter damage = ${counterDamage} vs attack ${attackDamage}`);
           return counterDamage >= attackDamage;
         });
         
         if (eligibleCounterCard) {
           const cardName = getCardName(eligibleCounterCard);
-          const mossePti = eligibleCounterCard.mosseDamageValue || 0;
-          const counterDamage = mossePti * defenderStars;
+          const counterDamage = this.calculateEvolvedCounterDamage(targetCard, eligibleCounterCard, defenderStars);
           
           console.log(`🤖 CPU ${pendingDefense.defender}: COUNTER-ATTACKING with ${cardName}! Damage: ${counterDamage}`);
           

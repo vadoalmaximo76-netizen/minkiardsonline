@@ -128,10 +128,50 @@ export const DefenseDialog: React.FC = () => {
     return card.mosseCanCounter === true;
   });
   
-  // Calculate suggested counter damage for a given MOSSE card
+  // Calculate suggested counter damage for a given MOSSE card.
+  // For evolved defenders (personaggi_speciali with evolvedMoves or superAttacco),
+  // override the raw mosseDamageValue with the evolved move damage, mirroring the
+  // server-side logic in calculateEvolvedCounterDamage / executeMossaAttack.
   const calculateCounterDamage = (mosseCard: GameCard): number | null => {
     if (!mosseCard.mosseDamageValue) return null;
-    return mosseCard.mosseDamageValue * defenderStars;
+    const baseCounterDamage = mosseCard.mosseDamageValue * defenderStars;
+
+    const charCard = defenderCharacter as any;
+    if (!charCard || charCard.type !== 'personaggi_speciali') {
+      return baseCounterDamage;
+    }
+
+    const mosseCardName = (mosseCard as any).name
+      ? ((mosseCard as any).name as string).toUpperCase().trim()
+      : getCardName(mosseCard.frontImage || '');
+
+    const superAttaccoConfig = charCard.superAttacco;
+    const evolvedMovesConfig = charCard.evolvedMoves;
+
+    if (superAttaccoConfig && superAttaccoConfig.name && superAttaccoConfig.damage && mosseCardName === 'ATTACCO') {
+      const baseDmg = parseInt(superAttaccoConfig.damage);
+      if (!isNaN(baseDmg) && baseDmg > 0) {
+        console.log(`🔥 DefenseDialog evolved counter (superAttacco): ${baseDmg} × ${defenderStars} = ${baseDmg * defenderStars}`);
+        return baseDmg * defenderStars;
+      }
+    } else if (evolvedMovesConfig) {
+      const rawMosseDamage = mosseCard.mosseDamageValue;
+      if (evolvedMovesConfig.range1 && evolvedMovesConfig.range1.name && evolvedMovesConfig.range1.damage && rawMosseDamage >= 1 && rawMosseDamage <= 150) {
+        const evoBaseDmg = parseInt(evolvedMovesConfig.range1.damage);
+        if (!isNaN(evoBaseDmg) && evoBaseDmg > 0) {
+          console.log(`🔥 DefenseDialog evolved counter (range1): "${evolvedMovesConfig.range1.name}" ${evoBaseDmg} × ${defenderStars} = ${evoBaseDmg * defenderStars}`);
+          return evoBaseDmg * defenderStars;
+        }
+      } else if (evolvedMovesConfig.range2 && evolvedMovesConfig.range2.name && evolvedMovesConfig.range2.damage && rawMosseDamage >= 151 && rawMosseDamage <= 300) {
+        const evoBaseDmg = parseInt(evolvedMovesConfig.range2.damage);
+        if (!isNaN(evoBaseDmg) && evoBaseDmg > 0) {
+          console.log(`🔥 DefenseDialog evolved counter (range2): "${evolvedMovesConfig.range2.name}" ${evoBaseDmg} × ${defenderStars} = ${evoBaseDmg * defenderStars}`);
+          return evoBaseDmg * defenderStars;
+        }
+      }
+    }
+
+    return baseCounterDamage;
   };
   
   // Check if a counter MOSSE can successfully repel the attack
