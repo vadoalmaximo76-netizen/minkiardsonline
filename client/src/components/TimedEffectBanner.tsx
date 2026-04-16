@@ -60,14 +60,14 @@ export const TimedEffectBanner: React.FC<TimedEffectBannerProps> = ({
           borderBottom: "3px solid rgba(255,80,0,0.9)",
           boxShadow:
             "0 0 60px rgba(255,60,0,0.5), 0 0 120px rgba(180,0,0,0.3)",
-          animation: 'timed-banner-scale 0.4s ease-out',
+          animation: 'timed-banner-scale 0.4s cubic-bezier(0.34,1.56,0.64,1)',
         }}
         onClick={onClose}
       >
         <div className="max-w-4xl mx-auto px-6 py-5 flex items-center gap-6">
           <div
             className="text-5xl flex-shrink-0"
-            style={{ animation: 'timed-banner-icon 0.5s ease-out 0.2s both' }}
+            style={{ animation: 'timed-banner-icon 0.45s cubic-bezier(0.34,1.56,0.64,1) 0.15s both' }}
           >
             ⏳
           </div>
@@ -75,7 +75,7 @@ export const TimedEffectBanner: React.FC<TimedEffectBannerProps> = ({
           <div className="flex-1 min-w-0">
             <div
               className="flex items-baseline gap-3 flex-wrap"
-              style={{ animation: 'timed-banner-slide 0.4s ease-out 0.3s both' }}
+              style={{ animation: 'timed-banner-slide 0.35s cubic-bezier(0.22,1,0.36,1) 0.25s both' }}
             >
               <span
                 className="text-xs font-bold uppercase tracking-[0.2em] text-orange-300"
@@ -91,7 +91,7 @@ export const TimedEffectBanner: React.FC<TimedEffectBannerProps> = ({
               className="text-2xl font-black text-white uppercase tracking-wide leading-tight mt-0.5"
               style={{
                 textShadow: "0 0 20px rgba(255,100,0,0.8)",
-                animation: 'timed-banner-slide 0.4s ease-out 0.4s both',
+                animation: 'timed-banner-slide 0.35s cubic-bezier(0.22,1,0.36,1) 0.35s both',
               }}
             >
               {cardName}
@@ -99,7 +99,7 @@ export const TimedEffectBanner: React.FC<TimedEffectBannerProps> = ({
 
             <p
               className="text-sm text-orange-200 mt-1 leading-snug"
-              style={{ animation: 'timed-banner-slide 0.4s ease-out 0.55s both' }}
+              style={{ animation: 'timed-banner-slide 0.35s cubic-bezier(0.22,1,0.36,1) 0.48s both' }}
             >
               {cleanDescription(description)}
             </p>
@@ -107,7 +107,7 @@ export const TimedEffectBanner: React.FC<TimedEffectBannerProps> = ({
 
           <div
             className="flex-shrink-0 flex flex-col items-center"
-            style={{ animation: 'timed-banner-scale-in 0.3s ease-out 0.5s both' }}
+            style={{ animation: 'timed-banner-scale-in 0.35s cubic-bezier(0.34,1.56,0.64,1) 0.45s both' }}
           >
             <div
               key={countdown}

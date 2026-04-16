@@ -79,26 +79,26 @@ export const FullScreenNotification: React.FC<FullScreenNotificationProps> = ({
     >
       <div
         className={`bg-gradient-to-br ${notificationData.color} p-8 rounded-2xl shadow-2xl text-center max-w-md mx-4 border-4 border-white/20`}
-        style={{ animation: 'fsn-panel 0.5s ease-out 0.2s both' }}
+        style={{ animation: 'fsn-panel 0.45s cubic-bezier(0.34,1.56,0.64,1) 0.12s both' }}
         onClick={(e) => e.stopPropagation()}
       >
         <h1
           className="text-4xl font-bold text-white mb-4"
-          style={{ animation: 'fsn-scale 0.6s ease-out 0.5s both' }}
+          style={{ animation: 'fsn-scale 0.5s ease-out 0.4s both' }}
         >
           {notificationData.title}
         </h1>
         
         <p
           className="text-xl text-white/90 mb-6"
-          style={{ animation: 'fsn-slide-up 0.5s ease-out 0.8s both' }}
+          style={{ animation: 'fsn-slide-up 0.4s cubic-bezier(0.22,1,0.36,1) 0.65s both' }}
         >
           {notificationData.subtitle}
         </p>
 
         <div
           className="bg-black/20 rounded-lg p-4 backdrop-blur-sm"
-          style={{ animation: 'fsn-fade 0.3s ease-out 1.2s both' }}
+          style={{ animation: 'fsn-fade 0.3s ease-out 1.0s both' }}
         >
           <p className="text-white/70 text-sm mb-2">
             Chiusura automatica in:
@@ -113,7 +113,7 @@ export const FullScreenNotification: React.FC<FullScreenNotificationProps> = ({
         </div>
 
         <button
-          style={{ animation: 'fsn-slide-up 0.3s ease-out 1.5s both' }}
+          style={{ animation: 'fsn-slide-up 0.3s cubic-bezier(0.22,1,0.36,1) 1.25s both' }}
           onClick={onClose}
           className="mt-4 px-6 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm"
         >

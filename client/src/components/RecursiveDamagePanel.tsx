@@ -160,7 +160,7 @@ export const RecursiveDamagePanel: React.FC = () => {
     >
       <div
         className={`rounded-2xl p-8 max-w-4xl w-full mx-4 border-4 shadow-2xl relative overflow-hidden ${panelStyles}`}
-        style={{ animation: 'rdp-panel-in 0.3s ease-out' }}
+        style={{ animation: 'rdp-panel-in 0.42s cubic-bezier(0.34,1.56,0.64,1)' }}
       >
         {isTennis && (
           <>
