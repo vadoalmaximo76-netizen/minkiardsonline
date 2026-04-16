@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import ReactDOM from "react-dom";
+import { gsap } from "gsap";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
@@ -205,6 +206,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     y: number;
   }>>([]);
   const cardRef = useRef<HTMLDivElement>(null);
+  const attackWrapperRef = useRef<HTMLDivElement>(null);
   const [showDamageInput, setShowDamageInput] = useState(false);
   const [damageValue, setDamageValue] = useState("");
   const [starsToRemove, setStarsToRemove] = useState("");
@@ -230,7 +232,6 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const [showHoverPreview, setShowHoverPreview] = useState(false);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [damageFlash, setDamageFlash] = useState(false);
-  const [hitFlash, setHitFlash] = useState(false);
   const [hitShake, setHitShake] = useState(false);
   const [isAttacking, setIsAttacking] = useState(false);
   const [isLowHealth, setIsLowHealth] = useState(false);
@@ -283,6 +284,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       return () => clearTimeout(timer);
     }
   }, [isNewlyDrawn]);
+
   const { 
     setSelectedCard, 
     playerName, 
@@ -299,6 +301,49 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   } = useGameState();
   const showAttackTargetSelect = showAttackTargetSelectCardId === card.id;
   const setShowAttackTargetSelect = (show: boolean) => setShowAttackTargetSelectCardId(show ? card.id : null);
+
+  // GSAP: attack lunge timeline — attacker card lunges toward opponent then snaps back
+  useEffect(() => {
+    if (!isAttacking || !attackWrapperRef.current || location !== 'field') return;
+    const isPlayer = card.owner === playerName;
+    const lunge = isPlayer ? -70 : 70;
+    const tl = gsap.timeline();
+    tl.to(attackWrapperRef.current, { y: lunge, scale: 1.12, duration: 0.14, ease: "power3.in" })
+      .to(attackWrapperRef.current, { y: lunge * -0.25, scale: 0.96, duration: 0.1, ease: "power2.out" })
+      .to(attackWrapperRef.current, { y: 0, scale: 1, duration: 0.22, ease: "back.out(2.2)", clearProps: "transform" });
+    return () => { tl.kill(); };
+  }, [isAttacking, card.owner, playerName, location]);
+
+  // GSAP: hit-shake timeline — defender card rattles on taking damage with impact flash
+  useEffect(() => {
+    if (!hitShake || !attackWrapperRef.current) return;
+    const el = attackWrapperRef.current;
+    const tl = gsap.timeline();
+    tl.to(el, { filter: 'brightness(4)', duration: 0.04, ease: "none" })
+      .to(el, { x: -9, filter: 'brightness(1)', duration: 0.055, ease: "power2.out" })
+      .to(el, { x: 10, duration: 0.055, ease: "power2.inOut" })
+      .to(el, { x: -8, duration: 0.055, ease: "power2.inOut" })
+      .to(el, { x: 6, duration: 0.055, ease: "power2.inOut" })
+      .to(el, { x: -3, duration: 0.055, ease: "power2.inOut" })
+      .to(el, { x: 0, duration: 0.055, ease: "power2.in", clearProps: "transform,filter" });
+    return () => { tl.kill(); };
+  }, [hitShake]);
+
+  // GSAP: card play arc/flip — satisfying entry when card moves to field
+  useEffect(() => {
+    if (!isNewlyPlaced || location !== 'field' || !attackWrapperRef.current) return;
+    const tween = gsap.from(attackWrapperRef.current, {
+      y: -90,
+      rotationY: 90,
+      scaleX: 0.55,
+      scaleY: 0.55,
+      opacity: 0,
+      duration: 0.52,
+      ease: "back.out(1.7)",
+      clearProps: "all",
+    });
+    return () => { tween.kill(); };
+  }, [isNewlyPlaced, location]);
 
   const currentTurnPlayer = gameState?.turnOrder?.[gameState?.currentTurnIndex ?? -1];
   const isMyTurn = currentTurnPlayer === playerName;
@@ -372,10 +417,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           playPointLoss();
           setStatGlowEffect('pti-down');
           setDamageFlash(true);
-          setHitFlash(true);
           setHitShake(true);
           setTimeout(() => { setDamageFlash(false); }, 500);
-          setTimeout(() => setHitFlash(false), 180);
           setTimeout(() => setHitShake(false), 400);
         }
         
@@ -1469,14 +1512,10 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     transition: isHovered ? 'transform 0.1s ease-out' : 'transform 0.4s ease-out',
   } : {};
 
-  // CSS-driven attack animation class (replaces Framer Motion spring)
-  const attackClass = isAttacking && location === 'field'
-    ? (card.owner === playerName ? 'card-attack-player' : 'card-attack-enemy')
-    : '';
-
   return (
     <div
-      className={attackClass + (!isMobile && location === 'hand' ? ' card-hand-hover-lift' : '')}
+      ref={attackWrapperRef}
+      className={!isMobile && location === 'hand' ? 'card-hand-hover-lift' : ''}
       style={
         location === 'hand'
           ? {
@@ -1488,15 +1527,15 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
             : undefined
       }
     >
-      {/* Tilt wrapper: owns perspective + 3D tilt inline transform ONLY — never touched by Framer Motion */}
-      <div style={tiltWrapperStyle} className={hitShake ? 'card-hit-shake' : undefined}>
+      {/* Tilt wrapper: owns perspective + 3D tilt inline transform ONLY */}
+      <div style={tiltWrapperStyle}>
     <div 
       ref={cardRef}
       data-card-id={card.id}
       onMouseMove={handleMouseMove3D}
-      className={`relative flex flex-col gap-2 ${location !== 'field' ? 'card-play-transition' : ''} card-3d-tilt ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? (playPriority === 'high' ? 'card-playable-priority-high' : 'card-playable-glow') : ''} ${getFieldBreathClass()} ${location === 'field' && !isNewlyPlaced && !isEliminated ? 'card-levitate-field' : ''} ${hasGamepadFocus ? 'card-gamepad-focus' : ''}`}
+      className={`relative flex flex-col gap-2 ${location !== 'field' ? 'card-play-transition' : ''} card-3d-tilt ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isPlayable ? (playPriority === 'high' ? 'card-playable-priority-high' : 'card-playable-glow') : ''} ${getFieldBreathClass()} ${location === 'field' && !isNewlyPlaced && !isEliminated ? 'card-levitate-field' : ''} ${hasGamepadFocus ? 'card-gamepad-focus' : ''}`}
       style={{
-        animationPlayState: (isAttacking || hitFlash || damageFlash) ? 'paused' : undefined,
+        animationPlayState: damageFlash ? 'paused' : undefined,
       }}
     >
       {/* Damage flash overlay: opacity + background only — no filter, no transform → GPU-compositor-safe */}
@@ -1524,14 +1563,6 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           onComplete={() => removeFloatingNumber(num.id)}
         />
       ))}
-
-      {/* Impact hit-flash: brief white overlay at the moment of taking damage */}
-      {hitFlash && (
-        <div
-          className="absolute inset-0 rounded-xl pointer-events-none z-[200]"
-          style={{ background: 'rgba(255,255,255,0.92)', animation: 'card-hit-flash 0.18s ease-out forwards' }}
-        />
-      )}
 
       {showHoverPreview && location === 'field' && !card.faceDown && typeof document !== 'undefined' && ReactDOM.createPortal(
         <div 
