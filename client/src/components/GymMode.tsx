@@ -375,7 +375,9 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [showInfermeria, setShowInfermeria] = useState(false);
   const [showSecretRoom, setShowSecretRoom] = useState(false);
   const [secretRoomRevealing, setSecretRoomRevealing] = useState(false);
-  const secretRoomEverRevealedRef = useRef(false);
+  const secretRoomEverRevealedRef = useRef(
+    userId ? localStorage.getItem(`secretRoomRevealed_${userId}`) === 'true' : false
+  );
   const secretRevealMarksRef = useRef<HTMLDivElement>(null);
   const secretRevealTitleRef = useRef<HTMLDivElement>(null);
   const [storyViewMode, setStoryViewMode] = useState<'3d' | '2d'>(() => {
@@ -542,6 +544,12 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     fetchCollectibles();
     fetchStage13Status();
   }, [fetchLeaders, fetchStoryDeck, fetchUserCredits, fetchCardEffects, fetchLocalities, fetchCollectibles, fetchStage13Status]);
+
+  useEffect(() => {
+    secretRoomEverRevealedRef.current = userId
+      ? localStorage.getItem(`secretRoomRevealed_${userId}`) === 'true'
+      : false;
+  }, [userId]);
 
   // Show deck selection screen when user has no story deck and first leader has starterDeckOptions
   useEffect(() => {
