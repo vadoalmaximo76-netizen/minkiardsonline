@@ -19077,17 +19077,38 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     const { attacker, defender, damage, targetCardId } = pd;
 
-    // Validate "defends=true": require a valid bonus card in hand (regardless of
-    // whether it's used for a block or redirect). Without this, clients could forge
-    // free defense claims with no resource cost.
+    // Valid defense card names — must match what DefenseDialog.tsx shows the human
+    // (same list as DEFENSE_BONUS_CARDS on the client, plus BARRIERA hand-cards).
+    // Using card name, not just type, so any forged "generic bonus" is rejected.
+    const VALID_TA_DEFENSE_NAMES = [
+      'ALTA SALVA', 'BOOMERANG', 'CONTRO SKRAZZKOOM', 'CONVERSIONE',
+      'DIFESA VIGLIACCA', 'E NN T MITT SCUORN', 'E TAGG TRATTAT',
+      'FOLATA DI VENTO', 'RESPINTA', 'E NN T MITT SSCUORN', 'BARRIERA',
+    ] as const;
+    // Redirect-eligible cards: only cards whose effect is to redirect damage
+    const REDIRECT_ELIGIBLE_NAMES = ['RESPINTA', 'FOLATA DI VENTO', 'BOOMERANG'] as const;
+
+    // Validate "defends=true": require a named defense card in hand.
     if (defends) {
-      const hasLegalCard = defenseCardId &&
-        game.players[defender]?.hand?.some((c: Card) => c.id === defenseCardId && c.type === 'bonus');
+      const defCardInHand = defenseCardId
+        ? game.players[defender]?.hand?.find((c: Card) => c.id === defenseCardId)
+        : undefined;
+      const defCardName = defCardInHand
+        ? (defCardInHand.name || this.getCardNameFromUrl(defCardInHand.frontImage || '')).toUpperCase().trim()
+        : '';
+      const hasLegalCard = defCardInHand &&
+        VALID_TA_DEFENSE_NAMES.some(vn => defCardName.includes(vn));
       if (!hasLegalCard) {
-        console.warn(`[TA-STEP] defends=true but no valid bonus card in hand for ${defender} — overriding to no-defense`);
+        console.warn(`[TA-STEP] defends=true but no valid named defense card in hand for ${defender} (card: "${defCardName}") — overriding to no-defense`);
         defends = false;
-        // Clear redirect if forced to no-defense (it depended on a valid card)
         redirectTargetCardId = undefined;
+      } else if (redirectTargetCardId) {
+        // Redirect requires a redirect-eligible card
+        const isRedirectEligible = REDIRECT_ELIGIBLE_NAMES.some(rn => defCardName.includes(rn));
+        if (!isRedirectEligible) {
+          console.warn(`[TA-STEP] redirect requested but card "${defCardName}" is not redirect-eligible — treating as block`);
+          redirectTargetCardId = undefined;
+        }
       }
     }
 
@@ -19158,22 +19179,49 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const stepLabel = seq ? `colpo ${seq.stepCount}` : 'colpo';
 
       if (redirectTargetCardId) {
-        // REDIRECT (RESPINTA-style): damage goes to the redirect target, not blocked
+        // REDIRECT (RESPINTA-style): damage goes to the redirect target, not blocked.
+        // Uses same protection-check priority as processDefenseResponse redirect path.
         const redirectTarget = game.field.find((c: Card) => c.id === redirectTargetCardId);
         if (redirectTarget) {
-          const prevPtiRedir = redirectTarget.pti ?? 0;
-          redirectTarget.pti = Math.max(0, prevPtiRedir - damage);
-          this.updateCardTextWithPTI(redirectTarget);
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-ta-redirect`,
-            playerName: 'Sistema',
-            message: `↩️ ${defender} ha REINDIRIZZATO il ${stepLabel} di TARGET ACQUIRED su ${redirectTarget.name || redirectTarget.owner}! (${prevPtiRedir} → ${redirectTarget.pti} PTI)`,
-            timestamp: Date.now(),
-          });
-          if (redirectTarget.pti <= 0) {
-            const drRedir = this.moveToGraveyard(gameId, redirectTarget.id, redirectTarget.owner!, attacker);
-            if (!drRedir.insuranceTriggered && drRedir.eliminationCheck) {
-              this.processEliminationAfterDeath(gameId, redirectTarget.owner!, io, 'TARGET_ACQUIRED_REDIRECT');
+          // Check BARRIERA protection on redirect target (mirrors processDefenseResponse DEFENSE-BONUS path)
+          const barrieraRedir = this.isProtectedByBarriera(gameId, redirectTarget.id);
+          const activeBarrieraRedir = barrieraRedir ? this.getActiveBarrieraShieldCard(gameId, redirectTarget.id) : null;
+          if (barrieraRedir && activeBarrieraRedir) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-ta-redir-barriera`,
+              playerName: 'Sistema',
+              message: `🛡️ ${redirectTarget.name || redirectTarget.owner} è protetto da BARRIERA! Il ${stepLabel} reindirizzato colpisce lo scudo.`,
+              timestamp: Date.now(),
+            });
+            this.damageBarriera(gameId, activeBarrieraRedir.id, damage, attacker, io);
+          } else {
+            // Check RIFUGIO protection on redirect target
+            const rifugioRedir = this.isProtectedByRifugio(gameId, redirectTarget.id);
+            if (rifugioRedir) {
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-ta-redir-rifugio`,
+                playerName: 'Sistema',
+                message: `🏠 ${redirectTarget.name || redirectTarget.owner} è protetto da RIFUGIO! Il ${stepLabel} reindirizzato viene assorbito dal rifugio.`,
+                timestamp: Date.now(),
+              });
+              this.damageRifugio(gameId, rifugioRedir.rifugioCardId, damage, attacker, io);
+            } else {
+              // No protection — apply damage normally
+              const prevPtiRedir = redirectTarget.pti ?? 0;
+              redirectTarget.pti = Math.max(0, prevPtiRedir - damage);
+              this.updateCardTextWithPTI(redirectTarget);
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-ta-redirect`,
+                playerName: 'Sistema',
+                message: `↩️ ${defender} ha REINDIRIZZATO il ${stepLabel} di TARGET ACQUIRED su ${redirectTarget.name || redirectTarget.owner}! (${prevPtiRedir} → ${redirectTarget.pti} PTI)`,
+                timestamp: Date.now(),
+              });
+              if (redirectTarget.pti <= 0) {
+                const drRedir = this.moveToGraveyard(gameId, redirectTarget.id, redirectTarget.owner!, attacker);
+                if (!drRedir.insuranceTriggered && drRedir.eliminationCheck) {
+                  this.processEliminationAfterDeath(gameId, redirectTarget.owner!, io, 'TARGET_ACQUIRED_REDIRECT');
+                }
+              }
             }
           }
         }

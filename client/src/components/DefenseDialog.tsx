@@ -91,6 +91,7 @@ export const DefenseDialog: React.FC = () => {
   const [showRedirectTargetSelect, setShowRedirectTargetSelect] = useState<boolean>(false);
   const [selectedRedirectCard, setSelectedRedirectCard] = useState<GameCard | null>(null);
   const [redirectCardType, setRedirectCardType] = useState<'RESPINTA' | 'CONTRO SKRAZZKOOM' | null>(null);
+  const [taIncomingBanner, setTaIncomingBanner] = useState<string | null>(null);
   const { playerName, gameId, gameState } = useGameState();
   const { playAttackSound, playDefenseActivated, playAttackBlocked, playModalOpen, playButtonClick } = useAudio();
 
@@ -237,6 +238,16 @@ export const DefenseDialog: React.FC = () => {
     }
     return false;
   };
+
+  // Listen for TARGET ACQUIRED incoming-step notification (works in all game modes)
+  useEffect(() => {
+    const handleTaAttackStep = ({ attackerName, stepCount, damage }: { attackerName: string; stepCount: number; damage: number; attackerPlayer?: string; targetOwner?: string; }) => {
+      setTaIncomingBanner(`🎯 Colpo ${stepCount} in arrivo da ${attackerName}! (${damage} danni)`);
+      setTimeout(() => setTaIncomingBanner(null), 700);
+    };
+    socket.on('ta-attack-step', handleTaAttackStep);
+    return () => { socket.off('ta-attack-step', handleTaAttackStep); };
+  }, []);
 
   // Listen for defense requests
   useEffect(() => {
@@ -579,7 +590,16 @@ export const DefenseDialog: React.FC = () => {
     }, 500);
   };
 
-  if (!defenseRequest) return null;
+  if (!defenseRequest) {
+    if (!taIncomingBanner) return null;
+    return (
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[200] pointer-events-none">
+        <div className="bg-red-800/95 text-white px-5 py-2 rounded-full shadow-xl font-bold text-sm animate-bounce border border-red-400">
+          {taIncomingBanner}
+        </div>
+      </div>
+    );
+  }
 
   // DIFESA VIGLIACCA: Target selection panel
   if (showVigliaccaTargetSelect && selectedVigliaccaCard) {
