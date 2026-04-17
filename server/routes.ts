@@ -8677,7 +8677,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // PRODUCTION-READY DEFENSE RESPONSE: Enhanced security and validation
     // DELAYED DAMAGE - Player chooses to delay receiving damage
-    socket.on('defense:delay', ({ gameId: clientGameId, attackId, delayTurns, targetCardId, damageValue, attackerName, defenderName, mosseCardId }) => {
+    socket.on('defense:delay', async ({ gameId: clientGameId, attackId, delayTurns, targetCardId, damageValue, attackerName, defenderName, mosseCardId }) => {
       const gameId = gameManager.getPlayerGameId(socket.id) || clientGameId;
       
       if (!gameId) {
@@ -8686,7 +8686,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`⏳ DEFENSE DELAY: ${defenderName} delays ${damageValue} damage by ${delayTurns} turns`);
-      
+
+      // If this is a TARGET ACQUIRED step, delay is not applicable — treat as "no defense"
+      // so the TA sequence can continue. Don't add a delayed damage entry.
+      const pendingForTA = (gameManager as any).games?.get(gameId)?.pendingDefense;
+      if (pendingForTA?.isTaStep && pendingForTA.attackId === attackId) {
+        console.log(`[TA-DELAY-GUARD] Blocking defense:delay for TA step ${attackId} — resolving as no-defense instead`);
+        await (gameManager as any).resolveTaStep(gameId, attackId, false, io, 'delay-blocked');
+        return;
+      }
+
       // Clear pending defense
       gameManager.clearPendingDefense(gameId);
       

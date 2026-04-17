@@ -9344,7 +9344,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const tgtC = isCPU
             ? this.cpuPickBestEnemy(enemiesTA)
             : enemiesTA[0];
-          (game as any).targetAcquired = { playerName, targetCardId: tgtC.id, targetOwner: tgtC.owner, attacksLeft: maxAttacks, isIlPelux };
+          // For CPU players taSequence handles attacks; for humans targetAcquired drives client-side flow
+          if (!isCPU) {
+            (game as any).targetAcquired = { playerName, targetCardId: tgtC.id, targetOwner: tgtC.owner, attacksLeft: maxAttacks, isIlPelux };
+          } else {
+            delete (game as any).targetAcquired; // ensure no stale state interferes
+          }
           emitChat(`🎯 TARGET ACQUIRED! ${myChar?.name || playerName} → ${tgtC.name || tgtC.owner}${isIlPelux ? ' — IL PELUX: attacca finché non muore!' : ' — 3 attacchi!'}`);
 
           // CPU: execute attacks sequentially with defense windows
@@ -18874,14 +18879,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     if (!seq) return;
 
-    // Safety cap: Il Pelux can fire at most 12 steps even if target keeps blocking
-    const MAX_TA_STEPS = 12;
+    // Safety cap: only for Il Pelux (non-Pelux naturally ends via attacksLeft → 0).
+    // 20 steps is generous; in practice the target dies long before that.
+    const MAX_TA_STEPS_PELUX = 20;
 
-    // Check target still alive and sequence has steps left (or safety cap hit)
+    // Check target still alive and sequence has steps left (or safety cap hit for Pelux)
     const target = game.field.find((c: Card) => c.id === seq.targetCardId);
-    if (!target || (target.pti ?? 0) <= 0 || seq.attacksLeft <= 0 || seq.stepCount >= MAX_TA_STEPS) {
+    const peluxCapHit = seq.isIlPelux && seq.stepCount >= MAX_TA_STEPS_PELUX;
+    if (!target || (target.pti ?? 0) <= 0 || seq.attacksLeft <= 0 || peluxCapHit) {
       // Sequence naturally over
       delete (game as any).taSequence;
+      delete (game as any).targetAcquired; // belt-and-suspenders cleanup
       const doneMsg = seq.stepCount > 0
         ? `🎯 TARGET ACQUIRED concluso! ${seq.attackerName} ha effettuato ${seq.stepCount} attacch${seq.stepCount === 1 ? 'o' : 'i'}.`
         : `🎯 TARGET ACQUIRED: bersaglio già eliminato.`;
@@ -18973,24 +18981,38 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     pendingDefense.timeoutId = timeoutId;
     game.pendingDefense = pendingDefense;
 
-    // Emit defense:request to the defender
+    // Resolve attacker/defender card images for the DefenseDialog (same pattern as emitDefenseRequest)
+    const attackerCard = game.field.find((c: Card) => c.owner === seq.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+    const defenderCard = game.field.find((c: Card) => c.id === seq.targetCardId);
+
+    // Emit defense:request to the defender using the standard payload contract
     const defenderSocketId = this.getPlayerSocketId(gameId, seq.targetOwner);
     if (defenderSocketId) {
       io.to(defenderSocketId).emit('defense:request', {
+        gameId,
         attackId,
         attackerName: seq.playerName,
         defenderName: seq.targetOwner,
-        damage: seq.attackDamage,
+        damageValue: seq.attackDamage,
+        damage: seq.attackDamage,                   // kept for any legacy client reads
         targetCardId: seq.targetCardId,
         mosseCardId: `ta-synthetic-${attackId}`,
         deckType: 'bonus',
-        message: `🎯 TARGET ACQUIRED! ${seq.attackerName} ti attacca (colpo ${seq.stepCount})! Puoi usare una carta difensiva per bloccare questo colpo.`,
+        message: `🎯 TARGET ACQUIRED — colpo ${seq.stepCount}${seq.isIlPelux ? '' : `/${seq.stepCount + seq.attacksLeft}`}! ${seq.attackerName} ti attacca! Vuoi difenderti?`,
+        mosseCardImage: undefined,                  // no real MOSSE card image for TA
+        attackerCardImage: attackerCard?.frontImage,
+        defenderCardImage: defenderCard?.frontImage,
+        attackerCardText: attackerCard?.text,
+        defenderCardText: defenderCard?.text,
+        mosseCanBeCountered: false,
+        mosseDamageValue: null,
+        attackerStars: 1,
+        isCounterAttackDefense: false,
         canCounter: false,
       });
     } else {
-      // Defender offline — apply damage immediately
+      // Defender offline — let resolveTaStep read pendingDefense before clearing it
       clearTimeout(timeoutId);
-      delete game.pendingDefense;
       this.resolveTaStep(gameId, attackId, false, io, 'offline').catch(() => {});
     }
   }
@@ -19052,6 +19074,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             timestamp: Date.now(),
           });
           delete (game as any).taSequence;
+      delete (game as any).targetAcquired; // belt-and-suspenders cleanup
           io.to(gameId).emit('attack:resolved', { attackId, attacker, defender, defends: false, resolveSource, timestamp: Date.now() });
           io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
           return true;
@@ -19095,6 +19118,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         timestamp: Date.now(),
       });
       delete (game as any).taSequence;
+      delete (game as any).targetAcquired; // belt-and-suspenders cleanup
       io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
     }
 
