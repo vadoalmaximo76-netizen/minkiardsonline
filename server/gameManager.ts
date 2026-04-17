@@ -12302,6 +12302,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           game.field.push(cloneForEnemy);
           emitChat(`🤝 AMEECO! ${myChar.name || playerName} assorbe ${enemy.name || oldOwner} (+${fusedPti} PTI, ${fusedStars} stelle) e il clone va a ${oldOwner}!`);
           emitState();
+          const ameecoIoImm = (global as any).io;
+          if (ameecoIoImm) {
+            ameecoIoImm.to(gameId).emit('fusion-animation', {
+              card1Name: myChar.name || playerName,
+              card2Name: enemy.name || oldOwner,
+              card1Image: myChar.frontImage || '',
+              card2Image: enemy.frontImage || '',
+              resultName: myChar.name || playerName,
+              resultImage: myChar.frontImage || '',
+              playerName,
+              fusionType: 'ameeco',
+              resultPti: fusedPti,
+              resultStars: fusedStars
+            });
+          }
         } else {
           const psId = (game.players[playerName] as any)?.socketId;
           const cId = `ameeco-${Date.now()}`;
@@ -23593,6 +23608,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         game.field = game.field.filter((c: Card) => c.id !== enemyAmeeco.id);
         game.field.push(cloneAmeeco);
         if (io) {
+          io.to(gameId).emit('fusion-animation', {
+            card1Name: myCharAmeeco.name || playerName,
+            card2Name: enemyAmeeco.name || oldOwnerAmeeco,
+            card1Image: myCharAmeeco.frontImage || '',
+            card2Image: enemyAmeeco.frontImage || '',
+            resultName: myCharAmeeco.name || playerName,
+            resultImage: myCharAmeeco.frontImage || '',
+            playerName,
+            fusionType: 'ameeco',
+            resultPti: fusedPti,
+            resultStars: fusedStars
+          });
           io.to(gameId).emit('chat-message', { id: `${Date.now()}-ameeco`, playerName: 'Sistema', message: `🤝 AMEECO! ${myCharAmeeco.name || playerName} assorbe ${enemyAmeeco.name || oldOwnerAmeeco} (${fusedPti} PTI, ${fusedStars} stelle) e il clone va a ${oldOwnerAmeeco}!`, timestamp: Date.now() });
           io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
         }
