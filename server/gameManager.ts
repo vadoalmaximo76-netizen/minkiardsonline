@@ -29248,7 +29248,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       'TENUTE CARRISI': "A fine turno ogni personaggio lancia il dado: se esce 1 muore. ALBANO muore sempre.",
       'VEDI NAPOLI E POI MUORI': 'I napoletani si trasformano. I non-napoletani perdono stelle (pari al dado) ogni turno; le stelle vengono date ai napoletani. Dopo 5 turni vengono eliminati.',
       'ZIO VINCENZO AL VOLTURNO': 'A fine turno si lancia un dado globale: 1-2=tutti scartano, 3-4=tutti pescano bonus, 5-6=tutti pescano mosse.',
-      'GUERRA': 'Non si possono giocare bonus o mosse se si ha già un personaggio in campo. I personaggi neri raddoppiano il danno.',
+      'GUERRA': 'Non si possono giocare bonus e non si può cambiare personaggio se si ha già un personaggio in campo. I personaggi neri raddoppiano il danno.',
     };
     return effects[name] || name;
   }
@@ -30015,9 +30015,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
-    // GUERRA: cannot play bonus or mosse if player already has a char on field
+    // GUERRA: cannot play bonus or swap character if player already has a char on field
+    // Mosse are always allowed. A player with no character on field can play freely.
     if (scenario.name === 'GUERRA') {
-      if (card.type === 'bonus' || card.type === 'mosse') {
+      if (card.type === 'bonus' || card.type === 'personaggi' || card.type === 'personaggi_speciali') {
         const hasFieldChar = game.field.some(c =>
           c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
         );
@@ -30025,11 +30026,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           if (io) {
             io.to(gameId).emit('chat-message', {
               id: `${Date.now()}-guerra-block`, playerName: 'Sistema',
-              message: `⚔️ GUERRA! ${playerName} non può giocare ${card.type === 'bonus' ? 'bonus' : 'mosse'} quando ha già un personaggio in campo!`,
+              message: `⚔️ GUERRA! ${playerName} non può giocare bonus o cambiare personaggio quando ha già un personaggio in campo!`,
               timestamp: Date.now()
             });
           }
-          return { blocked: true, reason: 'GUERRA: impossibile giocare bonus/mosse con un personaggio in campo' };
+          return { blocked: true, reason: 'GUERRA: impossibile giocare bonus o cambiare personaggio con un personaggio già in campo' };
         }
       }
     }
