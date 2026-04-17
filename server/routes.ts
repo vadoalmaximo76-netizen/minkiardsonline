@@ -7331,6 +7331,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
+      // OSTAGGIO HANDLING (CPU): If this is an OSTAGGIO attack, apply hostage effect
+      if (attackResult.result?.isOstaggioAttack) {
+        console.log(`⛓️ OSTAGGIO attack detected (CPU ${cpuName}) - applying hostage effect to ${targetCardId}`);
+        
+        const ostaggioResult = gameManager.applyOstaggio(
+          gameId,
+          mosseCardId,
+          targetCardId,
+          cpuName,
+          damageValue,
+          io
+        );
+        
+        if (ostaggioResult.success) {
+          const updatedOstaggioState = gameManager.getSanitizedGameState(gameId);
+          emitThrottledGameState(io, gameId, updatedOstaggioState);
+        } else {
+          socket.emit('attack-error', { message: ostaggioResult.message || 'OSTAGGIO failed' });
+        }
+        
+        // Continue CPU turn (mirrors rouletteCPUResolved continuation)
+        const gameOst = gameManager.getGameState(gameId);
+        if (gameOst && gameOst.players[cpuName]?.cpuInstance) {
+          const cpuInstOst = gameOst.players[cpuName].cpuInstance;
+          cpuInstOst.resolveAttack();
+          setTimeout(async () => {
+            try {
+              const updS = gameManager.getSanitizedGameState(gameId);
+              const nxtA = await cpuInstOst.takeTurn(updS);
+              if (nxtA) {
+                await gameManager.processCPUTurn(gameId, cpuName, io);
+              } else {
+                gameManager.processDelayedDamages(gameId, cpuName, io);
+                const nextPlayerOst = gameManager.endTurn(gameId, cpuName);
+                if (nextPlayerOst) {
+                  io.to(gameId).emit('next-turn', { nextPlayer: nextPlayerOst });
+                  if (gameOst.players[nextPlayerOst]?.isCPU) {
+                    setTimeout(() => { gameManager.processCPUTurn(gameId, nextPlayerOst, io); }, 1200);
+                  }
+                }
+              }
+            } catch (e) { console.error(`Error continuing CPU ${cpuName} turn after OSTAGGIO:`, e); }
+          }, 100);
+        }
+        return;
+      }
+
       // NEW: Use defense system like all other attacks
       if (attackResult.result?.requiresDefenseResponse) {
         console.log(`🛡️ CPU attack requires defense - emitting defense:request to ${targetOwner}`);
