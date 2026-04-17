@@ -19108,6 +19108,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (!isRedirectEligible) {
           console.warn(`[TA-STEP] redirect requested but card "${defCardName}" is not redirect-eligible — treating as block`);
           redirectTargetCardId = undefined;
+        } else if (redirectTargetCardId) {
+          // Validate redirect target: must exist on field, be a character card, and NOT owned by the defender
+          const redirectCandidate = game.field.find((c: Card) => c.id === redirectTargetCardId);
+          if (!redirectCandidate) {
+            console.warn(`[TA-STEP] redirect target ${redirectTargetCardId} not found on field — treating as block`);
+            redirectTargetCardId = undefined;
+          } else if (redirectCandidate.owner === defender) {
+            console.warn(`[TA-STEP] redirect target ${redirectTargetCardId} is owned by defender ${defender} — self-redirect not allowed`);
+            redirectTargetCardId = undefined;
+          } else if (redirectCandidate.type !== 'personaggi' && redirectCandidate.type !== 'personaggi_speciali') {
+            console.warn(`[TA-STEP] redirect target ${redirectTargetCardId} is not a character card (type: ${redirectCandidate.type}) — treating as block`);
+            redirectTargetCardId = undefined;
+          }
         }
       }
     }
