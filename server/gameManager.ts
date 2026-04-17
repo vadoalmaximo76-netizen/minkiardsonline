@@ -9358,7 +9358,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             const attackerPti = myChar?.pti ?? 100;
             const attackerStars = myChar?.stars ?? 1;
             const attackDamage = Math.max(50, Math.floor(attackerPti * 0.3 * attackerStars));
-            // Store sequence state; attacks fire one at a time via fireTaStep
+            // Store sequence state; attacks fire one at a time via fireTaStep.
+            // taSequencePending tells applyCPUAction to hold endTurn until we're done.
+            (game as any).taSequencePending = true;
             (game as any).taSequence = {
               playerName,
               targetCardId: tgtC.id,
@@ -18864,6 +18866,32 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   }
 
   // ─── TARGET ACQUIRED SEQUENTIAL ATTACK SYSTEM ────────────────────────────
+
+  // Called when the TA sequence fully terminates (all attacks done or target killed).
+  // Advances the CPU's turn so the next player can act — mirrors applyCPUAction's advanceTurn.
+  async finalizeCpuTaSequence(gameId: string, cpuPlayerName: string, io: any): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game) return;
+    delete (game as any).taSequencePending;
+    io.to(gameId).emit('cpu-done-thinking', { playerName: cpuPlayerName });
+    const gs = this.getSanitizedGameState(gameId);
+    if (gs) io.to(gameId).emit('game-state-update', gs);
+    const next = this.endTurn(gameId, cpuPlayerName);
+    if (next) {
+      io.to(gameId).emit('next-turn', { nextPlayer: next });
+      const freshGame = this.games.get(gameId);
+      const gs2 = this.getSanitizedGameState(gameId);
+      if (gs2) io.to(gameId).emit('game-state-update', gs2);
+      if (freshGame?.players[next]?.isCPU) {
+        await new Promise(r => setTimeout(r, 1500));
+        const nextAction = await this.processCPUTurn(gameId, next, io);
+        if (nextAction) await this.applyCPUAction(gameId, next, nextAction, io);
+      } else {
+        this.startTurnTimer(gameId, next);
+      }
+    }
+  }
+
   // Called once per attack step in the CPU's Target Acquired sequence.
   // Emits a defense:request to the human defender for each individual hit so
   // they can use a Barriera/Respinta before damage is applied.
@@ -18885,7 +18913,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // so the sequence always terminates within a bounded number of steps.
     const target = game.field.find((c: Card) => c.id === seq.targetCardId);
     if (!target || (target.pti ?? 0) <= 0 || seq.attacksLeft <= 0) {
-      // Sequence naturally over
+      // Sequence naturally over (target dead or no attacks left)
+      const cpuName = seq.playerName;
+      const wasPending = !!(game as any).taSequencePending;
       delete (game as any).taSequence;
       delete (game as any).targetAcquired; // belt-and-suspenders cleanup
       const doneMsg = seq.stepCount > 0
@@ -18893,6 +18923,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         : `🎯 TARGET ACQUIRED: bersaglio già eliminato.`;
       io.to(gameId).emit('chat-message', { id: `${Date.now()}-ta-done`, playerName: 'Sistema', message: doneMsg, timestamp: Date.now() });
       io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      // Advance CPU turn now that the whole TA sequence is done
+      if (wasPending) setTimeout(() => this.finalizeCpuTaSequence(gameId, cpuName, io), 500);
       return;
     }
 
@@ -19045,15 +19077,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     const { attacker, defender, damage, targetCardId } = pd;
 
-    // Validate "defends=true": require a legal defense card or redirect target.
-    // If the client claims defense but neither condition is met, override to no-defense
-    // to prevent illegitimate free blocks.
+    // Validate "defends=true": require a valid bonus card in hand (regardless of
+    // whether it's used for a block or redirect). Without this, clients could forge
+    // free defense claims with no resource cost.
     if (defends) {
-      const hasDefenseCard = defenseCardId && game.players[defender]?.hand?.some((c: Card) => c.id === defenseCardId);
-      const hasRedirectTarget = redirectTargetCardId && game.field.some((c: Card) => c.id === redirectTargetCardId);
-      if (!hasDefenseCard && !hasRedirectTarget) {
-        console.warn(`[TA-STEP] defends=true but no valid card/redirect found for ${defender} — overriding to no-defense`);
+      const hasLegalCard = defenseCardId &&
+        game.players[defender]?.hand?.some((c: Card) => c.id === defenseCardId && c.type === 'bonus');
+      if (!hasLegalCard) {
+        console.warn(`[TA-STEP] defends=true but no valid bonus card in hand for ${defender} — overriding to no-defense`);
         defends = false;
+        // Clear redirect if forced to no-defense (it depended on a valid card)
+        redirectTargetCardId = undefined;
       }
     }
 
@@ -19090,9 +19124,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             if (seq && seq.attacksLeft > 0) {
               setTimeout(() => this.fireTaStep(gameId, io), 600);
             } else {
+              const cpuNameIns = seq?.playerName ?? attacker;
+              const wasPendingIns = !!(game as any).taSequencePending;
               delete (game as any).taSequence;
               delete (game as any).targetAcquired;
               io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+              if (wasPendingIns) setTimeout(() => this.finalizeCpuTaSequence(gameId, cpuNameIns, io), 500);
             }
             return true;
           }
@@ -19107,10 +19144,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             message: `💀 TARGET ACQUIRED completato! ${seq?.attackerName ?? attacker} ha eliminato ${target.name || defender} dopo ${stepsDone} colp${stepsDone === 1 ? 'o' : 'i'}!`,
             timestamp: Date.now(),
           });
+          const wasPendingKill = !!(game as any).taSequencePending;
           delete (game as any).taSequence;
           delete (game as any).targetAcquired; // belt-and-suspenders cleanup
           io.to(gameId).emit('attack:resolved', { attackId, attacker, defender, defends: false, resolveSource, timestamp: Date.now() });
           io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+          if (wasPendingKill) setTimeout(() => this.finalizeCpuTaSequence(gameId, attacker, io), 500);
           return true;
         }
       }
@@ -19175,6 +19214,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     } else {
       // Sequence finished (attacksLeft hit 0 or seq missing)
       const totalDone = seq?.stepCount ?? '?';
+      const cpuNameEnd = seq?.playerName ?? attacker;
+      const wasPendingEnd = !!(game as any).taSequencePending;
       io.to(gameId).emit('chat-message', {
         id: `${Date.now()}-ta-complete`,
         playerName: 'Sistema',
@@ -19184,6 +19225,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       delete (game as any).taSequence;
       delete (game as any).targetAcquired; // belt-and-suspenders cleanup
       io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      if (wasPendingEnd) setTimeout(() => this.finalizeCpuTaSequence(gameId, cpuNameEnd, io), 500);
     }
 
     return true;
@@ -24055,9 +24097,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const tgtCardCPR = game.field.find((c: Card) => c.id === value);
       if (tgtCardCPR) {
         if (this.isPlayerCPU(gameId, playerName)) {
-          // CPU: start sequential attack sequence (same as the main target_acquired branch)
+          // CPU: start sequential attack sequence (same as the main target_acquired branch).
+          // taSequencePending holds endTurn until sequence finishes.
           const attackerCPR = this.getPlayerActiveCharacter(game, playerName);
           const attackDamageCPR = Math.max(50, Math.floor(((attackerCPR?.pti ?? 100) * 0.3) * (attackerCPR?.stars ?? 1)));
+          (game as any).taSequencePending = true;
           (game as any).taSequence = {
             playerName,
             targetCardId: tgtCardCPR.id,
@@ -28567,7 +28611,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           await new Promise(r => setTimeout(r, 400));
         }
         await new Promise(r => setTimeout(r, 400));
-        await advanceTurn(cpuName);
+        // If TA sequence is running, it will call finalizeCpuTaSequence when done
+        if (!(this.games.get(gameId) as any)?.taSequencePending) {
+          await advanceTurn(cpuName);
+        }
         break;
       }
       case 'play-and-draw': {
@@ -28582,7 +28629,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           await new Promise(r => setTimeout(r, 400));
         }
         await new Promise(r => setTimeout(r, 400));
-        await advanceTurn(cpuName);
+        // If TA sequence is running, it will call finalizeCpuTaSequence when done
+        if (!(this.games.get(gameId) as any)?.taSequencePending) {
+          await advanceTurn(cpuName);
+        }
         break;
       }
       case 'end-turn': {

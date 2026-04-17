@@ -1270,6 +1270,17 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             </button>
           )}
         </div>
+        {/* TARGET ACQUIRED per-step incoming indicator — shown during active battle */}
+        {taIncoming && (
+          <div className="fixed inset-0 z-[160] pointer-events-none flex items-start justify-center pt-24">
+            <div
+              className="bg-red-900/90 border border-red-500 rounded-2xl px-6 py-3 text-white font-bold text-lg shadow-2xl shadow-red-900/70"
+              style={{ animation: 'gymDefeatRedFlash 700ms ease-out forwards', textShadow: '0 0 12px #ff0000' }}
+            >
+              🎯 Colpo {taIncoming.stepCount} in arrivo da {taIncoming.attackerName}!
+            </div>
+          </div>
+        )}
         <GameBoard isGymMode={true} />
       </div>
     );
@@ -1606,14 +1617,6 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         {/* Red vignette flash */}
         {showRedFlash && (
           <div className="fixed inset-0 z-[150] pointer-events-none bg-red-700" style={{ animation: 'gymDefeatRedFlash 350ms ease-out forwards' }} />
-        )}
-        {/* TARGET ACQUIRED incoming step indicator */}
-        {taIncoming && (
-          <div className="fixed inset-0 z-[160] pointer-events-none flex items-start justify-center pt-24" style={{ animation: 'gymDefeatRedFlash 700ms ease-out forwards' }}>
-            <div className="bg-red-900/90 border border-red-500 rounded-2xl px-6 py-3 text-white font-bold text-lg shadow-2xl shadow-red-900/70" style={{ textShadow: '0 0 12px #ff0000' }}>
-              🎯 Colpo {taIncoming.stepCount} in arrivo da {taIncoming.attackerName}!
-            </div>
-          </div>
         )}
         {/* Boss avatar with shake — shown above other content */}
         {selectedLeader.leaderImageUrl && (
