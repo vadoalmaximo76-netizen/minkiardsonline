@@ -8691,7 +8691,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // so the TA sequence can continue. Don't add a delayed damage entry.
       const pendingForTA = (gameManager as any).games?.get(gameId)?.pendingDefense;
       if (pendingForTA?.isTaStep && pendingForTA.attackId === attackId) {
-        console.log(`[TA-DELAY-GUARD] Blocking defense:delay for TA step ${attackId} — resolving as no-defense instead`);
+        console.log(`[TA-DELAY-GUARD] Blocking defense:delay for TA step ${attackId} — TA attacks cannot be delayed`);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-ta-delay-blocked`,
+          playerName: 'Sistema',
+          message: `⚠️ Non è possibile ritardare un attacco di TARGET ACQUIRED. Il colpo verrà applicato direttamente.`,
+          timestamp: Date.now(),
+        });
         await (gameManager as any).resolveTaStep(gameId, attackId, false, io, 'delay-blocked');
         return;
       }
@@ -8855,7 +8861,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // TARGET ACQUIRED sequential step: bypass processDefenseResponse entirely
       if ((pendingDefense as any).isTaStep) {
-        const taSuccess = await gameManager.resolveTaStep(gameId, attackId, defends, io, 'client', defenseCardId);
+        const taSuccess = await gameManager.resolveTaStep(gameId, attackId, defends, io, 'client', defenseCardId, redirectTargetCardId);
         if (!taSuccess) {
           console.warn(`[DEFENSE-RESPONSE] Failed to resolve TA step`, { gameId, attackId, defends, timestamp: new Date().toISOString() });
           socket.emit('defense:error', { message: 'Failed to resolve TARGET ACQUIRED step', code: 'TA_STEP_FAILED' });

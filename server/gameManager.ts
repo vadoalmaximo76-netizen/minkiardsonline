@@ -18913,7 +18913,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // Emit visual indicator for the incoming hit
     io.to(gameId).emit('ta-attack-step', {
       attackId,
-      attackerPlayer: seq.playerName,
+      attackerName: seq.attackerName,   // character name (e.g. "Il Pelux")
+      attackerPlayer: seq.playerName,   // player login name
       targetCardId: seq.targetCardId,
       targetOwner: seq.targetOwner,
       damage: seq.attackDamage,
@@ -19024,6 +19025,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     io: any,
     resolveSource: string,
     defenseCardId?: string,
+    redirectTargetCardId?: string,
   ): Promise<boolean> {
     const game = this.games.get(gameId);
     if (!game) return false;
@@ -19101,24 +19103,54 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
       }
     } else {
-      // Defense succeeded — this step is blocked
+      // Defense succeeded — either redirect or block
       const stepLabel = seq ? `colpo ${seq.stepCount}` : 'colpo';
-      // Handle a defensive card being played (e.g., Barriera card from hand)
-      if (defenseCardId) {
-        const defCard = game.players[defender]?.hand?.find((c: Card) => c.id === defenseCardId);
-        if (defCard) {
-          // Move the defensive bonus card to field and return to deck (consume it)
-          game.players[defender].hand = game.players[defender].hand.filter((c: Card) => c.id !== defenseCardId);
-          await this.pickCard(gameId, 'bonus', defender);
-          console.log(`[TA-STEP] Defender ${defender} used ${defCard.name || defenseCardId} to block TA step`);
+
+      if (redirectTargetCardId) {
+        // REDIRECT (RESPINTA-style): damage goes to the redirect target, not blocked
+        const redirectTarget = game.field.find((c: Card) => c.id === redirectTargetCardId);
+        if (redirectTarget) {
+          const prevPtiRedir = redirectTarget.pti ?? 0;
+          redirectTarget.pti = Math.max(0, prevPtiRedir - damage);
+          this.updateCardTextWithPTI(redirectTarget);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-ta-redirect`,
+            playerName: 'Sistema',
+            message: `↩️ ${defender} ha REINDIRIZZATO il ${stepLabel} di TARGET ACQUIRED su ${redirectTarget.name || redirectTarget.owner}! (${prevPtiRedir} → ${redirectTarget.pti} PTI)`,
+            timestamp: Date.now(),
+          });
+          if (redirectTarget.pti <= 0) {
+            const drRedir = this.moveToGraveyard(gameId, redirectTarget.id, redirectTarget.owner!, attacker);
+            if (!drRedir.insuranceTriggered && drRedir.eliminationCheck) {
+              this.processEliminationAfterDeath(gameId, redirectTarget.owner!, io, 'TARGET_ACQUIRED_REDIRECT');
+            }
+          }
         }
+        // Consume the defense card used for redirect (if any)
+        if (defenseCardId) {
+          const defCard = game.players[defender]?.hand?.find((c: Card) => c.id === defenseCardId);
+          if (defCard) {
+            game.players[defender].hand = game.players[defender].hand.filter((c: Card) => c.id !== defenseCardId);
+            await this.pickCard(gameId, 'bonus', defender);
+          }
+        }
+      } else {
+        // Normal block: consume card if used, log blocked message
+        if (defenseCardId) {
+          const defCard = game.players[defender]?.hand?.find((c: Card) => c.id === defenseCardId);
+          if (defCard) {
+            game.players[defender].hand = game.players[defender].hand.filter((c: Card) => c.id !== defenseCardId);
+            await this.pickCard(gameId, 'bonus', defender);
+            console.log(`[TA-STEP] Defender ${defender} used ${defCard.name || defenseCardId} to block TA step`);
+          }
+        }
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-ta-blocked`,
+          playerName: 'Sistema',
+          message: `🛡️ ${defender} ha respinto il ${stepLabel} di TARGET ACQUIRED!`,
+          timestamp: Date.now(),
+        });
       }
-      io.to(gameId).emit('chat-message', {
-        id: `${Date.now()}-ta-blocked`,
-        playerName: 'Sistema',
-        message: `🛡️ ${defender} ha respinto il ${stepLabel} di TARGET ACQUIRED!`,
-        timestamp: Date.now(),
-      });
     }
 
     io.to(gameId).emit('attack:resolved', { attackId, attacker, defender, defends, resolveSource, timestamp: Date.now() });
