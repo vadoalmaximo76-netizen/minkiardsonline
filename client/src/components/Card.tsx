@@ -228,6 +228,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const [isNewlyDrawn, setIsNewlyDrawn] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(true); // Start as true for immediate interaction
   const originalPTIRef = useRef<number | null>(null);
+  const hpBarFillRef = useRef<HTMLDivElement>(null);
   const prevLocationRef = useRef<string>(location);
   const [showSkinPanel, setShowSkinPanel] = useState(false);
   const [skinAnimation, setSkinAnimation] = useState<string | null>(null);
@@ -470,6 +471,14 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           if (Date.now() - lastBusShakeAt.current > 600) {
             setHitShake(true);
             setTimeout(() => setHitShake(false), 400);
+          }
+          // HP bar flash: bright white → normal colour over 0.45s
+          if (hpBarFillRef.current) {
+            gsap.fromTo(
+              hpBarFillRef.current,
+              { filter: 'brightness(3) saturate(0.15)' },
+              { filter: 'brightness(1) saturate(1)', duration: 0.45, ease: 'power2.out', overwrite: true }
+            );
           }
         }
         
@@ -1532,12 +1541,14 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   }, []);
 
   const handleMouseMove3D = useCallback((e: React.MouseEvent) => {
-    if (!cardRef.current || location !== 'field') return;
+    if (!cardRef.current || (location !== 'field' && location !== 'hand')) return;
     const rect = cardRef.current.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
-    const tiltX = (y - 0.5) * -20;
-    const tiltY = (x - 0.5) * 20;
+    // Gentler tilt for hand cards (cards are smaller, less dramatic)
+    const intensity = location === 'hand' ? 14 : 20;
+    const tiltX = (y - 0.5) * -intensity;
+    const tiltY = (x - 0.5) * intensity;
     setCardTilt({ rotateX: tiltX, rotateY: tiltY, glareX: x * 100, glareY: y * 100 });
   }, [location]);
 
@@ -1556,11 +1567,11 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     : 0;
 
   // On mobile: no perspective/preserve-3d (creates extra GPU compositing layers)
-  const tiltWrapperStyle: React.CSSProperties = (!isMobile && location === 'field') ? {
+  const tiltWrapperStyle: React.CSSProperties = (!isMobile && (location === 'field' || location === 'hand')) ? {
     perspective: '800px',
     transformStyle: 'preserve-3d',
     transform: isHovered
-      ? `rotateX(${cardTilt.rotateX}deg) rotateY(${cardTilt.rotateY}deg) scale3d(1.05, 1.05, 1.05)`
+      ? `rotateX(${cardTilt.rotateX}deg) rotateY(${cardTilt.rotateY}deg) scale3d(${location === 'hand' ? 1.08 : 1.05}, ${location === 'hand' ? 1.08 : 1.05}, 1)`
       : undefined,
     transition: isHovered ? 'transform 0.1s ease-out' : 'transform 0.4s ease-out',
   } : {};
@@ -1764,6 +1775,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               >
                 {/* Health bar fill */}
                 <div 
+                  ref={hpBarFillRef}
                   className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t ${colorClass} transition-all duration-150 ease-out`}
                   style={{ 
                     height: `${healthPercent}%`,
@@ -1864,7 +1876,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               animation: 'freeze-pulse 2s ease-in-out infinite',
             }}>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-2xl select-none pointer-events-none" style={{ opacity: 0.70 }}>🫧</span>
+                <span className="text-2xl select-none pointer-events-none status-emoji-float" style={{ opacity: 0.70 }}>🫧</span>
               </div>
               <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-sky-950 text-sky-100 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap border border-sky-300" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
                 🫧 BOLLA{card.blockedMosse ? ` (${card.blockedMosse}t)` : ''}
@@ -1880,7 +1892,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               animation: 'freeze-pulse 2s ease-in-out infinite',
             }}>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-3xl select-none pointer-events-none" style={{ opacity: 0.75 }}>❄️</span>
+                <span className="text-3xl select-none pointer-events-none status-emoji-float" style={{ opacity: 0.75, animationDelay: '0.3s' }}>❄️</span>
               </div>
               <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-cyan-950 text-cyan-100 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap border border-cyan-300" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
                 ❄️ GELO ({card.frozenTurns}t)
@@ -1895,7 +1907,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               boxShadow: 'inset 0 0 0 3px rgba(100,220,50,0.95), 0 0 10px 3px rgba(80,200,40,0.55)',
             }}>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-3xl select-none pointer-events-none" style={{ opacity: 0.75 }}>☠️</span>
+                <span className="text-3xl select-none pointer-events-none status-emoji-float" style={{ opacity: 0.75, animationDelay: '0.6s' }}>☠️</span>
               </div>
               <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-green-950 text-green-100 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap border border-green-300" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
                 ☠️ VELENO ({card.poisonTurns}t)
@@ -1911,7 +1923,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               animation: 'lock-pulse 2.5s ease-in-out infinite',
             }}>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-3xl select-none pointer-events-none" style={{ opacity: 0.80 }}>⛔</span>
+                <span className="text-3xl select-none pointer-events-none status-emoji-float" style={{ opacity: 0.80, animationDelay: '0.9s' }}>⛔</span>
               </div>
               <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-red-950 text-red-100 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap border border-red-300" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
                 ⛔ BLOCCATO ({card.lockTurns}t)

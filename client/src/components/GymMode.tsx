@@ -1031,7 +1031,22 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     isReplayBattleRef.current = replay;
     setIsReplayBattle(replay);
     setSelectedLeader(leader);
-    setPhase('intro');
+
+    // Cinematic flash before transitioning to intro phase
+    const el = transitionRef.current;
+    if (el) {
+      el.style.transition = 'none';
+      el.style.background = 'radial-gradient(ellipse at center, rgba(255,210,60,0.95) 0%, rgba(220,50,10,0.85) 35%, #000 70%)';
+      el.style.opacity = '0';
+      gsap.timeline()
+        .to(el, { opacity: 1, duration: 0.15, ease: 'power3.in' })
+        .call(() => {
+          el.style.background = '#000';
+          setPhase('intro');
+        });
+    } else {
+      setPhase('intro');
+    }
   };
 
   const handlePickCard = async (cardId: string) => {

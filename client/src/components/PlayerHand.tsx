@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Card } from "./Card";
+import { SkeletonCard } from "./SkeletonCard";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
 import { getAvatarEmoji } from "../lib/avatars";
@@ -7,9 +8,15 @@ import { getAvatarEmoji } from "../lib/avatars";
 export const PlayerHand: React.FC = () => {
   const { gameState, playerName, gameId } = useGameState();
   const [endTurnMessage, setEndTurnMessage] = useState<string>("");
+  const [initialLoad, setInitialLoad] = useState(true);
   
   const playerCards = gameState?.players?.[playerName]?.hand || [];
   const playerAvatar = gameState?.players?.[playerName]?.avatar;
+
+  // Clear skeleton once game state hydrates
+  useEffect(() => {
+    if (gameState) setInitialLoad(false);
+  }, [gameState]);
 
   useEffect(() => {
     const handleEndTurnSuccess = (data: { message: string; nextPlayer: string }) => {
@@ -60,17 +67,23 @@ export const PlayerHand: React.FC = () => {
         )}
       </div>
       <div className="flex gap-2 sm:gap-4 overflow-x-auto pb-2 sm:pb-4 -mx-2 px-2 sm:mx-0 sm:px-0">
-        {playerCards.map((card, index) => (
-          <Card
-            key={card.id}
-            card={card}
-            location="hand"
-            cardIndexInHand={index}
-            totalHandCards={playerCards.length}
-          />
-        ))}
-        {playerCards.length === 0 && (
-          <p className="text-white/70 italic text-sm sm:text-base">Nessuna carta in mano</p>
+        {initialLoad ? (
+          <SkeletonCard count={5} location="hand" />
+        ) : (
+          <>
+            {playerCards.map((card, index) => (
+              <Card
+                key={card.id}
+                card={card}
+                location="hand"
+                cardIndexInHand={index}
+                totalHandCards={playerCards.length}
+              />
+            ))}
+            {playerCards.length === 0 && (
+              <p className="text-white/70 italic text-sm sm:text-base">Nessuna carta in mano</p>
+            )}
+          </>
         )}
       </div>
     </div>

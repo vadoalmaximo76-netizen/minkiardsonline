@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 
 const _isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+const _prefersReducedMotion = typeof window !== 'undefined'
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 interface FloatingNumberProps {
   value: number;
@@ -22,7 +24,8 @@ export const FloatingNumber: React.FC<FloatingNumberProps> = ({
   onComplete,
 }) => {
   const isCritical = type === 'damage' && value >= 200;
-  const isHeavy = type === 'damage' && value >= 50;
+  const isMassive  = type === 'damage' && value >= 100 && value < 200;
+  const isHeavy    = type === 'damage' && value >= 50  && value < 100;
 
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
@@ -32,18 +35,20 @@ export const FloatingNumber: React.FC<FloatingNumberProps> = ({
     return Math.sin(seed) * 36 - 18;
   }, [value, x]);
 
-  const DURATION = isCritical ? 1.8 : isHeavy ? 1.4 : 1.1;
+  const DURATION = isCritical ? 1.8 : isMassive ? 1.6 : isHeavy ? 1.4 : 1.1;
 
   const getConfig = () => {
     switch (type) {
       case 'damage':
         return {
-          color: isCritical ? '#ff2020' : isHeavy ? '#ff6020' : '#ef4444',
+          color: isCritical ? '#ff2020' : isMassive ? '#ff3a00' : isHeavy ? '#ff6020' : '#ef4444',
           text: `-${Math.abs(value)}`,
-          emoji: isCritical ? '💀' : isHeavy ? '💥' : '🩸',
-          glowColor: isCritical ? '#ff0000' : '#ef4444',
+          emoji: isCritical ? '💀' : isMassive ? '💥' : isHeavy ? '💥' : '🩸',
+          glowColor: isCritical ? '#ff0000' : isMassive ? '#ff3a00' : '#ef4444',
           fontSize: isCritical
             ? _isMobile ? '3.2rem' : '5rem'
+            : isMassive
+            ? _isMobile ? '2.9rem' : '4.5rem'
             : isHeavy
             ? _isMobile ? '2.6rem' : '4rem'
             : _isMobile ? '2rem' : '3rem',
@@ -76,7 +81,7 @@ export const FloatingNumber: React.FC<FloatingNumberProps> = ({
   };
 
   const cfg = getConfig();
-  const riseAmount = isCritical ? -140 : isHeavy ? -110 : -85;
+  const riseAmount = isCritical ? -140 : isMassive ? -125 : isHeavy ? -110 : -85;
 
   const innerRef = useRef<HTMLDivElement>(null);
   const criticalRef = useRef<HTMLDivElement>(null);
@@ -151,14 +156,33 @@ export const FloatingNumber: React.FC<FloatingNumberProps> = ({
           .to(criticalFlashRef.current, { opacity: 0, duration: 0.22, ease: 'power2.out' });
 
         // Screen shake via margin (safe: margins never break position:fixed)
-        gsap.timeline({ delay: 0.04 })
-          .to(document.body, { marginLeft: -7, marginTop: 3, duration: 0.05, ease: 'none' })
-          .to(document.body, { marginLeft: 7, marginTop: -3, duration: 0.05, ease: 'none' })
-          .to(document.body, { marginLeft: -5, marginTop: 2, duration: 0.05, ease: 'none' })
-          .to(document.body, { marginLeft: 5, marginTop: -2, duration: 0.05, ease: 'none' })
-          .to(document.body, { marginLeft: -3, marginTop: 1, duration: 0.05, ease: 'none' })
-          .to(document.body, { marginLeft: 0, marginTop: 0, duration: 0.05, ease: 'none' })
+        if (!_prefersReducedMotion) {
+          gsap.timeline({ delay: 0.04 })
+            .to(document.body, { marginLeft: -7, marginTop: 3, duration: 0.05, ease: 'none' })
+            .to(document.body, { marginLeft: 7, marginTop: -3, duration: 0.05, ease: 'none' })
+            .to(document.body, { marginLeft: -5, marginTop: 2, duration: 0.05, ease: 'none' })
+            .to(document.body, { marginLeft: 5, marginTop: -2, duration: 0.05, ease: 'none' })
+            .to(document.body, { marginLeft: -3, marginTop: 1, duration: 0.05, ease: 'none' })
+            .to(document.body, { marginLeft: 0, marginTop: 0, duration: 0.05, ease: 'none' })
+            .call(() => gsap.set(document.body, { clearProps: 'marginLeft,marginTop' }));
+        }
+      }
+
+      // Smaller screen shake for massive hits
+      if (isMassive && !_prefersReducedMotion) {
+        gsap.timeline({ delay: 0.05 })
+          .to(document.body, { marginLeft: -4, marginTop: 2, duration: 0.06, ease: 'none' })
+          .to(document.body, { marginLeft: 4, marginTop: -2, duration: 0.06, ease: 'none' })
+          .to(document.body, { marginLeft: -2, marginTop: 1, duration: 0.06, ease: 'none' })
+          .to(document.body, { marginLeft: 0, marginTop: 0, duration: 0.06, ease: 'none' })
           .call(() => gsap.set(document.body, { clearProps: 'marginLeft,marginTop' }));
+      }
+
+      // Haptic feedback on mobile (navigator.vibrate is safe on unsupported devices)
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        if (isCritical)     navigator.vibrate([50, 20, 80]);
+        else if (isMassive) navigator.vibrate([35, 10, 40]);
+        else if (isHeavy)   navigator.vibrate(22);
       }
     });
 

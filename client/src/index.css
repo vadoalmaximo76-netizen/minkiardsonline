@@ -3414,3 +3414,53 @@ button:not([disabled]):active {
 .card-vfx-fire[data-active="true"] .card-fire-layer-2 {
   animation-duration: 0.5s;
 }
+
+/* ── Status effect icon animation ─────────────────────────────────────── */
+@keyframes status-emoji-float {
+  0%, 100% { transform: translateY(0)   scale(1);    }
+  40%       { transform: translateY(-5px) scale(1.15); }
+  70%       { transform: translateY(-2px) scale(1.06); }
+}
+.status-emoji-float {
+  display: inline-block;
+  animation: status-emoji-float 2s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* ── Skeleton card shimmer ─────────────────────────────────────────────── */
+@keyframes skeleton-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+.skeleton-card {
+  background: linear-gradient(
+    90deg,
+    #1e293b 20%,
+    #2d3f55 40%,
+    #334155 50%,
+    #2d3f55 60%,
+    #1e293b 80%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* ── HP bar impact flash (GSAP class helper) ───────────────────────────── */
+@keyframes hp-bar-impact {
+  0%   { filter: brightness(3) saturate(0.1); }
+  40%  { filter: brightness(1.8) saturate(0.5); }
+  100% { filter: brightness(1)   saturate(1);   }
+}
+.hp-bar-impact {
+  animation: hp-bar-impact 0.45s ease-out forwards;
+}
+
+/* ── prefers-reduced-motion: cover new additions too ──────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .status-emoji-float,
+  .skeleton-card {
+    animation: none !important;
+  }
+}
