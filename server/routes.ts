@@ -8689,7 +8689,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // If this is a TARGET ACQUIRED step, delay is not applicable — treat as "no defense"
       // so the TA sequence can continue. Don't add a delayed damage entry.
-      const pendingForTA = (gameManager as any).games?.get(gameId)?.pendingDefense;
+      const pendingForTA = gameManager.getPendingDefense(gameId);
       if (pendingForTA?.isTaStep && pendingForTA.attackId === attackId) {
         console.log(`[TA-DELAY-GUARD] Blocking defense:delay for TA step ${attackId} — TA attacks cannot be delayed`);
         io.to(gameId).emit('chat-message', {

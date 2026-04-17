@@ -18935,7 +18935,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       io.to(gameId).emit('attack:resolved', { attackId, attacker: seq.playerName, defender: seq.targetOwner, defends: true, resolveSource: 'rifugio', timestamp: Date.now() });
       io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
       // Continue sequence after a brief pause
-      setTimeout(() => this.fireTaStep(gameId, io), 900);
+      setTimeout(() => this.fireTaStep(gameId, io), 600);
       return;
     }
 
@@ -18952,7 +18952,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       this.damageBarriera(gameId, activeBarrieraCard.id, seq.attackDamage, seq.playerName, io);
       io.to(gameId).emit('attack:resolved', { attackId, attacker: seq.playerName, defender: seq.targetOwner, defends: true, resolveSource: 'barriera', timestamp: Date.now() });
       io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
-      setTimeout(() => this.fireTaStep(gameId, io), 900);
+      setTimeout(() => this.fireTaStep(gameId, io), 600);
       return;
     }
 
@@ -19045,6 +19045,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     const { attacker, defender, damage, targetCardId } = pd;
 
+    // Validate "defends=true": require a legal defense card or redirect target.
+    // If the client claims defense but neither condition is met, override to no-defense
+    // to prevent illegitimate free blocks.
+    if (defends) {
+      const hasDefenseCard = defenseCardId && game.players[defender]?.hand?.some((c: Card) => c.id === defenseCardId);
+      const hasRedirectTarget = redirectTargetCardId && game.field.some((c: Card) => c.id === redirectTargetCardId);
+      if (!hasDefenseCard && !hasRedirectTarget) {
+        console.warn(`[TA-STEP] defends=true but no valid card/redirect found for ${defender} — overriding to no-defense`);
+        defends = false;
+      }
+    }
+
     if (!defends) {
       // Defense declined — apply damage directly
       const target = game.field.find((c: Card) => c.id === targetCardId);
@@ -19076,7 +19088,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
             // Continue sequence — target is still alive with restored PTI
             if (seq && seq.attacksLeft > 0) {
-              setTimeout(() => this.fireTaStep(gameId, io), 900);
+              setTimeout(() => this.fireTaStep(gameId, io), 600);
             } else {
               delete (game as any).taSequence;
               delete (game as any).targetAcquired;
@@ -19159,7 +19171,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // Continue or finish sequence
     if (seq && seq.attacksLeft > 0) {
       // More attacks remain — schedule next step
-      setTimeout(() => this.fireTaStep(gameId, io), 900);
+      setTimeout(() => this.fireTaStep(gameId, io), 600);
     } else {
       // Sequence finished (attacksLeft hit 0 or seq missing)
       const totalDone = seq?.stepCount ?? '?';
