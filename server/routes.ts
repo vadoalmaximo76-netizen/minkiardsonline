@@ -7345,13 +7345,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         
         if (ostaggioResult.success) {
+          if (ostaggioResult.died) {
+            console.log(`⛓️💀 OSTAGGIO immediate-death branch (CPU ${cpuName}): target ${targetCardId} killed, OSTAGGIO returned to deck, continuing CPU turn`);
+          }
           const updatedOstaggioState = gameManager.getSanitizedGameState(gameId);
           emitThrottledGameState(io, gameId, updatedOstaggioState);
         } else {
           socket.emit('attack-error', { message: ostaggioResult.message || 'OSTAGGIO failed' });
         }
         
-        // Continue CPU turn (mirrors rouletteCPUResolved continuation)
+        // Continue CPU turn only when OSTAGGIO applied successfully.
+        // Runs for BOTH the immediate-death branch (died=true) and the hostage branch (died=false).
+        if (!ostaggioResult.success) return;
         const gameOst = gameManager.getGameState(gameId);
         if (gameOst && gameOst.players[cpuName]?.cpuInstance) {
           const cpuInstOst = gameOst.players[cpuName].cpuInstance;

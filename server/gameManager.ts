@@ -21447,6 +21447,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       card.owner = '';
       card.text = '';
       card.eliminatedBy = '';
+      // Clear OSTAGGIO-specific state so re-drawn cards don't carry stale hostage metadata
+      delete card.isOstaggioCard;
+      delete card.ostaggioHoldingCardId;
       
       const deckType = card.type as keyof GameState['decks'];
       
