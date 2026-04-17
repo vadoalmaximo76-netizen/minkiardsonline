@@ -203,6 +203,7 @@ interface PendingDefense {
   originalMosseDamage?: number; // Raw MOSSE damage before special move enhancement (for range checks)
   isCounterAttackDefense?: boolean; // Whether this defense was created from a counter-attack (BONUS only, no re-counter)
   isMultiAttackQueuedTarget?: boolean; // Whether this defense is part of a multi-attack queue (chains next target on resolve)
+  isTaStep?: boolean; // Whether this defense is part of a TARGET ACQUIRED sequential attack (CPU)
   createdAt: Date;
   timeoutId?: NodeJS.Timeout;
 }
@@ -9346,48 +9347,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           (game as any).targetAcquired = { playerName, targetCardId: tgtC.id, targetOwner: tgtC.owner, attacksLeft: maxAttacks, isIlPelux };
           emitChat(`🎯 TARGET ACQUIRED! ${myChar?.name || playerName} → ${tgtC.name || tgtC.owner}${isIlPelux ? ' — IL PELUX: attacca finché non muore!' : ' — 3 attacchi!'}`);
 
-          // CPU: execute attacks server-side immediately (humans drive this via client UI)
+          // CPU: execute attacks sequentially with defense windows
           if (isCPU) {
-            const taTargetId = tgtC.id;
-            const taTargetName = tgtC.name || tgtC.owner;
             const attackerName = myChar?.name || playerName;
             const attackerPti = myChar?.pti ?? 100;
             const attackerStars = myChar?.stars ?? 1;
             const attackDamage = Math.max(50, Math.floor(attackerPti * 0.3 * attackerStars));
-            const ioTA = io;
-            setTimeout(async () => {
-              const freshGame = this.games.get(gameId);
-              if (!freshGame) return;
-              const ta = (freshGame as any).targetAcquired;
-              if (!ta || ta.playerName !== playerName) return;
-              delete (freshGame as any).targetAcquired;
-
-              const attacksCount = isIlPelux ? 999 : maxAttacks;
-              let attacksDone = 0;
-              for (let i = 0; i < attacksCount; i++) {
-                const target = freshGame.field.find((c: Card) => c.id === taTargetId);
-                if (!target || (target.pti ?? 0) <= 0) break;
-                target.pti = Math.max(0, (target.pti || 0) - attackDamage);
-                this.updateCardTextWithPTI(target);
-                attacksDone++;
-                if (target.pti <= 0) {
-                  const dr = this.moveToGraveyard(gameId, target.id, target.owner!, playerName);
-                  if (dr.eliminationCheck) {
-                    this.processEliminationAfterDeath(gameId, target.owner!, ioTA, 'TARGET_ACQUIRED_CPU');
-                  }
-                  break;
-                }
-              }
-              if (ioTA) {
-                ioTA.to(gameId).emit('chat-message', {
-                  id: `${Date.now()}-ta-cpu-done`,
-                  playerName: 'Sistema',
-                  message: `🎯 TARGET ACQUIRED completato! ${attackerName} ha eseguito ${attacksDone} attacch${attacksDone === 1 ? 'o' : 'i'} su ${taTargetName} (${attackDamage} PTI ciascuno)!`,
-                  timestamp: Date.now()
-                });
-                ioTA.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
-              }
-            }, 300);
+            // Store sequence state; attacks fire one at a time via fireTaStep
+            (game as any).taSequence = {
+              playerName,
+              targetCardId: tgtC.id,
+              targetOwner: tgtC.owner,
+              attacksLeft: isIlPelux ? 999 : maxAttacks,
+              attackDamage,
+              isIlPelux,
+              attackerName,
+              stepCount: 0,
+            };
+            setTimeout(() => this.fireTaStep(gameId, io), 800);
           }
 
           emitState();
@@ -18881,6 +18858,249 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return cardId;
   }
 
+  // ─── TARGET ACQUIRED SEQUENTIAL ATTACK SYSTEM ────────────────────────────
+  // Called once per attack step in the CPU's Target Acquired sequence.
+  // Emits a defense:request to the human defender for each individual hit so
+  // they can use a Barriera/Respinta before damage is applied.
+  fireTaStep(gameId: string, io: any): void {
+    const game = this.games.get(gameId);
+    if (!game) return;
+
+    const seq = (game as any).taSequence as {
+      playerName: string; targetCardId: string; targetOwner: string;
+      attacksLeft: number; attackDamage: number; isIlPelux: boolean;
+      attackerName: string; stepCount: number;
+    } | undefined;
+
+    if (!seq) return;
+
+    // Safety cap: Il Pelux can fire at most 12 steps even if target keeps blocking
+    const MAX_TA_STEPS = 12;
+
+    // Check target still alive and sequence has steps left (or safety cap hit)
+    const target = game.field.find((c: Card) => c.id === seq.targetCardId);
+    if (!target || (target.pti ?? 0) <= 0 || seq.attacksLeft <= 0 || seq.stepCount >= MAX_TA_STEPS) {
+      // Sequence naturally over
+      delete (game as any).taSequence;
+      const doneMsg = seq.stepCount > 0
+        ? `🎯 TARGET ACQUIRED concluso! ${seq.attackerName} ha effettuato ${seq.stepCount} attacch${seq.stepCount === 1 ? 'o' : 'i'}.`
+        : `🎯 TARGET ACQUIRED: bersaglio già eliminato.`;
+      io.to(gameId).emit('chat-message', { id: `${Date.now()}-ta-done`, playerName: 'Sistema', message: doneMsg, timestamp: Date.now() });
+      io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      return;
+    }
+
+    seq.attacksLeft--;
+    seq.stepCount++;
+
+    const attackId = `ta-step-${gameId}-${seq.stepCount}-${Date.now()}`;
+    const targetName = target.name || seq.targetOwner;
+
+    // Announce this step to all players
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-ta-incoming`,
+      playerName: 'Sistema',
+      message: `🎯 TARGET ACQUIRED — Colpo ${seq.stepCount}${seq.isIlPelux ? '' : `/${seq.stepCount + seq.attacksLeft}`}! ${seq.attackerName} punta ${targetName}!`,
+      timestamp: Date.now(),
+    });
+
+    // Emit visual indicator for the incoming hit
+    io.to(gameId).emit('ta-attack-step', {
+      attackId,
+      attackerPlayer: seq.playerName,
+      targetCardId: seq.targetCardId,
+      targetOwner: seq.targetOwner,
+      damage: seq.attackDamage,
+      stepCount: seq.stepCount,
+      attacksLeft: seq.attacksLeft,
+    });
+
+    // Check Rifugio protection — automatically intercept
+    const rifugioProtection = this.isProtectedByRifugio(gameId, seq.targetCardId);
+    if (rifugioProtection) {
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-ta-rifugio`,
+        playerName: 'Sistema',
+        message: `🏠 ${targetName} è protetto da RIFUGIO! Il colpo ${seq.stepCount} di TARGET ACQUIRED viene assorbito dal rifugio.`,
+        timestamp: Date.now(),
+      });
+      this.damageRifugio(gameId, rifugioProtection.rifugioCardId, seq.attackDamage, seq.playerName, io);
+      io.to(gameId).emit('attack:resolved', { attackId, attacker: seq.playerName, defender: seq.targetOwner, defends: true, resolveSource: 'rifugio', timestamp: Date.now() });
+      io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      // Continue sequence after a brief pause
+      setTimeout(() => this.fireTaStep(gameId, io), 900);
+      return;
+    }
+
+    // Check Barriera passive shield — automatically intercept
+    const barrieraShield = this.isProtectedByBarriera(gameId, seq.targetCardId);
+    const activeBarrieraCard = barrieraShield ? this.getActiveBarrieraShieldCard(gameId, seq.targetCardId) : null;
+    if (barrieraShield && activeBarrieraCard) {
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-ta-barriera`,
+        playerName: 'Sistema',
+        message: `🛡️ ${targetName} è protetto da BARRIERA! Il colpo ${seq.stepCount} di TARGET ACQUIRED viene assorbito dallo scudo.`,
+        timestamp: Date.now(),
+      });
+      this.damageBarriera(gameId, activeBarrieraCard.id, seq.attackDamage, seq.playerName, io);
+      io.to(gameId).emit('attack:resolved', { attackId, attacker: seq.playerName, defender: seq.targetOwner, defends: true, resolveSource: 'barriera', timestamp: Date.now() });
+      io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+      setTimeout(() => this.fireTaStep(gameId, io), 900);
+      return;
+    }
+
+    // Register pending defense so the human player sees the defense panel
+    const pendingDefense: PendingDefense = {
+      attackId,
+      attacker: seq.playerName,
+      defender: seq.targetOwner,
+      damage: seq.attackDamage,
+      targetCardId: seq.targetCardId,
+      mosseCardId: `ta-synthetic-${attackId}`, // synthetic — no actual MOSSE card on field
+      deckType: 'bonus',
+      mosseCanBeCountered: false,
+      isTaStep: true,
+      createdAt: new Date(),
+    };
+
+    // Auto-resolve timeout (25s)
+    const timeoutId = setTimeout(async () => {
+      const freshGame = this.games.get(gameId);
+      if (!freshGame?.pendingDefense || freshGame.pendingDefense.attackId !== attackId) return;
+      console.log(`[TA-STEP] Auto-resolving step ${seq.stepCount} after timeout (no response)`);
+      await this.resolveTaStep(gameId, attackId, false, io, 'timeout');
+    }, 25000);
+    pendingDefense.timeoutId = timeoutId;
+    game.pendingDefense = pendingDefense;
+
+    // Emit defense:request to the defender
+    const defenderSocketId = this.getPlayerSocketId(gameId, seq.targetOwner);
+    if (defenderSocketId) {
+      io.to(defenderSocketId).emit('defense:request', {
+        attackId,
+        attackerName: seq.playerName,
+        defenderName: seq.targetOwner,
+        damage: seq.attackDamage,
+        targetCardId: seq.targetCardId,
+        mosseCardId: `ta-synthetic-${attackId}`,
+        deckType: 'bonus',
+        message: `🎯 TARGET ACQUIRED! ${seq.attackerName} ti attacca (colpo ${seq.stepCount})! Puoi usare una carta difensiva per bloccare questo colpo.`,
+        canCounter: false,
+      });
+    } else {
+      // Defender offline — apply damage immediately
+      clearTimeout(timeoutId);
+      delete game.pendingDefense;
+      this.resolveTaStep(gameId, attackId, false, io, 'offline').catch(() => {});
+    }
+  }
+
+  // Resolve a single TARGET ACQUIRED step (called from routes.ts defense:response
+  // when pendingDefense.isTaStep === true, skipping processDefenseResponse entirely).
+  async resolveTaStep(
+    gameId: string,
+    attackId: string,
+    defends: boolean,
+    io: any,
+    resolveSource: string,
+    defenseCardId?: string,
+  ): Promise<boolean> {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+
+    const pd = game.pendingDefense;
+    if (!pd || pd.attackId !== attackId || !pd.isTaStep) return false;
+
+    // Clear pending defense and its timeout
+    if (pd.timeoutId) clearTimeout(pd.timeoutId);
+    delete game.pendingDefense;
+
+    const seq = (game as any).taSequence as {
+      playerName: string; targetCardId: string; targetOwner: string;
+      attacksLeft: number; attackDamage: number; isIlPelux: boolean;
+      attackerName: string; stepCount: number;
+    } | undefined;
+
+    const { attacker, defender, damage, targetCardId } = pd;
+
+    if (!defends) {
+      // Defense declined — apply damage directly
+      const target = game.field.find((c: Card) => c.id === targetCardId);
+      if (target) {
+        const prevPti = target.pti ?? 0;
+        target.pti = Math.max(0, prevPti - damage);
+        this.updateCardTextWithPTI(target);
+
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-ta-hit`,
+          playerName: 'Sistema',
+          message: `💥 ${target.name || defender} subisce ${damage} danni da TARGET ACQUIRED! (${prevPti} → ${target.pti} PTI)`,
+          timestamp: Date.now(),
+        });
+
+        if (target.pti <= 0) {
+          // Target died — end sequence
+          const dr = this.moveToGraveyard(gameId, target.id, target.owner!, attacker);
+          if (dr.eliminationCheck) {
+            this.processEliminationAfterDeath(gameId, target.owner!, io, 'TARGET_ACQUIRED_CPU');
+          }
+          const stepsDone = seq?.stepCount ?? '?';
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-ta-kill`,
+            playerName: 'Sistema',
+            message: `💀 TARGET ACQUIRED completato! ${seq?.attackerName ?? attacker} ha eliminato ${target.name || defender} dopo ${stepsDone} colp${stepsDone === 1 ? 'o' : 'i'}!`,
+            timestamp: Date.now(),
+          });
+          delete (game as any).taSequence;
+          io.to(gameId).emit('attack:resolved', { attackId, attacker, defender, defends: false, resolveSource, timestamp: Date.now() });
+          io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+          return true;
+        }
+      }
+    } else {
+      // Defense succeeded — this step is blocked
+      const stepLabel = seq ? `colpo ${seq.stepCount}` : 'colpo';
+      // Handle a defensive card being played (e.g., Barriera card from hand)
+      if (defenseCardId) {
+        const defCard = game.players[defender]?.hand?.find((c: Card) => c.id === defenseCardId);
+        if (defCard) {
+          // Move the defensive bonus card to field and return to deck (consume it)
+          game.players[defender].hand = game.players[defender].hand.filter((c: Card) => c.id !== defenseCardId);
+          await this.pickCard(gameId, 'bonus', defender);
+          console.log(`[TA-STEP] Defender ${defender} used ${defCard.name || defenseCardId} to block TA step`);
+        }
+      }
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-ta-blocked`,
+        playerName: 'Sistema',
+        message: `🛡️ ${defender} ha respinto il ${stepLabel} di TARGET ACQUIRED!`,
+        timestamp: Date.now(),
+      });
+    }
+
+    io.to(gameId).emit('attack:resolved', { attackId, attacker, defender, defends, resolveSource, timestamp: Date.now() });
+    io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+
+    // Continue or finish sequence
+    if (seq && seq.attacksLeft > 0) {
+      // More attacks remain — schedule next step
+      setTimeout(() => this.fireTaStep(gameId, io), 900);
+    } else {
+      // Sequence finished (attacksLeft hit 0 or seq missing)
+      const totalDone = seq?.stepCount ?? '?';
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-ta-complete`,
+        playerName: 'Sistema',
+        message: `🎯 TARGET ACQUIRED completato! ${seq?.attackerName ?? attacker} ha eseguito ${totalDone} attacch${totalDone === 1 ? 'o' : 'i'}.`,
+        timestamp: Date.now(),
+      });
+      delete (game as any).taSequence;
+      io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+    }
+
+    return true;
+  }
+
   // RIFUGIO SHELTER PROTECTION SYSTEM
   
   // Check if a card is RIFUGIO
@@ -23747,24 +23967,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const tgtCardCPR = game.field.find((c: Card) => c.id === value);
       if (tgtCardCPR) {
         if (this.isPlayerCPU(gameId, playerName)) {
-          // CPU: execute all attacks immediately instead of setting pending state
+          // CPU: start sequential attack sequence (same as the main target_acquired branch)
           const attackerCPR = this.getPlayerActiveCharacter(game, playerName);
           const attackDamageCPR = Math.max(50, Math.floor(((attackerCPR?.pti ?? 100) * 0.3) * (attackerCPR?.stars ?? 1)));
-          const attacksCountCPR = pendingTACPR.isIlPelux ? 999 : (pendingTACPR.maxAttacks ?? 3);
-          let doneCountCPR = 0;
-          for (let i = 0; i < attacksCountCPR; i++) {
-            const tgt = game.field.find((c: Card) => c.id === value);
-            if (!tgt || (tgt.pti ?? 0) <= 0) break;
-            tgt.pti = Math.max(0, (tgt.pti || 0) - attackDamageCPR);
-            this.updateCardTextWithPTI(tgt);
-            doneCountCPR++;
-            if (tgt.pti <= 0) {
-              const dr = this.moveToGraveyard(gameId, tgt.id, tgt.owner!, playerName);
-              if (dr.eliminationCheck) this.processEliminationAfterDeath(gameId, tgt.owner!, io, 'TARGET_ACQUIRED_CPU');
-              break;
-            }
-          }
-          if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-ta-cpr`, playerName: 'Sistema', message: `🎯 TARGET ACQUIRED! ${attackerCPR?.name || playerName} esegue ${doneCountCPR} attacchi!`, timestamp: Date.now() });
+          (game as any).taSequence = {
+            playerName,
+            targetCardId: tgtCardCPR.id,
+            targetOwner: tgtCardCPR.owner,
+            attacksLeft: pendingTACPR.isIlPelux ? 999 : (pendingTACPR.maxAttacks ?? 3),
+            attackDamage: attackDamageCPR,
+            isIlPelux: pendingTACPR.isIlPelux,
+            attackerName: attackerCPR?.name || playerName,
+            stepCount: 0,
+          };
+          if (io) setTimeout(() => this.fireTaStep(gameId, io), 800);
+          if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-ta-cpr`, playerName: 'Sistema', message: `🎯 TARGET ACQUIRED! ${attackerCPR?.name || playerName} → ${tgtCardCPR.name || tgtCardCPR.owner}${pendingTACPR.isIlPelux ? ' (IL PELUX: attacca finché non muore!)' : ' — 3 attacchi!'}`, timestamp: Date.now() });
         } else {
           // Human: set the targetAcquired state for client-driven attacks
           (game as any).targetAcquired = { playerName, targetCardId: tgtCardCPR.id, targetOwner: tgtCardCPR.owner, attacksLeft: pendingTACPR.maxAttacks ?? 3, isIlPelux: pendingTACPR.isIlPelux };
