@@ -3201,78 +3201,6 @@ button:not([disabled]):active {
   55%  { opacity: 1; transform: scale(1.03) translateY(-3px); }
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
-@keyframes rdp-damage-enter {
-  0%   { opacity: 0; transform: scale(0.45) translateY(-18px); }
-  50%  { transform: scale(1.35) translateY(5px); opacity: 1; }
-  75%  { transform: scale(0.94) translateY(-2px); opacity: 1; }
-  100% { transform: scale(1) translateY(0); opacity: 1; }
-}
-.rdp-damage-enter { animation: rdp-damage-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-@keyframes rdp-damage-exit {
-  0%   { opacity: 1; transform: scale(1); }
-  30%  { opacity: 0.6; transform: scale(1.08) translateY(-4px); }
-  100% { opacity: 0; transform: scale(0.65) translateY(10px); }
-}
-.rdp-damage-exit  { animation: rdp-damage-exit 0.28s ease-in forwards; }
-/* sm tier – low damage (1-30): subtle nudge */
-@keyframes rdp-card-shake-left-sm {
-  0%,100% { transform: translateX(0); }
-  25%  { transform: translateX(-4px) rotate(-1.5deg); }
-  50%  { transform: translateX(3px) rotate(1deg); }
-  75%  { transform: translateX(-2px) rotate(-0.5deg); }
-}
-@keyframes rdp-card-shake-right-sm {
-  0%,100% { transform: translateX(0); }
-  25%  { transform: translateX(4px) rotate(1.5deg); }
-  50%  { transform: translateX(-3px) rotate(-1deg); }
-  75%  { transform: translateX(2px) rotate(0.5deg); }
-}
-.rdp-card-shake-left-sm  { animation: rdp-card-shake-left-sm  0.35s ease-in-out; }
-.rdp-card-shake-right-sm { animation: rdp-card-shake-right-sm 0.35s ease-in-out; }
-
-/* md tier – medium damage (31-80): standard shake */
-@keyframes rdp-card-shake-left-md {
-  0%,100% { transform: translateX(0); }
-  20%  { transform: translateX(-8px) rotate(-3deg); }
-  40%  { transform: translateX(6px) rotate(2deg); }
-  60%  { transform: translateX(-5px) rotate(-1deg); }
-  80%  { transform: translateX(3px) rotate(1deg); }
-}
-@keyframes rdp-card-shake-right-md {
-  0%,100% { transform: translateX(0); }
-  20%  { transform: translateX(8px) rotate(3deg); }
-  40%  { transform: translateX(-6px) rotate(-2deg); }
-  60%  { transform: translateX(5px) rotate(1deg); }
-  80%  { transform: translateX(-3px) rotate(-1deg); }
-}
-.rdp-card-shake-left-md  { animation: rdp-card-shake-left-md  0.45s ease-in-out; }
-.rdp-card-shake-right-md { animation: rdp-card-shake-right-md 0.45s ease-in-out; }
-
-/* lg tier – high damage (81+): exaggerated, longer shake with more rotation */
-@keyframes rdp-card-shake-left-lg {
-  0%,100% { transform: translateX(0) rotate(0); }
-  10%  { transform: translateX(-16px) rotate(-6deg); }
-  25%  { transform: translateX(12px) rotate(5deg); }
-  40%  { transform: translateX(-14px) rotate(-4deg); }
-  55%  { transform: translateX(10px) rotate(3deg); }
-  70%  { transform: translateX(-8px) rotate(-2deg); }
-  85%  { transform: translateX(5px) rotate(1deg); }
-}
-@keyframes rdp-card-shake-right-lg {
-  0%,100% { transform: translateX(0) rotate(0); }
-  10%  { transform: translateX(16px) rotate(6deg); }
-  25%  { transform: translateX(-12px) rotate(-5deg); }
-  40%  { transform: translateX(14px) rotate(4deg); }
-  55%  { transform: translateX(-10px) rotate(-3deg); }
-  70%  { transform: translateX(8px) rotate(2deg); }
-  85%  { transform: translateX(-5px) rotate(-1deg); }
-}
-.rdp-card-shake-left-lg  { animation: rdp-card-shake-left-lg  0.65s ease-in-out; }
-.rdp-card-shake-right-lg { animation: rdp-card-shake-right-lg 0.65s ease-in-out; }
-
-/* Legacy aliases kept for safety */
-.rdp-card-shake-left  { animation: rdp-card-shake-left-md  0.45s ease-in-out; }
-.rdp-card-shake-right { animation: rdp-card-shake-right-md 0.45s ease-in-out; }
 @keyframes rdp-skull-in {
   0%   { opacity: 0; transform: scale(0.4) rotate(-15deg); }
   70%  { transform: scale(1.2) rotate(5deg); opacity: 1; }
@@ -3284,13 +3212,7 @@ button:not([disabled]):active {
   100% { transform: scale(1); opacity: 1; }
 }
 .rdp-pti-pop { animation: rdp-pti-pop 0.35s ease-out; }
-@keyframes rdp-ball-bounce {
-  0%   { transform: scale(0) translateY(-20px); opacity: 0; }
-  60%  { transform: scale(1.2) translateY(4px); opacity: 1; }
-  80%  { transform: scale(0.9) translateY(-2px); }
-  100% { transform: scale(1) translateY(0); opacity: 1; }
-}
-.rdp-ball-bounce { animation: rdp-ball-bounce 0.5s ease-out; }
+
 @keyframes rdp-fade-in {
   0%   { opacity: 0; }
   100% { opacity: 1; }
