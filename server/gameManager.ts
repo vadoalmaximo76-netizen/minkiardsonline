@@ -19624,11 +19624,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         timestamp: Date.now()
       });
       
-      // Move to graveyard
+      // Move to graveyard (may be intercepted by insurance/zombie/salvavita/altaSalva)
       this.killAndCheck(gameId, targetCardId, originalOwner, captorPlayer);
       
-      // Return OSTAGGIO to deck since target died
+      // Return OSTAGGIO to deck regardless of whether the target survived
       this.returnToDeck(gameId, ostaggioCardId, captorPlayer);
+
+      // Check if the target card is still on the field (survival ability triggered)
+      const targetStillOnField = game.field.some((c: Card) => c.id === targetCardId);
+      if (targetStillOnField) {
+        // Insurance / zombie-mode / salvavita / altaSalva saved the card — do NOT emit hostage-died
+        console.log(`⛓️🛡️ OSTAGGIO: ${targetName} survived via protective ability — hostage-died suppressed`);
+        return { success: true, died: false, message: `${targetName} è sopravvissuto grazie a un'abilità di protezione!` };
+      }
       
       io.to(gameId).emit('hostage-died', {
         targetCardId,
