@@ -446,6 +446,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [showSecretRoom, setShowSecretRoom] = useState(false);
   const [secretRoomRevealing, setSecretRoomRevealing] = useState(false);
   const [showRedFlash, setShowRedFlash] = useState(false);
+  const [taIncoming, setTaIncoming] = useState<{ stepCount: number; attackerName: string } | null>(null);
   const transitionRef = useRef<HTMLDivElement>(null);
   const transitionFadeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const redFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -724,6 +725,15 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     socket.on('game-victory', handleGameVictory);
     return () => { socket.off('game-victory', handleGameVictory); };
   }, [playerName]);
+
+  useEffect(() => {
+    const handleTaAttackStep = ({ stepCount, attackerName }: { stepCount: number; attackerName: string }) => {
+      setTaIncoming({ stepCount, attackerName });
+      setTimeout(() => setTaIncoming(null), 700);
+    };
+    socket.on('ta-attack-step', handleTaAttackStep);
+    return () => { socket.off('ta-attack-step', handleTaAttackStep); };
+  }, []);
 
   useEffect(() => {
     const handleCpuAdded = ({ cpuName }: { cpuName: string }) => {
@@ -1596,6 +1606,14 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         {/* Red vignette flash */}
         {showRedFlash && (
           <div className="fixed inset-0 z-[150] pointer-events-none bg-red-700" style={{ animation: 'gymDefeatRedFlash 350ms ease-out forwards' }} />
+        )}
+        {/* TARGET ACQUIRED incoming step indicator */}
+        {taIncoming && (
+          <div className="fixed inset-0 z-[160] pointer-events-none flex items-start justify-center pt-24" style={{ animation: 'gymDefeatRedFlash 700ms ease-out forwards' }}>
+            <div className="bg-red-900/90 border border-red-500 rounded-2xl px-6 py-3 text-white font-bold text-lg shadow-2xl shadow-red-900/70" style={{ textShadow: '0 0 12px #ff0000' }}>
+              🎯 Colpo {taIncoming.stepCount} in arrivo da {taIncoming.attackerName}!
+            </div>
+          </div>
         )}
         {/* Boss avatar with shake — shown above other content */}
         {selectedLeader.leaderImageUrl && (

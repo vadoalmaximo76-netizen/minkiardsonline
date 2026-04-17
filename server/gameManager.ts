@@ -18879,14 +18879,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     if (!seq) return;
 
-    // Safety cap: only for Il Pelux (non-Pelux naturally ends via attacksLeft → 0).
-    // 20 steps is generous; in practice the target dies long before that.
-    const MAX_TA_STEPS_PELUX = 20;
-
-    // Check target still alive and sequence has steps left (or safety cap hit for Pelux)
+    // Non-Pelux: terminates via attacksLeft → 0 (3 attacks).
+    // Il Pelux: terminates only when target.pti ≤ 0 (insurance consumed → next hit kills).
+    // No hard step cap: insurance is a one-use flag (insurancePti set to 0 after trigger),
+    // so the sequence always terminates within a bounded number of steps.
     const target = game.field.find((c: Card) => c.id === seq.targetCardId);
-    const peluxCapHit = seq.isIlPelux && seq.stepCount >= MAX_TA_STEPS_PELUX;
-    if (!target || (target.pti ?? 0) <= 0 || seq.attacksLeft <= 0 || peluxCapHit) {
+    if (!target || (target.pti ?? 0) <= 0 || seq.attacksLeft <= 0) {
       // Sequence naturally over
       delete (game as any).taSequence;
       delete (game as any).targetAcquired; // belt-and-suspenders cleanup
@@ -19061,8 +19059,30 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         });
 
         if (target.pti <= 0) {
-          // Target died — end sequence
+          // Apply death through normal graveyard pipeline (insurance/resurrection handled inside)
           const dr = this.moveToGraveyard(gameId, target.id, target.owner!, attacker);
+
+          if (dr.insuranceTriggered) {
+            // Insurance saved the target — they survive at restored PTI, sequence continues
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-ta-insurance`,
+              playerName: 'Sistema',
+              message: `🛡️ TARGET ACQUIRED colpo ${seq?.stepCount ?? '?'}: l'assicurazione di ${target.name || defender} ha assorbito il colpo fatale!`,
+              timestamp: Date.now(),
+            });
+            io.to(gameId).emit('attack:resolved', { attackId, attacker, defender, defends: false, resolveSource, timestamp: Date.now() });
+            io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+            // Continue sequence — target is still alive with restored PTI
+            if (seq && seq.attacksLeft > 0) {
+              setTimeout(() => this.fireTaStep(gameId, io), 900);
+            } else {
+              delete (game as any).taSequence;
+              delete (game as any).targetAcquired;
+              io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+            }
+            return true;
+          }
+
           if (dr.eliminationCheck) {
             this.processEliminationAfterDeath(gameId, target.owner!, io, 'TARGET_ACQUIRED_CPU');
           }
@@ -19074,7 +19094,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             timestamp: Date.now(),
           });
           delete (game as any).taSequence;
-      delete (game as any).targetAcquired; // belt-and-suspenders cleanup
+          delete (game as any).targetAcquired; // belt-and-suspenders cleanup
           io.to(gameId).emit('attack:resolved', { attackId, attacker, defender, defends: false, resolveSource, timestamp: Date.now() });
           io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
           return true;
