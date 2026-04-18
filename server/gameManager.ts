@@ -208,6 +208,15 @@ interface PendingDefense {
   timeoutId?: NodeJS.Timeout;
 }
 
+interface MosseMultiTargetEntry {
+  attackerName: string;
+  mosseCardId: string;
+  targetCardId: string;
+  damageValue: number;
+  starsToRemove: number;
+  mosseEffect: string | null;
+}
+
 interface PendingContrattazione {
   negotiationId: string;
   attacker: string;
@@ -366,6 +375,7 @@ interface GameState {
   pointsAwarded: boolean; // Prevent duplicate Rankiard points awards
   pendingTransferRequests: TransferRequest[]; // Pending card transfer requests between human players
   pendingDefense?: PendingDefense; // Current pending defense request (only one at a time)
+  pendingMosseMultiTargets?: MosseMultiTargetEntry[]; // Queued MOSSE multi-target entries (all_enemies/all_characters/specific_count) — processed sequentially via processDefenseResponse
   pendingContrattazione?: PendingContrattazione; // Active negotiation for contrattazione_clandestina
   voodooLinks: VoodooLink[]; // BAMBOLA VOODOO: Track linked characters
   activeDuel?: DuelState; // Current active duel state
@@ -31304,8 +31314,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (!gameState || gameState.turnOrder.length === 0) return null;
 
     // MOSSE MULTI-TARGET: Clear any pending mosse multi-target queue on turn end to avoid stale attacks
-    if ((gameState as any).pendingMosseMultiTargets?.length > 0) {
-      (gameState as any).pendingMosseMultiTargets = [];
+    if (gameState.pendingMosseMultiTargets?.length) {
+      gameState.pendingMosseMultiTargets = [];
       console.log(`🔥 MOSSE MULTI: Cleared pendingMosseMultiTargets on endTurn for ${playerName}`);
     }
 
@@ -34200,10 +34210,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   private async processNextMosseMultiTarget(gameId: string, io: any): Promise<void> {
     const game = this.games.get(gameId);
     if (!game) return;
-    const queue = (game as any).pendingMosseMultiTargets as Array<any> | undefined;
+    const queue = game.pendingMosseMultiTargets;
     if (!queue || queue.length === 0) return;
 
-    const next = queue.shift();
+    const next = queue.shift() as MosseMultiTargetEntry;
     const { attackerName, mosseCardId, targetCardId, damageValue, starsToRemove, mosseEffect } = next;
 
     const targetCard = game.field.find((c: Card) => c.id === targetCardId);
@@ -35337,7 +35347,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
       }
       // MOSSE MULTI-TARGET: Process next queued mosse target (CPU all_enemies/all_characters/specific_count cards)
-      if ((game as any).pendingMosseMultiTargets?.length > 0 && !game.pendingDefense) {
+      if (game.pendingMosseMultiTargets?.length && !game.pendingDefense) {
         try {
           await this.processNextMosseMultiTarget(gameId, io);
         } catch (err) {
@@ -38467,6 +38477,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         // Team B wins
         const representativeWinner = teamBActive[0];
         game.gameEnded = true;
+        game.pendingMosseMultiTargets = [];
         console.log(`[TeamMode] Team B wins! Representative: ${representativeWinner}`);
         this.markGameInactive(gameId).catch(err => console.error('Failed to mark game inactive:', err));
         return `team:teamB:${game.teams.teamB.join(',')}`;
@@ -38475,6 +38486,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         // Team A wins
         const representativeWinner = teamAActive[0];
         game.gameEnded = true;
+        game.pendingMosseMultiTargets = [];
         console.log(`[TeamMode] Team A wins! Representative: ${representativeWinner}`);
         this.markGameInactive(gameId).catch(err => console.error('Failed to mark game inactive:', err));
         return `team:teamA:${game.teams.teamA.join(',')}`;
@@ -38482,6 +38494,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       if (teamAActive.length === 0 && teamBActive.length === 0) {
         // Draw - last survivor (should not happen normally)
         game.gameEnded = true;
+        game.pendingMosseMultiTargets = [];
         this.markGameInactive(gameId).catch(err => console.error('Failed to mark game inactive:', err));
         return 'draw';
       }
@@ -38493,6 +38506,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const winner = allActivePlayers[0];
       // Mark game as ended to prevent multiple victory notifications
       game.gameEnded = true;
+      game.pendingMosseMultiTargets = [];
       (game as any).lastWinner = winner;
       console.log(`Game victory declared for ${winner} - game marked as ended`);
       // Mark game as inactive in database
@@ -38507,6 +38521,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (activeHumans.length === 1 && activeCPUs.length === 0) {
       const winner = activeHumans[0];
       game.gameEnded = true;
+      game.pendingMosseMultiTargets = [];
       (game as any).lastWinner = winner;
       console.log(`Game victory declared for human ${winner} (all CPUs eliminated) - game marked as ended`);
       // Mark game as inactive in database

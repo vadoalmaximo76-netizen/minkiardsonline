@@ -3790,7 +3790,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
             if (allTargets.length > 1) {
               const liveGame = this.gameManager.getGameState(this.gameId);
               if (liveGame) {
-                (liveGame as any).pendingMosseMultiTargets = allTargets.slice(1).map((t) => ({
+                liveGame.pendingMosseMultiTargets = allTargets.slice(1).map((t) => ({
                   attackerName: this.playerName,
                   mosseCardId: mosseCard.id,
                   targetCardId: t.cardId,
