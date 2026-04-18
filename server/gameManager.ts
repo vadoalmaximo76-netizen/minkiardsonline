@@ -4034,6 +4034,44 @@ Rispondi SOLO in JSON:`;
       if (deck.length === 0 && game.players[playerName].isCPU) {
         console.log(`🔄 CPU ${playerName}: Personal ${deckType} deck empty in gym/draft mode — no refill from shared deck`);
       }
+    } else if ((game.isDraftMode || game.isGymMode || game.isDailyChallenge) && deckType === 'personaggi_speciali') {
+      // Gym/Draft/Daily mode: block access to the global personaggi_speciali pool.
+      // The personal deck (personaggi array) may contain speciali-type cards from the boss's customDeck.
+      const personalPersonaggi = game.playerDraftDecks?.[playerName]?.personaggi;
+      if (!personalPersonaggi) {
+        console.log(`🚫 [GymMode] ${playerName}: no personal deck for personaggi_speciali draw — blocked`);
+        return false;
+      }
+      const specialiIdx = personalPersonaggi.findIndex((c: Card) => c.type === 'personaggi_speciali');
+      if (specialiIdx === -1) {
+        console.log(`🚫 [GymMode] ${playerName}: no personaggi_speciali in personal deck — draw blocked (not in customDeck)`);
+        return false;
+      }
+      // Check CPU draw invariants before drawing speciali
+      if (!this.canCPUDraw(gameId, playerName, deckType)) {
+        console.log(`❌ CPU ${playerName} cannot draw ${deckType} - already has 1 in hand`);
+        return false;
+      }
+      const specialiCard = personalPersonaggi.splice(specialiIdx, 1)[0];
+      specialiCard.owner = playerName;
+      if (game.isDraftMode && specialiCard.draftBaseId) {
+        await this.applyDraftGrowthAtDraw(game, specialiCard, playerName);
+      }
+      game.players[playerName].hand.push(specialiCard);
+      // Handle doubleDrawActive here (early return bypasses the common post-draw block)
+      if ((game.players[playerName] as any).doubleDrawActive) {
+        const dd2SIdx = personalPersonaggi.findIndex((c: Card) => c.type === 'personaggi_speciali');
+        if (dd2SIdx !== -1) {
+          const extraSpecialiCard = personalPersonaggi.splice(dd2SIdx, 1)[0];
+          extraSpecialiCard.owner = playerName;
+          game.players[playerName].hand.push(extraSpecialiCard);
+          const ioDDE = (global as any).io;
+          if (ioDDE) ioDDE.to(gameId).emit('chat-message', { id: `${Date.now()}-double-draw-${playerName}`, playerName: 'Sistema', message: `🃏 MINKIARD N. 500: ${playerName} pesca una carta extra di tipo ${deckType}!`, timestamp: Date.now() });
+          console.log(`🃏 DOUBLE DRAW: ${playerName} draws extra speciali from personal deck (gym early-return path)`);
+        }
+      }
+      await this.recordEvent(gameId, 'pick-card', { cardId: specialiCard.id, deckType, cardType: specialiCard.type, frontImage: specialiCard.frontImage }, playerName);
+      return true;
     } else if (game.isGymMode && game.playerDraftDecks && !game.players[playerName]?.isCPU && deckType !== 'personaggi_speciali') {
       // DEFENSIVE: Human player in gym mode has no personal deck entry — do NOT fall back to shared deck
       // (shared deck contains all cards including ones that look like the CPU's deck)
@@ -4060,19 +4098,35 @@ Rispondi SOLO in JSON:`;
     // ── MINKIARD N. 500: doubleDrawActive — draw an extra card of the same type ──
     if ((game.players[playerName] as any).doubleDrawActive) {
       // In gym/draft/daily mode, extra card must come from personal deck, not shared deck
-      let extraDeck: Card[];
-      if ((game.isGymMode || game.isDraftMode || game.isDailyChallenge) && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
-        extraDeck = game.playerDraftDecks[playerName][deckType as 'personaggi' | 'mosse' | 'bonus'] || [];
+      if ((game.isGymMode || game.isDraftMode || game.isDailyChallenge) && deckType === 'personaggi_speciali') {
+        // Gym/Draft/Daily speciali: splice directly from personal personaggi deck (no filtered-copy bug)
+        const ddPersonaggi = game.playerDraftDecks?.[playerName]?.personaggi;
+        if (ddPersonaggi) {
+          const ddSIdx = ddPersonaggi.findIndex((c: Card) => c.type === 'personaggi_speciali');
+          if (ddSIdx !== -1) {
+            const extraSpecialiCard = ddPersonaggi.splice(ddSIdx, 1)[0];
+            extraSpecialiCard.owner = playerName;
+            game.players[playerName].hand.push(extraSpecialiCard);
+            const ioDD2 = (global as any).io;
+            if (ioDD2) ioDD2.to(gameId).emit('chat-message', { id: `${Date.now()}-double-draw-${playerName}`, playerName: 'Sistema', message: `🃏 MINKIARD N. 500: ${playerName} pesca una carta extra di tipo ${deckType}!`, timestamp: Date.now() });
+            console.log(`🃏 DOUBLE DRAW: ${playerName} draws extra ${deckType} speciali card from personal deck (Minkiard 500)`);
+          }
+        }
       } else {
-        extraDeck = game.decks[deckType];
-      }
-      if (extraDeck && extraDeck.length > 0) {
-        const extraCard = extraDeck.pop()!;
-        extraCard.owner = playerName;
-        game.players[playerName].hand.push(extraCard);
-        const ioDD = (global as any).io;
-        if (ioDD) ioDD.to(gameId).emit('chat-message', { id: `${Date.now()}-double-draw-${playerName}`, playerName: 'Sistema', message: `🃏 MINKIARD N. 500: ${playerName} pesca una carta extra di tipo ${deckType}!`, timestamp: Date.now() });
-        console.log(`🃏 DOUBLE DRAW: ${playerName} draws extra ${deckType} card (Minkiard 500)`);
+        let extraDeck: Card[];
+        if ((game.isGymMode || game.isDraftMode || game.isDailyChallenge) && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
+          extraDeck = game.playerDraftDecks[playerName][deckType as 'personaggi' | 'mosse' | 'bonus'] || [];
+        } else {
+          extraDeck = game.decks[deckType];
+        }
+        if (extraDeck && extraDeck.length > 0) {
+          const extraCard = extraDeck.pop()!;
+          extraCard.owner = playerName;
+          game.players[playerName].hand.push(extraCard);
+          const ioDD = (global as any).io;
+          if (ioDD) ioDD.to(gameId).emit('chat-message', { id: `${Date.now()}-double-draw-${playerName}`, playerName: 'Sistema', message: `🃏 MINKIARD N. 500: ${playerName} pesca una carta extra di tipo ${deckType}!`, timestamp: Date.now() });
+          console.log(`🃏 DOUBLE DRAW: ${playerName} draws extra ${deckType} card (Minkiard 500)`);
+        }
       }
     }
 
@@ -4096,6 +4150,31 @@ Rispondi SOLO in JSON:`;
     if ((game.isDraftMode || game.isGymMode || game.isDailyChallenge) && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
       const personalDecks = game.playerDraftDecks[playerName];
       deck = personalDecks[deckType as 'personaggi' | 'mosse' | 'bonus'] || [];
+    } else if ((game.isDraftMode || game.isGymMode || game.isDailyChallenge) && deckType === 'personaggi_speciali') {
+      // Gym/Draft/Daily mode: block access to the global personaggi_speciali pool.
+      const personalPersonaggi = game.playerDraftDecks?.[playerName]?.personaggi;
+      if (!personalPersonaggi) {
+        console.log(`🚫 [GymMode] ${playerName}: no personal deck for personaggi_speciali draw — blocked`);
+        return null;
+      }
+      const specialiIdx = personalPersonaggi.findIndex((c: Card) => c.type === 'personaggi_speciali');
+      if (specialiIdx === -1) {
+        console.log(`🚫 [GymMode] ${playerName}: no personaggi_speciali in personal deck — draw blocked (not in customDeck)`);
+        return null;
+      }
+      // Check CPU draw invariants before drawing speciali
+      if (!this.canCPUDraw(gameId, playerName, deckType)) {
+        console.log(`❌ CPU ${playerName} cannot draw ${deckType} - already has 1 in hand`);
+        return null;
+      }
+      const specialiCard = personalPersonaggi.splice(specialiIdx, 1)[0];
+      specialiCard.owner = playerName;
+      if (game.isDraftMode && specialiCard.draftBaseId) {
+        await this.applyDraftGrowthAtDraw(game, specialiCard, playerName);
+      }
+      game.players[playerName].hand.push(specialiCard);
+      await this.recordEvent(gameId, 'pick-card', { cardId: specialiCard.id, deckType, cardType: specialiCard.type, frontImage: specialiCard.frontImage }, playerName);
+      return specialiCard;
     } else if (game.isGymMode && game.playerDraftDecks && !game.players[playerName]?.isCPU && deckType !== 'personaggi_speciali') {
       // DEFENSIVE: Human player in gym mode has no personal deck entry — do NOT fall back to shared deck
       console.warn(`⚠️ pickCardAndReturn: Human ${playerName} has no personal deck in GymMode — blocking shared deck fallback`);
@@ -11978,10 +12057,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // ─── PORTALE SPECIALE: pesca una carta speciale dal mazzo ────────────────
       case 'portale_speciale': {
-        const psSpecDeck = game.decks.personaggi_speciali;
-        if (psSpecDeck && psSpecDeck.length > 0) {
-          const randomIdx = Math.floor(Math.random() * psSpecDeck.length);
-          const [specCard] = psSpecDeck.splice(randomIdx, 1);
+        const isGymDraftPortale = game.isGymMode || game.isDraftMode || game.isDailyChallenge;
+        let psSourceDeck: Card[];
+        if (isGymDraftPortale && game.playerDraftDecks?.[playerName]) {
+          // Gym/Draft/Daily: use only speciali cards from personal deck, not global pool
+          psSourceDeck = game.playerDraftDecks[playerName].personaggi.filter((c: Card) => c.type === 'personaggi_speciali');
+        } else {
+          psSourceDeck = game.decks.personaggi_speciali;
+        }
+        if (psSourceDeck && psSourceDeck.length > 0) {
+          const randomIdx = Math.floor(Math.random() * psSourceDeck.length);
+          const specCard = psSourceDeck[randomIdx];
+          // Remove from the real source array
+          if (isGymDraftPortale && game.playerDraftDecks?.[playerName]) {
+            const realIdx = game.playerDraftDecks[playerName].personaggi.findIndex((c: Card) => c.id === specCard.id);
+            if (realIdx !== -1) game.playerDraftDecks[playerName].personaggi.splice(realIdx, 1);
+          } else {
+            game.decks.personaggi_speciali.splice(game.decks.personaggi_speciali.findIndex((c: Card) => c.id === specCard.id), 1);
+          }
           specCard.owner = playerName;
           if (!game.players[playerName].hand) game.players[playerName].hand = [];
           (game.players[playerName].hand as Card[]).push(specCard);
@@ -16220,10 +16313,23 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'summon': {
-        const summonDeck = game.decks.personaggi.length > 0 ? 'personaggi' : 'personaggi_speciali';
-        if (game.decks[summonDeck].length > 0) {
-          const randIdx = Math.floor(Math.random() * game.decks[summonDeck].length);
-          const summonedCard = game.decks[summonDeck].splice(randIdx, 1)[0];
+        const isGymDraftSummon = game.isGymMode || game.isDraftMode || game.isDailyChallenge;
+        let summonedCard: Card | null = null;
+        if (isGymDraftSummon && game.playerDraftDecks?.[playerName]) {
+          // In gym/draft/daily mode, only draw from personal personaggi deck — no global speciali fallback
+          const personalPersonaggi = game.playerDraftDecks[playerName].personaggi;
+          if (personalPersonaggi.length > 0) {
+            const randIdx = Math.floor(Math.random() * personalPersonaggi.length);
+            summonedCard = personalPersonaggi.splice(randIdx, 1)[0];
+          }
+        } else {
+          const summonDeckType = game.decks.personaggi.length > 0 ? 'personaggi' : 'personaggi_speciali';
+          if (game.decks[summonDeckType].length > 0) {
+            const randIdx = Math.floor(Math.random() * game.decks[summonDeckType].length);
+            summonedCard = game.decks[summonDeckType].splice(randIdx, 1)[0];
+          }
+        }
+        if (summonedCard) {
           summonedCard.owner = playerName;
           game.field.push(summonedCard);
           console.log(`🌟 SUMMON: ${playerName} summoned ${summonedCard.name || summonedCard.id} to the field!`);
@@ -16242,16 +16348,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           break;
         }
         
-        console.log(`🎭 SUMMON_NAMED: Looking for "${targetCharName}" in personaggi_speciali deck`);
-        
-        const specDeck = game.decks.personaggi_speciali;
+        const isGymDraftNamed = game.isGymMode || game.isDraftMode || game.isDailyChallenge;
+        console.log(`🎭 SUMMON_NAMED: Looking for "${targetCharName}" in ${isGymDraftNamed ? 'personal personaggi deck' : 'personaggi_speciali deck'}`);
+
+        // In gym/draft/daily mode, search only in the player's personal personaggi deck to prevent
+        // drawing from the global speciali pool. In normal mode, use the global speciali deck.
+        const specDeck: Card[] = isGymDraftNamed
+          ? (game.playerDraftDecks?.[playerName]?.personaggi || [])
+          : game.decks.personaggi_speciali;
         const namedIdx = specDeck.findIndex((c: Card) => {
           const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase().trim();
           return cName.includes(targetCharName) || targetCharName.includes(cName);
         });
         
         if (namedIdx === -1) {
-          console.log(`❌ SUMMON_NAMED: "${targetCharName}" not found in personaggi_speciali deck (${specDeck.length} cards)`);
+          console.log(`❌ SUMMON_NAMED: "${targetCharName}" not found in ${isGymDraftNamed ? 'personal deck' : 'personaggi_speciali deck'} (${specDeck.length} cards)`);
           const ioSummon = (global as any).io;
           if (ioSummon) {
             ioSummon.to(gameId).emit('chat-message', {
@@ -16399,15 +16510,29 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
           
           if (!foundCard) {
-            for (const deckType of ['personaggi', 'personaggi_speciali'] as const) {
-              const deckIdx = game.decks[deckType].findIndex((c: Card) => {
+            const isGymDraftGroup = game.isGymMode || game.isDraftMode || game.isDailyChallenge;
+            if (isGymDraftGroup && game.playerDraftDecks?.[playerName]) {
+              // Gym/Draft/Daily mode: search personal personaggi deck only — no global speciali fallback
+              const personalPersonaggi = game.playerDraftDecks[playerName].personaggi;
+              const pIdx = personalPersonaggi.findIndex((c: Card) => {
                 const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase().trim();
                 return cName.includes(upperName) || upperName.includes(cName);
               });
-              if (deckIdx !== -1) {
-                foundCard = game.decks[deckType].splice(deckIdx, 1)[0];
-                foundSource = `mazzo ${deckType}`;
-                break;
+              if (pIdx !== -1) {
+                foundCard = personalPersonaggi.splice(pIdx, 1)[0];
+                foundSource = 'mazzo personale';
+              }
+            } else {
+              for (const deckType of ['personaggi', 'personaggi_speciali'] as const) {
+                const deckIdx = game.decks[deckType].findIndex((c: Card) => {
+                  const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase().trim();
+                  return cName.includes(upperName) || upperName.includes(cName);
+                });
+                if (deckIdx !== -1) {
+                  foundCard = game.decks[deckType].splice(deckIdx, 1)[0];
+                  foundSource = `mazzo ${deckType}`;
+                  break;
+                }
               }
             }
           }
@@ -22455,13 +22580,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             sorosActivated = true;
             console.log(`🎭 SOROS ACTIVATED! ${attacker} has eliminated 6 personaggi!`);
             
-            // Find SOROS in personaggi_speciali deck
-            const sorosIndex = game.decks.personaggi_speciali.findIndex((c: Card) => 
+            // Find SOROS in the appropriate deck based on game mode
+            const isGymDraftSoros = game.isGymMode || game.isDraftMode || game.isDailyChallenge;
+            const sorosDeckSource: Card[] = isGymDraftSoros && game.playerDraftDecks?.[attacker]
+              ? game.playerDraftDecks[attacker].personaggi
+              : game.decks.personaggi_speciali;
+            const sorosIndex = sorosDeckSource.findIndex((c: Card) => 
               c.frontImage && c.frontImage.includes('soros')
             );
             
             if (sorosIndex !== -1) {
-              const soros = game.decks.personaggi_speciali.splice(sorosIndex, 1)[0];
+              const soros = sorosDeckSource.splice(sorosIndex, 1)[0];
               soros.owner = attacker;
               game.field.push(soros);
               console.log(`🎭 SOROS automatically played on field for ${attacker}!`);
@@ -23231,7 +23360,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     let targetDeck: any[] | null = null;
     let deckDisplayName = '';
 
-    const isDraft = (game as any).isDraftMode;
+    const isDraft = (game as any).isDraftMode || (game as any).isGymMode || (game as any).isDailyChallenge;
     const personalDecks = isDraft ? (game as any).playerDraftDecks?.[playerName] : undefined;
 
     switch (deckType) {
@@ -23248,7 +23377,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         deckDisplayName = 'BONUS';
         break;
       case 'personaggi_speciali':
-        targetDeck = game.decks.personaggi_speciali;
+        // In gym/draft/daily mode, expose only speciali cards from personal deck, not global pool
+        targetDeck = isDraft && personalDecks
+          ? (personalDecks.personaggi as any[]).filter((c: any) => c.type === 'personaggi_speciali')
+          : game.decks.personaggi_speciali;
         deckDisplayName = 'SPECIALI';
         break;
     }
@@ -23279,7 +23411,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const playerData = game.players[playerName];
     if (!playerData) return { success: false };
 
-    const isDraft = (game as any).isDraftMode;
+    const isDraft = (game as any).isDraftMode || (game as any).isGymMode || (game as any).isDailyChallenge;
     const personalDecks = isDraft ? (game as any).playerDraftDecks?.[playerName] : undefined;
 
     let targetDeck: any[] | null = null;
@@ -23299,7 +23431,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         deckDisplayName = 'BONUS';
         break;
       case 'personaggi_speciali':
-        targetDeck = game.decks.personaggi_speciali;
+        // In gym/draft/daily mode, select only from personal deck's speciali, not global pool
+        targetDeck = isDraft && personalDecks
+          ? (personalDecks.personaggi as any[])
+          : game.decks.personaggi_speciali;
         deckDisplayName = 'SPECIALI';
         break;
     }
@@ -23310,6 +23445,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (cardIndex === -1) {
       console.log(`🎴 Card ${selectedCardId} not found in ${deckDisplayName} deck`);
       return { success: false, message: `Carta non trovata nel mazzo` };
+    }
+
+    // Server-side guard: in gym/draft/daily mode, ensure selected card is actually personaggi_speciali
+    if (isDraft && personalDecks && deckType === 'personaggi_speciali') {
+      const foundCard = targetDeck[cardIndex];
+      if (!foundCard || foundCard.type !== 'personaggi_speciali') {
+        console.log(`🎴 Card ${selectedCardId} is not a valid personaggi_speciali card — rejected`);
+        return { success: false, message: `Carta non valida: non è un personaggio speciale` };
+      }
     }
 
     const selectedCard = targetDeck.splice(cardIndex, 1)[0];
@@ -23376,10 +23520,27 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         targetDeck = game.decks.bonus;
         deckDisplayName = 'BONUS';
         break;
-      case 'personaggi_speciali':
+      case 'personaggi_speciali': {
+        const isDraftPS = (game as any).isDraftMode || (game as any).isGymMode || (game as any).isDailyChallenge;
+        const psDrafts = isDraftPS ? (game as any).playerDraftDecks?.[playerName] : undefined;
+        if (isDraftPS && psDrafts) {
+          // In gym/draft/daily mode: splice directly from personal personaggi to avoid filtered-copy pop bug
+          const pPersonaggi: any[] = psDrafts.personaggi;
+          const psIdx = pPersonaggi.findIndex((c: any) => c.type === 'personaggi_speciali');
+          if (psIdx === -1) {
+            return { success: true, message: `🎴 Il mazzo SPECIALI è vuoto!` };
+          }
+          const drawnSpeciali = pPersonaggi.splice(psIdx, 1)[0];
+          drawnSpeciali.owner = playerName;
+          playerData.hand.push(drawnSpeciali);
+          const drawnSpecialiName = drawnSpeciali.name || this.getCardNameFromUrl(drawnSpeciali.frontImage);
+          console.log(`🎴 ${playerName} drew ${drawnSpecialiName} from SPECIALI deck (personal)`);
+          return { success: true, message: `🎴 ${cardName}: ${playerName} ha pescato una carta dal mazzo SPECIALI!` };
+        }
         targetDeck = game.decks.personaggi_speciali;
         deckDisplayName = 'SPECIALI';
         break;
+      }
     }
 
     if (!targetDeck || targetDeck.length === 0) {
