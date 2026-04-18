@@ -3796,7 +3796,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
                   targetCardId: t.cardId,
                   damageValue: suggestedDamage,
                   starsToRemove: isMutilazione ? 1 : 0,
-                  mosseEffect: effectiveEffect || null
+                  mosseEffect: effectiveEffect || null,
+                  mosseCanBeCountered: (mosseCard as any).mosseCanBeCountered === true,
+                  mosseDamageValue: (mosseCard as any).mosseDamageValue ?? null,
+                  attackerStars
                 }));
                 console.log(`🔥 CPU ${this.playerName}: Queued ${allTargets.length - 1} additional mosse targets for sequential attack`);
               }

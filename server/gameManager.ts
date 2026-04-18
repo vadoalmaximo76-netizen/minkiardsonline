@@ -215,6 +215,9 @@ interface MosseMultiTargetEntry {
   damageValue: number;
   starsToRemove: number;
   mosseEffect: string | null;
+  mosseCanBeCountered: boolean;
+  mosseDamageValue: number | null;
+  attackerStars: number;
 }
 
 interface PendingContrattazione {
@@ -34208,8 +34211,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
   }
 
-  // Process the next queued MOSSE multi-target attack (sequential, each gets a defense:request)
+  // Process the next queued MOSSE multi-target attack (sequential, each gets a defense:request).
   // Called from processDefenseResponse's finally block after each defense resolves.
+  // Uses setPendingDefense directly (like processNextMultiAttackTarget) to avoid depending on
+  // the MOSSE card's field location — card may have been returned to deck by returnToDeck()
+  // when the previous target's defense succeeded.
   private async processNextMosseMultiTarget(gameId: string, io: any): Promise<void> {
     const game = this.games.get(gameId);
     if (!game) return;
@@ -34217,32 +34223,65 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (!queue || queue.length === 0) return;
 
     const next = queue.shift() as MosseMultiTargetEntry;
-    const { attackerName, mosseCardId, targetCardId, damageValue, starsToRemove, mosseEffect } = next;
+    const { attackerName, mosseCardId, targetCardId, damageValue, starsToRemove, mosseEffect,
+            mosseCanBeCountered, mosseDamageValue, attackerStars } = next;
 
+    // Skip targets that left the field (died during earlier chain step)
     const targetCard = game.field.find((c: Card) => c.id === targetCardId);
     if (!targetCard) {
-      console.log(`🔥 MOSSE MULTI: Target ${targetCardId} no longer on field — skipping`);
-      await this.processNextMosseMultiTarget(gameId, io);
-      return;
+      console.log(`🔥 MOSSE MULTI: Target ${targetCardId} no longer on field — skipping, trying next`);
+      return this.processNextMosseMultiTarget(gameId, io);
     }
 
-    const mosseCardRef = (game.graveyard || []).find((c: Card) => c.id === mosseCardId) ||
-      game.field.find((c: Card) => c.id === mosseCardId);
-    const mosseCardName = mosseCardRef?.name || this.getCardNameFromUrl(mosseCardRef?.frontImage || '') || 'Mossa';
+    const targetOwnerName = targetCard.owner || '';
     const targetName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '');
 
-    console.log(`🔥 MOSSE MULTI: Processing next queued mosse target — ${mosseCardName} → ${targetName}`);
+    console.log(`🔥 MOSSE MULTI: Processing queued target — ${attackerName} → ${targetName} (${targetOwnerName})`);
     io.to(gameId).emit('chat-message', {
       id: `${Date.now()}-mosse-multi-next`,
       playerName: 'Sistema',
-      message: `🔥 ${mosseCardName} colpisce anche ${targetName}!`,
+      message: `🔥 L'attacco colpisce anche ${targetName}!`,
       timestamp: Date.now()
     });
 
-    await this.executeMossaAttack(
-      gameId, attackerName, mosseCardId, targetCardId,
-      damageValue, false, undefined, starsToRemove || 0, mosseEffect || null
-    );
+    const attackId = `mosse-multi-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+
+    // Create defense opportunity for this target directly — no executeMossaAttack call needed.
+    // This avoids the card-location requirement (card may be in deck after returnToDeck).
+    const defenseCreated = this.setPendingDefense(gameId, {
+      attackId,
+      attacker: attackerName,
+      defender: targetOwnerName,
+      damage: damageValue,
+      targetCardId,
+      mosseCardId,
+      deckType: 'mosse',
+      isHandTarget: false,
+      starsToRemove: starsToRemove || 0,
+      isFurtoAttack: false,
+      mosseEffect: mosseEffect || undefined,
+      mosseCanBeCountered,
+      mosseDamageValue,
+      attackerStars,
+      originalMosseDamage: damageValue
+    });
+
+    if (defenseCreated) {
+      console.log(`🔥 MOSSE MULTI: Defense created for ${targetOwnerName} — emitting defense:request`);
+      await this.emitDefenseRequest(gameId, io);
+    } else {
+      // Defense creation failed (rare: game ended, player eliminated). Drain queue safely.
+      console.warn(`🔥 MOSSE MULTI: setPendingDefense failed for ${targetOwnerName} — draining remaining queue`);
+      game.pendingMosseMultiTargets = [];
+      // Ensure turn progresses if queue was keeping it deferred
+      const currentPlayer = game.turnOrder[game.currentTurnIndex];
+      if (currentPlayer === attackerName) {
+        const nextPlayer = this.endTurn(gameId, attackerName);
+        if (nextPlayer && io) {
+          io.to(gameId).emit('next-turn', { nextPlayer });
+        }
+      }
+    }
   }
 
   getPendingDefense(gameId: string): PendingDefense | undefined {
