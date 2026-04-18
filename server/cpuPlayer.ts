@@ -3752,20 +3752,62 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           const names = allTargets.map((t) => t.name).join(', ');
           const effect = effectiveEffect ? ` [Effetto: ${effectiveEffect}]` : '';
           this.sendChatMessage(`${mosseCardName} colpisce ${allTargets.length} bersagli: ${names}!${effect}`);
-          for (const t of allTargets) {
+
+          // ACCHIAPPT CHESSA: single server call handles all targets internally (mini-game)
+          const isAcchiappt = mosseCardName.toUpperCase().includes('ACCHIAPPT') ||
+            (mosseCard.frontImage || '').toLowerCase().includes('acchiappt');
+
+          if (isAcchiappt) {
+            // Call executeMossaAttack once — server triggers the mini-game for all field chars
+            const firstTarget = allTargets[0];
             this.socketEmitter.to(this.gameId).emit('card-attacked', {
               mosseCardId: mosseCard.id,
-              targetCardId: t.cardId,
+              targetCardId: firstTarget.cardId,
               attackerName: this.playerName,
-              targetOwner: t.owner,
+              targetOwner: firstTarget.owner,
               damageValue: suggestedDamage,
               timestamp: Date.now()
             });
             await this.gameManager.executeMossaAttack(
-              this.gameId, this.playerName, mosseCard.id, t.cardId,
+              this.gameId, this.playerName, mosseCard.id, firstTarget.cardId,
+              suggestedDamage, false, undefined, 0, effectiveEffect || null
+            );
+          } else {
+            // Standard multi-target: attack first target, queue remaining for sequential processing.
+            // The server's processDefenseResponse fires processNextMosseMultiTarget for each
+            // queued entry after the previous defense resolves, so every target gets a defense window.
+            const firstTarget = allTargets[0];
+            this.socketEmitter.to(this.gameId).emit('card-attacked', {
+              mosseCardId: mosseCard.id,
+              targetCardId: firstTarget.cardId,
+              attackerName: this.playerName,
+              targetOwner: firstTarget.owner,
+              damageValue: suggestedDamage,
+              timestamp: Date.now()
+            });
+
+            // Queue remaining targets in game state so processDefenseResponse chains them
+            if (allTargets.length > 1) {
+              const liveGame = this.gameManager.getGameState(this.gameId);
+              if (liveGame) {
+                (liveGame as any).pendingMosseMultiTargets = allTargets.slice(1).map((t) => ({
+                  attackerName: this.playerName,
+                  mosseCardId: mosseCard.id,
+                  targetCardId: t.cardId,
+                  damageValue: suggestedDamage,
+                  starsToRemove: isMutilazione ? 1 : 0,
+                  mosseEffect: effectiveEffect || null
+                }));
+                console.log(`🔥 CPU ${this.playerName}: Queued ${allTargets.length - 1} additional mosse targets for sequential attack`);
+              }
+            }
+
+            await this.gameManager.executeMossaAttack(
+              this.gameId, this.playerName, mosseCard.id, firstTarget.cardId,
               suggestedDamage, false, undefined, isMutilazione ? 1 : 0, effectiveEffect || null
             );
           }
+
           const updState = this.gameManager.getSanitizedGameState(this.gameId);
           if (updState) this.socketEmitter.to(this.gameId).emit('game-state-update', updState);
           this._setWaitingForAttackResolution(true);

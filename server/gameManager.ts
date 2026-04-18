@@ -31303,6 +31303,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const gameState = this.games.get(gameId);
     if (!gameState || gameState.turnOrder.length === 0) return null;
 
+    // MOSSE MULTI-TARGET: Clear any pending mosse multi-target queue on turn end to avoid stale attacks
+    if ((gameState as any).pendingMosseMultiTargets?.length > 0) {
+      (gameState as any).pendingMosseMultiTargets = [];
+      console.log(`🔥 MOSSE MULTI: Cleared pendingMosseMultiTargets on endTurn for ${playerName}`);
+    }
+
     // SCART FRUSC: snapshot the last played card at turn boundary so that when the next player
     // plays SCART FRUSC they reuse the card played by the PREVIOUS player's turn, not something
     // played earlier in their own turn (which would change as more cards are played mid-turn).
@@ -34189,6 +34195,43 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
   }
 
+  // Process the next queued MOSSE multi-target attack (sequential, each gets a defense:request)
+  // Called from processDefenseResponse's finally block after each defense resolves.
+  private async processNextMosseMultiTarget(gameId: string, io: any): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game) return;
+    const queue = (game as any).pendingMosseMultiTargets as Array<any> | undefined;
+    if (!queue || queue.length === 0) return;
+
+    const next = queue.shift();
+    const { attackerName, mosseCardId, targetCardId, damageValue, starsToRemove, mosseEffect } = next;
+
+    const targetCard = game.field.find((c: Card) => c.id === targetCardId);
+    if (!targetCard) {
+      console.log(`🔥 MOSSE MULTI: Target ${targetCardId} no longer on field — skipping`);
+      await this.processNextMosseMultiTarget(gameId, io);
+      return;
+    }
+
+    const mosseCardRef = (game.graveyard || []).find((c: Card) => c.id === mosseCardId) ||
+      game.field.find((c: Card) => c.id === mosseCardId);
+    const mosseCardName = mosseCardRef?.name || this.getCardNameFromUrl(mosseCardRef?.frontImage || '') || 'Mossa';
+    const targetName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '');
+
+    console.log(`🔥 MOSSE MULTI: Processing next queued mosse target — ${mosseCardName} → ${targetName}`);
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-mosse-multi-next`,
+      playerName: 'Sistema',
+      message: `🔥 ${mosseCardName} colpisce anche ${targetName}!`,
+      timestamp: Date.now()
+    });
+
+    await this.executeMossaAttack(
+      gameId, attackerName, mosseCardId, targetCardId,
+      damageValue, false, undefined, starsToRemove || 0, mosseEffect || null
+    );
+  }
+
   getPendingDefense(gameId: string): PendingDefense | undefined {
     const game = this.games.get(gameId);
     return game?.pendingDefense;
@@ -35291,6 +35334,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           await this.processNextMultiAttackTarget(gameId, io);
         } catch (err) {
           console.error('[MULTI-ATTACK] Error processing next queued target:', err);
+        }
+      }
+      // MOSSE MULTI-TARGET: Process next queued mosse target (CPU all_enemies/all_characters/specific_count cards)
+      if ((game as any).pendingMosseMultiTargets?.length > 0 && !game.pendingDefense) {
+        try {
+          await this.processNextMosseMultiTarget(gameId, io);
+        } catch (err) {
+          console.error('[MOSSE-MULTI] Error processing next mosse multi-target:', err);
         }
       }
     }
