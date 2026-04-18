@@ -31313,6 +31313,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const gameState = this.games.get(gameId);
     if (!gameState || gameState.turnOrder.length === 0) return null;
 
+    // MOSSE MULTI-TARGET: Clear any stale queue entries on turn-end.
+    // In the normal chain path, endTurn is gated (mosseQueuePending check in processDefenseResponse)
+    // so the queue is already empty here. This cleanup handles other turn-transition paths
+    // (duel abort, forced resets, direct endTurn calls) to prevent cross-turn leakage.
+    if (gameState.pendingMosseMultiTargets?.length) {
+      console.log(`🔥 MOSSE MULTI: Clearing ${gameState.pendingMosseMultiTargets.length} stale queued target(s) on endTurn for ${playerName}`);
+      gameState.pendingMosseMultiTargets = [];
+    }
+
     // SCART FRUSC: snapshot the last played card at turn boundary so that when the next player
     // plays SCART FRUSC they reuse the card played by the PREVIOUS player's turn, not something
     // played earlier in their own turn (which would change as more cards are played mid-turn).
