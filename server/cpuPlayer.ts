@@ -2295,13 +2295,16 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           const targetName = this.getCardNameFromUrl(targetCard.frontImage);
           
           const isFurto = cardName.toUpperCase() === 'FURTO' || cardName.toUpperCase().includes('FURTO');
+          const isMutilazione = cardName.toUpperCase().includes('MUTILAZIONE');
           
           let cpuDamageValue = (mosseOnField as any).mosseDamageValue || 0;
           const cpuAttackerChar = gameState?.field?.find((c: any) => 
             c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
           );
           const cpuAttackerStars = cpuAttackerChar?.stars ?? 1;
-          if (cpuDamageValue > 0) {
+          if (isMutilazione) {
+            cpuDamageValue = 0;
+          } else if (cpuDamageValue > 0) {
             cpuDamageValue = cpuDamageValue * cpuAttackerStars;
           } else if (isFurto) {
             cpuDamageValue = cpuAttackerStars;
@@ -2309,6 +2312,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           
           if (isFurto) {
             this.sendChatMessage(`Uso FURTO per rubare ${cpuDamageValue} stelle a ${targetName}!`);
+          } else if (isMutilazione) {
+            this.sendChatMessage(`Uso MUTILAZIONE su ${targetName}: rimuovo 1 stella!`);
           } else {
             this.sendChatMessage(`Uso la carta MOSSE "${cardName}" per attaccare ${targetName}!`);
             this.sendAutoLeaderMessage('attack');
@@ -2320,7 +2325,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
               targetCardId: action.target,
               attackerName: this.playerName,
               targetOwner: targetCard.owner,
-              damageValue: cpuDamageValue || undefined,
+              damageValue: isMutilazione ? 0 : (cpuDamageValue || undefined),
+              starsToRemove: isMutilazione ? 1 : 0,
               isFurtoAttack: isFurto,
               mosseEffect: (mosseOnField as any).mosseDamageEffect || undefined
             });
@@ -2336,7 +2342,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
               cardName,
               targetName,
               isFurtoAttack: isFurto,
-              damageValue: cpuDamageValue || undefined
+              starsToRemove: isMutilazione ? 1 : 0,
+              damageValue: isMutilazione ? 0 : (cpuDamageValue || undefined)
             }
           };
         } else {
@@ -3528,6 +3535,13 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
         }
 
+        // MUTILAZIONE: always removes 1 star, 0 PTI damage
+        const isMutilazioneL = mosseCardName.toUpperCase().includes('MUTILAZIONE');
+        if (isMutilazioneL) {
+          suggestedDamage = 0;
+          console.log(`🎯 CPU ${this.playerName}: LEGACY - MUTILAZIONE detected → starsToRemove=1, damage=0`);
+        }
+
         // PRESET FALLBACK (legacy): if no damage yet, try effect text / mosseDamageEffect
         if (suggestedDamage === null) {
           if (effectiveEffect) {
@@ -3565,10 +3579,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
             cardId,
             target.cardId,
             suggestedDamage,
-            false,                    // isHandTarget
-            undefined,                // defenseRequestEmitter
-            0,                        // starsToRemove
-            effectiveEffect || null   // mosseEffect
+            false,                            // isHandTarget
+            undefined,                        // defenseRequestEmitter
+            isMutilazioneL ? 1 : 0,           // starsToRemove
+            effectiveEffect || null           // mosseEffect
           );
           
           if (attackResult.success) {
@@ -3577,13 +3591,13 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
               if (pendingDefense) {
                 pendingDefense.damage = suggestedDamage;
                 pendingDefense.mosseCardId = cardId;
-                (pendingDefense as any).starsToRemove = 0;
+                (pendingDefense as any).starsToRemove = isMutilazioneL ? 1 : 0;
               }
               
               const emissionSuccess = await this.gameManager.emitDefenseRequest(this.gameId, this.socketEmitter);
               if (!emissionSuccess) {
                 console.log(`⚠️ CPU ${this.playerName}: Failed to emit defense request (legacy) - processing damage directly`);
-                await this.gameManager.processMosseDamage(this.gameId, this.playerName, target.cardId, suggestedDamage, cardId, this.socketEmitter, false, false, false, false, 0);
+                await this.gameManager.processMosseDamage(this.gameId, this.playerName, target.cardId, suggestedDamage, cardId, this.socketEmitter, false, false, false, false, isMutilazioneL ? 1 : 0);
               }
             }
           }
@@ -3649,8 +3663,9 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     let mosseCardName = this.getCardNameFromUrl(mosseCard.frontImage);
     const isHandTarget = (target as any).isHandCard === true;
     const isFurto = mosseCardName.toUpperCase() === 'FURTO' || mosseCardName.toUpperCase().includes('FURTO');
+    const isMutilazione = mosseCardName.toUpperCase().includes('MUTILAZIONE');
     
-    console.log(`🎯 CPU ${this.playerName}: ATOMIC ATTACK EMISSION - card ${mosseCard.id} to ${target.name}${isHandTarget ? ' (HAND TARGET)' : ''}${isFurto ? ' [FURTO]' : ''}`);
+    console.log(`🎯 CPU ${this.playerName}: ATOMIC ATTACK EMISSION - card ${mosseCard.id} to ${target.name}${isHandTarget ? ' (HAND TARGET)' : ''}${isFurto ? ' [FURTO]' : ''}${isMutilazione ? ' [MUTILAZIONE]' : ''}`);
     
     // Calculate suggested damage based on mosse card settings and attacker stars
     // CRITICAL: Use current stars from .stars property OR parse from text as fallback
@@ -3695,6 +3710,12 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     if (isFurto) {
       suggestedDamage = attackerStars;
       console.log(`🎯 CPU ${this.playerName}: ATOMIC FURTO - rubo ${suggestedDamage} stelle a ${targetName}`);
+    }
+
+    // MUTILAZIONE: always removes 1 star, 0 PTI damage (overrides any prior suggestedDamage)
+    if (isMutilazione) {
+      suggestedDamage = 0;
+      console.log(`🎯 CPU ${this.playerName}: ATOMIC MUTILAZIONE - starsToRemove=1, damage=0 su ${targetName}`);
     }
 
     // PRESET FALLBACK: if no damage yet, try parsing it from the effect text or mosseDamageEffect
@@ -3742,7 +3763,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
             });
             await this.gameManager.executeMossaAttack(
               this.gameId, this.playerName, mosseCard.id, t.cardId,
-              suggestedDamage, false, undefined, 0, effectiveEffect || null
+              suggestedDamage, false, undefined, isMutilazione ? 1 : 0, effectiveEffect || null
             );
           }
           const updState = this.gameManager.getSanitizedGameState(this.gameId);
@@ -3775,11 +3796,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         mosseCard.id,
         target.cardId,
         suggestedDamage,
-        isHandTarget,           // boolean: is this an ATTACCO DISONESTO (hand target)?
-        undefined,              // defenseRequestEmitter: not needed, defense handled via socket
-        0,                      // starsToRemove
-        effectiveEffect || null,// mosseEffect
-        isFurto                 // isFurtoAttack: steal stars instead of dealing PTI damage
+        isHandTarget,               // boolean: is this an ATTACCO DISONESTO (hand target)?
+        undefined,                  // defenseRequestEmitter: not needed, defense handled via socket
+        isMutilazione ? 1 : 0,      // starsToRemove
+        effectiveEffect || null,    // mosseEffect
+        isFurto                     // isFurtoAttack: steal stars instead of dealing PTI damage
       );
       
       if (attackResult.success) {
@@ -3854,14 +3875,14 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           if (pendingDefense) {
             pendingDefense.damage = suggestedDamage;
             pendingDefense.mosseCardId = mosseCard.id;
-            (pendingDefense as any).starsToRemove = 0;
+            (pendingDefense as any).starsToRemove = isMutilazione ? 1 : 0;
             console.log(`📝 CPU stored damage ${suggestedDamage} for pending defense ${pendingDefense.attackId}`);
           }
           
           const emissionSuccess = await this.gameManager.emitDefenseRequest(this.gameId, this.socketEmitter);
           if (!emissionSuccess) {
             console.log(`⚠️ CPU ${this.playerName}: Failed to emit defense request - processing damage directly`);
-            await this.gameManager.processMosseDamage(this.gameId, this.playerName, target.cardId, suggestedDamage, mosseCard.id, this.socketEmitter, false, false, false, false, 0);
+            await this.gameManager.processMosseDamage(this.gameId, this.playerName, target.cardId, suggestedDamage, mosseCard.id, this.socketEmitter, false, false, false, false, isMutilazione ? 1 : 0);
           }
         }
       } else {
