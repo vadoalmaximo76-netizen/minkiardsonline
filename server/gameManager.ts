@@ -19059,6 +19059,98 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const attackId = `ta-step-${gameId}-${seq.stepCount}-${Date.now()}`;
     const targetName = target.name || seq.targetOwner;
 
+    // ── Pick a real MOSSE card from the attacker's deck ─────────────────────
+    const attackerCardForTA = game.field.find((c: Card) =>
+      c.owner === seq.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+    );
+    const attackerStarsTA = attackerCardForTA?.stars ?? 1;
+
+    const isDraftOrGym = (game as any).isDraftMode || (game as any).isGymMode || (game as any).isDailyChallenge;
+    const mosseDeckTA: Card[] = (isDraftOrGym && (game as any).playerDraftDecks?.[seq.playerName]?.mosse)
+      ? (game as any).playerDraftDecks[seq.playerName].mosse
+      : game.decks.mosse;
+
+    let pickedMosseCard: Card | null = null;
+    let computedDamage = seq.attackDamage; // fallback if deck is empty
+
+    if (mosseDeckTA.length > 0) {
+      pickedMosseCard = mosseDeckTA.pop()!;
+      pickedMosseCard.owner = seq.playerName;
+
+      const mosseCardNameTA = this.getCardNameFromUrl(pickedMosseCard.frontImage || '');
+
+      // Base damage: mosseDamageValue × attacker stars
+      if (pickedMosseCard.mosseDamageValue && pickedMosseCard.mosseDamageValue > 0) {
+        computedDamage = pickedMosseCard.mosseDamageValue * attackerStarsTA;
+      }
+
+      // Apply character overrides (mosseCharacterOverrides)
+      if (Array.isArray(pickedMosseCard.mosseCharacterOverrides) && pickedMosseCard.mosseCharacterOverrides.length > 0 && attackerCardForTA) {
+        const targetCardTA = game.field.find((c: Card) => c.id === seq.targetCardId);
+        const normalizeStr = (s: string) => s.toUpperCase().replace(/[_-]/g, ' ').trim();
+        const attackerIds = [attackerCardForTA.id, ...(attackerCardForTA.characterLineage || [])].map(normalizeStr);
+        const attackerNames = [attackerCardForTA.name ? normalizeStr(attackerCardForTA.name) : '', ...attackerIds];
+        const targetIds = targetCardTA ? [targetCardTA.id, ...(targetCardTA.characterLineage || [])].map(normalizeStr) : [];
+        const targetNames = targetCardTA ? [targetCardTA.name ? normalizeStr(targetCardTA.name) : '', ...targetIds] : [];
+        for (const entry of pickedMosseCard.mosseCharacterOverrides) {
+          const entryId = normalizeStr(entry.characterId || '');
+          const entryName = normalizeStr(entry.characterName || '');
+          if (!entryId && !entryName) continue;
+          const matchesAttacker = (entryId && attackerIds.includes(entryId)) || (entryName && attackerNames.includes(entryName));
+          const matchesTarget = targetCardTA && ((entryId && targetIds.includes(entryId)) || (entryName && targetNames.includes(entryName)));
+          if (matchesAttacker && entry.usedBy?.damageValue != null) {
+            computedDamage = entry.usedBy.damageValue * attackerStarsTA;
+            break;
+          }
+          if (matchesTarget && entry.usedOn?.damageValue != null) {
+            computedDamage = entry.usedOn.damageValue * attackerStarsTA;
+            break;
+          }
+        }
+      }
+
+      // Apply superAttacco / evolvedMoves for special characters
+      if (attackerCardForTA?.type === 'personaggi_speciali') {
+        const superAttaccoTA = (attackerCardForTA as any).superAttacco;
+        const evolvedMovesTA = (attackerCardForTA as any).evolvedMoves;
+        const mosseNameUpperTA = mosseCardNameTA.toUpperCase().trim();
+        if (superAttaccoTA?.name && superAttaccoTA?.damage && mosseNameUpperTA === 'ATTACCO') {
+          const baseDmg = parseInt(superAttaccoTA.damage);
+          if (!isNaN(baseDmg) && baseDmg > 0) computedDamage = baseDmg * attackerStarsTA;
+        } else if (evolvedMovesTA) {
+          const rawMosseDmg = pickedMosseCard.mosseDamageValue ?? 0;
+          if (evolvedMovesTA.range1?.name && evolvedMovesTA.range1?.damage && rawMosseDmg >= 1 && rawMosseDmg <= 150) {
+            const evoBase = parseInt(evolvedMovesTA.range1.damage);
+            if (!isNaN(evoBase) && evoBase > 0) computedDamage = evoBase * attackerStarsTA;
+          } else if (evolvedMovesTA.range2?.name && evolvedMovesTA.range2?.damage && rawMosseDmg >= 151 && rawMosseDmg <= 300) {
+            const evoBase = parseInt(evolvedMovesTA.range2.damage);
+            if (!isNaN(evoBase) && evoBase > 0) computedDamage = evoBase * attackerStarsTA;
+          }
+        }
+      }
+
+      // Apply kebab multiplier
+      const kebabMultTA = (game as any).kebabMultiplier?.[seq.playerName];
+      if (kebabMultTA && mosseCardNameTA.toUpperCase().includes('KEBAB')) {
+        computedDamage *= kebabMultTA;
+        delete (game as any).kebabMultiplier[seq.playerName];
+      }
+
+      // Apply cipolla multiplier (applied on top of kebab)
+      const cipollaActiveTA = (game as any).cipolla?.[seq.playerName];
+      if (cipollaActiveTA && mosseCardNameTA.toUpperCase().includes('KEBAB')) {
+        const cipollaIsMohamed = attackerCardForTA ? this.isMohamedKebabbaro(attackerCardForTA) : false;
+        const cipollaMultiplierTA = cipollaIsMohamed ? 4 : 2;
+        computedDamage *= cipollaMultiplierTA;
+        delete (game as any).cipolla[seq.playerName];
+      }
+
+      // Return card to bottom of deck (card is not consumed, just used for this step)
+      mosseDeckTA.unshift(pickedMosseCard);
+
+      console.log(`[TA-STEP] step=${seq.stepCount} picked "${mosseCardNameTA}" mosseDmg=${pickedMosseCard.mosseDamageValue} stars=${attackerStarsTA} → computedDamage=${computedDamage}`);
+    }
+
     // Announce this step to all players
     io.to(gameId).emit('chat-message', {
       id: `${Date.now()}-ta-incoming`,
@@ -19074,7 +19166,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       attackerPlayer: seq.playerName,   // player login name
       targetCardId: seq.targetCardId,
       targetOwner: seq.targetOwner,
-      damage: seq.attackDamage,
+      damage: computedDamage,
       stepCount: seq.stepCount,
       attacksLeft: seq.attacksLeft,
     });
@@ -19088,7 +19180,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         message: `🏠 ${targetName} è protetto da RIFUGIO! Il colpo ${seq.stepCount} di TARGET ACQUIRED viene assorbito dal rifugio.`,
         timestamp: Date.now(),
       });
-      this.damageRifugio(gameId, rifugioProtection.rifugioCardId, seq.attackDamage, seq.playerName, io);
+      this.damageRifugio(gameId, rifugioProtection.rifugioCardId, computedDamage, seq.playerName, io);
       io.to(gameId).emit('attack:resolved', { attackId, attacker: seq.playerName, defender: seq.targetOwner, defends: true, resolveSource: 'rifugio', timestamp: Date.now() });
       io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
       // Continue sequence after a brief pause
@@ -19106,7 +19198,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         message: `🛡️ ${targetName} è protetto da BARRIERA! Il colpo ${seq.stepCount} di TARGET ACQUIRED viene assorbito dallo scudo.`,
         timestamp: Date.now(),
       });
-      this.damageBarriera(gameId, activeBarrieraCard.id, seq.attackDamage, seq.playerName, io);
+      this.damageBarriera(gameId, activeBarrieraCard.id, computedDamage, seq.playerName, io);
       io.to(gameId).emit('attack:resolved', { attackId, attacker: seq.playerName, defender: seq.targetOwner, defends: true, resolveSource: 'barriera', timestamp: Date.now() });
       io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
       setTimeout(() => this.fireTaStep(gameId, io), 600);
@@ -19118,11 +19210,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       attackId,
       attacker: seq.playerName,
       defender: seq.targetOwner,
-      damage: seq.attackDamage,
+      damage: computedDamage,
       targetCardId: seq.targetCardId,
-      mosseCardId: `ta-synthetic-${attackId}`, // synthetic — no actual MOSSE card on field
-      deckType: 'bonus',
-      mosseCanBeCountered: false,
+      mosseCardId: pickedMosseCard ? pickedMosseCard.id : `ta-synthetic-${attackId}`,
+      deckType: pickedMosseCard ? 'mosse' : 'bonus',
+      mosseCanBeCountered: pickedMosseCard ? (pickedMosseCard.mosseCanBeCountered === true) : false,
+      mosseDamageValue: pickedMosseCard?.mosseDamageValue ?? null,
+      attackerStars: attackerStarsTA,
       isTaStep: true,
       createdAt: new Date(),
     };
@@ -19149,22 +19243,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         attackId,
         attackerName: seq.playerName,
         defenderName: seq.targetOwner,
-        damageValue: seq.attackDamage,
-        damage: seq.attackDamage,                   // kept for any legacy client reads
+        damageValue: computedDamage,
+        damage: computedDamage,                     // kept for any legacy client reads
         targetCardId: seq.targetCardId,
-        mosseCardId: `ta-synthetic-${attackId}`,
-        deckType: 'bonus',
+        mosseCardId: pickedMosseCard ? pickedMosseCard.id : `ta-synthetic-${attackId}`,
+        deckType: pickedMosseCard ? 'mosse' : 'bonus',
         message: `🎯 TARGET ACQUIRED — colpo ${seq.stepCount}${seq.isIlPelux ? '' : `/${seq.stepCount + seq.attacksLeft}`}! ${seq.attackerName} ti attacca! Vuoi difenderti?`,
-        mosseCardImage: undefined,                  // no real MOSSE card image for TA
+        mosseCardImage: pickedMosseCard?.frontImage ?? undefined,
         attackerCardImage: attackerCard?.frontImage,
         defenderCardImage: defenderCard?.frontImage,
         attackerCardText: attackerCard?.text,
         defenderCardText: defenderCard?.text,
-        mosseCanBeCountered: false,
-        mosseDamageValue: null,
-        attackerStars: 1,
+        mosseCanBeCountered: pickedMosseCard ? (pickedMosseCard.mosseCanBeCountered === true) : false,
+        mosseDamageValue: pickedMosseCard?.mosseDamageValue ?? null,
+        attackerStars: attackerStarsTA,
         isCounterAttackDefense: false,
-        canCounter: false,
+        canCounter: pickedMosseCard ? (pickedMosseCard.mosseCanBeCountered === true) : false,
       });
     } else {
       // Defender offline — let resolveTaStep read pendingDefense before clearing it
@@ -19183,6 +19277,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     resolveSource: string,
     defenseCardId?: string,
     redirectTargetCardId?: string,
+    counterAttackOptions?: { counterAttack?: boolean; counterCardId?: string; counterDamage?: number },
   ): Promise<boolean> {
     const game = this.games.get(gameId);
     if (!game) return false;
@@ -19213,18 +19308,31 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // Redirect-eligible cards: only cards whose effect is to redirect damage
     const REDIRECT_ELIGIBLE_NAMES = ['RESPINTA', 'FOLATA DI VENTO', 'BOOMERANG'] as const;
 
-    // Validate "defends=true": require a named defense card in hand.
+    // Validate "defends=true": require a named defense card in hand/field.
+    let isMosseCounterDefense = false;
     if (defends) {
+      // Look in hand first; if not found check field (play-card emitted before defense:response)
       const defCardInHand = defenseCardId
-        ? game.players[defender]?.hand?.find((c: Card) => c.id === defenseCardId)
+        ? (game.players[defender]?.hand?.find((c: Card) => c.id === defenseCardId) ??
+           game.field.find((c: Card) => c.id === defenseCardId && c.owner === defender))
         : undefined;
       const defCardName = defCardInHand
         ? (defCardInHand.name || this.getCardNameFromUrl(defCardInHand.frontImage || '')).toUpperCase().trim()
         : '';
-      const hasLegalCard = defCardInHand &&
-        VALID_TA_DEFENSE_NAMES.some(vn => defCardName.includes(vn));
+      // Allow MOSSE cards for counter-attack when the attack is counterable and counter damage is sufficient
+      const isMosseCard = defCardInHand && defCardInHand.type === 'mosse' && (defCardInHand as any).mosseCanCounter === true;
+      const counterIsValid = counterAttackOptions?.counterAttack === true &&
+        (counterAttackOptions?.counterDamage ?? 0) >= damage &&
+        pd.mosseCanBeCountered === true;
+      const hasLegalCard = defCardInHand && (
+        VALID_TA_DEFENSE_NAMES.some(vn => defCardName.includes(vn)) ||
+        (isMosseCard && counterIsValid)
+      );
+      if (isMosseCard && counterIsValid && hasLegalCard) {
+        isMosseCounterDefense = true;
+      }
       if (!hasLegalCard) {
-        console.warn(`[TA-STEP] defends=true but no valid named defense card in hand for ${defender} (card: "${defCardName}") — overriding to no-defense`);
+        console.warn(`[TA-STEP] defends=true but no valid named defense card for ${defender} (card: "${defCardName}") — overriding to no-defense`);
         defends = false;
         redirectTargetCardId = undefined;
       } else if (redirectTargetCardId) {
@@ -19363,22 +19471,77 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             }
           }
         }
-        // Consume the defense card used for redirect (if any)
+        // Consume the defense card used for redirect (from hand or field)
         if (defenseCardId) {
-          const defCard = game.players[defender]?.hand?.find((c: Card) => c.id === defenseCardId);
-          if (defCard) {
-            game.players[defender].hand = game.players[defender].hand.filter((c: Card) => c.id !== defenseCardId);
-            await this.pickCard(gameId, 'bonus', defender);
+          const handIdx = game.players[defender]?.hand?.findIndex((c: Card) => c.id === defenseCardId) ?? -1;
+          if (handIdx >= 0) {
+            game.players[defender].hand.splice(handIdx, 1);
+          } else {
+            // Card was pre-played to field by the client
+            const fieldIdx = game.field.findIndex((c: Card) => c.id === defenseCardId && c.owner === defender);
+            if (fieldIdx >= 0) game.field.splice(fieldIdx, 1);
           }
+          await this.pickCard(gameId, 'bonus', defender);
+        }
+      } else if (isMosseCounterDefense && defenseCardId) {
+        // MOSSE COUNTER-ATTACK: defender repels with a MOSSE card (counter damage >= attack damage)
+        const ctrDmg = counterAttackOptions?.counterDamage ?? 0;
+        // Remove MOSSE card from hand or field and return to defender's mosse deck
+        const mosseInHand = game.players[defender]?.hand?.findIndex((c: Card) => c.id === defenseCardId) ?? -1;
+        if (mosseInHand >= 0) {
+          game.players[defender].hand.splice(mosseInHand, 1);
+        } else {
+          // Card was played to field by the client's play-card emit — remove from field
+          const fieldIdx = game.field.findIndex((c: Card) => c.id === defenseCardId && c.owner === defender);
+          if (fieldIdx >= 0) game.field.splice(fieldIdx, 1);
+        }
+        // Refill defender's MOSSE hand
+        await this.pickCard(gameId, 'mosse', defender);
+
+        // Apply counter damage to the attacker's character
+        const attackerCharTA = this.getPlayerActiveCharacter(game, attacker);
+        if (attackerCharTA && ctrDmg > 0) {
+          const prevPtiAtk = attackerCharTA.pti ?? 0;
+          attackerCharTA.pti = Math.max(0, prevPtiAtk - ctrDmg);
+          this.updateCardTextWithPTI(attackerCharTA);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-ta-counter`,
+            playerName: 'Sistema',
+            message: `⚔️ ${defender} ha CONTRATTACCATO il ${stepLabel} di TARGET ACQUIRED! ${attackerCharTA.name || attacker} subisce ${ctrDmg} PTI! (${prevPtiAtk} → ${attackerCharTA.pti})`,
+            timestamp: Date.now(),
+          });
+          if (attackerCharTA.pti <= 0) {
+            const drAtk = this.moveToGraveyard(gameId, attackerCharTA.id, attacker, defender);
+            if (!drAtk.insuranceTriggered && drAtk.eliminationCheck) {
+              this.processEliminationAfterDeath(gameId, attacker, io, 'TA_COUNTER_ATTACK');
+            }
+          }
+        } else {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-ta-counter-block`,
+            playerName: 'Sistema',
+            message: `⚔️ ${defender} ha RESPINTO con MOSSE il ${stepLabel} di TARGET ACQUIRED!`,
+            timestamp: Date.now(),
+          });
         }
       } else {
         // Normal block: consume card if used, log blocked message
         if (defenseCardId) {
-          const defCard = game.players[defender]?.hand?.find((c: Card) => c.id === defenseCardId);
-          if (defCard) {
-            game.players[defender].hand = game.players[defender].hand.filter((c: Card) => c.id !== defenseCardId);
+          const handIdx = game.players[defender]?.hand?.findIndex((c: Card) => c.id === defenseCardId) ?? -1;
+          const fieldIdx = handIdx < 0
+            ? game.field.findIndex((c: Card) => c.id === defenseCardId && c.owner === defender)
+            : -1;
+          const defCardName = handIdx >= 0
+            ? ((game.players[defender].hand[handIdx] as any).name || defenseCardId)
+            : (fieldIdx >= 0 ? ((game.field[fieldIdx] as any).name || defenseCardId) : null);
+          if (defCardName !== null) {
+            if (handIdx >= 0) {
+              game.players[defender].hand.splice(handIdx, 1);
+            } else if (fieldIdx >= 0) {
+              game.field.splice(fieldIdx, 1);
+            }
             await this.pickCard(gameId, 'bonus', defender);
-            console.log(`[TA-STEP] Defender ${defender} used ${defCard.name || defenseCardId} to block TA step`);
+            console.log(`[TA-STEP] Defender ${defender} used ${defCardName} to block TA step`);
           }
         }
         io.to(gameId).emit('chat-message', {

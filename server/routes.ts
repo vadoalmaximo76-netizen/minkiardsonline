@@ -8861,7 +8861,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // TARGET ACQUIRED sequential step: bypass processDefenseResponse entirely
       if ((pendingDefense as any).isTaStep) {
-        const taSuccess = await gameManager.resolveTaStep(gameId, attackId, defends, io, 'client', defenseCardId, redirectTargetCardId);
+        const taSuccess = await gameManager.resolveTaStep(gameId, attackId, defends, io, 'client', defenseCardId, redirectTargetCardId, validatedCounterOptions);
         if (!taSuccess) {
           console.warn(`[DEFENSE-RESPONSE] Failed to resolve TA step`, { gameId, attackId, defends, timestamp: new Date().toISOString() });
           socket.emit('defense:error', { message: 'Failed to resolve TARGET ACQUIRED step', code: 'TA_STEP_FAILED' });
