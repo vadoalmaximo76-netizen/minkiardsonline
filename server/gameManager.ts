@@ -16322,6 +16322,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             const randIdx = Math.floor(Math.random() * personalPersonaggi.length);
             summonedCard = personalPersonaggi.splice(randIdx, 1)[0];
           }
+        } else if (isGymDraftSummon) {
+          // DEFENSIVE: player is in gym/draft/daily mode but has no personal deck entry.
+          // Block access to the global deck (which would include personaggi_speciali they don't own).
+          console.warn(`⚠️ SUMMON: ${playerName} is in gym/draft/daily mode but has no personal deck — blocking global speciali fallback`);
         } else {
           const summonDeckType = game.decks.personaggi.length > 0 ? 'personaggi' : 'personaggi_speciali';
           if (game.decks[summonDeckType].length > 0) {
@@ -16522,6 +16526,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 foundCard = personalPersonaggi.splice(pIdx, 1)[0];
                 foundSource = 'mazzo personale';
               }
+            } else if (isGymDraftGroup) {
+              // DEFENSIVE: player is in gym/draft/daily mode but has no personal deck entry.
+              // Block global deck search (which would include personaggi_speciali they don't own).
+              console.warn(`⚠️ GROUP_SUMMON: ${playerName} in gym/draft/daily mode has no personal deck — blocking global speciali fallback for "${charName}"`);
             } else {
               for (const deckType of ['personaggi', 'personaggi_speciali'] as const) {
                 const deckIdx = game.decks[deckType].findIndex((c: Card) => {
