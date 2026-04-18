@@ -31313,12 +31313,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const gameState = this.games.get(gameId);
     if (!gameState || gameState.turnOrder.length === 0) return null;
 
-    // MOSSE MULTI-TARGET: Clear any pending mosse multi-target queue on turn end to avoid stale attacks
-    if (gameState.pendingMosseMultiTargets?.length) {
-      gameState.pendingMosseMultiTargets = [];
-      console.log(`🔥 MOSSE MULTI: Cleared pendingMosseMultiTargets on endTurn for ${playerName}`);
-    }
-
     // SCART FRUSC: snapshot the last played card at turn boundary so that when the next player
     // plays SCART FRUSC they reuse the card played by the PREVIOUS player's turn, not something
     // played earlier in their own turn (which would change as more cards are played mid-turn).
@@ -35239,9 +35233,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         io.to(gameId).emit('next-turn', { nextPlayer: defender });
       } else {
-        // Normal turn ending (no duel) — but Zody can defer endTurn for a second MOSSE
+        // Normal turn ending (no duel) — but Zody can defer endTurn for a second MOSSE,
+        // and MOSSE multi-target queue defers it until all queued targets are processed.
         const zodyDeferred = grantZodySecondMossa();
-        if (!zodyDeferred) {
+        const mosseQueuePending = (game.pendingMosseMultiTargets?.length ?? 0) > 0;
+        if (!zodyDeferred && !mosseQueuePending) {
           const nextPlayer = this.endTurn(gameId, attacker);
           if (nextPlayer) {
             io.to(gameId).emit('next-turn', { nextPlayer });
@@ -35255,6 +35251,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               this.startTurnTimer(gameId, nextPlayer);
             }
           }
+        } else if (mosseQueuePending) {
+          console.log(`🔥 MOSSE MULTI: Deferring endTurn for ${attacker} — ${game.pendingMosseMultiTargets!.length} target(s) still queued`);
         }
       }
 
