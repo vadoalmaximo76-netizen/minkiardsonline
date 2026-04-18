@@ -692,6 +692,18 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
             setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
           }
         }
+
+        // Furto: pre-fill stars to steal with attacker's current stars
+        if (isFurto) {
+          setStarsToRemove(attackerStars.toString());
+        }
+        // Mutilazione: always removes 1 star, 0 PTI damage
+        const isMutilazione = mosseCardName.toUpperCase().includes('MUTILAZIONE');
+        if (isMutilazione) {
+          setDamageValue('0');
+          setStarsToRemove('1');
+          setMosseHasPreset(true);
+        }
         
         // GAMBLE_DEATH fast-path: skip dialog, emit mosse-attack directly (no damage input needed)
         const mosseDmgEffect = (selectedMosseCard as any)?.mosseDamageEffect;
@@ -936,6 +948,9 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     
     // Auto-fill damage for hand target attacks with character override support
     const mosseCard = selectedMosseCard as any;
+    const mosseCardNameHT = mosseCard ? getCardName(mosseCard) : '';
+    const isFurtoHT = mosseCardNameHT.toUpperCase().includes('FURTO');
+    setIsFurtoAttack(isFurtoHT);
     const attackerCard = gameState?.field?.find((c: any) => 
       c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
     );
@@ -981,6 +996,18 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         setMosseHasPreset(!!mosseCard?.mosseDamageEffect);
         setSelectedMosseEffect(mosseCard?.mosseDamageEffect || null);
       }
+    }
+
+    // Furto: pre-fill stars to steal with attacker's current stars
+    if (isFurtoHT) {
+      setStarsToRemove(attackerStars.toString());
+    }
+    // Mutilazione: always removes 1 star, 0 PTI damage
+    const isMutilazioneHT = mosseCardNameHT.toUpperCase().includes('MUTILAZIONE');
+    if (isMutilazioneHT) {
+      setDamageValue('0');
+      setStarsToRemove('1');
+      setMosseHasPreset(true);
     }
     
     setShowDamageInput(true);
@@ -1063,6 +1090,18 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           setMosseHasPreset(!!mosseCardArg.mosseDamageEffect);
           setSelectedMosseEffect(mosseCardArg.mosseDamageEffect || null);
         }
+      }
+
+      // Furto: pre-fill stars to steal with attacker's current stars
+      if (isFurto) {
+        setStarsToRemove(attackerStars.toString());
+      }
+      // Mutilazione: always removes 1 star, 0 PTI damage
+      const isMutilazione = mosseCardNameForFurto.toUpperCase().includes('MUTILAZIONE');
+      if (isMutilazione) {
+        setDamageValue('0');
+        setStarsToRemove('1');
+        setMosseHasPreset(true);
       }
     }
 
