@@ -13632,7 +13632,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
           gamesPlayed: users.gamesPlayed,
           gamesWon: users.gamesWon,
           minutesPlayed: users.minutesPlayed,
-          activeTitle: (users as any).activeTitle,
+          activeTitle: users.activeTitle,
         })
         .from(users)
         .orderBy(desc(users.puntiRankiard))
@@ -13691,7 +13691,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
             gamesWon: currentUser.gamesWon,
             minutesPlayed: currentUser.minutesPlayed,
             isAdmin: currentUser.isAdmin,
-            activeTitle: (currentUser as any).activeTitle ?? 'esordiente',
+            activeTitle: currentUser.activeTitle ?? 'esordiente',
           },
           rank,
           totalPlayers: allUsers.length,
@@ -13738,7 +13738,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
     try {
       const { username } = req.params;
       if (!isDatabaseAvailable()) return res.json({ success: true, activeTitle: 'esordiente' });
-      const userRecord = await db.select({ activeTitle: (users as any).activeTitle }).from(users).where(eq(users.username, username)).limit(1);
+      const userRecord = await db.select({ activeTitle: users.activeTitle }).from(users).where(eq(users.username, username)).limit(1);
       if (!userRecord.length) return res.json({ success: true, activeTitle: 'esordiente' });
       res.json({ success: true, activeTitle: userRecord[0].activeTitle ?? 'esordiente' });
     } catch (error) {
@@ -13802,7 +13802,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const unlockedIds = computeUnlockedTitles(u, gymWins, tournamentWins);
       if (!unlockedIds.includes(titleId)) return res.status(403).json({ success: false, error: 'Title not unlocked' });
 
-      await db.update(users).set({ activeTitle: titleId } as any).where(eq(users.email, user.email));
+      await db.update(users).set({ activeTitle: titleId }).where(eq(users.email, user.email));
       res.json({ success: true, activeTitle: titleId });
     } catch (error) {
       console.error('Error selecting title:', error);
