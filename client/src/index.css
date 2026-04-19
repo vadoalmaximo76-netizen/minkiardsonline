@@ -3499,7 +3499,12 @@ button:not([disabled]):active {
 /* ── prefers-reduced-motion: cover new additions too ──────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .status-emoji-float,
-  .skeleton-card {
+  .skeleton-card,
+  .status-icon-strip {
     animation: none !important;
+  }
+  /* Hide fly overlay entirely instead of playing it at speed */
+  [style*="graveyard-card-fly"] {
+    display: none !important;
   }
 }
