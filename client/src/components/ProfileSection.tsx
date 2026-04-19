@@ -12,6 +12,7 @@ import { AdminUsersPanel } from './AdminUsersPanel';
 import PrivateMessagesPanel from './PrivateMessagesPanel';
 import NotificationSettings from './NotificationSettings';
 import { MatchHistory } from './MatchHistory';
+import { RARITY_COLOR, RARITY_BORDER, RARITY_LABEL } from '../lib/titleConstants';
 
 interface ProfileSectionProps {
   playerName: string;
@@ -416,27 +417,6 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
     } finally {
       setSelectingTitle(null);
     }
-  };
-
-  const RARITY_COLOR: Record<string, string> = {
-    comune: '#94a3b8',
-    raro: '#60a5fa',
-    epico: '#c084fc',
-    leggendario: '#fbbf24',
-  };
-
-  const RARITY_BORDER: Record<string, string> = {
-    comune: 'rgba(148,163,184,0.25)',
-    raro: 'rgba(96,165,250,0.35)',
-    epico: 'rgba(192,132,252,0.4)',
-    leggendario: 'rgba(251,191,36,0.5)',
-  };
-
-  const RARITY_LABEL: Record<string, string> = {
-    comune: 'Comune',
-    raro: 'Raro',
-    epico: 'Epico',
-    leggendario: 'Leggendario',
   };
 
   const activeTitle = titles.find(t => t.id === activeTitleId);

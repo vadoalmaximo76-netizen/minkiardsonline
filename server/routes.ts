@@ -13749,6 +13749,10 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
 
   app.get('/api/titles', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        const defaultTitles = allTitleDefs.map(t => ({ ...t, unlocked: t.conditionType === 'default', isActive: t.id === 'esordiente' }));
+        return res.json({ success: true, titles: defaultTitles, activeTitle: 'esordiente' });
+      }
       const user = (req as any).user;
       const userRecord = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       if (!userRecord.length) return res.status(404).json({ success: false, error: 'User not found' });
@@ -13783,6 +13787,9 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
 
   app.post('/api/titles/select', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: 'Database non disponibile in modalità offline' });
+      }
       const user = (req as any).user;
       const { titleId } = req.body;
       if (!titleId || typeof titleId !== 'string') return res.status(400).json({ success: false, error: 'titleId required' });

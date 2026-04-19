@@ -3,21 +3,7 @@ import { Button } from "./ui/button";
 import { Users, Search, Send, Check, Skull, Crown, UserPlus, Play, Bot, Shield, Shuffle, ChevronRight } from "lucide-react";
 import { socket } from "../lib/socket";
 import useTableTheme, { TABLE_THEMES } from "../lib/stores/useTableTheme";
-
-const LOBBY_TITLE_MAP: Record<string, { name: string; icon: string; color: string }> = {
-  esordiente:      { name: 'Esordiente',       icon: '🎮', color: '#94a3b8' },
-  guerriero:       { name: 'Guerriero',         icon: '⚔️', color: '#94a3b8' },
-  veterano:        { name: 'Veterano',          icon: '🛡️', color: '#60a5fa' },
-  campione:        { name: 'Campione',          icon: '🏆', color: '#60a5fa' },
-  dominatore:      { name: 'Dominatore',        icon: '👑', color: '#c084fc' },
-  campione_gym:    { name: 'Campione GymMode',  icon: '🏅', color: '#60a5fa' },
-  maestro_gym:     { name: 'Maestro Gym',       icon: '🌟', color: '#c084fc' },
-  sfidante:        { name: 'Sfidante',          icon: '🔥', color: '#60a5fa' },
-  maestro_rank:    { name: 'Maestro',           icon: '💎', color: '#c084fc' },
-  leggenda:        { name: 'Leggenda',          icon: '⭐', color: '#fbbf24' },
-  campione_torneo: { name: 'Campione Torneo',   icon: '🎖️', color: '#fbbf24' },
-  longevo:         { name: 'Longevo',           icon: '⏳', color: '#c084fc' },
-};
+import { TITLE_MAP } from "../lib/titleConstants";
 
 interface PreGameLobbyPanelProps {
   gameId: string;
@@ -245,9 +231,9 @@ export const PreGameLobbyPanel: React.FC<PreGameLobbyPanelProps> = ({
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="text-white/90 text-sm font-medium truncate block">{p.name}</span>
-                    {!p.isCPU && playerTitles[p.name] && playerTitles[p.name] !== 'esordiente' && LOBBY_TITLE_MAP[playerTitles[p.name]] && (
-                      <span style={{ fontSize: 10, color: LOBBY_TITLE_MAP[playerTitles[p.name]].color, fontWeight: 600 }}>
-                        {LOBBY_TITLE_MAP[playerTitles[p.name]].icon} {LOBBY_TITLE_MAP[playerTitles[p.name]].name}
+                    {!p.isCPU && playerTitles[p.name] && playerTitles[p.name] !== 'esordiente' && TITLE_MAP[playerTitles[p.name]] && (
+                      <span style={{ fontSize: 10, color: TITLE_MAP[playerTitles[p.name]].color, fontWeight: 600 }}>
+                        {TITLE_MAP[playerTitles[p.name]].icon} {TITLE_MAP[playerTitles[p.name]].name}
                       </span>
                     )}
                   </div>

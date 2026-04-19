@@ -5,23 +5,9 @@ import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { X, Send, Smile, Volume2 } from "lucide-react";
 import { SOUND_REACTIONS } from "./EmojiReactions";
+import { TITLE_MAP } from "../lib/titleConstants";
 
 const QUICK_EMOJIS = ['👍', '👎', '😂', '😮', '😢', '🔥', '💪', '🎉', '😤', '🤔', '❤️', '⚡'];
-
-const CHAT_TITLE_MAP: Record<string, { name: string; icon: string; color: string }> = {
-  esordiente:      { name: 'Esordiente',       icon: '🎮', color: '#94a3b8' },
-  guerriero:       { name: 'Guerriero',         icon: '⚔️', color: '#94a3b8' },
-  veterano:        { name: 'Veterano',          icon: '🛡️', color: '#60a5fa' },
-  campione:        { name: 'Campione',          icon: '🏆', color: '#60a5fa' },
-  dominatore:      { name: 'Dominatore',        icon: '👑', color: '#c084fc' },
-  campione_gym:    { name: 'Campione GymMode',  icon: '🏅', color: '#60a5fa' },
-  maestro_gym:     { name: 'Maestro Gym',       icon: '🌟', color: '#c084fc' },
-  sfidante:        { name: 'Sfidante',          icon: '🔥', color: '#60a5fa' },
-  maestro_rank:    { name: 'Maestro',           icon: '💎', color: '#c084fc' },
-  leggenda:        { name: 'Leggenda',          icon: '⭐', color: '#fbbf24' },
-  campione_torneo: { name: 'Campione Torneo',   icon: '🎖️', color: '#fbbf24' },
-  longevo:         { name: 'Longevo',           icon: '⏳', color: '#c084fc' },
-};
 
 interface ChatProps {
   onClose: () => void;
@@ -196,7 +182,7 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
                 <span className="text-sky-blue font-semibold">{msg.playerName}</span>
                 {(() => {
                   const titleId = playerTitles[msg.playerName];
-                  const titleInfo = titleId && titleId !== 'esordiente' ? CHAT_TITLE_MAP[titleId] : null;
+                  const titleInfo = titleId && titleId !== 'esordiente' ? TITLE_MAP[titleId] : null;
                   return titleInfo ? (
                     <span className="text-[10px] font-semibold leading-none" style={{ color: titleInfo.color }}>
                       {titleInfo.icon} {titleInfo.name}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Trophy, ArrowLeft, UserPlus, MessageCircle, Swords, Check, X, Crown, Star } from "lucide-react";
+import { TITLE_MAP } from "../lib/titleConstants";
 
 interface LeaderboardEntry {
   id: number;
@@ -11,21 +12,6 @@ interface LeaderboardEntry {
   minutesPlayed: number;
   activeTitle?: string | null;
 }
-
-const TITLE_MAP: Record<string, { name: string; icon: string; color: string }> = {
-  esordiente:      { name: 'Esordiente',       icon: '🎮', color: '#94a3b8' },
-  guerriero:       { name: 'Guerriero',         icon: '⚔️', color: '#94a3b8' },
-  veterano:        { name: 'Veterano',          icon: '🛡️', color: '#60a5fa' },
-  campione:        { name: 'Campione',          icon: '🏆', color: '#60a5fa' },
-  dominatore:      { name: 'Dominatore',        icon: '👑', color: '#c084fc' },
-  campione_gym:    { name: 'Campione GymMode',  icon: '🏅', color: '#60a5fa' },
-  maestro_gym:     { name: 'Maestro Gym',       icon: '🌟', color: '#c084fc' },
-  sfidante:        { name: 'Sfidante',          icon: '🔥', color: '#60a5fa' },
-  maestro_rank:    { name: 'Maestro',           icon: '💎', color: '#c084fc' },
-  leggenda:        { name: 'Leggenda',          icon: '⭐', color: '#fbbf24' },
-  campione_torneo: { name: 'Campione Torneo',   icon: '🎖️', color: '#fbbf24' },
-  longevo:         { name: 'Longevo',           icon: '⏳', color: '#c084fc' },
-};
 
 function getTitleInfo(titleId?: string | null) {
   if (!titleId) return null;
