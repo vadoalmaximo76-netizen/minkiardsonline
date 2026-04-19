@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { gsap } from 'gsap';
-import { Crown, Trophy, Star, Home, Play, Medal } from 'lucide-react';
+import { Crown, Trophy, Star, Home, Play, Medal, Share2, Download } from 'lucide-react';
 import { AdBanner } from './AdBanner';
 import { useGameState } from '../lib/stores/useGameState';
+import VictoryCard from './VictoryCard';
+import { useShareVictory } from '../hooks/useShareVictory';
 
 interface GameEndRewardsPanelProps {
   visible: boolean;
@@ -17,6 +19,12 @@ interface GameEndRewardsPanelProps {
   onNewGame: () => void;
   rematchSection?: React.ReactNode;
   onContinueTournament?: () => void;
+  gameStats?: {
+    totalDamageDealt: number;
+    cardsPlayed: number;
+    turnsPlayed: number;
+    matchDuration: number;
+  };
 }
 
 export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
@@ -32,7 +40,9 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
   onGoHome,
   onNewGame,
   onContinueTournament,
+  gameStats,
 }) => {
+  const { containerRef: victoryCardRef, shareVictory, isGenerating } = useShareVictory();
   const [phase, setPhase] = useState<'rewards' | 'ad'>('rewards');
   const [displayedPoints, setDisplayedPoints] = useState(previousTotal);
 
@@ -295,6 +305,7 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
   }
 
   return (
+    <>
     <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 overflow-y-auto" style={{ zIndex: 10000 }}>
       <div
         ref={panelRef}
@@ -394,7 +405,39 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
             )}
           </div>
 
-          <div ref={buttonsRef} style={{ opacity: 0 }}>
+          <div ref={buttonsRef} style={{ opacity: 0 }} className="space-y-2">
+            {isWinner && (
+              <button
+                onClick={() => shareVictory({
+                  winnerName: playerName,
+                  pointsEarned,
+                  totalDamageDealt: gameStats?.totalDamageDealt ?? 0,
+                  cardsPlayed: gameStats?.cardsPlayed ?? 0,
+                  turnsPlayed: gameStats?.turnsPlayed ?? 0,
+                  matchDuration: gameStats?.matchDuration ?? 0,
+                })}
+                disabled={isGenerating}
+                className="w-full flex items-center justify-center gap-2 text-white font-bold py-2.5 px-6 rounded-xl transition-all border border-yellow-500/40 hover:border-yellow-400/60 disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ background: 'linear-gradient(135deg, rgba(251,191,36,0.15), rgba(245,158,11,0.25))' }}
+              >
+                {isGenerating ? (
+                  <>
+                    <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fbbf24', borderRadius: '50%' }} />
+                    Generazione...
+                  </>
+                ) : navigator.canShare ? (
+                  <>
+                    <Share2 size={16} className="text-yellow-400" />
+                    Condividi Vittoria
+                  </>
+                ) : (
+                  <>
+                    <Download size={16} className="text-yellow-400" />
+                    Scarica Card
+                  </>
+                )}
+              </button>
+            )}
             <button
               onClick={() => setPhase('ad')}
               className="w-full bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50"
@@ -405,6 +448,21 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
         </div>
       </div>
     </div>
+
+    {isWinner && (
+      <VictoryCard
+        cardRef={victoryCardRef}
+        stats={{
+          winnerName: playerName,
+          pointsEarned,
+          totalDamageDealt: gameStats?.totalDamageDealt ?? 0,
+          cardsPlayed: gameStats?.cardsPlayed ?? 0,
+          turnsPlayed: gameStats?.turnsPlayed ?? 0,
+          matchDuration: gameStats?.matchDuration ?? 0,
+        }}
+      />
+    )}
+  </>
   );
 };
 

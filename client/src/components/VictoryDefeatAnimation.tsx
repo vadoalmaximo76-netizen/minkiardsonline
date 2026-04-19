@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import VictoryCard from './VictoryCard';
+import { useShareVictory } from '../hooks/useShareVictory';
 
 interface ConfettiPiece {
   id: number;
@@ -91,6 +93,7 @@ function CountUpNumber({ target, duration = 1500 }: { target: number; duration?:
 }
 
 export default function VictoryDefeatAnimation({ type, visible, playerName, stats }: VictoryDefeatAnimationProps) {
+  const { containerRef: victoryCardRef, shareVictory, isGenerating } = useShareVictory();
   const [confetti, setConfetti] = useState<ConfettiPiece[]>([]);
   const [fireworks, setFireworks] = useState<Firework[]>([]);
   const [defeatOpacity, setDefeatOpacity] = useState(0);
@@ -550,6 +553,7 @@ export default function VictoryDefeatAnimation({ type, visible, playerName, stat
   }
 
   return (
+    <>
     <div style={{
       position: 'fixed',
       inset: 0,
@@ -837,6 +841,42 @@ export default function VictoryDefeatAnimation({ type, visible, playerName, stat
               ⏱️ Durata Partita: {formatDuration(stats.matchDuration)}
             </div>
           )}
+          <div style={{
+            marginTop: '20px',
+            animation: 'statAppear 0.5s ease-out forwards',
+            animationDelay: '1.1s',
+            opacity: 0,
+            pointerEvents: 'auto',
+          }}>
+            <button
+              onClick={() => shareVictory({
+                winnerName: playerName,
+                totalDamageDealt: stats.totalDamageDealt,
+                cardsPlayed: stats.cardsPlayed,
+                turnsPlayed: stats.turnsPlayed,
+                matchDuration: stats.matchDuration,
+              })}
+              disabled={isGenerating}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 22px',
+                borderRadius: '24px',
+                border: '1px solid rgba(251,191,36,0.5)',
+                background: 'rgba(0,0,0,0.5)',
+                backdropFilter: 'blur(8px)',
+                color: '#fbbf24',
+                fontSize: '14px',
+                fontWeight: 700,
+                cursor: isGenerating ? 'not-allowed' : 'pointer',
+                opacity: isGenerating ? 0.6 : 1,
+                transition: 'background 0.2s',
+              }}
+            >
+              {isGenerating ? '⏳ Generazione...' : (navigator.canShare ? '🔗 Condividi Vittoria' : '⬇️ Scarica Card')}
+            </button>
+          </div>
         </div>
       )}
 
@@ -908,5 +948,19 @@ export default function VictoryDefeatAnimation({ type, visible, playerName, stat
         }
       `}</style>
     </div>
+
+    {type === 'victory' && stats && (
+      <VictoryCard
+        cardRef={victoryCardRef}
+        stats={{
+          winnerName: playerName,
+          totalDamageDealt: stats.totalDamageDealt,
+          cardsPlayed: stats.cardsPlayed,
+          turnsPlayed: stats.turnsPlayed,
+          matchDuration: stats.matchDuration,
+        }}
+      />
+    )}
+  </>
   );
 }

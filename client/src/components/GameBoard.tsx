@@ -244,7 +244,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     placement: number;
     isWinner: boolean;
     winnerName: string;
+    gameStats?: { totalDamageDealt: number; cardsPlayed: number; turnsPlayed: number; matchDuration: number };
   }>({ visible: false, pointsEarned: 0, previousTotal: 0, newTotal: 0, placement: 0, isWinner: false, winnerName: '' });
+  const matchStatsRef = useRef<{ totalDamageDealt: number; cardsPlayed: number; turnsPlayed: number; matchDuration: number } | undefined>(undefined);
   const [cardTrailParticles, setCardTrailParticles] = useState<{ visible: boolean; cardType: string; x: number; y: number }>({ visible: false, cardType: '', x: 0, y: 0 });
   const [victoryDefeatAnim, setVictoryDefeatAnim] = useState<{ visible: boolean; type: 'victory' | 'defeat'; playerName: string; stats?: { cardsPlayed: number; totalDamageDealt: number; totalDamageReceived: number; turnsPlayed: number; matchDuration: number; finalBlowCard?: { name: string; imageUrl?: string; deckType: string } } }>({ visible: false, type: 'victory', playerName: '' });
   const { shake } = useScreenShake();
@@ -2461,6 +2463,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         matchDuration: matchDuration || 0,
         finalBlowCard: lastAction?.cardName ? { name: lastAction.cardName, imageUrl: lastAction.cardImageUrl, deckType: lastAction.cardDeckType || 'personaggi' } : undefined,
       } : undefined;
+      if (isWinner && stats) {
+        matchStatsRef.current = {
+          totalDamageDealt: stats.totalDamageDealt,
+          cardsPlayed: stats.cardsPlayed,
+          turnsPlayed: stats.turnsPlayed,
+          matchDuration: stats.matchDuration,
+        };
+      } else {
+        matchStatsRef.current = undefined;
+      }
       setVictoryDefeatAnim({ visible: true, type: isWinner ? 'victory' : 'defeat', playerName: winner, stats });
       trackGameEnded(gameId || 'unknown', winner, matchDuration || 0, myStats?.turnsPlayed || 0);
     };
@@ -2484,6 +2496,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             placement: myRewards.placement,
             isWinner: myRewards.isWinner,
             winnerName: winner,
+            gameStats: myRewards.isWinner ? matchStatsRef.current : undefined,
           });
           setUserRankiardPoints(myRewards.newTotal);
         }, 4000);
@@ -3474,6 +3487,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         isWinner={gameEndRewards.isWinner}
         winnerName={gameEndRewards.winnerName}
         playerName={playerName}
+        gameStats={gameEndRewards.gameStats}
         onGoHome={() => {
           console.log('[REWARDS] onGoHome clicked');
           clearSession();
