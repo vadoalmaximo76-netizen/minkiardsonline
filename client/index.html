@@ -20,24 +20,18 @@
     <!-- Google AdSense Auto Ads -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5660517743209013" crossorigin="anonymous"></script>
     
-    <!-- Service Worker Cleanup - Remove old caching SW -->
+    <!-- Service Worker Registration -->
     <script>
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          registrations.forEach(function(registration) {
-            registration.unregister().then(function() {
-              console.log('[PWA] Service Worker unregistered');
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(function(registration) {
+              console.log('[PWA] Service Worker registered, scope:', registration.scope);
+            })
+            .catch(function(err) {
+              console.error('[PWA] Service Worker registration failed:', err);
             });
-          });
         });
-        if ('caches' in window) {
-          caches.keys().then(function(cacheNames) {
-            cacheNames.forEach(function(cacheName) {
-              caches.delete(cacheName);
-              console.log('[PWA] Cache deleted:', cacheName);
-            });
-          });
-        }
       }
     </script>
   </head>

@@ -78,6 +78,7 @@ import { NotificationInbox } from "./components/NotificationInbox";
 import { BottomNav } from "./components/BottomNav";
 import { AdminPageTooltipFab } from "./components/AdminPageTooltipFab";
 import { PageTooltipDisplay } from "./components/PageTooltipDisplay";
+import { PWAInstallBanner } from "./components/PWAInstallBanner";
 
 class GameErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
   constructor(props: { children: ReactNode }) {
@@ -1280,6 +1281,7 @@ function App() {
           />
         </>
       )}
+      <PWAInstallBanner />
     </>
   );
 }
