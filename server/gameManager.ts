@@ -26971,7 +26971,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         });
         return;
       }
-      // CPU auto-resolution: select top 3 opponents' graveyard characters by PTI
+      // CPU auto-resolution: select top 3 opponents' graveyard characters by combined score (PTI + stars×200)
       if (this.isPlayerCPU(gameId, playerName)) {
         const efScore = (c: any) => {
           const pti = c.pti ?? this.extractPTIFromNote(c.text || '') ?? 0;
