@@ -1961,17 +1961,42 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     }
 
     // ── EVIL FAKE ──────────────────────────────────────────────────────────────
-    // Activate when at least one opponent's graveyard contains a character.
-    // Server auto-resolves the choice for CPU (picks highest-PTI cards).
+    // Strategic activation — evaluate graveyard haul quality before committing.
+    // Criteria (any one triggers activation):
+    //   1. Desperation  : Evil Fake current PTI ≤ 600 (needs reinforcement urgently)
+    //   2. Elite prey   : best single candidate has PTI ≥ 1200 (always worth absorbing)
+    //   3. Rich haul    : top-3 combined score (PTI + stars×200) ≥ 2000
+    //   4. Good haul    : ≥2 candidates and top-2 combined score ≥ 1400
+    // If none met, skip this turn and re-evaluate next turn.
     if ((img.includes('evil-fake') || /evil.?fake/.test(charName)) && !(cpuChar as any).evilFakeUsed) {
-      const hasGraveyardTargets = Object.entries(gameState.players || {}).some(([pName, pData]: [string, any]) => {
-        if (pName === this.playerName) return false;
-        return (pData.graveyard || []).some((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
-      });
-      if (hasGraveyardTargets) {
-        console.log(`😈 CPU ${this.playerName}: Evil Fake in campo - attivo assorbimento cimiteri avversari`);
-        this.sendChatMessage(`😈 Evil Fake: assorbo il potere dai cimiteri avversari!`);
-        await this.gameManager.activateCustomEffect(this.gameId, cpuChar.id, this.playerName, io);
+      const opponents = (gameState.graveyard || []).filter((c: any) =>
+        c.owner !== this.playerName &&
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      if (opponents.length > 0) {
+        const efScore = (c: any) => this.extractPtiFromCard(c) + this.extractStarsFromCard(c) * 200;
+        const sorted = [...opponents].sort((a, b) => efScore(b) - efScore(a));
+        const efCurrentPTI = this.extractPtiFromCard(cpuChar);
+        const top2Score = sorted.slice(0, 2).reduce((s, c) => s + efScore(c), 0);
+        const top3Score = sorted.slice(0, 3).reduce((s, c) => s + efScore(c), 0);
+
+        const isDesperate  = efCurrentPTI <= 600;
+        const hasElitePrey = this.extractPtiFromCard(sorted[0]) >= 1200;
+        const isRichHaul   = top3Score >= 2000;
+        const isGoodHaul   = sorted.length >= 2 && top2Score >= 1400;
+
+        if (isDesperate || hasElitePrey || isRichHaul || isGoodHaul) {
+          let reason: string;
+          if (isDesperate)      reason = '😈 Evil Fake: PTI bassi, devo rinforzarmi!';
+          else if (hasElitePrey) reason = "😈 Evil Fake: preda d'élite nel cimitero, la assorbo!";
+          else if (isRichHaul)  reason = '😈 Evil Fake: bottino ricchissimo, assorbo tutto!';
+          else                  reason = '😈 Evil Fake: buona opportunità, assorbo il potere!';
+          console.log(`😈 CPU ${this.playerName}: Evil Fake attivato — PTI=${efCurrentPTI}, top3score=${top3Score} (desperate=${isDesperate}, elite=${hasElitePrey}, rich=${isRichHaul}, good=${isGoodHaul})`);
+          this.sendChatMessage(reason);
+          await this.gameManager.activateCustomEffect(this.gameId, cpuChar.id, this.playerName, io);
+        } else {
+          console.log(`😈 CPU ${this.playerName}: Evil Fake — bottino scarso (PTI=${efCurrentPTI}, top3score=${top3Score}), aspetto turno migliore`);
+        }
       }
       return;
     }

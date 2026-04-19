@@ -26973,11 +26973,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       // CPU auto-resolution: select top 3 opponents' graveyard characters by PTI
       if (this.isPlayerCPU(gameId, playerName)) {
-        const sorted = [...graveyardOpponents].sort((a, b) => {
-          const aPTI = a.pti ?? this.extractPTIFromNote(a.text || '') ?? 0;
-          const bPTI = b.pti ?? this.extractPTIFromNote(b.text || '') ?? 0;
-          return bPTI - aPTI;
-        });
+        const efScore = (c: any) => {
+          const pti = c.pti ?? this.extractPTIFromNote(c.text || '') ?? 0;
+          const stars = c.stars ?? this.extractStarsFromNote(c.text || '') ?? 1;
+          return pti + stars * 200;
+        };
+        const sorted = [...graveyardOpponents].sort((a, b) => efScore(b) - efScore(a));
         const toAbsorb = sorted.slice(0, 3);
         (card as any).evilFakeUsed = true;
         let totalPTI = 0, totalStars = 0;
