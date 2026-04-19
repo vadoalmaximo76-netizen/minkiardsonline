@@ -28,7 +28,8 @@ export function useShareVictory() {
       const dataUrl = canvas.toDataURL('image/png');
       const filename = `minkiards-vittoria-${stats.winnerName.replace(/\s+/g, '-').toLowerCase()}.png`;
 
-      if (navigator.canShare) {
+      const canShare = typeof navigator !== 'undefined' && typeof navigator.canShare === 'function';
+      if (canShare) {
         canvas.toBlob(async (blob) => {
           if (!blob) {
             downloadDataUrl(dataUrl, filename);
@@ -36,12 +37,15 @@ export function useShareVictory() {
             return;
           }
           const file = new File([blob], filename, { type: 'image/png' });
+          const prText = stats.pointsEarned != null && stats.pointsEarned > 0
+            ? ` con +${stats.pointsEarned} PR`
+            : '';
           const shareData: ShareData = {
             title: 'MINKIARDS – Ho vinto! 🏆',
-            text: `${stats.winnerName} ha vinto una partita di MINKIARDS con +${stats.pointsEarned} PR!`,
+            text: `${stats.winnerName} ha vinto una partita di MINKIARDS${prText}!`,
             files: [file],
           };
-          if (navigator.canShare(shareData)) {
+          if (navigator.canShare!(shareData)) {
             try {
               await navigator.share(shareData);
             } catch (err) {

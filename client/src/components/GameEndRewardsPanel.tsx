@@ -425,7 +425,7 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
                     <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fbbf24', borderRadius: '50%' }} />
                     Generazione...
                   </>
-                ) : navigator.canShare ? (
+                ) : (typeof navigator !== 'undefined' && typeof navigator.canShare === 'function') ? (
                   <>
                     <Share2 size={16} className="text-yellow-400" />
                     Condividi Vittoria

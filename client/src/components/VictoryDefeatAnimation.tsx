@@ -874,7 +874,7 @@ export default function VictoryDefeatAnimation({ type, visible, playerName, stat
                 transition: 'background 0.2s',
               }}
             >
-              {isGenerating ? '⏳ Generazione...' : (navigator.canShare ? '🔗 Condividi Vittoria' : '⬇️ Scarica Card')}
+              {isGenerating ? '⏳ Generazione...' : (typeof navigator !== 'undefined' && typeof navigator.canShare === 'function' ? '🔗 Condividi Vittoria' : '⬇️ Scarica Card')}
             </button>
           </div>
         </div>
