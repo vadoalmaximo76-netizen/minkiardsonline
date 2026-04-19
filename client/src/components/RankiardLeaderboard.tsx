@@ -14,8 +14,7 @@ interface LeaderboardEntry {
 }
 
 function getTitleInfo(titleId?: string | null) {
-  if (!titleId) return null;
-  return TITLE_MAP[titleId] ?? null;
+  return TITLE_MAP[titleId ?? 'esordiente'] ?? TITLE_MAP['esordiente'];
 }
 
 interface RankiardLeaderboardProps {
@@ -271,11 +270,11 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({ isOpen
                             {p.username}{isSelf ? ' ✦' : ''}
                           </div>
                           {/* Active title */}
-                          {(() => { const ti = getTitleInfo(p.activeTitle); return ti && p.activeTitle !== 'esordiente' ? (
+                          {(() => { const ti = getTitleInfo(p.activeTitle); return (
                             <div style={{ fontSize: 10, color: ti.color, fontWeight: 700, marginTop: 2, textAlign: 'center' }}>
                               {ti.icon} {ti.name}
                             </div>
-                          ) : null; })()}
+                          ); })()}
                           {/* Points */}
                           <div style={{ fontSize: idx === 0 ? 16 : 13, fontWeight: 900, color: '#facc15', marginTop: 2 }}>
                             {p.puntiRankiard.toLocaleString('it-IT')} PR
@@ -351,11 +350,11 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({ isOpen
                           <div style={{ fontSize: 13, fontWeight: isSelf ? 800 : 600, color: isSelf ? '#67e8f9' : '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {p.username}{isSelf ? ' (tu)' : ''}
                           </div>
-                          {(() => { const ti = getTitleInfo(p.activeTitle); return ti && p.activeTitle !== 'esordiente' ? (
+                          {(() => { const ti = getTitleInfo(p.activeTitle); return (
                             <div style={{ fontSize: 10, color: ti.color, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {ti.icon} {ti.name}
                             </div>
-                          ) : null; })()}
+                          ); })()}
                         </div>
                       </div>
 

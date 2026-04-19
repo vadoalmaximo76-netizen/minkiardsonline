@@ -120,6 +120,24 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
   }, [gameId]);
 
   useEffect(() => {
+    const newPlayers = messages
+      .filter(m => !m.isGymLeader && m.playerName !== 'Sistema' && !fetchedTitlesRef.current.has(m.playerName))
+      .map(m => m.playerName);
+    const uniqueNewPlayers = [...new Set(newPlayers)];
+    uniqueNewPlayers.forEach(name => {
+      fetchedTitlesRef.current.add(name);
+      fetch(`/api/user-title/${encodeURIComponent(name)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.activeTitle) {
+            setPlayerTitles(prev => ({ ...prev, [name]: data.activeTitle }));
+          }
+        })
+        .catch(() => {});
+    });
+  }, [messages]);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
@@ -182,7 +200,8 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
                 <span className="text-sky-blue font-semibold">{msg.playerName}</span>
                 {(() => {
                   const titleId = playerTitles[msg.playerName];
-                  const titleInfo = titleId && titleId !== 'esordiente' ? TITLE_MAP[titleId] : null;
+                  const resolvedId = titleId || 'esordiente';
+                  const titleInfo = TITLE_MAP[resolvedId] ?? null;
                   return titleInfo ? (
                     <span className="text-[10px] font-semibold leading-none" style={{ color: titleInfo.color }}>
                       {titleInfo.icon} {titleInfo.name}

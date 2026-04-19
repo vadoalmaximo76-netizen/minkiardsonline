@@ -231,11 +231,15 @@ export const PreGameLobbyPanel: React.FC<PreGameLobbyPanelProps> = ({
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="text-white/90 text-sm font-medium truncate block">{p.name}</span>
-                    {!p.isCPU && playerTitles[p.name] && playerTitles[p.name] !== 'esordiente' && TITLE_MAP[playerTitles[p.name]] && (
-                      <span style={{ fontSize: 10, color: TITLE_MAP[playerTitles[p.name]].color, fontWeight: 600 }}>
-                        {TITLE_MAP[playerTitles[p.name]].icon} {TITLE_MAP[playerTitles[p.name]].name}
-                      </span>
-                    )}
+                    {!p.isCPU && (() => {
+                      const resolvedId = playerTitles[p.name] || 'esordiente';
+                      const info = TITLE_MAP[resolvedId];
+                      return info ? (
+                        <span style={{ fontSize: 10, color: info.color, fontWeight: 600 }}>
+                          {info.icon} {info.name}
+                        </span>
+                      ) : null;
+                    })()}
                   </div>
                   {team && (
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${team === 'A' ? 'bg-blue-500/25 text-blue-300 border border-blue-500/30' : 'bg-red-500/25 text-red-300 border border-red-500/30'}`}>
