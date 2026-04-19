@@ -5,6 +5,7 @@ import { OtherPlayersHands } from "./OtherPlayersHands";
 import { CPUControls } from "./CPUControls";
 import { RoundTable } from "./RoundTable";
 import { Graveyard } from "./Graveyard";
+import { GraveyardFlyAnimation } from "./GraveyardFlyAnimation";
 import { Chat } from "./Chat";
 import { ChatNotification } from "./ChatNotification";
 import { Calculator } from "./Calculator";
@@ -328,6 +329,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [cinematicOverlayData, setCinematicOverlayData] = useState<CinematicEventData | null>(null);
   const [turnPhaseFlash, setTurnPhaseFlash] = useState<{ visible: boolean; isMyTurn: boolean }>({ visible: false, isMyTurn: false });
   const [cardShatter3D, setCardShatter3D] = useState<{ visible: boolean; cardImage: string; cardName: string }>({ visible: false, cardImage: '', cardName: '' });
+  const [graveyardFly, setGraveyardFly] = useState<{ visible: boolean; cardImage: string; cardName: string; cardType: string }>({ visible: false, cardImage: '', cardName: '', cardType: '' });
   const [koBanner, setKoBanner] = useState<{ visible: boolean; cardName: string; cardOwner: string; cardImage: string; eliminationMode: boolean; isCurrentPlayer: boolean }>({ visible: false, cardName: '', cardOwner: '', cardImage: '', eliminationMode: false, isCurrentPlayer: false });
   const [tekkenMode, setTekkenMode] = useState(false);
 
@@ -1068,6 +1070,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setCiaoCardName(cardName);
       setCiaoNotificationVisible(true);
       playCardToGraveyard();
+
+      // Trigger fly-to-graveyard animation for all card types
+      setGraveyardFly({ visible: false, cardImage: cardImage || '', cardName, cardType: cardType || '' });
+      setTimeout(() => {
+        setGraveyardFly({ visible: true, cardImage: cardImage || '', cardName, cardType: cardType || '' });
+      }, cardType === 'personaggi' || cardType === 'personaggi_speciali' ? 600 : 50);
       
       if (cardType === 'personaggi' || cardType === 'personaggi_speciali') {
         setDeadCharacterName(cardName);
@@ -1076,7 +1084,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           setDeathEffectKey(prev => prev + 1);
           setDeathEffectVisible(true);
         }, 10);
-        setCardShatter3D({ visible: true, cardImage: '', cardName });
+        setCardShatter3D({ visible: true, cardImage: cardImage || '', cardName });
         playDeathSound();
         /* K.O. banner — delay slightly so it appears after the initial flash */
         setTimeout(() => {
@@ -5924,6 +5932,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             onComplete={() => setCardShatter3D({ visible: false, cardImage: '', cardName: '' })}
           />
         )}
+
+        <GraveyardFlyAnimation
+          isVisible={graveyardFly.visible}
+          cardImage={graveyardFly.cardImage}
+          cardName={graveyardFly.cardName}
+          cardType={graveyardFly.cardType}
+          onComplete={() => setGraveyardFly({ visible: false, cardImage: '', cardName: '', cardType: '' })}
+        />
 
         {koBanner.visible && (
           <KOBanner
