@@ -93,7 +93,6 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
   }
   const [titles, setTitles] = useState<TitleEntry[]>([]);
   const [activeTitleId, setActiveTitleId] = useState<string>('esordiente');
-  const [titlesLoading, setTitlesLoading] = useState(false);
   const [selectingTitle, setSelectingTitle] = useState<string | null>(null);
 
   const [offlineStats, setOfflineStats] = useState<{ cached: number; total: number; enabled: boolean } | null>(null);
