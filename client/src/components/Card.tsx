@@ -1897,7 +1897,14 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         {/* Card image - immediately clickable */}
         <div 
           data-card-clickable="true"
-          className={`relative cursor-pointer ${isLowHealth && location === 'field' ? 'low-health-critical' : ''} ${location === 'field' && !card.faceDown ? (card.type === 'personaggi' ? 'card-border-glow-personaggi' : card.type === 'mosse' ? 'card-border-glow-mosse' : card.type === 'bonus' ? 'card-border-glow-bonus' : card.type === 'personaggi_speciali' ? 'card-border-glow-speciali' : '') : ''}`}
+          className={`relative ${isLowHealth && location === 'field' ? 'low-health-critical' : ''} ${location === 'field' && !card.faceDown ? (card.type === 'personaggi' ? 'card-border-glow-personaggi' : card.type === 'mosse' ? 'card-border-glow-mosse' : card.type === 'bonus' ? 'card-border-glow-bonus' : card.type === 'personaggi_speciali' ? 'card-border-glow-speciali' : '') : ''}`}
+          style={{
+            cursor: location === 'field' && card.owner !== playerName && isMyTurn && isPersonaggio && !card.faceDown
+              ? 'crosshair'
+              : location === 'hand'
+                ? 'grab'
+                : 'pointer',
+          }}
           onClick={handleCardClick}
         >
           <img

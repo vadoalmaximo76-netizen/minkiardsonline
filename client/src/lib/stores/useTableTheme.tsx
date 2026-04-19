@@ -13,6 +13,7 @@ export interface TableTheme {
   fogColor: string;
   lightIntensity: number;
   backgroundGradient: string;
+  textureUrl?: string;
 }
 
 export const TABLE_THEMES: TableTheme[] = [
@@ -29,6 +30,7 @@ export const TABLE_THEMES: TableTheme[] = [
     fogColor: 'rgba(92, 61, 46, 0.15)',
     lightIntensity: 0.7,
     backgroundGradient: 'linear-gradient(135deg, rgba(60, 30, 15, 0.3) 0%, rgba(40, 20, 10, 0.5) 100%)',
+    textureUrl: '/textures/wood.jpg',
   },
   {
     id: 'black_marble',
@@ -57,6 +59,7 @@ export const TABLE_THEMES: TableTheme[] = [
     fogColor: 'rgba(30, 86, 49, 0.15)',
     lightIntensity: 0.75,
     backgroundGradient: 'linear-gradient(135deg, rgba(15, 40, 20, 0.3) 0%, rgba(10, 30, 15, 0.5) 100%)',
+    textureUrl: '/textures/grass.png',
   },
   {
     id: 'fire_arena',
@@ -71,6 +74,7 @@ export const TABLE_THEMES: TableTheme[] = [
     fogColor: 'rgba(74, 26, 10, 0.2)',
     lightIntensity: 0.8,
     backgroundGradient: 'linear-gradient(135deg, rgba(50, 10, 0, 0.4) 0%, rgba(30, 5, 0, 0.6) 100%)',
+    textureUrl: '/textures/sand.jpg',
   },
   {
     id: 'cosmic_space',
@@ -85,6 +89,7 @@ export const TABLE_THEMES: TableTheme[] = [
     fogColor: 'rgba(13, 13, 43, 0.2)',
     lightIntensity: 0.5,
     backgroundGradient: 'linear-gradient(135deg, rgba(10, 5, 30, 0.4) 0%, rgba(5, 0, 20, 0.6) 100%)',
+    textureUrl: '/textures/sky.png',
   },
 ];
 

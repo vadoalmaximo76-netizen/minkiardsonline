@@ -9433,6 +9433,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('set-room-theme', ({ gameId, playerName, themeId }: { gameId: string; playerName: string; themeId: string }) => {
+      const game = gameManager.getGame(gameId);
+      if (game && game.creatorName === playerName) {
+        socket.to(gameId).emit('room-theme-changed', { themeId });
+      }
+    });
+
     // TEAM MODE: Configure team mode (creator only, pre-game)
     // Security: verify caller is the game creator via stored socket identity
     socket.on('set-team-mode', ({ gameId, isTeamMode, teamSize, teams }: {

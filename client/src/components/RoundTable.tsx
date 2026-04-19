@@ -374,6 +374,22 @@ const RoundTableComponent: React.FC = () => {
             zIndex: 0,
           }}
         />
+
+        {/* Real texture overlay when theme provides one */}
+        {tableTheme.textureUrl && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              borderRadius: '20px',
+              backgroundImage: `url('${tableTheme.textureUrl}')`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              opacity: 0.18,
+              mixBlendMode: 'multiply',
+              zIndex: 1,
+            }}
+          />
+        )}
         
         <AmbientParticles visible={true} />
         

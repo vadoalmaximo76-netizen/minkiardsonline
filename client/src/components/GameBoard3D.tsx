@@ -697,8 +697,23 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
               borderStyle: 'solid',
             }}
           >
-            {/* Theme overlay */}
-            <div className="absolute inset-0 rounded-3xl" style={{ background: currentTheme.tableSurface, opacity: 0.6 }} />
+            {/* Theme overlay — real texture when available, gradient as fallback */}
+            {currentTheme.textureUrl ? (
+              <>
+                <div
+                  className="absolute inset-0 rounded-3xl"
+                  style={{
+                    backgroundImage: `url('${currentTheme.textureUrl}')`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    opacity: 0.42,
+                  }}
+                />
+                <div className="absolute inset-0 rounded-3xl" style={{ background: currentTheme.tableSurface, opacity: 0.28 }} />
+              </>
+            ) : (
+              <div className="absolute inset-0 rounded-3xl" style={{ background: currentTheme.tableSurface, opacity: 0.6 }} />
+            )}
             <div className="absolute inset-0 bg-black/10 rounded-3xl" />
             {/* Directional light from top */}
             <div className="absolute inset-0 rounded-3xl" style={{
