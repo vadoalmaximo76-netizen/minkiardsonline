@@ -21,6 +21,7 @@ export const users = pgTable("users", {
   resetPasswordExpires: timestamp("reset_password_expires"), // Token expiration time
   draftRating: integer("draft_rating").notNull().default(1000), // Draft tournament ELO-style rating
   draftBestRun: integer("draft_best_run").notNull().default(0), // Best consecutive wins in a single tournament
+  activeTitle: text("active_title"), // Currently equipped title ID
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

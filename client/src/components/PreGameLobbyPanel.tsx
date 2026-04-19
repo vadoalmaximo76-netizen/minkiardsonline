@@ -4,6 +4,21 @@ import { Users, Search, Send, Check, Skull, Crown, UserPlus, Play, Bot, Shield, 
 import { socket } from "../lib/socket";
 import useTableTheme, { TABLE_THEMES } from "../lib/stores/useTableTheme";
 
+const LOBBY_TITLE_MAP: Record<string, { name: string; icon: string; color: string }> = {
+  esordiente:      { name: 'Esordiente',       icon: '🎮', color: '#94a3b8' },
+  guerriero:       { name: 'Guerriero',         icon: '⚔️', color: '#94a3b8' },
+  veterano:        { name: 'Veterano',          icon: '🛡️', color: '#60a5fa' },
+  campione:        { name: 'Campione',          icon: '🏆', color: '#60a5fa' },
+  dominatore:      { name: 'Dominatore',        icon: '👑', color: '#c084fc' },
+  campione_gym:    { name: 'Campione GymMode',  icon: '🏅', color: '#60a5fa' },
+  maestro_gym:     { name: 'Maestro Gym',       icon: '🌟', color: '#c084fc' },
+  sfidante:        { name: 'Sfidante',          icon: '🔥', color: '#60a5fa' },
+  maestro_rank:    { name: 'Maestro',           icon: '💎', color: '#c084fc' },
+  leggenda:        { name: 'Leggenda',          icon: '⭐', color: '#fbbf24' },
+  campione_torneo: { name: 'Campione Torneo',   icon: '🎖️', color: '#fbbf24' },
+  longevo:         { name: 'Longevo',           icon: '⏳', color: '#c084fc' },
+};
+
 interface PreGameLobbyPanelProps {
   gameId: string;
   playerName: string;
@@ -48,6 +63,7 @@ export const PreGameLobbyPanel: React.FC<PreGameLobbyPanelProps> = ({
   const [teamSize, setTeamSize] = useState<2 | 3>(2);
   const [teams, setTeams] = useState<{ teamA: string[]; teamB: string[] } | null>(null);
   const [teamModeError, setTeamModeError] = useState<string | null>(null);
+  const [playerTitles, setPlayerTitles] = useState<Record<string, string>>({});
 
   const { currentThemeId, setTheme } = useTableTheme();
 
@@ -78,6 +94,27 @@ export const PreGameLobbyPanel: React.FC<PreGameLobbyPanelProps> = ({
       socket.off('room-theme-changed', handleRoomThemeChanged);
     };
   }, [setTheme]);
+
+  useEffect(() => {
+    const humanPlayers = players.filter(p => !p.isCPU).map(p => p.name);
+    if (humanPlayers.length === 0) return;
+    let cancelled = false;
+    const fetchTitles = async () => {
+      const results: Record<string, string> = {};
+      await Promise.all(
+        humanPlayers.map(async (name) => {
+          try {
+            const res = await fetch(`/api/user-title/${encodeURIComponent(name)}`);
+            const data = await res.json();
+            if (data.success) results[name] = data.activeTitle || 'esordiente';
+          } catch { results[name] = 'esordiente'; }
+        })
+      );
+      if (!cancelled) setPlayerTitles(results);
+    };
+    fetchTitles();
+    return () => { cancelled = true; };
+  }, [players.map(p => p.name).join(',')]);
 
   const searchUsers = useCallback(async (query: string) => {
     if (!query || query.length < 2 || !authToken) {
@@ -206,7 +243,14 @@ export const PreGameLobbyPanel: React.FC<PreGameLobbyPanelProps> = ({
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                     {p.isCPU ? '🤖' : p.name.charAt(0).toUpperCase()}
                   </div>
-                  <span className="text-white/90 text-sm font-medium truncate flex-1">{p.name}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-white/90 text-sm font-medium truncate block">{p.name}</span>
+                    {!p.isCPU && playerTitles[p.name] && playerTitles[p.name] !== 'esordiente' && LOBBY_TITLE_MAP[playerTitles[p.name]] && (
+                      <span style={{ fontSize: 10, color: LOBBY_TITLE_MAP[playerTitles[p.name]].color, fontWeight: 600 }}>
+                        {LOBBY_TITLE_MAP[playerTitles[p.name]].icon} {LOBBY_TITLE_MAP[playerTitles[p.name]].name}
+                      </span>
+                    )}
+                  </div>
                   {team && (
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${team === 'A' ? 'bg-blue-500/25 text-blue-300 border border-blue-500/30' : 'bg-red-500/25 text-red-300 border border-red-500/30'}`}>
                       Team {team}

@@ -13631,7 +13631,8 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
           puntiRankiard: users.puntiRankiard,
           gamesPlayed: users.gamesPlayed,
           gamesWon: users.gamesWon,
-          minutesPlayed: users.minutesPlayed
+          minutesPlayed: users.minutesPlayed,
+          activeTitle: (users as any).activeTitle,
         })
         .from(users)
         .orderBy(desc(users.puntiRankiard))
@@ -13689,7 +13690,8 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
             gamesPlayed: currentUser.gamesPlayed,
             gamesWon: currentUser.gamesWon,
             minutesPlayed: currentUser.minutesPlayed,
-            isAdmin: currentUser.isAdmin
+            isAdmin: currentUser.isAdmin,
+            activeTitle: (currentUser as any).activeTitle ?? 'esordiente',
           },
           rank,
           totalPlayers: allUsers.length,
@@ -13703,6 +13705,108 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       handle402(error);
       console.error('Error fetching profile:', error);
       res.status(500).json({ success: false, error: 'Failed to fetch profile' });
+    }
+  });
+
+  // ============= TITLES SYSTEM =============
+
+  const allTitleDefs: Array<{
+    id: string; name: string; description: string; rarity: string; icon: string;
+    conditionType: string; conditionValue: number; conditionLabel: string;
+  }> = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'server', 'data', 'titles.json'), 'utf-8'));
+
+  function computeUnlockedTitles(
+    u: { gamesPlayed: number; gamesWon: number; puntiRankiard: number; minutesPlayed: number },
+    gymWins: number,
+    tournamentWins: number
+  ): string[] {
+    return allTitleDefs
+      .filter(t => {
+        if (t.conditionType === 'default') return true;
+        if (t.conditionType === 'gamesPlayed') return u.gamesPlayed >= t.conditionValue;
+        if (t.conditionType === 'gamesWon') return u.gamesWon >= t.conditionValue;
+        if (t.conditionType === 'puntiRankiard') return u.puntiRankiard >= t.conditionValue;
+        if (t.conditionType === 'minutesPlayed') return u.minutesPlayed >= t.conditionValue;
+        if (t.conditionType === 'gymWins') return gymWins >= t.conditionValue;
+        if (t.conditionType === 'tournamentWins') return tournamentWins >= t.conditionValue;
+        return false;
+      })
+      .map(t => t.id);
+  }
+
+  app.get('/api/user-title/:username', async (req, res) => {
+    try {
+      const { username } = req.params;
+      if (!isDatabaseAvailable()) return res.json({ success: true, activeTitle: 'esordiente' });
+      const userRecord = await db.select({ activeTitle: (users as any).activeTitle }).from(users).where(eq(users.username, username)).limit(1);
+      if (!userRecord.length) return res.json({ success: true, activeTitle: 'esordiente' });
+      res.json({ success: true, activeTitle: userRecord[0].activeTitle ?? 'esordiente' });
+    } catch (error) {
+      console.error('Error fetching user title:', error);
+      res.json({ success: true, activeTitle: 'esordiente' });
+    }
+  });
+
+  app.get('/api/titles', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const userRecord = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!userRecord.length) return res.status(404).json({ success: false, error: 'User not found' });
+      const u = userRecord[0];
+
+      const gymWinsCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(userGymProgress)
+        .where(eq(userGymProgress.userId, u.id));
+      const gymWins = Number(gymWinsCount[0]?.count || 0);
+
+      const tournamentWinsCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(tournamentParticipants)
+        .where(and(eq(tournamentParticipants.userId, u.id), eq(tournamentParticipants.status, 'winner')));
+      const tournamentWins = Number(tournamentWinsCount[0]?.count || 0);
+
+      const unlockedIds = computeUnlockedTitles(u, gymWins, tournamentWins);
+
+      const titles = allTitleDefs.map(t => ({
+        ...t,
+        unlocked: unlockedIds.includes(t.id),
+        isActive: (u.activeTitle ?? 'esordiente') === t.id,
+      }));
+
+      res.json({ success: true, titles, activeTitle: u.activeTitle ?? 'esordiente' });
+    } catch (error) {
+      console.error('Error fetching titles:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch titles' });
+    }
+  });
+
+  app.post('/api/titles/select', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { titleId } = req.body;
+      if (!titleId || typeof titleId !== 'string') return res.status(400).json({ success: false, error: 'titleId required' });
+
+      const titleDef = allTitleDefs.find(t => t.id === titleId);
+      if (!titleDef) return res.status(400).json({ success: false, error: 'Unknown title' });
+
+      const userRecord = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!userRecord.length) return res.status(404).json({ success: false, error: 'User not found' });
+      const u = userRecord[0];
+
+      const gymWinsCount = await db.select({ count: sql<number>`count(*)` }).from(userGymProgress).where(eq(userGymProgress.userId, u.id));
+      const gymWins = Number(gymWinsCount[0]?.count || 0);
+      const tournamentWinsCount = await db.select({ count: sql<number>`count(*)` }).from(tournamentParticipants).where(and(eq(tournamentParticipants.userId, u.id), eq(tournamentParticipants.status, 'winner')));
+      const tournamentWins = Number(tournamentWinsCount[0]?.count || 0);
+
+      const unlockedIds = computeUnlockedTitles(u, gymWins, tournamentWins);
+      if (!unlockedIds.includes(titleId)) return res.status(403).json({ success: false, error: 'Title not unlocked' });
+
+      await db.update(users).set({ activeTitle: titleId } as any).where(eq(users.email, user.email));
+      res.json({ success: true, activeTitle: titleId });
+    } catch (error) {
+      console.error('Error selecting title:', error);
+      res.status(500).json({ success: false, error: 'Failed to select title' });
     }
   });
 

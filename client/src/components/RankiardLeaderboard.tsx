@@ -9,6 +9,27 @@ interface LeaderboardEntry {
   gamesPlayed: number;
   gamesWon: number;
   minutesPlayed: number;
+  activeTitle?: string | null;
+}
+
+const TITLE_MAP: Record<string, { name: string; icon: string; color: string }> = {
+  esordiente:      { name: 'Esordiente',       icon: '🎮', color: '#94a3b8' },
+  guerriero:       { name: 'Guerriero',         icon: '⚔️', color: '#94a3b8' },
+  veterano:        { name: 'Veterano',          icon: '🛡️', color: '#60a5fa' },
+  campione:        { name: 'Campione',          icon: '🏆', color: '#60a5fa' },
+  dominatore:      { name: 'Dominatore',        icon: '👑', color: '#c084fc' },
+  campione_gym:    { name: 'Campione GymMode',  icon: '🏅', color: '#60a5fa' },
+  maestro_gym:     { name: 'Maestro Gym',       icon: '🌟', color: '#c084fc' },
+  sfidante:        { name: 'Sfidante',          icon: '🔥', color: '#60a5fa' },
+  maestro_rank:    { name: 'Maestro',           icon: '💎', color: '#c084fc' },
+  leggenda:        { name: 'Leggenda',          icon: '⭐', color: '#fbbf24' },
+  campione_torneo: { name: 'Campione Torneo',   icon: '🎖️', color: '#fbbf24' },
+  longevo:         { name: 'Longevo',           icon: '⏳', color: '#c084fc' },
+};
+
+function getTitleInfo(titleId?: string | null) {
+  if (!titleId) return null;
+  return TITLE_MAP[titleId] ?? null;
 }
 
 interface RankiardLeaderboardProps {
@@ -263,6 +284,12 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({ isOpen
                           <div style={{ fontSize: idx === 0 ? 14 : 12, fontWeight: 800, color: pod.color, textAlign: 'center', maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {p.username}{isSelf ? ' ✦' : ''}
                           </div>
+                          {/* Active title */}
+                          {(() => { const ti = getTitleInfo(p.activeTitle); return ti && p.activeTitle !== 'esordiente' ? (
+                            <div style={{ fontSize: 10, color: ti.color, fontWeight: 700, marginTop: 2, textAlign: 'center' }}>
+                              {ti.icon} {ti.name}
+                            </div>
+                          ) : null; })()}
                           {/* Points */}
                           <div style={{ fontSize: idx === 0 ? 16 : 13, fontWeight: 900, color: '#facc15', marginTop: 2 }}>
                             {p.puntiRankiard.toLocaleString('it-IT')} PR
@@ -334,9 +361,16 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({ isOpen
                       {/* Player */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
                         <span style={{ fontSize: 20, flexShrink: 0 }}>{getAvatar(p.avatar)}</span>
-                        <span style={{ fontSize: 13, fontWeight: isSelf ? 800 : 600, color: isSelf ? '#67e8f9' : '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {p.username}{isSelf ? ' (tu)' : ''}
-                        </span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: isSelf ? 800 : 600, color: isSelf ? '#67e8f9' : '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {p.username}{isSelf ? ' (tu)' : ''}
+                          </div>
+                          {(() => { const ti = getTitleInfo(p.activeTitle); return ti && p.activeTitle !== 'esordiente' ? (
+                            <div style={{ fontSize: 10, color: ti.color, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {ti.icon} {ti.name}
+                            </div>
+                          ) : null; })()}
+                        </div>
                       </div>
 
                       {/* PR */}

@@ -1,0 +1,122 @@
+[
+  {
+    "id": "esordiente",
+    "name": "Esordiente",
+    "description": "Il tuo primo passo nel mondo di Minkiards",
+    "rarity": "comune",
+    "icon": "🎮",
+    "conditionType": "default",
+    "conditionValue": 0,
+    "conditionLabel": "Titolo di partenza"
+  },
+  {
+    "id": "guerriero",
+    "name": "Guerriero",
+    "description": "Hai giocato le tue prime 10 partite",
+    "rarity": "comune",
+    "icon": "⚔️",
+    "conditionType": "gamesPlayed",
+    "conditionValue": 10,
+    "conditionLabel": "Gioca 10 partite"
+  },
+  {
+    "id": "veterano",
+    "name": "Veterano",
+    "description": "Hai combattuto in 50 battaglie",
+    "rarity": "raro",
+    "icon": "🛡️",
+    "conditionType": "gamesPlayed",
+    "conditionValue": 50,
+    "conditionLabel": "Gioca 50 partite"
+  },
+  {
+    "id": "campione",
+    "name": "Campione",
+    "description": "Hai vinto 10 partite",
+    "rarity": "raro",
+    "icon": "🏆",
+    "conditionType": "gamesWon",
+    "conditionValue": 10,
+    "conditionLabel": "Vinci 10 partite"
+  },
+  {
+    "id": "dominatore",
+    "name": "Dominatore",
+    "description": "Hai vinto 50 partite — sei inarrestabile",
+    "rarity": "epico",
+    "icon": "👑",
+    "conditionType": "gamesWon",
+    "conditionValue": 50,
+    "conditionLabel": "Vinci 50 partite"
+  },
+  {
+    "id": "campione_gym",
+    "name": "Campione GymMode",
+    "description": "Hai sconfitto il tuo primo allenatore in Story Mode",
+    "rarity": "raro",
+    "icon": "🏅",
+    "conditionType": "gymWins",
+    "conditionValue": 1,
+    "conditionLabel": "Vinci 1 partita in Story Mode"
+  },
+  {
+    "id": "maestro_gym",
+    "name": "Maestro Gym",
+    "description": "Hai sconfitto 5 allenatori in Story Mode",
+    "rarity": "epico",
+    "icon": "🌟",
+    "conditionType": "gymWins",
+    "conditionValue": 5,
+    "conditionLabel": "Vinci 5 partite in Story Mode"
+  },
+  {
+    "id": "sfidante",
+    "name": "Sfidante",
+    "description": "Hai raggiunto il rank Sfidante (500 PR)",
+    "rarity": "raro",
+    "icon": "🔥",
+    "conditionType": "puntiRankiard",
+    "conditionValue": 500,
+    "conditionLabel": "Raggiungi 500 Punti Rankiard"
+  },
+  {
+    "id": "maestro_rank",
+    "name": "Maestro",
+    "description": "Hai raggiunto il rank Maestro (1500 PR)",
+    "rarity": "epico",
+    "icon": "💎",
+    "conditionType": "puntiRankiard",
+    "conditionValue": 1500,
+    "conditionLabel": "Raggiungi 1500 Punti Rankiard"
+  },
+  {
+    "id": "leggenda",
+    "name": "Leggenda",
+    "description": "Hai raggiunto il rank Leggenda (2000 PR) — il vertice assoluto",
+    "rarity": "leggendario",
+    "icon": "⭐",
+    "conditionType": "puntiRankiard",
+    "conditionValue": 2000,
+    "conditionLabel": "Raggiungi 2000 Punti Rankiard"
+  },
+  {
+    "id": "campione_torneo",
+    "name": "Campione Torneo",
+    "description": "Hai vinto un torneo ufficiale",
+    "rarity": "leggendario",
+    "icon": "🎖️",
+    "conditionType": "tournamentWins",
+    "conditionValue": 1,
+    "conditionLabel": "Vinci un torneo"
+  },
+  {
+    "id": "longevo",
+    "name": "Longevo",
+    "description": "Hai accumulato 10 ore di gioco",
+    "rarity": "epico",
+    "icon": "⏳",
+    "conditionType": "minutesPlayed",
+    "conditionValue": 600,
+    "conditionLabel": "Gioca per 10 ore totali"
+  }
+]

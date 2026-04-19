@@ -86,6 +86,15 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
   const [gymBadges, setGymBadges] = useState<Array<{ id: number; name: string; gymName: string; badgeImageUrl: string | null; leaderImageUrl: string | null; orderIndex: number }>>([]);
   const [dailyChallengeBadge, setDailyChallengeBadge] = useState<{ rank: number; date: string } | null>(null);
 
+  interface TitleEntry {
+    id: string; name: string; description: string; rarity: string; icon: string;
+    conditionLabel: string; unlocked: boolean; isActive: boolean;
+  }
+  const [titles, setTitles] = useState<TitleEntry[]>([]);
+  const [activeTitleId, setActiveTitleId] = useState<string>('esordiente');
+  const [titlesLoading, setTitlesLoading] = useState(false);
+  const [selectingTitle, setSelectingTitle] = useState<string | null>(null);
+
   const [offlineStats, setOfflineStats] = useState<{ cached: number; total: number; enabled: boolean } | null>(null);
   const [offlineDownloading, setOfflineDownloading] = useState(false);
   const [offlineProgress, setOfflineProgress] = useState({ done: 0, total: 0 });
@@ -120,12 +129,13 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
         const authToken = localStorage.getItem('authToken');
         if (!authToken) return;
 
-        const [profileRes, friendsRes, tradeHistRes, gymRes, dcLeaderboardRes] = await Promise.all([
+        const [profileRes, friendsRes, tradeHistRes, gymRes, dcLeaderboardRes, titlesRes] = await Promise.all([
           fetch('/api/profile', { headers: { 'Authorization': `Bearer ${authToken}` } }),
           fetch('/api/friends', { headers: { 'Authorization': `Bearer ${authToken}` } }),
           fetch('/api/marketplace/my-history', { headers: { 'Authorization': `Bearer ${authToken}` } }),
           fetch('/api/gym-leaders', { headers: { 'Authorization': `Bearer ${authToken}` } }),
           fetch('/api/daily-challenge/leaderboard', { headers: { 'Authorization': `Bearer ${authToken}` } }),
+          fetch('/api/titles', { headers: { 'Authorization': `Bearer ${authToken}` } }),
         ]);
 
         let profileData = null;
@@ -179,6 +189,17 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
           } catch (_) {}
         }
 
+        if (titlesRes && titlesRes.ok) {
+          try {
+            const titlesData = await titlesRes.json();
+            if (titlesData.success && Array.isArray(titlesData.titles)) {
+              setTitles(titlesData.titles);
+              setActiveTitleId(titlesData.activeTitle || 'esordiente');
+              localStorage.setItem('activeTitle', titlesData.activeTitle || 'esordiente');
+            }
+          } catch (_) {}
+        }
+
         if (profileData) {
           setStats({
             puntiRankiard: profileData.user?.puntiRankiard || 0,
@@ -195,6 +216,10 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
             friends: friendsData
           });
           setIsAdmin(profileData.user?.isAdmin || false);
+          if (profileData.user?.activeTitle) {
+            setActiveTitleId(profileData.user.activeTitle);
+            localStorage.setItem('activeTitle', profileData.user.activeTitle);
+          }
         }
       } catch (error) {
         console.error('Error fetching stats:', error);
@@ -367,6 +392,55 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
     }
   };
 
+  const handleSelectTitle = async (titleId: string) => {
+    setSelectingTitle(titleId);
+    try {
+      const authToken = localStorage.getItem('authToken');
+      const res = await fetch('/api/titles/select', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        body: JSON.stringify({ titleId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActiveTitleId(titleId);
+        localStorage.setItem('activeTitle', titleId);
+        setTitles(prev => prev.map(t => ({ ...t, isActive: t.id === titleId })));
+        setMessage({ type: 'success', text: 'Titolo selezionato!' });
+        setTimeout(() => setMessage(null), 2000);
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Errore nella selezione' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Errore di connessione' });
+    } finally {
+      setSelectingTitle(null);
+    }
+  };
+
+  const RARITY_COLOR: Record<string, string> = {
+    comune: '#94a3b8',
+    raro: '#60a5fa',
+    epico: '#c084fc',
+    leggendario: '#fbbf24',
+  };
+
+  const RARITY_BORDER: Record<string, string> = {
+    comune: 'rgba(148,163,184,0.25)',
+    raro: 'rgba(96,165,250,0.35)',
+    epico: 'rgba(192,132,252,0.4)',
+    leggendario: 'rgba(251,191,36,0.5)',
+  };
+
+  const RARITY_LABEL: Record<string, string> = {
+    comune: 'Comune',
+    raro: 'Raro',
+    epico: 'Epico',
+    leggendario: 'Leggendario',
+  };
+
+  const activeTitle = titles.find(t => t.id === activeTitleId);
+
   const formatPlayTime = (minutes: number) => {
     if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
@@ -457,6 +531,14 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
                     <div className="mt-2 flex items-center gap-2">
                       <Trophy className="w-5 h-5 text-amber-400" />
                       <span className="text-amber-400 font-semibold">Posizione #{stats.rank}</span>
+                    </div>
+                  )}
+                  {activeTitle && (
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <span style={{ fontSize: 14 }}>{activeTitle.icon}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: RARITY_COLOR[activeTitle.rarity] || '#94a3b8', letterSpacing: '0.01em' }}>
+                        {activeTitle.name}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -610,6 +692,88 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── I miei titoli ── */}
+            <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-5 border border-indigo-500/20 shadow-lg">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center">
+                  <span className="text-lg">🎖️</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-white">I miei titoli</h3>
+                  <p className="text-white/50 text-xs">
+                    {titles.filter(t => t.unlocked).length}/{titles.length} sbloccati ·{' '}
+                    {activeTitle ? `Attivo: ${activeTitle.icon} ${activeTitle.name}` : 'Nessun titolo attivo'}
+                  </p>
+                </div>
+              </div>
+
+              {titles.length === 0 ? (
+                <div className="text-white/30 text-sm text-center py-4">Caricamento titoli...</div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {titles.map(t => {
+                    const col = RARITY_COLOR[t.rarity] || '#94a3b8';
+                    const border = RARITY_BORDER[t.rarity] || 'rgba(148,163,184,0.25)';
+                    const isSelecting = selectingTitle === t.id;
+                    return (
+                      <div
+                        key={t.id}
+                        title={t.unlocked ? t.description : `🔒 ${t.conditionLabel}`}
+                        style={{
+                          position: 'relative',
+                          padding: '10px 12px',
+                          borderRadius: 12,
+                          background: t.isActive
+                            ? `linear-gradient(135deg, rgba(99,102,241,0.18), rgba(99,102,241,0.06))`
+                            : t.unlocked
+                              ? 'rgba(255,255,255,0.04)'
+                              : 'rgba(0,0,0,0.2)',
+                          border: t.isActive
+                            ? '1.5px solid rgba(99,102,241,0.6)'
+                            : `1.5px solid ${border}`,
+                          opacity: t.unlocked ? 1 : 0.55,
+                          cursor: t.unlocked && !t.isActive ? 'pointer' : 'default',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onClick={() => t.unlocked && !t.isActive && handleSelectTitle(t.id)}
+                        onMouseEnter={e => { if (t.unlocked && !t.isActive) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.08)'; }}
+                        onMouseLeave={e => { if (t.unlocked && !t.isActive) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; }}
+                      >
+                        {/* Active dot */}
+                        {t.isActive && (
+                          <div style={{ position: 'absolute', top: 8, right: 8, width: 7, height: 7, borderRadius: '50%', background: '#6366f1', boxShadow: '0 0 6px rgba(99,102,241,0.8)' }} />
+                        )}
+
+                        <div style={{ fontSize: 22, marginBottom: 4 }}>{t.icon}</div>
+
+                        <div style={{ fontSize: 12, fontWeight: 800, color: t.unlocked ? col : 'rgba(148,163,184,0.4)', lineHeight: 1.2, marginBottom: 3 }}>
+                          {t.name}
+                        </div>
+
+                        <div style={{ fontSize: 9, fontWeight: 700, color: t.unlocked ? col : 'rgba(148,163,184,0.25)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>
+                          {RARITY_LABEL[t.rarity] || t.rarity}
+                        </div>
+
+                        {t.unlocked ? (
+                          t.isActive ? (
+                            <div style={{ fontSize: 10, color: '#a5b4fc', fontWeight: 600 }}>✓ Attivo</div>
+                          ) : (
+                            <div style={{ fontSize: 10, color: 'rgba(148,163,184,0.6)', fontWeight: 500 }}>
+                              {isSelecting ? '...' : 'Seleziona'}
+                            </div>
+                          )
+                        ) : (
+                          <div style={{ fontSize: 9, color: 'rgba(148,163,184,0.4)', lineHeight: 1.3 }}>
+                            🔒 {t.conditionLabel}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
