@@ -77,19 +77,36 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // Serve static assets from cache with network fallback
+  // Serve static assets: cache-first with runtime caching on cache miss
   if (event.request.method === 'GET' && !url.includes('/api/') && !url.includes('/socket.io/')) {
     event.respondWith(
-      caches.match(event.request).then(function(cached) {
-        if (cached) {
-          return cached;
-        }
-        return fetch(event.request).catch(function() {
-          // If offline and no cache match, return cached index for navigation
-          if (event.request.mode === 'navigate') {
-            return caches.match('/');
+      caches.open(STATIC_CACHE_NAME).then(function(cache) {
+        return cache.match(event.request).then(function(cached) {
+          if (cached) {
+            return cached;
           }
-          return new Response('', { status: 503 });
+          return fetch(event.request).then(function(response) {
+            // Runtime cache successful responses for JS, CSS, and other static assets
+            if (response && response.status === 200) {
+              var ct = response.headers.get('content-type') || '';
+              if (
+                ct.includes('javascript') ||
+                ct.includes('css') ||
+                ct.includes('font') ||
+                ct.includes('image/png') ||
+                ct.includes('image/svg') ||
+                ct.includes('text/html')
+              ) {
+                cache.put(event.request, response.clone());
+              }
+            }
+            return response;
+          }).catch(function() {
+            if (event.request.mode === 'navigate') {
+              return caches.match('/');
+            }
+            return new Response('', { status: 503 });
+          });
         });
       })
     );

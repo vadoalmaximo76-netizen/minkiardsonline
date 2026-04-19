@@ -3,13 +3,19 @@ import { X, Download, Share } from 'lucide-react';
 
 const DISMISSED_KEY = 'pwa_install_dismissed';
 
+declare global {
+  interface Navigator {
+    standalone?: boolean;
+  }
+}
+
 function isIOS(): boolean {
   return /iphone|ipad|ipod/i.test(navigator.userAgent);
 }
 
 function isInStandaloneMode(): boolean {
   return (
-    (window.navigator as any).standalone === true ||
+    navigator.standalone === true ||
     window.matchMedia('(display-mode: standalone)').matches
   );
 }

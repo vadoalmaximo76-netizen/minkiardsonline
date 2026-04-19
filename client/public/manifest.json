@@ -71,6 +71,15 @@
       "purpose": "any maskable"
     }
   ],
+  "screenshots": [
+    {
+      "src": "/screenshots/game-screenshot.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "MINKIARDS - Gioco di Carte Multiplayer"
+    }
+  ],
   "prefer_related_applications": false,
   "related_applications": []
 }
