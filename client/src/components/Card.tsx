@@ -1899,11 +1899,22 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           data-card-clickable="true"
           className={`relative ${isLowHealth && location === 'field' ? 'low-health-critical' : ''} ${location === 'field' && !card.faceDown ? (card.type === 'personaggi' ? 'card-border-glow-personaggi' : card.type === 'mosse' ? 'card-border-glow-mosse' : card.type === 'bonus' ? 'card-border-glow-bonus' : card.type === 'personaggi_speciali' ? 'card-border-glow-speciali' : '') : ''}`}
           style={{
-            cursor: location === 'field' && card.owner !== playerName && isMyTurn && isPersonaggio && !card.faceDown
-              ? 'crosshair'
-              : location === 'hand'
-                ? 'grab'
-                : 'pointer',
+            cursor: (() => {
+              // Enemy field personaggi on player's turn → crosshair (attack target)
+              if (location === 'field' && card.owner !== playerName && isMyTurn && isPersonaggio && !card.faceDown)
+                return 'crosshair';
+              // Hand cards → grab (ready to be played)
+              if (location === 'hand')
+                return 'grab';
+              // Eliminated cards → default (animation playing, no interaction)
+              if (isEliminated)
+                return 'default';
+              // Face-down opponent cards → default (nothing actionable)
+              if (location === 'field' && card.faceDown && card.owner !== playerName)
+                return 'default';
+              // All other interactive cards → pointer
+              return 'pointer';
+            })(),
           }}
           onClick={handleCardClick}
         >

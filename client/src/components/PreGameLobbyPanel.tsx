@@ -53,7 +53,7 @@ export const PreGameLobbyPanel: React.FC<PreGameLobbyPanelProps> = ({
 
   const handleThemeChange = (themeId: string) => {
     setTheme(themeId);
-    socket.emit('set-room-theme', { gameId, playerName, themeId });
+    socket.emit('set-room-theme', { gameId, themeId });
   };
 
   useEffect(() => {

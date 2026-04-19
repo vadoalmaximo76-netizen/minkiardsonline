@@ -45,6 +45,7 @@ export const TABLE_THEMES: TableTheme[] = [
     fogColor: 'rgba(20, 20, 20, 0.2)',
     lightIntensity: 0.6,
     backgroundGradient: 'linear-gradient(135deg, rgba(10, 10, 10, 0.4) 0%, rgba(20, 15, 5, 0.5) 100%)',
+    textureUrl: '/textures/asphalt.png',
   },
   {
     id: 'green_felt',
