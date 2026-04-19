@@ -174,6 +174,8 @@ interface CardProps {
     isStunned?: boolean;
     blockedMosse?: number;
     isBollaProtected?: boolean;
+    attachedBy?: string[];
+    attachedTo?: string;
   };
   location: 'hand' | 'field' | 'graveyard';
   showBack?: boolean;
@@ -183,6 +185,63 @@ interface CardProps {
   gameId?: string;
 }
 
+// ── StatusIconStrip: compact status-effect overlay for field personaggi ──────
+interface StatusIconStripProps {
+  isFrozen: boolean;
+  isPoisoned: boolean;
+  isLocked: boolean;
+  isStunned: boolean;
+  isBollaActive: boolean;
+  isVoodooLinked: boolean;
+  isBarrieraProtected: boolean;
+  protectedByRifugio?: string;
+  isHostage?: boolean;
+  isParasitized: boolean;
+  isParasite: boolean;
+}
+
+const StatusIconStrip: React.FC<StatusIconStripProps> = ({
+  isFrozen, isPoisoned, isLocked, isStunned, isBollaActive,
+  isVoodooLinked, isBarrieraProtected, protectedByRifugio,
+  isHostage, isParasitized, isParasite,
+}) => {
+  const effects: { icon: string; label: string }[] = [];
+  if (isFrozen)            effects.push({ icon: '❄️', label: 'Gelo' });
+  if (isPoisoned)          effects.push({ icon: '☠️', label: 'Veleno' });
+  if (isLocked)            effects.push({ icon: '⛔', label: 'Bloccato' });
+  if (isStunned)           effects.push({ icon: '💫', label: 'Stordito' });
+  if (isBollaActive)       effects.push({ icon: '🫧', label: 'Bolla' });
+  if (isVoodooLinked)      effects.push({ icon: '🪆', label: 'Voodoo' });
+  if (isBarrieraProtected) effects.push({ icon: '🛡️', label: 'Barriera' });
+  if (protectedByRifugio)  effects.push({ icon: '🏠', label: 'Rifugio' });
+  if (isHostage)           effects.push({ icon: '⛓️', label: 'Ostaggio' });
+  if (isParasitized)       effects.push({ icon: '🦠', label: 'Parassitato' });
+  if (isParasite)          effects.push({ icon: '🧫', label: 'Parassita' });
+
+  if (effects.length === 0) return null;
+
+  return (
+    <div
+      className="status-icon-strip absolute top-0 left-0 right-0 flex flex-wrap justify-center gap-0.5 pointer-events-none z-20"
+      style={{
+        background: 'rgba(0,0,0,0.80)',
+        borderRadius: '8px 8px 0 0',
+        padding: '2px 3px',
+        borderBottom: '1px solid rgba(255,255,255,0.10)',
+      }}
+    >
+      {effects.map(({ icon, label }) => (
+        <span
+          key={label}
+          title={label}
+          style={{ fontSize: '14px', lineHeight: 1, display: 'inline-block' }}
+        >
+          {icon}
+        </span>
+      ))}
+    </div>
+  );
+};
 
 const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, onCardPlayed, cardIndexInHand, totalHandCards }) => {
   const [, forceUpdate] = useState(0);
@@ -1866,41 +1925,21 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           />
 
           {/* ── STATUS ICON STRIP ──────────────────────────────────────────── */}
-          {isPersonaggio && !card.faceDown && !showBack && location === 'field' && (() => {
-            const effects: { icon: string; label: string }[] = [];
-            if (isFrozen)            effects.push({ icon: '❄️', label: 'Gelo' });
-            if (isPoisoned)          effects.push({ icon: '☠️', label: 'Veleno' });
-            if (isLocked)            effects.push({ icon: '⛔', label: 'Bloccato' });
-            if (isStunned)           effects.push({ icon: '💫', label: 'Stordito' });
-            if (isBollaActive)       effects.push({ icon: '🫧', label: 'Bolla' });
-            if (isVoodooLinked)      effects.push({ icon: '🪆', label: 'Voodoo' });
-            if (isBarrieraProtected) effects.push({ icon: '🛡️', label: 'Barriera' });
-            if ((card as any).protectedByRifugio) effects.push({ icon: '🏠', label: 'Rifugio' });
-            if ((card as any).isHostage)           effects.push({ icon: '⛓️', label: 'Ostaggio' });
-            if ((card as any).attachedBy && (card as any).attachedBy.length > 0) effects.push({ icon: '🦠', label: 'Parassita' });
-            if (effects.length === 0) return null;
-            return (
-              <div
-                className="status-icon-strip absolute top-0 left-0 right-0 flex flex-wrap justify-center gap-px pointer-events-none z-20"
-                style={{
-                  background: 'rgba(0,0,0,0.78)',
-                  borderRadius: '8px 8px 0 0',
-                  padding: '2px 2px 2px',
-                  borderBottom: '1px solid rgba(255,255,255,0.08)',
-                }}
-              >
-                {effects.map(({ icon, label }) => (
-                  <span
-                    key={label}
-                    title={label}
-                    style={{ fontSize: '9px', lineHeight: 1, display: 'inline-block' }}
-                  >
-                    {icon}
-                  </span>
-                ))}
-              </div>
-            );
-          })()}
+          {isPersonaggio && !card.faceDown && !showBack && location === 'field' && (
+            <StatusIconStrip
+              isFrozen={isFrozen}
+              isPoisoned={isPoisoned}
+              isLocked={isLocked}
+              isStunned={isStunned}
+              isBollaActive={isBollaActive}
+              isVoodooLinked={isVoodooLinked}
+              isBarrieraProtected={isBarrieraProtected}
+              protectedByRifugio={card.protectedByRifugio}
+              isHostage={card.isHostage}
+              isParasitized={!!(card.attachedBy && card.attachedBy.length > 0)}
+              isParasite={!!card.attachedTo}
+            />
+          )}
 
           {/* ── VISUAL EFFECT OVERLAY ───────────────────────────────────────── */}
           {card.visualEffect && !card.faceDown && !showBack && (
@@ -3109,6 +3148,9 @@ export const Card = memo(CardComponent, (prevProps, nextProps) => {
     prevCard.isStunned === nextCard.isStunned &&
     prevCard.blockedMosse === nextCard.blockedMosse &&
     prevCard.isBollaProtected === nextCard.isBollaProtected &&
+    prevCard.isHostage === nextCard.isHostage &&
+    prevCard.attachedTo === nextCard.attachedTo &&
+    (prevCard.attachedBy?.length ?? 0) === (nextCard.attachedBy?.length ?? 0) &&
     prevProps.location === nextProps.location &&
     prevProps.showBack === nextProps.showBack &&
     prevProps.onCardPlayed === nextProps.onCardPlayed &&

@@ -1071,11 +1071,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setCiaoNotificationVisible(true);
       playCardToGraveyard();
 
-      // Trigger fly-to-graveyard animation for all card types
+      // Trigger fly-to-graveyard animation: delay slightly so React flushes the hidden state,
+      // then show — 80ms for all types (deterministic; personaggi shatter plays in parallel)
       setGraveyardFly({ visible: false, cardImage: cardImage || '', cardName, cardType: cardType || '' });
       setTimeout(() => {
         setGraveyardFly({ visible: true, cardImage: cardImage || '', cardName, cardType: cardType || '' });
-      }, cardType === 'personaggi' || cardType === 'personaggi_speciali' ? 600 : 50);
+      }, 80);
       
       if (cardType === 'personaggi' || cardType === 'personaggi_speciali') {
         setDeadCharacterName(cardName);
