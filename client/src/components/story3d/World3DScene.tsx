@@ -182,7 +182,7 @@ export function World3DScene(props: StoryWorld3DProps) {
       />
 
       {/* Local player */}
-      <PlayerMesh3D playerRef={props.playerRef} />
+      <PlayerMesh3D playerRef={props.playerRef} userId={props.selfUserId} />
       <PlayerCamera3D
         playerRef={props.playerRef}
         cameraYawRef={props.cameraYawRef}

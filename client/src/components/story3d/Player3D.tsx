@@ -2,142 +2,293 @@ import React, { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
-/* ── Paleta colori personaggio ──────────────────────────────────── */
-const C = {
-  skin:       '#f5c99a',
-  skinDark:   '#d4a574',
-  hair:       '#1a0a00',
-  jersey:     '#c0392b',   // rosso vivo
-  jerseyTrim: '#f0f0f0',   // bianco
-  jeans:      '#1a3a6b',
-  shoe:       '#1a1a1a',
-  shoeSole:   '#333333',
-  belt:       '#2c1500',
-  hatBody:    '#1a1a2e',
-  hatBrim:    '#252540',
-  eye:        '#111111',
-  eyeWhite:   '#f5f5f5',
-  mouth:      '#8b3a3a',
-};
+/* ── Per-user jersey colour palette ─────────────────────────────── */
+const JERSEY_PALETTE = [
+  '#e74c3c', '#2980b9', '#27ae60', '#e67e22', '#8e44ad',
+  '#16a085', '#e91e63', '#d35400', '#006064', '#f1c40f',
+  '#00897b', '#6d4c41', '#0288d1', '#558b2f', '#ad1457',
+];
 
-/* ── Parti animate: gambe + braccia in sincronia con il passo ──── */
-function WalkingParts({ timeRef }: { timeRef: React.MutableRefObject<number> }) {
-  const leftLegRef  = useRef<THREE.Group>(null);
-  const rightLegRef = useRef<THREE.Group>(null);
-  const leftArmRef  = useRef<THREE.Group>(null);
-  const rightArmRef = useRef<THREE.Group>(null);
+export function avatarColor(userId?: number): string {
+  if (!userId) return '#e67e22';
+  return JERSEY_PALETTE[userId % JERSEY_PALETTE.length];
+}
+
+/* ── Fixed material constants ───────────────────────────────────── */
+const SKIN      = '#f5c99a';
+const SKIN_DARK = '#d4a574';
+const HAIR      = '#1a0a00';
+const JEANS     = '#1a3a6b';
+const SHOE      = '#1a1a1a';
+const SHOE_SOLE = '#2d2d2d';
+const HAT_BODY  = '#1a1a2e';
+const HAT_BRIM  = '#252540';
+const HAT_BAND  = '#f0f0f0';
+const EYE_W     = '#f5f5f5';
+const BELT      = '#2c1500';
+const BUCKLE    = '#c8a800';
+
+/* ── Animated limbs (pivot-based, driven by timeRef) ─────────────── */
+export function WalkingParts({
+  timeRef,
+  jersey,
+}: {
+  timeRef: React.MutableRefObject<number>;
+  jersey: string;
+}) {
+  const llRef = useRef<THREE.Group>(null);
+  const rlRef = useRef<THREE.Group>(null);
+  const laRef = useRef<THREE.Group>(null);
+  const raRef = useRef<THREE.Group>(null);
 
   useFrame(() => {
-    const t = timeRef.current * 5.2;
-    if (leftLegRef.current)  leftLegRef.current.rotation.x  = Math.sin(t) * 0.42;
-    if (rightLegRef.current) rightLegRef.current.rotation.x = Math.sin(t + Math.PI) * 0.42;
-    if (leftArmRef.current)  leftArmRef.current.rotation.x  = Math.sin(t + Math.PI) * 0.40;
-    if (rightArmRef.current) rightArmRef.current.rotation.x = Math.sin(t) * 0.40;
+    const t = timeRef.current * 5.5;
+    if (llRef.current) llRef.current.rotation.x =  Math.sin(t) * 0.44;
+    if (rlRef.current) rlRef.current.rotation.x = -Math.sin(t) * 0.44;
+    if (laRef.current) laRef.current.rotation.x = -Math.sin(t) * 0.40;
+    if (raRef.current) raRef.current.rotation.x =  Math.sin(t) * 0.40;
   });
 
   return (
     <>
-      {/* ── Gamba sinistra (pivot all'anca) ── */}
-      <group ref={leftLegRef} position={[-0.17, 0.98, 0]}>
-        {/* coscia */}
-        <mesh position={[0, -0.22, 0]}>
-          <boxGeometry args={[0.26, 0.44, 0.26]} />
-          <meshStandardMaterial color={C.jeans} roughness={0.85} />
+      {/* ── Left leg (pivot at hip) ── */}
+      <group ref={llRef} position={[-0.17, 1.08, 0]}>
+        <mesh position={[0, -0.26, 0]}>
+          <capsuleGeometry args={[0.12, 0.44, 4, 8]} />
+          <meshStandardMaterial color={JEANS} roughness={0.85} />
         </mesh>
-        {/* stinco */}
-        <mesh position={[0, -0.58, 0]}>
-          <boxGeometry args={[0.23, 0.32, 0.23]} />
-          <meshStandardMaterial color={C.jeans} roughness={0.85} />
+        <mesh position={[0, -0.55, 0]}>
+          <sphereGeometry args={[0.12, 8, 6]} />
+          <meshStandardMaterial color={JEANS} roughness={0.85} />
         </mesh>
-        {/* scarpa sinistra */}
-        <mesh position={[0, -0.80, 0.05]}>
-          <boxGeometry args={[0.28, 0.13, 0.38]} />
-          <meshStandardMaterial color={C.shoe} roughness={0.95} />
+        <mesh position={[0, -0.76, 0]}>
+          <capsuleGeometry args={[0.10, 0.30, 4, 8]} />
+          <meshStandardMaterial color={JEANS} roughness={0.85} />
         </mesh>
-        {/* suola */}
-        <mesh position={[0, -0.88, 0.05]}>
-          <boxGeometry args={[0.30, 0.06, 0.40]} />
-          <meshStandardMaterial color={C.shoeSole} roughness={0.99} />
+        <mesh position={[0, -1.00, 0.05]}>
+          <boxGeometry args={[0.25, 0.12, 0.40]} />
+          <meshStandardMaterial color={SHOE} roughness={0.95} />
         </mesh>
-      </group>
-
-      {/* ── Gamba destra (pivot all'anca) ── */}
-      <group ref={rightLegRef} position={[0.17, 0.98, 0]}>
-        <mesh position={[0, -0.22, 0]}>
-          <boxGeometry args={[0.26, 0.44, 0.26]} />
-          <meshStandardMaterial color={C.jeans} roughness={0.85} />
-        </mesh>
-        <mesh position={[0, -0.58, 0]}>
-          <boxGeometry args={[0.23, 0.32, 0.23]} />
-          <meshStandardMaterial color={C.jeans} roughness={0.85} />
-        </mesh>
-        <mesh position={[0, -0.80, 0.05]}>
-          <boxGeometry args={[0.28, 0.13, 0.38]} />
-          <meshStandardMaterial color={C.shoe} roughness={0.95} />
-        </mesh>
-        <mesh position={[0, -0.88, 0.05]}>
-          <boxGeometry args={[0.30, 0.06, 0.40]} />
-          <meshStandardMaterial color={C.shoeSole} roughness={0.99} />
+        <mesh position={[0, -1.06, 0.05]}>
+          <boxGeometry args={[0.27, 0.055, 0.42]} />
+          <meshStandardMaterial color={SHOE_SOLE} roughness={0.99} />
         </mesh>
       </group>
 
-      {/* ── Braccio sinistro (pivot alla spalla) ── */}
-      <group ref={leftArmRef} position={[-0.52, 1.82, 0]}>
-        {/* spalla arrotondata */}
-        <mesh position={[0, 0, 0]}>
-          <sphereGeometry args={[0.15, 8, 7]} />
-          <meshStandardMaterial color={C.jersey} roughness={0.72} />
+      {/* ── Right leg (pivot at hip) ── */}
+      <group ref={rlRef} position={[0.17, 1.08, 0]}>
+        <mesh position={[0, -0.26, 0]}>
+          <capsuleGeometry args={[0.12, 0.44, 4, 8]} />
+          <meshStandardMaterial color={JEANS} roughness={0.85} />
         </mesh>
-        {/* avambraccio */}
-        <mesh position={[-0.03, -0.30, 0]}>
-          <boxGeometry args={[0.21, 0.48, 0.21]} />
-          <meshStandardMaterial color={C.jersey} roughness={0.72} />
+        <mesh position={[0, -0.55, 0]}>
+          <sphereGeometry args={[0.12, 8, 6]} />
+          <meshStandardMaterial color={JEANS} roughness={0.85} />
         </mesh>
-        {/* polso + mano */}
-        <mesh position={[-0.03, -0.64, 0]}>
-          <boxGeometry args={[0.22, 0.20, 0.22]} />
-          <meshStandardMaterial color={C.skin} roughness={0.80} />
+        <mesh position={[0, -0.76, 0]}>
+          <capsuleGeometry args={[0.10, 0.30, 4, 8]} />
+          <meshStandardMaterial color={JEANS} roughness={0.85} />
         </mesh>
-        {/* dita accennate */}
-        <mesh position={[-0.03, -0.76, 0.02]}>
-          <boxGeometry args={[0.18, 0.09, 0.10]} />
-          <meshStandardMaterial color={C.skinDark} roughness={0.85} />
+        <mesh position={[0, -1.00, 0.05]}>
+          <boxGeometry args={[0.25, 0.12, 0.40]} />
+          <meshStandardMaterial color={SHOE} roughness={0.95} />
+        </mesh>
+        <mesh position={[0, -1.06, 0.05]}>
+          <boxGeometry args={[0.27, 0.055, 0.42]} />
+          <meshStandardMaterial color={SHOE_SOLE} roughness={0.99} />
         </mesh>
       </group>
 
-      {/* ── Braccio destro (pivot alla spalla) ── */}
-      <group ref={rightArmRef} position={[0.52, 1.82, 0]}>
-        <mesh position={[0, 0, 0]}>
-          <sphereGeometry args={[0.15, 8, 7]} />
-          <meshStandardMaterial color={C.jersey} roughness={0.72} />
+      {/* ── Left arm (pivot at shoulder) ── */}
+      <group ref={laRef} position={[-0.50, 1.82, 0]}>
+        <mesh>
+          <sphereGeometry args={[0.13, 8, 7]} />
+          <meshStandardMaterial color={jersey} roughness={0.70} />
         </mesh>
-        <mesh position={[0.03, -0.30, 0]}>
-          <boxGeometry args={[0.21, 0.48, 0.21]} />
-          <meshStandardMaterial color={C.jersey} roughness={0.72} />
+        <mesh position={[0, -0.24, 0]}>
+          <capsuleGeometry args={[0.10, 0.32, 4, 8]} />
+          <meshStandardMaterial color={jersey} roughness={0.70} />
         </mesh>
-        <mesh position={[0.03, -0.64, 0]}>
-          <boxGeometry args={[0.22, 0.20, 0.22]} />
-          <meshStandardMaterial color={C.skin} roughness={0.80} />
+        <mesh position={[0, -0.48, 0]}>
+          <sphereGeometry args={[0.095, 8, 6]} />
+          <meshStandardMaterial color={jersey} roughness={0.70} />
         </mesh>
-        <mesh position={[0.03, -0.76, 0.02]}>
-          <boxGeometry args={[0.18, 0.09, 0.10]} />
-          <meshStandardMaterial color={C.skinDark} roughness={0.85} />
+        <mesh position={[0, -0.66, 0]}>
+          <capsuleGeometry args={[0.08, 0.26, 4, 8]} />
+          <meshStandardMaterial color={SKIN} roughness={0.80} />
+        </mesh>
+        <mesh position={[0, -0.84, 0]}>
+          <sphereGeometry args={[0.09, 8, 7]} />
+          <meshStandardMaterial color={SKIN} roughness={0.80} />
+        </mesh>
+      </group>
+
+      {/* ── Right arm (pivot at shoulder) ── */}
+      <group ref={raRef} position={[0.50, 1.82, 0]}>
+        <mesh>
+          <sphereGeometry args={[0.13, 8, 7]} />
+          <meshStandardMaterial color={jersey} roughness={0.70} />
+        </mesh>
+        <mesh position={[0, -0.24, 0]}>
+          <capsuleGeometry args={[0.10, 0.32, 4, 8]} />
+          <meshStandardMaterial color={jersey} roughness={0.70} />
+        </mesh>
+        <mesh position={[0, -0.48, 0]}>
+          <sphereGeometry args={[0.095, 8, 6]} />
+          <meshStandardMaterial color={jersey} roughness={0.70} />
+        </mesh>
+        <mesh position={[0, -0.66, 0]}>
+          <capsuleGeometry args={[0.08, 0.26, 4, 8]} />
+          <meshStandardMaterial color={SKIN} roughness={0.80} />
+        </mesh>
+        <mesh position={[0, -0.84, 0]}>
+          <sphereGeometry args={[0.09, 8, 7]} />
+          <meshStandardMaterial color={SKIN} roughness={0.80} />
         </mesh>
       </group>
     </>
   );
 }
 
-/* ── Mesh principale del giocatore locale ─────────────────────── */
+/* ── Static character body (torso, head, accessories) ─────────────── */
+export function CharacterBody({ jersey }: { jersey: string }) {
+  const trim = '#f0f0f0';
+  return (
+    <>
+      {/* Hips */}
+      <mesh position={[0, 1.08, 0]}>
+        <capsuleGeometry args={[0.21, 0.22, 4, 10]} />
+        <meshStandardMaterial color={JEANS} roughness={0.85} />
+      </mesh>
+
+      {/* Belt */}
+      <mesh position={[0, 1.22, 0]}>
+        <cylinderGeometry args={[0.235, 0.235, 0.09, 14]} />
+        <meshStandardMaterial color={BELT} roughness={0.90} metalness={0.10} />
+      </mesh>
+      <mesh position={[0, 1.22, -0.235]}>
+        <boxGeometry args={[0.13, 0.09, 0.04]} />
+        <meshStandardMaterial color={BUCKLE} roughness={0.45} metalness={0.75} />
+      </mesh>
+
+      {/* Torso — capsule for a rounder look */}
+      <mesh position={[0, 1.65, 0]} castShadow>
+        <capsuleGeometry args={[0.27, 0.68, 4, 12]} />
+        <meshStandardMaterial color={jersey} roughness={0.70} metalness={0.0} />
+      </mesh>
+
+      {/* Jersey centre stripe */}
+      <mesh position={[0, 1.65, -0.275]}>
+        <planeGeometry args={[0.14, 0.55]} />
+        <meshStandardMaterial color={trim} roughness={0.80} side={THREE.DoubleSide} />
+      </mesh>
+
+      {/* Neck */}
+      <mesh position={[0, 2.10, 0]}>
+        <capsuleGeometry args={[0.095, 0.18, 4, 8]} />
+        <meshStandardMaterial color={SKIN} roughness={0.80} />
+      </mesh>
+
+      {/* Head — sphere for organic feel */}
+      <mesh position={[0, 2.40, 0]} castShadow>
+        <sphereGeometry args={[0.295, 14, 12]} />
+        <meshStandardMaterial color={SKIN} roughness={0.72} />
+      </mesh>
+
+      {/* Left eye white */}
+      <mesh position={[-0.115, 2.46, -0.255]}>
+        <sphereGeometry args={[0.060, 8, 6]} />
+        <meshStandardMaterial color={EYE_W} roughness={0.25} />
+      </mesh>
+      {/* Left iris */}
+      <mesh position={[-0.115, 2.455, -0.285]}>
+        <sphereGeometry args={[0.035, 7, 5]} />
+        <meshStandardMaterial color={HAIR} roughness={0.15} />
+      </mesh>
+
+      {/* Right eye white */}
+      <mesh position={[0.115, 2.46, -0.255]}>
+        <sphereGeometry args={[0.060, 8, 6]} />
+        <meshStandardMaterial color={EYE_W} roughness={0.25} />
+      </mesh>
+      {/* Right iris */}
+      <mesh position={[0.115, 2.455, -0.285]}>
+        <sphereGeometry args={[0.035, 7, 5]} />
+        <meshStandardMaterial color={HAIR} roughness={0.15} />
+      </mesh>
+
+      {/* Eyebrow left */}
+      <mesh position={[-0.115, 2.53, -0.270]} rotation={[0, 0, 0.18]}>
+        <boxGeometry args={[0.095, 0.022, 0.025]} />
+        <meshStandardMaterial color={HAIR} roughness={0.90} />
+      </mesh>
+      {/* Eyebrow right */}
+      <mesh position={[0.115, 2.53, -0.270]} rotation={[0, 0, -0.18]}>
+        <boxGeometry args={[0.095, 0.022, 0.025]} />
+        <meshStandardMaterial color={HAIR} roughness={0.90} />
+      </mesh>
+
+      {/* Nose */}
+      <mesh position={[0, 2.38, -0.295]}>
+        <sphereGeometry args={[0.035, 6, 5]} />
+        <meshStandardMaterial color={SKIN_DARK} roughness={0.85} />
+      </mesh>
+
+      {/* Mouth */}
+      <mesh position={[0, 2.30, -0.285]}>
+        <boxGeometry args={[0.13, 0.035, 0.025]} />
+        <meshStandardMaterial color="#8b3a3a" roughness={0.70} />
+      </mesh>
+
+      {/* Hair — sphere cap slightly larger than head */}
+      <mesh position={[0, 2.52, 0]}>
+        <sphereGeometry args={[0.31, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
+        <meshStandardMaterial color={HAIR} roughness={0.98} />
+      </mesh>
+      {/* Hair front tuft */}
+      <mesh position={[0, 2.60, -0.22]} rotation={[0.35, 0, 0]}>
+        <capsuleGeometry args={[0.07, 0.16, 4, 6]} />
+        <meshStandardMaterial color={HAIR} roughness={0.98} />
+      </mesh>
+
+      {/* Hat brim */}
+      <mesh position={[0, 2.83, 0]}>
+        <cylinderGeometry args={[0.44, 0.44, 0.055, 16]} />
+        <meshStandardMaterial color={HAT_BRIM} roughness={0.82} metalness={0.08} />
+      </mesh>
+      {/* Hat body */}
+      <mesh position={[0, 3.06, 0]}>
+        <cylinderGeometry args={[0.225, 0.255, 0.44, 14]} />
+        <meshStandardMaterial color={HAT_BODY} roughness={0.82} metalness={0.08} />
+      </mesh>
+      {/* Hat band */}
+      <mesh position={[0, 2.98, 0]}>
+        <cylinderGeometry args={[0.258, 0.258, 0.09, 14]} />
+        <meshStandardMaterial color={HAT_BAND} roughness={0.65} />
+      </mesh>
+
+      {/* Blob shadow */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+        <circleGeometry args={[0.60, 16]} />
+        <meshBasicMaterial color="#000000" transparent opacity={0.18} depthWrite={false} />
+      </mesh>
+    </>
+  );
+}
+
+/* ── Local player mesh ───────────────────────────────────────────── */
 export function PlayerMesh3D({
   playerRef,
+  userId,
 }: {
   playerRef: React.MutableRefObject<{ x: number; z: number }>;
+  userId?: number;
 }) {
   const groupRef    = useRef<THREE.Group>(null);
   const time        = useRef(0);
   const prevPos     = useRef({ x: playerRef.current.x, z: playerRef.current.z });
   const facingAngle = useRef(0);
+  const jersey      = avatarColor(userId);
 
   useFrame((_, delta) => {
     if (!groupRef.current) return;
@@ -145,7 +296,6 @@ export function PlayerMesh3D({
 
     const px = playerRef.current.x;
     const pz = playerRef.current.z;
-
     groupRef.current.position.set(px, 0, pz);
 
     const dx = px - prevPos.current.x;
@@ -159,114 +309,13 @@ export function PlayerMesh3D({
 
   return (
     <group ref={groupRef}>
-      <WalkingParts timeRef={time} />
-
-      {/* ── Cintura ── */}
-      <mesh position={[0, 1.04, 0]}>
-        <boxGeometry args={[0.70, 0.16, 0.38]} />
-        <meshStandardMaterial color={C.belt} roughness={0.92} metalness={0.12} />
-      </mesh>
-      {/* fibbia */}
-      <mesh position={[0, 1.04, -0.20]}>
-        <boxGeometry args={[0.16, 0.12, 0.06]} />
-        <meshStandardMaterial color="#c8a800" roughness={0.5} metalness={0.7} />
-      </mesh>
-
-      {/* ── Torso — SHADOW CASTER #1 ── */}
-      <mesh position={[0, 1.58, 0]} castShadow>
-        <boxGeometry args={[0.70, 0.88, 0.38]} />
-        <meshStandardMaterial color={C.jersey} roughness={0.72} metalness={0.0} />
-      </mesh>
-      {/* Striscia bianca jersey (fronte) */}
-      <mesh position={[0, 1.58, -0.200]}>
-        <boxGeometry args={[0.18, 0.72, 0.02]} />
-        <meshStandardMaterial color={C.jerseyTrim} roughness={0.8} />
-      </mesh>
-      {/* Striscia bianca jersey (retro) */}
-      <mesh position={[0, 1.58, 0.200]}>
-        <boxGeometry args={[0.18, 0.72, 0.02]} />
-        <meshStandardMaterial color={C.jerseyTrim} roughness={0.8} />
-      </mesh>
-
-      {/* ── Collo ── */}
-      <mesh position={[0, 2.04, 0]}>
-        <cylinderGeometry args={[0.13, 0.15, 0.22, 9]} />
-        <meshStandardMaterial color={C.skin} roughness={0.80} />
-      </mesh>
-
-      {/* ── Testa ── */}
-      <mesh position={[0, 2.35, 0]}>
-        <boxGeometry args={[0.56, 0.54, 0.50]} />
-        <meshStandardMaterial color={C.skin} roughness={0.75} />
-      </mesh>
-
-      {/* ── Occhio sinistro ── */}
-      <mesh position={[-0.14, 2.39, -0.26]}>
-        <boxGeometry args={[0.13, 0.11, 0.04]} />
-        <meshStandardMaterial color={C.eyeWhite} roughness={0.6} />
-      </mesh>
-      <mesh position={[-0.14, 2.37, -0.28]}>
-        <sphereGeometry args={[0.045, 6, 5]} />
-        <meshStandardMaterial color={C.eye} roughness={0.3} />
-      </mesh>
-      {/* ── Occhio destro ── */}
-      <mesh position={[0.14, 2.39, -0.26]}>
-        <boxGeometry args={[0.13, 0.11, 0.04]} />
-        <meshStandardMaterial color={C.eyeWhite} roughness={0.6} />
-      </mesh>
-      <mesh position={[0.14, 2.37, -0.28]}>
-        <sphereGeometry args={[0.045, 6, 5]} />
-        <meshStandardMaterial color={C.eye} roughness={0.3} />
-      </mesh>
-
-      {/* ── Naso ── */}
-      <mesh position={[0, 2.32, -0.27]}>
-        <boxGeometry args={[0.07, 0.07, 0.06]} />
-        <meshStandardMaterial color={C.skinDark} roughness={0.85} />
-      </mesh>
-
-      {/* ── Bocca ── */}
-      <mesh position={[0, 2.22, -0.265]}>
-        <boxGeometry args={[0.18, 0.04, 0.04]} />
-        <meshStandardMaterial color={C.mouth} roughness={0.7} />
-      </mesh>
-
-      {/* ── Capelli (sopra la testa) ── */}
-      <mesh position={[0, 2.64, 0.01]}>
-        <boxGeometry args={[0.54, 0.16, 0.48]} />
-        <meshStandardMaterial color={C.hair} roughness={0.98} />
-      </mesh>
-      {/* ciuffo frontale */}
-      <mesh position={[0, 2.62, -0.24]}>
-        <boxGeometry args={[0.44, 0.20, 0.10]} />
-        <meshStandardMaterial color={C.hair} roughness={0.98} />
-      </mesh>
-
-      {/* ── Cappello (tesa + corpo) ── */}
-      <mesh position={[0, 2.76, 0]}>
-        <boxGeometry args={[0.70, 0.09, 0.66]} />
-        <meshStandardMaterial color={C.hatBrim} roughness={0.85} metalness={0.08} />
-      </mesh>
-      <mesh position={[0, 2.96, 0]}>
-        <cylinderGeometry args={[0.21, 0.24, 0.38, 10]} />
-        <meshStandardMaterial color={C.hatBody} roughness={0.85} metalness={0.08} />
-      </mesh>
-      {/* banda decorativa cappello */}
-      <mesh position={[0, 2.95, 0]}>
-        <cylinderGeometry args={[0.245, 0.245, 0.08, 10]} />
-        <meshStandardMaterial color={C.jerseyTrim} roughness={0.7} />
-      </mesh>
-
-      {/* ── Ombra blob sul pavimento ── */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-        <circleGeometry args={[0.62, 14]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.20} depthWrite={false} />
-      </mesh>
+      <WalkingParts timeRef={time} jersey={jersey} />
+      <CharacterBody jersey={jersey} />
     </group>
   );
 }
 
-/* ── Telecamera terza persona con zoom e rotazione ────────────── */
+/* ── Third-person camera ─────────────────────────────────────────── */
 export function PlayerCamera3D({
   playerRef,
   cameraYawRef,
@@ -297,8 +346,8 @@ export function PlayerCamera3D({
       ));
       lastMouse.current = { x: e.clientX, y: e.clientY };
     };
-    const onMouseUp   = () => { isDragging.current = false; };
-    const onWheel     = (e: WheelEvent) => {
+    const onMouseUp = () => { isDragging.current = false; };
+    const onWheel   = (e: WheelEvent) => {
       distRef.current = Math.max(6, Math.min(45, distRef.current + e.deltaY * 0.04));
     };
 
@@ -306,7 +355,7 @@ export function PlayerCamera3D({
       if (e.touches.length === 2) {
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dz = e.touches[0].clientY - e.touches[1].clientY;
-        pinchDist.current = Math.sqrt(dx * dx + dz * dz);
+        pinchDist.current  = Math.sqrt(dx * dx + dz * dz);
         isDragging.current = false;
       } else if (e.touches.length === 1 && mobileCamRotateRef?.current) {
         isDragging.current = true;
@@ -316,12 +365,11 @@ export function PlayerCamera3D({
     };
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 2 && pinchDist.current !== null) {
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dz = e.touches[0].clientY - e.touches[1].clientY;
-        const newDist = Math.sqrt(dx * dx + dz * dz);
-        const delta   = pinchDist.current - newDist;
-        distRef.current = Math.max(6, Math.min(45, distRef.current + delta * 0.06));
-        pinchDist.current = newDist;
+        const dx  = e.touches[0].clientX - e.touches[1].clientX;
+        const dz  = e.touches[0].clientY - e.touches[1].clientY;
+        const nd  = Math.sqrt(dx * dx + dz * dz);
+        distRef.current   = Math.max(6, Math.min(45, distRef.current + (pinchDist.current - nd) * 0.06));
+        pinchDist.current = nd;
       } else if (e.touches.length === 1 && isDragging.current) {
         yawRef.current  -= (e.touches[0].clientX - lastMouse.current.x) * 0.005;
         pitchRef.current = Math.max(0.18, Math.min(1.15,
