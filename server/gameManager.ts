@@ -10963,6 +10963,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
           game.field = game.field.filter((c: Card) => c.id !== targetOMQ.id);
           if (!(game.graveyard)) game.graveyard = [];
+          if ((targetOMQ as any).originalPti === undefined || (targetOMQ as any).originalPti === null)
+            (targetOMQ as any).originalPti = targetOMQ.pti ?? this.extractPTIFromNote(targetOMQ.text || '') ?? 0;
+          if ((targetOMQ as any).originalStars === undefined || (targetOMQ as any).originalStars === null)
+            (targetOMQ as any).originalStars = targetOMQ.stars ?? this.extractStarsFromNote(targetOMQ.text || '') ?? 1;
           game.graveyard.push(targetOMQ);
           replacementOMQ.owner = tOwner;
           game.field.push(replacementOMQ);
@@ -14975,6 +14979,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           if (member.id === mainChar.id) continue;
           game.field = game.field.filter((c: Card) => c.id !== member.id);
           if (!game.graveyard) game.graveyard = [];
+          if ((member as any).originalPti === undefined || (member as any).originalPti === null)
+            (member as any).originalPti = member.pti ?? this.extractPTIFromNote(member.text || '') ?? 0;
+          if ((member as any).originalStars === undefined || (member as any).originalStars === null)
+            (member as any).originalStars = member.stars ?? this.extractStarsFromNote(member.text || '') ?? 1;
           game.graveyard.push(member);
         }
         mainChar.pti = totalPTI;
@@ -15957,6 +15965,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const sacrificePti = sacrificeCard.pti || 0;
           // Remove sacrificed card
           game.field = game.field.filter(c => c.id !== sacrificeCard.id);
+          if ((sacrificeCard as any).originalPti === undefined || (sacrificeCard as any).originalPti === null)
+            (sacrificeCard as any).originalPti = sacrificeCard.pti ?? this.extractPTIFromNote(sacrificeCard.text || '') ?? 0;
+          if ((sacrificeCard as any).originalStars === undefined || (sacrificeCard as any).originalStars === null)
+            (sacrificeCard as any).originalStars = sacrificeCard.stars ?? this.extractStarsFromNote(sacrificeCard.text || '') ?? 1;
           game.graveyard.push(sacrificeCard);
           // Deal damage to all enemies equal to sacrificed PTI
           for (const enemyCard of game.field) {
@@ -16034,6 +16046,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         );
         if (destroyTarget) {
           game.field = game.field.filter(c => c.id !== destroyTarget.id);
+          if ((destroyTarget as any).originalPti === undefined || (destroyTarget as any).originalPti === null)
+            (destroyTarget as any).originalPti = destroyTarget.pti ?? this.extractPTIFromNote(destroyTarget.text || '') ?? 0;
+          if ((destroyTarget as any).originalStars === undefined || (destroyTarget as any).originalStars === null)
+            (destroyTarget as any).originalStars = destroyTarget.stars ?? this.extractStarsFromNote(destroyTarget.text || '') ?? 1;
           game.graveyard.push(destroyTarget);
           console.log(`💥 Custom effect: DESTROYED ${destroyTarget.name || destroyTarget.id}!`);
         }
@@ -22521,6 +22537,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       
       card.eliminatedBy = attacker || 'Unknown';
+      // Safety net: ensure originalPti/originalStars are always stored before burial so
+      // effects like Evil Fake always read the pre-battle base values regardless of how
+      // this card was eliminated (combat damage, effects, special paths, etc.).
+      if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') &&
+          ((card as any).originalPti === undefined || (card as any).originalPti === null)) {
+        // Prefer the "PTI originali:" annotation baked into the card text (most reliable).
+        const origPtiMatch = (card.text || '').match(/PTI originali:\s*(\d+)/i);
+        if (origPtiMatch) {
+          (card as any).originalPti = parseInt(origPtiMatch[1], 10);
+        } else {
+          // preMortemPTI is captured by killAndCheck before combat zeroes the card out.
+          (card as any).originalPti = (card as any).preMortemPTI ?? card.pti ?? this.extractPTIFromNote(card.text || '') ?? 0;
+        }
+      }
+      if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') &&
+          ((card as any).originalStars === undefined || (card as any).originalStars === null)) {
+        (card as any).originalStars = card.stars ?? this.extractStarsFromNote(card.text || '') ?? 1;
+      }
       game.graveyard.push(card);
       console.log(`Card ${cardId} moved to graveyard. Owner: ${cardOwner}, RequestedBy: ${playerName}, Killed by: ${attacker || 'Unknown'}`);
 

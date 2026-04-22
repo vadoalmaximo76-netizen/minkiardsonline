@@ -6287,8 +6287,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const gIdx = game.graveyard.findIndex((c: any) => c.id === sid);
         if (gIdx < 0) continue;
         const dead = game.graveyard.splice(gIdx, 1)[0];
-        const dPTI = dead.pti ?? (gameManager as any).extractPTIFromNote?.(dead.text || '') ?? 0;
-        const dStars = dead.stars ?? (gameManager as any).extractStarsFromNote?.(dead.text || '') ?? 1;
+        const dPTI = (dead as any).originalPti ?? dead.pti ?? (gameManager as any).extractPTIFromNote?.(dead.text || '') ?? 0;
+        const dStars = (dead as any).originalStars ?? dead.stars ?? (gameManager as any).extractStarsFromNote?.(dead.text || '') ?? 1;
         totalPTI += dPTI;
         totalStars += dStars;
         absorbedNames.push(dead.name || dead.id);
