@@ -6907,6 +6907,18 @@ Rispondi SOLO in JSON:`;
       return {};
     }
 
+    // GUARD: Characters with dedicated handlers in activateCustomEffect must NOT have their effect
+    // text parsed generically here. Their effects activate exclusively via the "Attiva Effetto" button.
+    {
+      const _img = (card.frontImage || '').toLowerCase();
+      const DEDICATED_HANDLERS = ['evil-fake', 'golden-freezer', 'cyber-geena', 'il-pelux'];
+      if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') &&
+          DEDICATED_HANDLERS.some(h => _img.includes(h))) {
+        console.log(`🃏 ${card.name || card.id}: skipping processCustomCardEffect — dedicated handler in activateCustomEffect`);
+        return {};
+      }
+    }
+
     console.log(`🎴 Processing custom card effect for ${card.name || card.id}: "${card.effect}"`);
 
     // ZZERUO GLOBAL IMMUNITY: for any bonus played by an opponent, collect the set of players
@@ -26977,8 +26989,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // CPU auto-resolution: select top 3 opponents' graveyard characters by combined score (PTI + stars×200)
       if (this.isPlayerCPU(gameId, playerName)) {
         const efScore = (c: any) => {
-          const pti = c.pti ?? this.extractPTIFromNote(c.text || '') ?? 0;
-          const stars = c.stars ?? this.extractStarsFromNote(c.text || '') ?? 1;
+          const pti = (c as any).originalPti ?? c.pti ?? this.extractPTIFromNote(c.text || '') ?? 0;
+          const stars = (c as any).originalStars ?? c.stars ?? this.extractStarsFromNote(c.text || '') ?? 1;
           return pti + stars * 200;
         };
         const sorted = [...graveyardOpponents].sort((a, b) => efScore(b) - efScore(a));
@@ -26992,8 +27004,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const gIdx = game.graveyard.findIndex((c: Card) => c.id === dead.id);
           if (gIdx < 0) continue;
           const removed = game.graveyard.splice(gIdx, 1)[0];
-          const dPTI = removed.pti ?? this.extractPTIFromNote(removed.text || '') ?? 0;
-          const dStars = removed.stars ?? this.extractStarsFromNote(removed.text || '') ?? 1;
+          const dPTI = (removed as any).originalPti ?? removed.pti ?? this.extractPTIFromNote(removed.text || '') ?? 0;
+          const dStars = (removed as any).originalStars ?? removed.stars ?? this.extractStarsFromNote(removed.text || '') ?? 1;
           totalPTI += dPTI;
           totalStars += dStars;
           absorbedNames.push(removed.name || removed.id);
@@ -27335,6 +27347,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         message: `⚡ ${cardName} - Dettagli effetto: ${details}`,
         timestamp: Date.now()
       });
+    }
+
+    // GUARD: Characters with dedicated handlers must NEVER fall through to the generic keyword parser,
+    // regardless of how activateCustomEffect was called. Their effects are button-only.
+    {
+      const _img = (card.frontImage || '').toLowerCase();
+      const DEDICATED_HANDLERS = ['evil-fake', 'golden-freezer', 'cyber-geena', 'il-pelux'];
+      if (DEDICATED_HANDLERS.some(h => _img.includes(h))) {
+        console.log(`⚡ ${cardName}: dedicated-handler character — skipping generic keyword parser in activateCustomEffect`);
+        return;
+      }
     }
 
     // Fallback: Use keyword parser for all other effects

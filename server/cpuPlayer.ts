@@ -1974,7 +1974,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         (c.type === 'personaggi' || c.type === 'personaggi_speciali')
       );
       if (opponents.length > 0) {
-        const efScore = (c: any) => this.extractPtiFromCard(c) + this.extractStarsFromCard(c) * 200;
+        const efScore = (c: any) => ((c as any).originalPti ?? this.extractPtiFromCard(c)) + ((c as any).originalStars ?? this.extractStarsFromCard(c)) * 200;
         const sorted = [...opponents].sort((a, b) => efScore(b) - efScore(a));
         const efCurrentPTI = this.extractPtiFromCard(cpuChar);
         const top2Score = sorted.slice(0, 2).reduce((s, c) => s + efScore(c), 0);
