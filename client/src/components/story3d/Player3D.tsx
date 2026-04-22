@@ -84,21 +84,27 @@ export function PlayerMesh3D({
   );
 }
 
-/* ── Third-person follow camera ───────────────────────────────── */
+/* ── Third-person follow camera with zoom + camera-rotate ─────── */
 export function PlayerCamera3D({
   playerRef,
   cameraYawRef,
+  mobileCamRotateRef,
 }: {
   playerRef: React.MutableRefObject<{ x: number; z: number }>;
   cameraYawRef?: React.MutableRefObject<number>;
+  /** When true, single-touch drag rotates camera (mobile cam-mode button) */
+  mobileCamRotateRef?: React.MutableRefObject<boolean>;
 }) {
   const { camera } = useThree();
   const yawRef     = useRef(0);
   const pitchRef   = useRef(0.55);
+  const distRef    = useRef(18);          // zoom distance (8–45 units)
   const isDragging = useRef(false);
   const lastMouse  = useRef({ x: 0, y: 0 });
+  const pinchDist  = useRef<number | null>(null); // two-finger pinch
 
   useEffect(() => {
+    /* ── Desktop: mouse drag (rotate) + wheel (zoom) ── */
     const onMouseDown = (e: MouseEvent) => {
       isDragging.current = true;
       lastMouse.current  = { x: e.clientX, y: e.clientY };
@@ -106,43 +112,70 @@ export function PlayerCamera3D({
     const onMouseMove = (e: MouseEvent) => {
       if (!isDragging.current) return;
       yawRef.current  -= (e.clientX - lastMouse.current.x) * 0.005;
-      pitchRef.current = Math.max(0.2, Math.min(1.1,
+      pitchRef.current = Math.max(0.18, Math.min(1.15,
         pitchRef.current + (e.clientY - lastMouse.current.y) * 0.005,
       ));
       lastMouse.current = { x: e.clientX, y: e.clientY };
     };
-    const onMouseUp = () => { isDragging.current = false; };
+    const onMouseUp   = () => { isDragging.current = false; };
+    const onWheel     = (e: WheelEvent) => {
+      distRef.current = Math.max(6, Math.min(45, distRef.current + e.deltaY * 0.04));
+    };
 
+    /* ── Mobile: single-touch drag (when cam-mode active) + pinch zoom ── */
     const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
+      if (e.touches.length === 2) {
+        /* Begin pinch — record initial finger distance */
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dz = e.touches[0].clientY - e.touches[1].clientY;
+        pinchDist.current = Math.sqrt(dx * dx + dz * dz);
+        isDragging.current = false;
+      } else if (e.touches.length === 1 && mobileCamRotateRef?.current) {
         isDragging.current = true;
         lastMouse.current  = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        pinchDist.current  = null;
       }
     };
     const onTouchMove = (e: TouchEvent) => {
-      if (!isDragging.current || e.touches.length !== 1) return;
-      yawRef.current  -= (e.touches[0].clientX - lastMouse.current.x) * 0.005;
-      pitchRef.current = Math.max(0.2, Math.min(1.1,
-        pitchRef.current + (e.touches[0].clientY - lastMouse.current.y) * 0.005,
-      ));
-      lastMouse.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      if (e.touches.length === 2 && pinchDist.current !== null) {
+        /* Pinch zoom */
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dz = e.touches[0].clientY - e.touches[1].clientY;
+        const newDist = Math.sqrt(dx * dx + dz * dz);
+        const delta   = pinchDist.current - newDist;
+        distRef.current = Math.max(6, Math.min(45, distRef.current + delta * 0.06));
+        pinchDist.current = newDist;
+      } else if (e.touches.length === 1 && isDragging.current) {
+        /* Single-finger rotate (cam-mode active) */
+        yawRef.current  -= (e.touches[0].clientX - lastMouse.current.x) * 0.005;
+        pitchRef.current = Math.max(0.18, Math.min(1.15,
+          pitchRef.current + (e.touches[0].clientY - lastMouse.current.y) * 0.005,
+        ));
+        lastMouse.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
     };
-    const onTouchEnd = () => { isDragging.current = false; };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) pinchDist.current = null;
+      if (e.touches.length === 0) isDragging.current = false;
+    };
 
-    window.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup',   onMouseUp);
+    window.addEventListener('mousedown',  onMouseDown);
+    window.addEventListener('mousemove',  onMouseMove);
+    window.addEventListener('mouseup',    onMouseUp);
+    window.addEventListener('wheel',      onWheel,      { passive: true });
     window.addEventListener('touchstart', onTouchStart, { passive: true });
     window.addEventListener('touchmove',  onTouchMove,  { passive: true });
     window.addEventListener('touchend',   onTouchEnd);
     return () => {
-      window.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup',   onMouseUp);
+      window.removeEventListener('mousedown',  onMouseDown);
+      window.removeEventListener('mousemove',  onMouseMove);
+      window.removeEventListener('mouseup',    onMouseUp);
+      window.removeEventListener('wheel',      onWheel);
       window.removeEventListener('touchstart', onTouchStart);
       window.removeEventListener('touchmove',  onTouchMove);
       window.removeEventListener('touchend',   onTouchEnd);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const targetCam  = useRef(new THREE.Vector3());
@@ -151,7 +184,7 @@ export function PlayerCamera3D({
   useFrame(() => {
     const px   = playerRef.current.x;
     const pz   = playerRef.current.z;
-    const dist = 18;
+    const dist = distRef.current;
     const h    = dist * Math.tan(pitchRef.current);
 
     targetCam.current.set(
@@ -163,7 +196,7 @@ export function PlayerCamera3D({
     camera.position.copy(currentCam.current);
     camera.lookAt(px, 1.5, pz);
 
-    /* Expose camera yaw so the RAF tick can rotate joystick input */
+    /* Expose camera yaw so the RAF tick can apply camera-relative movement */
     if (cameraYawRef) cameraYawRef.current = yawRef.current;
   });
 

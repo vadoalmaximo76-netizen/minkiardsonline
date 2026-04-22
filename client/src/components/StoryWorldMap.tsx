@@ -7,7 +7,8 @@ import {
   ReazioneRapida, QuizMinkiard, SassoCartaForbice,
 } from './MiniGames';
 import { FootballMinigames } from './FootballMinigames';
-import { StoryWorld3D } from './story3d/StoryWorld3D';
+import { StoryWorld3D }          from './story3d/StoryWorld3D';
+import { useStoryWorldLogic }    from '../hooks/useStoryWorldLogic';
 
 /* ── Interfaces (unchanged) ─────────────────────────────────── */
 export interface StoryLocality {
@@ -1232,8 +1233,13 @@ export function StoryWorldMap({
   const lastNearArcadeDistRef= useRef(Infinity);
   const [userPR, setUserPR] = useState<number>(0);
 
-  /* ── Camera yaw ref — written by PlayerCamera3D, used for camera-relative movement ── */
-  const cameraYawRef = useRef(0);
+  /* ── Camera + control state via useStoryWorldLogic hook ─────────────────────────── */
+  const {
+    cameraYawRef,
+    mobileCamRotateRef,
+    camRotateMode,
+    toggleCamRotate,
+  } = useStoryWorldLogic();
 
   /* ── Football field state ───────────────────────────────── */
   const [nearFootball, setNearFootball] = useState(false);
@@ -2196,8 +2202,8 @@ export function StoryWorldMap({
           setNearestArcadeDist(arcadeMinDist);
         }
 
-        /* Stage 13 proximity (replaces canvas click) */
-        if (stage13StatusRef.current?.visibleStage) {
+        /* Stage 13 proximity — gated by visibleStage AND storyCompleted (matches canvas-click gate) */
+        if (stage13StatusRef.current?.visibleStage && stage13StatusRef.current?.storyCompleted) {
           const [s13x, s13z] = STAGE13_WORLD_POS;
           const s13dist = Math.sqrt((px - s13x) ** 2 + (pz - s13z) ** 2);
           const isNearS13 = s13dist < 8;
@@ -4367,6 +4373,7 @@ export function StoryWorldMap({
         otherPlayersRef={otherPlayersRef}
         selfUserId={userId}
         cameraYawRef={cameraYawRef}
+        mobileCamRotateRef={mobileCamRotateRef}
         leaders={leaders}
         arenaPositions={arenaPositions}
         getLeaderStatus={getLeaderStatus}
@@ -5494,6 +5501,33 @@ export function StoryWorldMap({
           />
           <div />
         </div>
+      )}
+
+      {/* 📷 Mobile camera-rotate toggle — fixed to top-right corner on touch devices */}
+      {isTouchDevice && (
+        <button
+          onPointerDown={(e) => { e.stopPropagation(); }}
+          onClick={toggleCamRotate}
+          style={{
+            position: 'absolute',
+            top: 16, right: 16,
+            width: isMobileLandscape ? 40 : 52,
+            height: isMobileLandscape ? 40 : 52,
+            borderRadius: '50%',
+            background: camRotateMode ? 'rgba(99,102,241,0.9)' : 'rgba(0,0,0,0.55)',
+            border: camRotateMode ? '2px solid #a5b4fc' : '2px solid rgba(255,255,255,0.2)',
+            color: '#fff',
+            fontSize: isMobileLandscape ? 18 : 22,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+            zIndex: 35,
+            boxShadow: camRotateMode ? '0 0 12px rgba(99,102,241,0.6)' : 'none',
+            transition: 'all 0.18s ease',
+          }}
+          title={camRotateMode ? 'Movimento (tocca per cambiare)' : 'Ruota camera (tocca per cambiare)'}
+        >
+          📷
+        </button>
       )}
     </div>
   );

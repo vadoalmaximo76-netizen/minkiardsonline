@@ -37,6 +37,8 @@ export interface StoryWorld3DProps {
   selfUserId?: number;
   /** Shared ref written by PlayerCamera3D, read by tick for camera-relative movement */
   cameraYawRef?: React.MutableRefObject<number>;
+  /** When true, single-touch drag on the 3D canvas rotates the camera (mobile cam-mode) */
+  mobileCamRotateRef?: React.MutableRefObject<boolean>;
   leaders: GymLeader[];
   arenaPositions: [number, number][];
   getLeaderStatus: (leader: GymLeader) => 'completed' | 'available' | 'locked';

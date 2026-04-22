@@ -128,6 +128,7 @@ export function World3DScene(props: StoryWorld3DProps) {
       <PlayerCamera3D
         playerRef={props.playerRef}
         cameraYawRef={props.cameraYawRef}
+        mobileCamRotateRef={props.mobileCamRotateRef}
       />
 
       {/* Post-processing */}
