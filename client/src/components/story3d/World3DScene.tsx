@@ -17,7 +17,7 @@ import { Arenas3D }                        from './Arenas3D';
 import { Collectibles3D }                  from './Collectibles3D';
 import { OtherPlayers3D }                  from './OtherPlayers3D';
 import { PlayerMesh3D, PlayerCamera3D }    from './Player3D';
-import { DayNight3D, NightStars3D }        from './DayNight3D';
+import { DayNight3D, NightStars3D, RainEffect3D } from './DayNight3D';
 import type { StoryWorld3DProps }          from './types';
 
 /* ── Animated water plane for the lake zone ───────────────────── */
@@ -145,6 +145,7 @@ export function World3DScene(props: StoryWorld3DProps) {
     <>
       <DayNight3D dayTimeRef={dayTimeRef} />
       <NightStars3D dayTimeRef={dayTimeRef} />
+      <RainEffect3D />
 
       <Terrain3D />
       <Roads3D roads={roadData} />
