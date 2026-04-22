@@ -94,7 +94,7 @@ export function showLocalNotification(title: string, body: string, tag?: string)
       navigator.serviceWorker.ready.then(reg => {
         reg.showNotification(title, {
           body,
-          icon: '/icons/icon-192.png',
+          icon: '/icons/icon-192x192.png',
           tag: tag || 'minkiards-local',
           vibrate: [100, 50, 100]
         });
@@ -102,7 +102,7 @@ export function showLocalNotification(title: string, body: string, tag?: string)
     } else {
       new Notification(title, {
         body,
-        icon: '/favicon.ico',
+        icon: '/icons/icon-192x192.png',
         tag: tag || 'minkiards-local'
       });
     }

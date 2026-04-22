@@ -1301,7 +1301,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           try {
             new Notification('MINKIARDS - Tocca a te!', {
               body: 'È il tuo turno, muoviti!',
-              icon: '/favicon.ico',
+              icon: '/icons/icon-192x192.png',
               tag: 'minkiards-turn',
               renotify: true,
             });

@@ -209,8 +209,54 @@ function App() {
 
   const navigateToRef = useRef<((section: AppSection) => void) | null>(null);
 
+  // On every page load: prompt any waiting Service Worker to activate immediately
+  // so that stale cached assets are cleared before init runs.
+  // Also reload once when the controller changes so the fresh SW version takes effect.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+
+    let reloaded = false;
+    const onControllerChange = () => {
+      if (reloaded) return;
+      reloaded = true;
+      console.log('[SW] Controller changed — reloading for fresh assets');
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+
+    navigator.serviceWorker.getRegistration('/').then((reg) => {
+      if (!reg) return;
+      const applyUpdate = (sw: ServiceWorker) => {
+        console.log('[SW] New version waiting — sending SKIP_WAITING');
+        sw.postMessage({ type: 'SKIP_WAITING' });
+      };
+      if (reg.waiting) {
+        applyUpdate(reg.waiting);
+      }
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        if (!newSW) return;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            applyUpdate(newSW);
+          }
+        });
+      });
+    }).catch(() => {});
+
+    return () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+    };
+  }, []);
+
   useEffect(() => {
     const initializeApp = async () => {
+      // Safety net: if initialization is still pending after 12 seconds, unblock the UI
+      const safetyTimer = setTimeout(() => {
+        console.warn('[init] Safety timeout reached — forcing isInitializing=false');
+        setIsInitializing(false);
+      }, 12000);
+
       try {
         // Listen for server ready signal
         socket.on('server-ready', () => {
@@ -322,8 +368,11 @@ function App() {
         });
         
         // socket.ts 'connect' handler already sends set-user-data — no need to duplicate here
+        // Emit check-server-ready inside the connect handler so it is sent only once the socket
+        // is actually connected (avoids the event being lost if connect is still pending).
         socket.on('connect', () => {
           console.log('Socket connected');
+          socket.emit('check-server-ready');
         });
         
         // Now connect after all listeners are set up
@@ -337,20 +386,30 @@ function App() {
           });
         }, 200);
         
-        // Request server status
-        socket.emit('check-server-ready');
-        
         preloadCriticalImages();
         initGlobalClickSound();
         
         const authToken = localStorage.getItem('authToken');
         
         try {
-          const res = await fetch('/api/auth/me', {
-            headers: authToken ? {
-              'Authorization': `Bearer ${authToken}`
-            } : {}
-          });
+          // Fetch with an 8-second timeout so a hanging network call never blocks init
+          const authController = new AbortController();
+          const authFetchTimeout = setTimeout(() => {
+            console.warn('[init] /api/auth/me timed out after 8s');
+            authController.abort();
+          }, 8000);
+
+          let res: Response;
+          try {
+            res = await fetch('/api/auth/me', {
+              signal: authController.signal,
+              headers: authToken ? {
+                'Authorization': `Bearer ${authToken}`
+              } : {}
+            });
+          } finally {
+            clearTimeout(authFetchTimeout);
+          }
           
           const data = await res.json();
           
@@ -364,6 +423,9 @@ function App() {
             
             if (hasActiveSession()) {
               console.log('Found active session, attempting to restore...');
+              // Unblock the loading screen immediately — the reconnecting UI handles the wait
+              clearTimeout(safetyTimer);
+              setIsInitializing(false);
               const restored = await restoreSession();
               
               if (restored) {
@@ -371,7 +433,6 @@ function App() {
                 sessionRestoredRef.current = true; // Mark session as restored to prevent active-game-found override
                 setShowNameDialog(false);
                 setShowRoomDialog(false);
-                setIsInitializing(false);
                 return;
               }
             }
@@ -401,6 +462,7 @@ function App() {
               setCurrentSection('home');
             }
             
+            clearTimeout(safetyTimer);
             setIsInitializing(false);
             return;
           } else if (res.ok && data.guestMode && data.dbError) {
@@ -408,10 +470,12 @@ function App() {
             console.log('Guest mode enabled - database unavailable');
             setShowAuthDialog(false);
             setCurrentSection('home');
+            clearTimeout(safetyTimer);
             setIsInitializing(false);
             return;
           } else if (res.ok && data.guestMode && data.noToken) {
             // No token stored - show auth dialog
+            clearTimeout(safetyTimer);
             setIsInitializing(false);
             return;
           } else if (res.status === 401) {
@@ -424,9 +488,11 @@ function App() {
           console.error('Error checking auth:', error);
         }
         
+        clearTimeout(safetyTimer);
         setIsInitializing(false);
       } catch (error) {
         console.error('Error initializing app:', error);
+        clearTimeout(safetyTimer);
         setIsInitializing(false);
       }
     };

@@ -1,4 +1,4 @@
-const STATIC_CACHE_NAME = 'minkiards-static-v1';
+const STATIC_CACHE_NAME = 'minkiards-static-v2';
 const IMAGE_CACHE_NAME = 'minkiards-images-v1';
 
 const STATIC_ASSETS = [
