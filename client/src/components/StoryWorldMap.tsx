@@ -850,6 +850,52 @@ interface MinimapProps {
   localities: StoryLocality[];
 }
 
+/* ── Day/Night clock HUD ────────────────────────────────────── */
+function DayNightClockHUD({ dayTimeRef }: { dayTimeRef: React.MutableRefObject<number> }) {
+  const iconRef  = useRef<HTMLSpanElement>(null);
+  const labelRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    function formatTime(t: number) {
+      const totalHours = t * 24;
+      const h = Math.floor(totalHours) % 24;
+      const m = Math.floor((totalHours - Math.floor(totalHours)) * 60);
+      const ampm = h < 12 ? 'AM' : 'PM';
+      const displayH = h % 12 === 0 ? 12 : h % 12;
+      const mm = m.toString().padStart(2, '0');
+      /* Match DayNight3D sun arc: sun above horizon t∈[0.25,0.75] → 6 AM–6 PM */
+      return { icon: h >= 6 && h < 18 ? '☀️' : '🌙', label: `${displayH}:${mm} ${ampm}` };
+    }
+
+    function update() {
+      const { icon, label } = formatTime(dayTimeRef.current);
+      if (iconRef.current)  iconRef.current.textContent  = icon;
+      if (labelRef.current) labelRef.current.textContent = label;
+    }
+
+    update();
+    const id = setInterval(update, 3000);
+    return () => clearInterval(id);
+  }, [dayTimeRef]);
+
+  return (
+    <div style={{
+      position: 'absolute', top: 12, right: 12, zIndex: 25,
+      background: 'rgba(3,4,18,0.82)', border: '1px solid rgba(255,255,255,0.13)',
+      borderRadius: 10, padding: '5px 11px',
+      display: 'flex', alignItems: 'center', gap: 6,
+      boxShadow: '0 2px 12px rgba(0,0,0,0.55)',
+      userSelect: 'none', pointerEvents: 'none',
+    }}>
+      <span ref={iconRef} style={{ fontSize: 16, lineHeight: 1 }} />
+      <span ref={labelRef} style={{
+        fontSize: 13, fontWeight: 700, letterSpacing: '0.04em',
+        color: '#e5e7eb', fontFamily: 'monospace',
+      }} />
+    </div>
+  );
+}
+
 function Minimap({ playerRef, arenaPositions, leaders, getLeaderStatus, localities }: MinimapProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef    = useRef<number>(0);
@@ -1084,7 +1130,10 @@ export function StoryWorldMap({
     } catch { /* ignore */ }
     return null;
   })();
-  const playerRef = useRef<{ x: number; z: number }>(_savedMapPos ?? { x: 0, z: 185 });
+  const playerRef    = useRef<{ x: number; z: number }>(_savedMapPos ?? { x: 0, z: 185 });
+  const worldDayTimeRef = useRef<number>(
+    (() => { const h = new Date().getHours() + new Date().getMinutes() / 60; return h / 24; })()
+  );
   const camRef    = useRef<{ x: number; z: number }>(_savedMapPos ?? { x: 0, z: 185 });
   const keysRef   = useRef<Set<string>>(new Set());
   const joyRef    = useRef<{ x: number; z: number }>({ x: 0, z: 0 });
@@ -4372,6 +4421,7 @@ export function StoryWorldMap({
         playerRef={playerRef}
         otherPlayersRef={otherPlayersRef}
         selfUserId={userId}
+        dayTimeRef={worldDayTimeRef}
         cameraYawRef={cameraYawRef}
         mobileCamRotateRef={mobileCamRotateRef}
         leaders={leaders}
@@ -4396,6 +4446,9 @@ export function StoryWorldMap({
         getLeaderStatus={getLeaderStatus}
         localities={localities}
       />
+
+      {/* Day/Night clock HUD */}
+      <DayNightClockHUD dayTimeRef={worldDayTimeRef} />
 
       {/* Chapter progress bar (top center) */}
       {(() => {

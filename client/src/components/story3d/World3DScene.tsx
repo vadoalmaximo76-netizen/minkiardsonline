@@ -133,12 +133,14 @@ function ArcadeLights3D() {
 
 /* ── Main scene graph ─────────────────────────────────────────── */
 export function World3DScene(props: StoryWorld3DProps) {
-  const dayTimeRef = useRef<number>(
+  const internalDayTimeRef = useRef<number>(
     (() => {
       const h = new Date().getHours() + new Date().getMinutes() / 60;
       return h / 24;
     })()
   );
+  /* Use the parent-supplied ref when available so outside-Canvas HUDs can read it */
+  const dayTimeRef = props.dayTimeRef ?? internalDayTimeRef;
 
   const weatherIntensityRef = useRef<number>(0);
 
