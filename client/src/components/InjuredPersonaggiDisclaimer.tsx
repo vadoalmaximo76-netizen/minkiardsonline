@@ -50,6 +50,7 @@ interface Props {
 }
 
 const REVIVE_COST = 50;
+const FETCH_TIMEOUT_MS = 8_000;
 
 export function InjuredPersonaggiDisclaimer({
   authToken,
@@ -71,9 +72,12 @@ export function InjuredPersonaggiDisclaimer({
   const fetchInjured = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
       const res = await fetch('/api/injured-personaggi', {
         headers: { Authorization: `Bearer ${authToken}` },
+        signal: controller.signal,
       });
       const data = await res.json();
       if (data.success) {
@@ -94,10 +98,15 @@ export function InjuredPersonaggiDisclaimer({
           : (data.error || 'Errore nel recupero degli infortuni.'));
         setInjured([]);
       }
-    } catch {
-      setFetchError('Errore di rete. Impossibile verificare lo stato degli infortuni.');
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        setFetchError('La verifica degli infortuni ha impiegato troppo tempo. Riprova.');
+      } else {
+        setFetchError('Errore di rete. Impossibile verificare lo stato degli infortuni.');
+      }
       setInjured([]);
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   }, [authToken, relevantCardIds]);
