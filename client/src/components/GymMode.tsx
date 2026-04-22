@@ -13,6 +13,7 @@ import { StarterDeckSelection, StarterDeckOption } from './StarterDeckSelection'
 import { StoryWorldMap, StoryLocality, StoryCollectible } from './StoryWorldMap';
 import { GymLeader } from '../types/gym';
 import { useIsLandscape } from '../hooks/use-is-landscape';
+import { AvatarPreviewWidget } from './story3d/AvatarPreviewWidget';
 
 export type { GymLeader };
 
@@ -1969,6 +1970,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
               <span className="text-yellow-300 text-[10px] font-bold flex-shrink-0">⭐ {userCredits.toLocaleString()}</span>
             </div>
           )}
+          {/* Avatar preview */}
+          <AvatarPreviewWidget userId={userId} size={isLandscape ? 48 : 60} />
           {/* View toggle */}
           <button
             onClick={() => {
