@@ -35,6 +35,8 @@ export interface StoryWorld3DProps {
   playerRef: React.MutableRefObject<{ x: number; z: number }>;
   otherPlayersRef: React.MutableRefObject<Map<number, OtherPlayer>>;
   selfUserId?: number;
+  /** Shared ref written by PlayerCamera3D, read by tick for camera-relative movement */
+  cameraYawRef?: React.MutableRefObject<number>;
   leaders: GymLeader[];
   arenaPositions: [number, number][];
   getLeaderStatus: (leader: GymLeader) => 'completed' | 'available' | 'locked';

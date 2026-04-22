@@ -87,8 +87,10 @@ export function PlayerMesh3D({
 /* ── Third-person follow camera ───────────────────────────────── */
 export function PlayerCamera3D({
   playerRef,
+  cameraYawRef,
 }: {
   playerRef: React.MutableRefObject<{ x: number; z: number }>;
+  cameraYawRef?: React.MutableRefObject<number>;
 }) {
   const { camera } = useThree();
   const yawRef     = useRef(0);
@@ -160,6 +162,9 @@ export function PlayerCamera3D({
     currentCam.current.lerp(targetCam.current, 0.1);
     camera.position.copy(currentCam.current);
     camera.lookAt(px, 1.5, pz);
+
+    /* Expose camera yaw so the RAF tick can rotate joystick input */
+    if (cameraYawRef) cameraYawRef.current = yawRef.current;
   });
 
   return null;

@@ -1232,6 +1232,9 @@ export function StoryWorldMap({
   const lastNearArcadeDistRef= useRef(Infinity);
   const [userPR, setUserPR] = useState<number>(0);
 
+  /* ── Camera yaw ref — written by PlayerCamera3D, used for camera-relative movement ── */
+  const cameraYawRef = useRef(0);
+
   /* ── Football field state ───────────────────────────────── */
   const [nearFootball, setNearFootball] = useState(false);
   const [showFootballMinigame, setShowFootballMinigame] = useState(false);
@@ -2023,6 +2026,17 @@ export function StoryWorldMap({
       if (keys.has('ArrowDown')  || keys.has('KeyS') || joy.z >  0.3) dz += 1;
       if (keys.has('ArrowLeft')  || keys.has('KeyA') || joy.x < -0.3) dx -= 1;
       if (keys.has('ArrowRight') || keys.has('KeyD') || joy.x >  0.3) dx += 1;
+
+      /* Camera-relative movement — rotate (dx, dz) by camera yaw so
+         "forward" always points where the camera is looking.            */
+      if (dx !== 0 || dz !== 0) {
+        const yaw = cameraYawRef.current;
+        const cosY = Math.cos(yaw);
+        const sinY = Math.sin(yaw);
+        const rdx = dx * cosY - dz * sinY;
+        const rdz = dx * sinY + dz * cosY;
+        dx = rdx; dz = rdz;
+      }
 
       if (dx < 0) facingRef.current = 'left';
       else if (dx > 0) facingRef.current = 'right';
@@ -4352,6 +4366,7 @@ export function StoryWorldMap({
         playerRef={playerRef}
         otherPlayersRef={otherPlayersRef}
         selfUserId={userId}
+        cameraYawRef={cameraYawRef}
         leaders={leaders}
         arenaPositions={arenaPositions}
         getLeaderStatus={getLeaderStatus}
