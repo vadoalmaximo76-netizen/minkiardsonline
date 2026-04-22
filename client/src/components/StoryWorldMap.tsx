@@ -1057,31 +1057,82 @@ function Minimap({ playerRef, arenaPositions, leaders, getLeaderStatus, localiti
   );
 }
 
-/* ── Mobile joystick button ─────────────────────────────────── */
-interface JoystickBtnProps { label: string; onStart: () => void; onEnd: () => void; size?: number; }
-
-function JoystickBtn({ label, onStart, onEnd, size = 64 }: JoystickBtnProps) {
+/* ── Mobile analog joystick ──────────────────────────────────── */
+function AnalogJoystick({ onMove, size = 130 }: { onMove: (x: number, z: number) => void; size?: number }) {
+  const baseRef = useRef<HTMLDivElement>(null);
+  const [knobOffset, setKnobOffset] = React.useState({ x: 0, y: 0 });
   const [active, setActive] = React.useState(false);
-  const fontSize = size <= 44 ? 18 : 26;
-  const borderRadius = size <= 44 ? 10 : 14;
+  const activePtrId = useRef<number | null>(null);
+  const maxRadius = size * 0.33;
+  const knobSize  = size * 0.34;
+
+  const updateFromClient = (clientX: number, clientY: number) => {
+    if (!baseRef.current) return;
+    const rect = baseRef.current.getBoundingClientRect();
+    let dx = clientX - (rect.left + rect.width  / 2);
+    let dy = clientY - (rect.top  + rect.height / 2);
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > maxRadius) { dx = (dx / dist) * maxRadius; dy = (dy / dist) * maxRadius; }
+    setKnobOffset({ x: dx, y: dy });
+    onMove(dx / maxRadius, dy / maxRadius);
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (activePtrId.current !== null) return;
+    e.preventDefault();
+    activePtrId.current = e.pointerId;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    setActive(true);
+    updateFromClient(e.clientX, e.clientY);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (e.pointerId !== activePtrId.current) return;
+    updateFromClient(e.clientX, e.clientY);
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (e.pointerId !== activePtrId.current) return;
+    activePtrId.current = null;
+    setActive(false);
+    setKnobOffset({ x: 0, y: 0 });
+    onMove(0, 0);
+  };
+
   return (
     <div
-      onPointerDown={(e) => { e.preventDefault(); setActive(true); onStart(); }}
-      onPointerUp={() => { setActive(false); onEnd(); }}
-      onPointerLeave={() => { setActive(false); onEnd(); }}
+      ref={baseRef}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
       style={{
-        width: size, height: size, borderRadius,
-        background: active ? 'rgba(167,139,250,0.55)' : 'rgba(255,255,255,0.14)',
-        border: `2px solid ${active ? 'rgba(167,139,250,0.9)' : 'rgba(255,255,255,0.3)'}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize, userSelect: 'none', cursor: 'pointer',
-        touchAction: 'none', WebkitUserSelect: 'none',
-        boxShadow: active ? '0 0 16px rgba(167,139,250,0.5)' : '0 2px 8px rgba(0,0,0,0.3)',
-        transition: 'background 0.08s, border-color 0.08s, box-shadow 0.08s',
-        transform: active ? 'scale(0.93)' : 'scale(1)',
+        width: size, height: size, borderRadius: '50%',
+        background: 'rgba(0,0,0,0.38)',
+        border: `2px solid ${active ? 'rgba(167,139,250,0.55)' : 'rgba(255,255,255,0.18)'}`,
+        position: 'relative', touchAction: 'none',
+        userSelect: 'none', WebkitUserSelect: 'none',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.55)',
+        transition: 'border-color 0.12s',
       }}
     >
-      {label}
+      {/* subtle crosshair */}
+      <div style={{ position:'absolute', top:'50%', left:'12%', right:'12%', height:1, background:'rgba(255,255,255,0.1)', transform:'translateY(-50%)', pointerEvents:'none' }} />
+      <div style={{ position:'absolute', left:'50%', top:'12%', bottom:'12%', width:1, background:'rgba(255,255,255,0.1)', transform:'translateX(-50%)', pointerEvents:'none' }} />
+      {/* knob */}
+      <div
+        style={{
+          position: 'absolute',
+          width: knobSize, height: knobSize, borderRadius: '50%',
+          background: active ? 'rgba(167,139,250,0.80)' : 'rgba(255,255,255,0.28)',
+          border: `2.5px solid ${active ? '#a78bfa' : 'rgba(255,255,255,0.50)'}`,
+          boxShadow: active ? '0 0 22px rgba(167,139,250,0.65)' : '0 2px 10px rgba(0,0,0,0.45)',
+          left: '50%', top: '50%',
+          transform: `translate(calc(-50% + ${knobOffset.x}px), calc(-50% + ${knobOffset.y}px))`,
+          transition: active ? 'none' : 'transform 0.14s ease, background 0.12s, box-shadow 0.12s',
+          pointerEvents: 'none',
+        }}
+      />
     </div>
   );
 }
@@ -2077,10 +2128,12 @@ export function StoryWorldMap({
       const keys = keysRef.current;
       const joy  = joyRef.current;
       let dx = 0, dz = 0;
-      if (keys.has('ArrowUp')    || keys.has('KeyW') || joy.z < -0.3) dz -= 1;
-      if (keys.has('ArrowDown')  || keys.has('KeyS') || joy.z >  0.3) dz += 1;
-      if (keys.has('ArrowLeft')  || keys.has('KeyA') || joy.x < -0.3) dx -= 1;
-      if (keys.has('ArrowRight') || keys.has('KeyD') || joy.x >  0.3) dx += 1;
+      if (keys.has('ArrowUp')    || keys.has('KeyW')) dz -= 1;
+      if (keys.has('ArrowDown')  || keys.has('KeyS')) dz += 1;
+      if (keys.has('ArrowLeft')  || keys.has('KeyA')) dx -= 1;
+      if (keys.has('ArrowRight') || keys.has('KeyD')) dx += 1;
+      /* Analog joystick — use actual deflection so partial push = partial speed */
+      if (Math.abs(joy.x) > 0.08 || Math.abs(joy.z) > 0.08) { dx += joy.x; dz += joy.z; }
 
       /* Camera-relative movement — rotate (dx, dz) by camera yaw so
          "forward" always points where the camera is looking.            */
@@ -2100,9 +2153,10 @@ export function StoryWorldMap({
       movingRef.current = moving;
       if (moving) {
         const len = Math.sqrt(dx * dx + dz * dz);
-        dx /= len; dz /= len;
-        playerRef.current.x = Math.max(-MAP_BOUND, Math.min(MAP_BOUND, playerRef.current.x + dx * PLAYER_SPEED * dt));
-        playerRef.current.z = Math.max(-MAP_BOUND, Math.min(MAP_BOUND, playerRef.current.z + dz * PLAYER_SPEED * dt));
+        /* speedMult < 1 for partial joystick deflection; capped at 1 for keyboard/full push */
+        const speedMult = Math.min(len, 1.0);
+        playerRef.current.x = Math.max(-MAP_BOUND, Math.min(MAP_BOUND, playerRef.current.x + (dx / len) * PLAYER_SPEED * speedMult * dt));
+        playerRef.current.z = Math.max(-MAP_BOUND, Math.min(MAP_BOUND, playerRef.current.z + (dz / len) * PLAYER_SPEED * speedMult * dt));
         walkRef.current += dt;
       }
       /* ── Full collision system ──────────────────────── */
@@ -5504,57 +5558,19 @@ export function StoryWorldMap({
       )}
 
 
-      {/* Mobile d-pad (bottom-left always) */}
+      {/* Mobile analog joystick (bottom-left) */}
       {isTouchDevice && (
         <div style={{
           position: 'absolute',
           bottom: nearLeader && nearStatus !== 'locked' && nearestDist <= 9 ? 130 : 18,
           left: 16,
-          right: 'auto',
-          display: 'grid',
-          gridTemplateColumns: isMobileLandscape ? 'repeat(3, 44px)' : 'repeat(3, 64px)',
-          gridTemplateRows: isMobileLandscape ? 'repeat(3, 44px)' : 'repeat(3, 64px)',
-          gap: isMobileLandscape ? 3 : 5,
           zIndex: 32,
           transition: 'bottom 0.22s ease',
-          filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))',
         }}>
-          {/* row 1: empty | up | empty */}
-          <div />
-          <JoystickBtn
-            label="▲"
-            onStart={() => setJoy(0, -1)}
-            onEnd={() => setJoy(0, 0)}
-            size={isMobileLandscape ? 44 : 64}
+          <AnalogJoystick
+            size={isMobileLandscape ? 108 : 136}
+            onMove={(x, z) => setJoy(x, z)}
           />
-          <div />
-          {/* row 2: left | center (empty) | right */}
-          <JoystickBtn
-            label="◀"
-            onStart={() => setJoy(-1, 0)}
-            onEnd={() => setJoy(0, 0)}
-            size={isMobileLandscape ? 44 : 64}
-          />
-          <div style={{
-            borderRadius: 10,
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.08)',
-          }} />
-          <JoystickBtn
-            label="▶"
-            onStart={() => setJoy(1, 0)}
-            onEnd={() => setJoy(0, 0)}
-            size={isMobileLandscape ? 44 : 64}
-          />
-          {/* row 3: empty | down | empty */}
-          <div />
-          <JoystickBtn
-            label="▼"
-            onStart={() => setJoy(0, 1)}
-            onEnd={() => setJoy(0, 0)}
-            size={isMobileLandscape ? 44 : 64}
-          />
-          <div />
         </div>
       )}
 
