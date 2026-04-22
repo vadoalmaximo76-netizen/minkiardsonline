@@ -34,6 +34,7 @@ export interface StoryWorldCollectible {
 export interface StoryWorld3DProps {
   playerRef: React.MutableRefObject<{ x: number; z: number }>;
   otherPlayersRef: React.MutableRefObject<Map<number, OtherPlayer>>;
+  selfUserId?: number;
   leaders: GymLeader[];
   arenaPositions: [number, number][];
   getLeaderStatus: (leader: GymLeader) => 'completed' | 'available' | 'locked';

@@ -132,7 +132,7 @@ function World3DScene(props: StoryWorld3DProps) {
         collectibles={props.visibleCollectibles}
         onClickCollectible={props.onClickCollectible}
       />
-      <OtherPlayers3D otherPlayersRef={props.otherPlayersRef} />
+      <OtherPlayers3D otherPlayersRef={props.otherPlayersRef} selfUserId={props.selfUserId} />
 
       {/* Local player — rendered at root scene level, no parent transform */}
       <PlayerMesh3D playerRef={props.playerRef} />

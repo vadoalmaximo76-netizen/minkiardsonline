@@ -1236,6 +1236,10 @@ export function StoryWorldMap({
   const [nearFootball, setNearFootball] = useState(false);
   const [showFootballMinigame, setShowFootballMinigame] = useState(false);
   const lastNearFootballRef = useRef(false);
+  const [nearStage13, setNearStage13] = useState(false);
+  const lastNearStage13Ref = useRef(false);
+  const [nearSecretRoom, setNearSecretRoom] = useState(false);
+  const lastNearSecretRoomRef = useRef(false);
 
   /* Keep ref in sync with state for game loop reads */
   useEffect(() => { localCollectedIdsRef.current = localCollectedIds; }, [localCollectedIds]);
@@ -2176,6 +2180,28 @@ export function StoryWorldMap({
         if (Math.abs(arcadeMinDist - lastNearArcadeDistRef.current) > 0.3) {
           lastNearArcadeDistRef.current = arcadeMinDist;
           setNearestArcadeDist(arcadeMinDist);
+        }
+
+        /* Stage 13 proximity (replaces canvas click) */
+        if (stage13StatusRef.current?.visibleStage) {
+          const [s13x, s13z] = STAGE13_WORLD_POS;
+          const s13dist = Math.sqrt((px - s13x) ** 2 + (pz - s13z) ** 2);
+          const isNearS13 = s13dist < 8;
+          if (isNearS13 !== lastNearStage13Ref.current) {
+            lastNearStage13Ref.current = isNearS13;
+            setNearStage13(isNearS13);
+          }
+        }
+
+        /* Secret Room proximity (replaces canvas click) */
+        if (allLeadersCompletedRef.current) {
+          const [srx, srz] = SECRET_ROOM_WORLD_POS;
+          const srdist = Math.sqrt((px - srx) ** 2 + (pz - srz) ** 2);
+          const isNearSR = srdist < 8;
+          if (isNearSR !== lastNearSecretRoomRef.current) {
+            lastNearSecretRoomRef.current = isNearSR;
+            setNearSecretRoom(isNearSR);
+          }
         }
       }
 
@@ -4325,6 +4351,7 @@ export function StoryWorldMap({
       <StoryWorld3D
         playerRef={playerRef}
         otherPlayersRef={otherPlayersRef}
+        selfUserId={userId}
         leaders={leaders}
         arenaPositions={arenaPositions}
         getLeaderStatus={getLeaderStatus}
@@ -4870,6 +4897,50 @@ export function StoryWorldMap({
           pointerEvents: 'none',
         }}>
           🎮 {minigameResult.gameName}: {minigameResult.pr > 0 ? `+${minigameResult.pr}` : minigameResult.pr} PR
+        </div>
+      )}
+
+      {/* Stage 13 proximity prompt */}
+      {nearStage13 && !showStage13ChallengeModal && !showHistoryPanel && (
+        <div style={{
+          position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(3,4,18,0.95)', border: '2px solid rgba(124,58,237,0.7)',
+          borderRadius: 14, padding: '12px 20px', display: 'flex', alignItems: 'center',
+          gap: 12, zIndex: 50, boxShadow: '0 0 20px rgba(124,58,237,0.3)',
+        }}>
+          <span style={{ fontSize: 26 }}>👑</span>
+          <div>
+            <div style={{ color: '#c084fc', fontWeight: 900, fontSize: 15 }}>Arena Stage 13</div>
+            <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>Sfida il boss umano!</div>
+          </div>
+          <button
+            onClick={() => { setShowStage13ChallengeModal(true); setStage13ChallengeSent(false); setStage13ChallengeError(null); }}
+            style={{ background: '#7c3aed', color: 'white', border: 'none', borderRadius: 10, padding: '8px 16px', fontWeight: 900, cursor: 'pointer', fontSize: 13 }}
+          >
+            Sfida
+          </button>
+        </div>
+      )}
+
+      {/* Secret Room proximity prompt */}
+      {nearSecretRoom && !showHistoryPanel && (
+        <div style={{
+          position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(3,4,18,0.95)', border: '2px solid rgba(251,191,36,0.7)',
+          borderRadius: 14, padding: '12px 20px', display: 'flex', alignItems: 'center',
+          gap: 12, zIndex: 50, boxShadow: '0 0 20px rgba(251,191,36,0.2)',
+        }}>
+          <span style={{ fontSize: 26 }}>🏆</span>
+          <div>
+            <div style={{ color: '#fbbf24', fontWeight: 900, fontSize: 15 }}>Stanza Segreta</div>
+            <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>Hai completato tutti i leader!</div>
+          </div>
+          <button
+            onClick={() => onOpenSecretRoom?.()}
+            style={{ background: '#d97706', color: 'white', border: 'none', borderRadius: 10, padding: '8px 16px', fontWeight: 900, cursor: 'pointer', fontSize: 13 }}
+          >
+            Entra
+          </button>
         </div>
       )}
 
