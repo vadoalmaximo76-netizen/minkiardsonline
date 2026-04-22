@@ -2282,11 +2282,10 @@ export function StoryWorldMap({
         }
       }
 
-      /* ── Draw ──────────────────────────────────────── */
+      /* ── Draw (skipped when canvas not in DOM) ─────── */
       const canvas = canvasRef.current;
-      if (!canvas) { raf = requestAnimationFrame(tick); return; }
-      const ctx = canvas.getContext('2d');
-      if (!ctx) { raf = requestAnimationFrame(tick); return; }
+      const ctx = canvas?.getContext('2d') ?? null;
+      if (canvas && ctx) {
 
       /* Always sync canvas buffer to container's actual CSS size */
       const cw = canvas.offsetWidth  || containerRef.current?.offsetWidth  || sizeRef.current.w;
@@ -4163,6 +4162,8 @@ export function StoryWorldMap({
         ctx.restore();
       });
 
+      } // end if (canvas && ctx) — draw block
+
       raf = requestAnimationFrame(tick);
     };
 
@@ -4320,12 +4321,6 @@ export function StoryWorldMap({
 
   return (
     <div ref={containerRef} style={{ position: 'relative', flex: 1, overflow: 'hidden', minHeight: 0 }}>
-      {/* Hidden canvas – keeps the game loop (movement, proximity, socket) running */}
-      <canvas
-        ref={canvasRef}
-        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: '100%', height: '100%' }}
-      />
-
       {/* 3D open-world layer */}
       <StoryWorld3D
         playerRef={playerRef}
