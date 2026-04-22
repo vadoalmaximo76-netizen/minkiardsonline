@@ -22549,12 +22549,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // Injured Personaggi: record injury for human player who lost this character (Story/Gym Mode only)
       if (game.isGymMode && (card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.playerUserIds) {
+        console.log(`🩹 [InjuryRecord] isGymMode=${game.isGymMode} cardOwner="${cardOwner}" playerUserIds keys=[${[...game.playerUserIds.keys()].join(', ')}]`);
         const ownerUserId = game.playerUserIds.get(cardOwner);
         if (ownerUserId) {
           // Base card ID = draftBaseId (if set) or the card's own id (e.g. "personaggi-5")
           const baseCardId = (card as any).draftBaseId || card.id;
           this.recordPersonaggioInjury(ownerUserId, baseCardId).catch(() => {});
-          console.log(`🩹 Personaggio injury recorded: userId=${ownerUserId} cardId=${baseCardId}`);
+          console.log(`🩹 [InjuryRecord] Injury recorded: userId=${ownerUserId} cardId=${baseCardId} cardOwner="${cardOwner}"`);
+        } else {
+          console.warn(`⚠️ [InjuryRecord] SKIP — no userId for player "${cardOwner}" in gym game ${gameId}. playerUserIds has ${game.playerUserIds.size} entries. isCPU=${game.players[cardOwner]?.isCPU}`);
         }
       }
 

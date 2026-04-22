@@ -61,6 +61,7 @@ export function InjuredPersonaggiDisclaimer({
 }: Props) {
   const [injured, setInjured] = useState<InjuredCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [reviving, setReviving] = useState<Set<string>>(new Set());
   const [localCredits, setLocalCredits] = useState(userCredits);
 
@@ -69,6 +70,7 @@ export function InjuredPersonaggiDisclaimer({
 
   const fetchInjured = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const res = await fetch('/api/injured-personaggi', {
         headers: { Authorization: `Bearer ${authToken}` },
@@ -85,8 +87,15 @@ export function InjuredPersonaggiDisclaimer({
           list = list.filter(c => relevantExact.has(c.cardId) || relevantBases.has(c.cardId));
         }
         setInjured(list);
+      } else {
+        // DB unavailable or other server error — do NOT silently bypass
+        setFetchError(data.error === 'db_unavailable'
+          ? 'Impossibile verificare lo stato degli infortuni, riprova tra poco.'
+          : (data.error || 'Errore nel recupero degli infortuni.'));
+        setInjured([]);
       }
     } catch {
+      setFetchError('Errore di rete. Impossibile verificare lo stato degli infortuni.');
       setInjured([]);
     } finally {
       setLoading(false);
@@ -101,13 +110,14 @@ export function InjuredPersonaggiDisclaimer({
     setLocalCredits(userCredits);
   }, [userCredits]);
 
-  // Auto-confirm (skip disclaimer) when there are no injured cards — called only once via ref guard
+  // Auto-confirm (skip disclaimer) ONLY when: fetch succeeded, loading done, and no injuries found.
+  // Never auto-confirm when a fetch error occurred.
   useEffect(() => {
-    if (!loading && injured.length === 0 && !confirmedRef.current) {
+    if (!loading && !fetchError && injured.length === 0 && !confirmedRef.current) {
       confirmedRef.current = true;
       onConfirm(relevantCardIds || []);
     }
-  }, [loading, injured.length, onConfirm, relevantCardIds]);
+  }, [loading, fetchError, injured.length, onConfirm, relevantCardIds]);
 
   const handleRevive = async (cardId: string) => {
     if (localCredits < REVIVE_COST) return;
@@ -159,6 +169,36 @@ export function InjuredPersonaggiDisclaimer({
         <div className="bg-gray-900 rounded-2xl p-8 flex items-center gap-3 text-white">
           <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           <span>Controllo infortuni...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+        <div className="bg-gray-900 border border-yellow-500/40 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden p-6">
+          <div className="flex items-start gap-3 mb-4">
+            <span className="text-3xl">⚠️</span>
+            <div>
+              <h2 className="text-white font-bold text-lg leading-tight">Controllo infortuni</h2>
+              <p className="text-yellow-300 text-sm mt-1 leading-relaxed">{fetchError}</p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              className="flex-1 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-white/80 font-semibold text-sm transition-all"
+            >
+              ← Indietro
+            </button>
+            <button
+              onClick={fetchInjured}
+              className="flex-1 py-3 rounded-xl bg-yellow-600 hover:bg-yellow-500 text-white font-bold text-sm transition-all"
+            >
+              Riprova
+            </button>
+          </div>
         </div>
       </div>
     );

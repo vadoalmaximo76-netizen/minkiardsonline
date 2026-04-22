@@ -2330,9 +2330,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('create-training-game', async ({ gameId, playerName, avatarId, userId, helpEnabled, isGymMode, isDailyChallenge, playerDeck, livesCount }) => {
       try {
         console.log(`Creating training game ${gameId} for ${playerName}${isGymMode ? ' [GYM MODE]' : ''}${isDailyChallenge ? ' [DAILY CHALLENGE]' : ''}`);
+
+        // Resolve the authoritative server-side userId.
+        // Prefer socket.data.userId (set by 'set-user-data' with server-validated JWT) over
+        // the client-provided userId, which could be spoofed. Fall back to the client value
+        // so unauthenticated or legacy clients continue to work.
+        const authoritativeUserId: number | undefined = (socket.data?.userId as number | undefined) || (userId ? Number(userId) : undefined);
+        console.log(`[create-training-game] userId resolution: socket.data.userId=${socket.data?.userId} clientUserId=${userId} → authoritative=${authoritativeUserId}`);
         
         // Create the game and add the player
-        const result = await gameManager.addPlayer(gameId, playerName, socket.id, false, userId);
+        const result = await gameManager.addPlayer(gameId, playerName, socket.id, false, authoritativeUserId);
         
         if (!result.success) {
           console.log(`Training game creation failed for ${playerName}: ${result.error}`);
@@ -2367,9 +2374,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           gameManager.setPlayerAvatar(gameId, playerName, avatarId);
         }
         
-        // Set user ID for tracking
-        if (userId) {
-          gameManager.setPlayerUserId(gameId, playerName, userId);
+        // Bind the authoritative userId for injury tracking and stats.
+        // This also covers the server-restart-recovery case: if the game was restored from DB
+        // and playerUserIds was cleared or not yet bound for this player, re-bind it now.
+        if (authoritativeUserId) {
+          gameManager.setPlayerUserId(gameId, playerName, authoritativeUserId);
+          console.log(`[create-training-game] Bound userId=${authoritativeUserId} for player "${playerName}" in game ${gameId}`);
+        } else {
+          console.warn(`[create-training-game] No validated userId available for "${playerName}" in game ${gameId} — injury tracking will not work for this session`);
         }
 
         if (helpEnabled) {
@@ -2385,10 +2397,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             let deckIds: string[] = Array.isArray(playerDeck) && playerDeck.length > 0 ? playerDeck : [];
             console.log(`🗂️ Gym mode: client sent ${Array.isArray(playerDeck) ? playerDeck.length : 0} card IDs for ${playerName}. IDs: ${Array.isArray(playerDeck) ? JSON.stringify(playerDeck) : 'none'}`);
             // Fallback: if client sent no deck, load from the user's story deck in DB
-            if (deckIds.length === 0 && userId && isDatabaseAvailable()) {
+            if (deckIds.length === 0 && authoritativeUserId && isDatabaseAvailable()) {
               try {
                 const storyRows = await db.select().from(userStoryDeck)
-                  .where(eq(userStoryDeck.userId, userId)).limit(1);
+                  .where(eq(userStoryDeck.userId, authoritativeUserId)).limit(1);
                 if (storyRows.length > 0 && Array.isArray(storyRows[0].cardIds) && (storyRows[0].cardIds as string[]).length > 0) {
                   deckIds = storyRows[0].cardIds as string[];
                   console.log(`🗂️ Gym mode: loaded story deck from DB for player ${playerName}: ${deckIds.length} cards. IDs: ${JSON.stringify(deckIds)}`);
@@ -2400,9 +2412,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (deckIds.length > 0) {
               const resolvedDeck = await gameManager.resolveCardIdsToDecks(deckIds);
               // Apply story character growth bonuses to personaggi cards
-              if (userId && isDatabaseAvailable()) {
+              if (authoritativeUserId && isDatabaseAvailable()) {
                 try {
-                  const growthRows = await db.select().from(storyCharacterGrowth).where(eq(storyCharacterGrowth.userId, userId));
+                  const growthRows = await db.select().from(storyCharacterGrowth).where(eq(storyCharacterGrowth.userId, authoritativeUserId));
                   const growthMap = new Map<string, { extraPti: number; extraStars: number }>();
                   for (const row of growthRows) {
                     growthMap.set(row.cardId, { extraPti: row.extraPti, extraStars: row.extraStars });
@@ -2443,7 +2455,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Daily challenge mode: inject seeded player deck without gym-mode side effects
         if (isDailyChallenge) {
           // Server-side eligibility: user must have an active (attempted but not yet submitted) session for today
-          const dcUserId = typeof userId === 'number' ? userId : null;
+          const dcUserId = authoritativeUserId ?? null;
           const today = getTodayDateString();
           let isEligible = false;
           if (dcUserId && isDatabaseAvailable()) {
@@ -15816,7 +15828,10 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
   // Returns all injured personaggi for the authenticated user, enriched with card display info
   app.get('/api/injured-personaggi', authMiddleware, async (req, res) => {
     try {
-      if (!isDatabaseAvailable()) return res.json({ success: true, injured: [] });
+      if (!isDatabaseAvailable()) {
+        console.warn('[injured-personaggi] DB non disponibile — restituisce errore al client');
+        return res.json({ success: false, error: 'db_unavailable' });
+      }
       const user = (req as any).user;
       if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
 
@@ -15840,9 +15855,12 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
           name = cc?.name || cardId;
           imageUrl = `/api/card-image/${customId}`;
         } else {
-          // Standard card: type-index format
+          // Standard card: type-index format (e.g. "personaggi-5", "personaggi-speciali-5")
           const parts = cardId.split('-');
-          const deckType = parts.slice(0, -1).join('-') as 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali';
+          // Join all parts except the last (the numeric index) to form the deck type key.
+          // Replace hyphens with underscores so "personaggi-speciali" maps to "personaggi_speciali".
+          const rawDeckType = parts.slice(0, -1).join('-');
+          const deckType = rawDeckType.replace(/-/g, '_') as 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali';
           const index = parseInt(parts[parts.length - 1], 10);
           const mod = modMap.get(cardId);
           if (mod?.name) {
