@@ -94,22 +94,18 @@ export const TABLE_THEMES: TableTheme[] = [
   },
 ];
 
+const DEFAULT_THEME = TABLE_THEMES[0];
+
 interface TableThemeStore {
   currentThemeId: string;
   setTheme: (themeId: string) => void;
   getCurrentTheme: () => TableTheme;
 }
 
-const useTableTheme = create<TableThemeStore>((set, get) => ({
-  currentThemeId: localStorage.getItem('minkiards_table_theme') || 'classic_wood',
-  setTheme: (themeId: string) => {
-    localStorage.setItem('minkiards_table_theme', themeId);
-    set({ currentThemeId: themeId });
-  },
-  getCurrentTheme: () => {
-    const { currentThemeId } = get();
-    return TABLE_THEMES.find(t => t.id === currentThemeId) || TABLE_THEMES[0];
-  },
+const useTableTheme = create<TableThemeStore>(() => ({
+  currentThemeId: DEFAULT_THEME.id,
+  setTheme: (_themeId: string) => {},
+  getCurrentTheme: () => DEFAULT_THEME,
 }));
 
 export default useTableTheme;

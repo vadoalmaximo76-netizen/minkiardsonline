@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Users, Search, Send, Check, Skull, Crown, UserPlus, Play, Bot, Shield, Shuffle, ChevronRight } from "lucide-react";
 import { socket } from "../lib/socket";
-import useTableTheme, { TABLE_THEMES } from "../lib/stores/useTableTheme";
 import { TITLE_MAP } from "../lib/titleConstants";
 
 interface PreGameLobbyPanelProps {
@@ -51,13 +50,6 @@ export const PreGameLobbyPanel: React.FC<PreGameLobbyPanelProps> = ({
   const [teamModeError, setTeamModeError] = useState<string | null>(null);
   const [playerTitles, setPlayerTitles] = useState<Record<string, string>>({});
 
-  const { currentThemeId, setTheme } = useTableTheme();
-
-  const handleThemeChange = (themeId: string) => {
-    setTheme(themeId);
-    socket.emit('set-room-theme', { gameId, themeId });
-  };
-
   useEffect(() => {
     const handleTeamModeUpdated = (data: { isTeamMode: boolean; teamSize?: 2 | 3; teams?: { teamA: string[]; teamB: string[] } | null }) => {
       setIsTeamMode(data.isTeamMode);
@@ -68,18 +60,13 @@ export const PreGameLobbyPanel: React.FC<PreGameLobbyPanelProps> = ({
     const handleTeamModeError = (data: { message: string }) => {
       setTeamModeError(data.message);
     };
-    const handleRoomThemeChanged = ({ themeId }: { themeId: string }) => {
-      setTheme(themeId);
-    };
     socket.on('team-mode-updated', handleTeamModeUpdated);
     socket.on('team-mode-error', handleTeamModeError);
-    socket.on('room-theme-changed', handleRoomThemeChanged);
     return () => {
       socket.off('team-mode-updated', handleTeamModeUpdated);
       socket.off('team-mode-error', handleTeamModeError);
-      socket.off('room-theme-changed', handleRoomThemeChanged);
     };
-  }, [setTheme]);
+  }, []);
 
   useEffect(() => {
     const humanPlayers = players.filter(p => !p.isCPU).map(p => p.name);
@@ -449,65 +436,6 @@ export const PreGameLobbyPanel: React.FC<PreGameLobbyPanelProps> = ({
                 ))}
               </div>
             )}
-          </div>
-        )}
-
-        {/* Table Theme Selector — creator only */}
-        {isCreator && (
-          <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg">🎨</span>
-              <span className="text-white/80 text-sm font-semibold">Tema Tavolo</span>
-            </div>
-            <div className="grid grid-cols-5 gap-2">
-              {TABLE_THEMES.map((theme) => {
-                const isSelected = currentThemeId === theme.id;
-                return (
-                  <button
-                    key={theme.id}
-                    onClick={() => handleThemeChange(theme.id)}
-                    title={theme.name}
-                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all ${
-                      isSelected
-                        ? 'border-indigo-400 bg-indigo-900/30 shadow-lg shadow-indigo-500/20 scale-105'
-                        : 'border-white/10 bg-white/5 hover:border-white/25 hover:bg-white/10'
-                    }`}
-                  >
-                    {/* Mini texture preview */}
-                    <div
-                      className="w-full h-8 rounded-lg overflow-hidden relative"
-                      style={{ background: theme.tableSurface }}
-                    >
-                      {theme.textureUrl && (
-                        <div
-                          className="absolute inset-0"
-                          style={{
-                            backgroundImage: `url('${theme.textureUrl}')`,
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
-                            opacity: 0.55,
-                          }}
-                        />
-                      )}
-                      <div
-                        className="absolute inset-0"
-                        style={{ background: theme.backgroundGradient, opacity: 0.4 }}
-                      />
-                    </div>
-                    <span className="text-base">{theme.emoji}</span>
-                    <span className="text-[10px] text-white/60 text-center leading-tight font-medium truncate w-full">
-                      {theme.name.split(' ')[0]}
-                    </span>
-                    {isSelected && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-white/30 text-[11px] mt-2 text-center">
-              Il tema selezionato verrà applicato a tutti i giocatori della stanza.
-            </p>
           </div>
         )}
 

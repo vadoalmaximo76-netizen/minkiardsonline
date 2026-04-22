@@ -70,8 +70,6 @@ import { RankiardLeaderboard } from "./RankiardLeaderboard";
 import StatsPanel from "./StatsPanel";
 import { ProfilePanel } from "./ProfilePanel";
 import { CollectionPanel } from "./CollectionPanel";
-import { TableThemeSelector } from "./TableThemeSelector";
-import useTableTheme from "../lib/stores/useTableTheme";
 import { EmojiReactions } from "./EmojiReactions";
 import { JoinRequestDialog } from "./JoinRequestDialog";
 import CardTrailParticles from "./CardTrailParticles";
@@ -90,7 +88,7 @@ import { socket } from "../lib/socket";
 import { getOptimizedUrl, onCloudNameReady, getCloudinaryCloudName } from "../lib/imagePreloader";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User, LogOut, Target, Trophy, SkipForward, ScrollText, Settings, MoreVertical, BookOpen, UserPlus, RotateCcw, PlusCircle, ChevronDown, Palette, BarChart2, Gift, Shield } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User, LogOut, Target, Trophy, SkipForward, ScrollText, Settings, MoreVertical, BookOpen, UserPlus, RotateCcw, PlusCircle, ChevronDown, BarChart2, Gift, Shield } from "lucide-react";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
@@ -142,7 +140,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [missionsOpen, setMissionsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
   const [collectionOpen, setCollectionOpen] = useState(false);
-  const [themeOpen, setThemeOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [gameLogOpen, setGameLogOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -3225,12 +3222,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         onClose={() => setCollectionOpen(false)}
       />
 
-      {/* Table Theme Selector */}
-      <TableThemeSelector
-        visible={themeOpen}
-        onClose={() => setThemeOpen(false)}
-      />
-
       {helpBanner.visible && (
         <div className="fixed top-2 left-1/2 -translate-x-1/2 z-[60] max-w-lg w-[calc(100%-2rem)] animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="bg-purple-900/90 backdrop-blur-md border border-purple-400/40 rounded-xl px-4 py-3 shadow-2xl flex items-start gap-3">
@@ -5126,10 +5117,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                           </button>
                         </>
                       )}
-                      <button onClick={() => { setThemeOpen(true); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
-                        <Palette size={16} className="text-violet-400 flex-shrink-0" />
-                        Tema Tavolo
-                      </button>
                       <button onClick={() => { setRankiardOpen(!rankiardOpen); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
                         <Star size={16} className="text-amber-400 flex-shrink-0" />
                         Rankiard
