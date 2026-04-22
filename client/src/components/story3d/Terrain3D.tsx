@@ -97,23 +97,29 @@ export function Terrain3D() {
 export function Roads3D({ roads }: { roads: StoryWorldRoadDatum[] }) {
   const asphaltTexture = useTexture('/textures/asphalt.png');
 
-  /* Pre-configure shared texture (RepeatWrapping, neutral repeat) */
-  useMemo(() => {
+  /* Pre-compute road data + per-road texture clone (once via useMemo) */
+  const roadData = useMemo(() => {
     asphaltTexture.wrapS = asphaltTexture.wrapT = THREE.RepeatWrapping;
-    asphaltTexture.repeat.set(1.5, 6);
     asphaltTexture.needsUpdate = true;
-  }, [asphaltTexture]);
 
-  /* Pre-compute road transforms once */
-  const roadData = useMemo(() => roads.map(r => {
-    const cx    = (r.x1 + r.x2) / 2;
-    const cz    = (r.z1 + r.z2) / 2;
-    const dx    = r.x2 - r.x1;
-    const dz    = r.z2 - r.z1;
-    const len   = Math.sqrt(dx * dx + dz * dz);
-    const angle = Math.atan2(dx, dz);
-    return { cx, cz, len, angle, w: r.w };
-  }), [roads]);
+    return roads.map(r => {
+      const cx    = (r.x1 + r.x2) / 2;
+      const cz    = (r.z1 + r.z2) / 2;
+      const dx    = r.x2 - r.x1;
+      const dz    = r.z2 - r.z1;
+      const len   = Math.sqrt(dx * dx + dz * dz);
+      const angle = Math.atan2(dx, dz);
+
+      /* Per-road texture clone — repeat scales with road length */
+      const tex = asphaltTexture.clone();
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(1, Math.max(1, len / (r.w * 1.2)));
+      tex.needsUpdate = true;
+
+      return { cx, cz, len, angle, w: r.w, tex };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roads]);
 
   if (roads.length === 0) return null;
 
@@ -122,7 +128,7 @@ export function Roads3D({ roads }: { roads: StoryWorldRoadDatum[] }) {
       {roadData.map((r, i) => (
         <mesh key={i} rotation={[-Math.PI / 2, 0, r.angle]} position={[r.cx, 0.07, r.cz]} receiveShadow>
           <planeGeometry args={[r.w, r.len]} />
-          <meshStandardMaterial map={asphaltTexture} roughness={0.95} metalness={0.02} color="#aaaaaa" />
+          <meshStandardMaterial map={r.tex} roughness={0.95} metalness={0.02} color="#aaaaaa" />
         </mesh>
       ))}
     </group>
