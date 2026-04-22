@@ -7,7 +7,7 @@
 
 import React, { useRef } from 'react';
 import { useFrame }       from '@react-three/fiber';
-import { EffectComposer, Bloom, ToneMapping } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, ToneMapping, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
 import { Terrain3D, Roads3D }              from './Terrain3D';
@@ -20,35 +20,82 @@ import { PlayerMesh3D, PlayerCamera3D }    from './Player3D';
 import { DayNight3D, NightStars3D }        from './DayNight3D';
 import type { StoryWorld3DProps }          from './types';
 
-/* ── Football field marker ────────────────────────────────────────── */
+/* ── Animated water plane for the lake zone ───────────────────── */
+function WaterPlane3D() {
+  const meshRef   = useRef<THREE.Mesh>(null);
+  const matRef    = useRef<THREE.MeshStandardMaterial>(null);
+  const timeRef   = useRef(0);
+
+  useFrame((_, delta) => {
+    timeRef.current += delta;
+    const t = timeRef.current;
+
+    if (meshRef.current) {
+      /* Gentle vertical bob */
+      meshRef.current.position.y = 0.32 + Math.sin(t * 0.7) * 0.05;
+    }
+    if (matRef.current) {
+      /* Shimmer: roughness + opacity pulse */
+      matRef.current.roughness = 0.08 + Math.sin(t * 1.3) * 0.06;
+      matRef.current.opacity   = 0.76 + Math.sin(t * 0.9 + 1.2) * 0.06;
+    }
+  });
+
+  return (
+    <mesh
+      ref={meshRef}
+      position={[-80, 0.32, 60]}
+      rotation={[-Math.PI / 2, 0, 0]}
+      receiveShadow
+    >
+      <planeGeometry args={[48, 48, 10, 10]} />
+      <meshStandardMaterial
+        ref={matRef}
+        color="#1a6ab8"
+        transparent
+        opacity={0.78}
+        roughness={0.08}
+        metalness={0.55}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
+  );
+}
+
+/* ── Football field ───────────────────────────────────────────── */
 function FootballField3D() {
   return (
-    <group position={[-45, 0.05, -145]}>
+    <group position={[-45, 0.06, -145]}>
       {/* Pitch */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[18, 12]} />
-        <meshLambertMaterial color="#1e7a1e" />
+        <meshStandardMaterial color="#1e7a1e" roughness={0.92} metalness={0.0} />
       </mesh>
       {/* Centre circle */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
-        <ringGeometry args={[2.4, 2.6, 32]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.5} />
+        <ringGeometry args={[2.4, 2.6, 36]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.55} />
+      </mesh>
+      {/* Halfway line */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
+        <planeGeometry args={[0.12, 12]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.55} />
       </mesh>
       {/* Goal posts left */}
-      <mesh position={[-9.2, 1.2, 0]}>
-        <boxGeometry args={[0.2, 2.4, 5.6]} />
-        <meshLambertMaterial color="#dddddd" wireframe />
+      <mesh position={[-9.2, 1.2, 0]} castShadow>
+        <boxGeometry args={[0.18, 2.4, 5.6]} />
+        <meshStandardMaterial color="#dddddd" roughness={0.5} metalness={0.4} wireframe />
       </mesh>
       {/* Goal posts right */}
-      <mesh position={[9.2, 1.2, 0]}>
-        <boxGeometry args={[0.2, 2.4, 5.6]} />
-        <meshLambertMaterial color="#dddddd" wireframe />
+      <mesh position={[9.2, 1.2, 0]} castShadow>
+        <boxGeometry args={[0.18, 2.4, 5.6]} />
+        <meshStandardMaterial color="#dddddd" roughness={0.5} metalness={0.4} wireframe />
       </mesh>
     </group>
   );
 }
 
-/* ── Pulsing arcade point lights ──────────────────────────────────── */
+/* ── Pulsing arcade point lights ──────────────────────────────── */
 const ARCADE_LIGHTS_CFG = [
   { x:  22, z:  160, color: '#a855f7' },
   { x: -58, z:   85, color: '#818cf8' },
@@ -64,7 +111,7 @@ function ArcadeLights3D() {
   useFrame((_, delta) => {
     time.current += delta;
     refs.current.forEach((l, i) => {
-      if (l) l.intensity = 1.5 + Math.sin(time.current * 2 + i) * 0.8;
+      if (l) l.intensity = 1.8 + Math.sin(time.current * 2.2 + i) * 1.0;
     });
   });
   return (
@@ -75,17 +122,16 @@ function ArcadeLights3D() {
           ref={(el: THREE.PointLight | null) => { refs.current[i] = el; }}
           position={[a.x, 5, a.z]}
           color={a.color}
-          intensity={1.5}
-          distance={18}
+          intensity={1.8}
+          distance={20}
         />
       ))}
     </group>
   );
 }
 
-/* ── Main scene graph ─────────────────────────────────────────────── */
+/* ── Main scene graph ─────────────────────────────────────────── */
 export function World3DScene(props: StoryWorld3DProps) {
-  /* shared clock ref — starts at real-world time, advances each frame */
   const dayTimeRef = useRef<number>(
     (() => {
       const h = new Date().getHours() + new Date().getMinutes() / 60;
@@ -102,6 +148,7 @@ export function World3DScene(props: StoryWorld3DProps) {
 
       <Terrain3D />
       <Roads3D roads={roadData} />
+      <WaterPlane3D />
       <Buildings3D buildings={props.buildingData} />
       <Trees3D trees={props.treeData} />
       <FootballField3D />
@@ -123,7 +170,7 @@ export function World3DScene(props: StoryWorld3DProps) {
         selfUserId={props.selfUserId}
       />
 
-      {/* Local player — absolute world position, no transform-bearing parent */}
+      {/* Local player */}
       <PlayerMesh3D playerRef={props.playerRef} />
       <PlayerCamera3D
         playerRef={props.playerRef}
@@ -131,9 +178,18 @@ export function World3DScene(props: StoryWorld3DProps) {
         mobileCamRotateRef={props.mobileCamRotateRef}
       />
 
-      {/* Post-processing */}
+      {/* Post-processing — PS2-style cinematic */}
       <EffectComposer>
-        <Bloom luminanceThreshold={0.6} luminanceSmoothing={0.9} intensity={0.4} />
+        <Bloom
+          luminanceThreshold={0.55}
+          luminanceSmoothing={0.85}
+          intensity={0.75}
+        />
+        <Vignette
+          offset={0.28}
+          darkness={0.52}
+          eskil={false}
+        />
         <ToneMapping />
       </EffectComposer>
     </>

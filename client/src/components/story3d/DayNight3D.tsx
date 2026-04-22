@@ -14,19 +14,18 @@ export function DayNight3D({
 }: {
   dayTimeRef: React.MutableRefObject<number>;
 }) {
-  const { scene }   = useThree();
-  const sunRef      = useRef<THREE.DirectionalLight>(null);
-  const ambientRef  = useRef<THREE.AmbientLight>(null);
-  const hemiRef     = useRef<THREE.HemisphereLight>(null);
+  const { scene }  = useThree();
+  const sunRef     = useRef<THREE.DirectionalLight>(null);
+  const ambientRef = useRef<THREE.AmbientLight>(null);
+  const hemiRef    = useRef<THREE.HemisphereLight>(null);
 
   useEffect(() => {
-    scene.fog        = new THREE.Fog('#b8d8f0', 60, 220);
+    scene.fog        = new THREE.Fog('#b8d8f0', 70, 260);
     scene.background = new THREE.Color('#87ceeb');
     return () => { scene.fog = null; };
   }, [scene]);
 
   useFrame((_, delta) => {
-    /* advance the clock — 1 full cycle every 8 minutes */
     dayTimeRef.current = (dayTimeRef.current + delta / 480) % 1;
 
     const t          = dayTimeRef.current * Math.PI * 2;
@@ -34,29 +33,25 @@ export function DayNight3D({
     const brightness = Math.max(0, sinT);
     const isDark     = dayTimeRef.current > 0.75 || dayTimeRef.current < 0.2;
 
-    /* Sun position + intensity */
     if (sunRef.current) {
       sunRef.current.position.set(
-        Math.sin(t) * 100,
-        Math.max(5, Math.cos(t) * 80 + 20),
-        Math.cos(t) * 60,
+        Math.sin(t) * 120,
+        Math.max(8, Math.cos(t) * 90 + 30),
+        Math.cos(t) * 80,
       );
-      sunRef.current.intensity = isDark ? 0.08 : 0.4 + brightness * 1.2;
+      sunRef.current.intensity = isDark ? 0.06 : 0.5 + brightness * 1.4;
       (sunRef.current.color as THREE.Color).set(isDark ? '#aabbff' : '#fff8e0');
     }
 
-    /* Ambient */
     if (ambientRef.current) {
-      ambientRef.current.intensity = isDark ? 0.12 : 0.35;
+      ambientRef.current.intensity = isDark ? 0.10 : 0.38;
       (ambientRef.current.color as THREE.Color).set(isDark ? '#2233aa' : '#ffffff');
     }
 
-    /* Hemisphere */
     if (hemiRef.current) {
-      hemiRef.current.intensity = isDark ? 0.15 : 0.4;
+      hemiRef.current.intensity = isDark ? 0.12 : 0.45;
     }
 
-    /* Fog + background */
     if (scene.fog instanceof THREE.Fog) {
       (scene.fog.color as THREE.Color).set(isDark ? '#050a1a' : '#b8d8f0');
     }
@@ -67,24 +62,34 @@ export function DayNight3D({
 
   return (
     <>
-      <ambientLight ref={ambientRef} intensity={0.35} color="#ffffff" />
+      <ambientLight ref={ambientRef} intensity={0.38} color="#ffffff" />
       <directionalLight
         ref={sunRef}
-        intensity={1.5}
+        intensity={1.6}
         color="#fff8e0"
-        position={[80, 80, 60]}
+        position={[100, 100, 80]}
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+        shadow-camera-near={1}
+        shadow-camera-far={350}
+        shadow-camera-left={-130}
+        shadow-camera-right={130}
+        shadow-camera-top={130}
+        shadow-camera-bottom={-130}
+        shadow-bias={-0.0005}
       />
       <hemisphereLight
         ref={hemiRef}
         color="#87ceeb"
         groundColor="#2d5a1a"
-        intensity={0.4}
+        intensity={0.45}
       />
     </>
   );
 }
 
-/* ── Night Stars — shown/hidden via group.visible (no state) ──── */
+/* ── Night Stars ──────────────────────────────────────────────── */
 export function NightStars3D({
   dayTimeRef,
 }: {
@@ -100,7 +105,7 @@ export function NightStars3D({
 
   return (
     <group ref={groupRef}>
-      <Stars radius={200} depth={60} count={2000} factor={4} fade />
+      <Stars radius={220} depth={70} count={2500} factor={4.5} fade />
     </group>
   );
 }

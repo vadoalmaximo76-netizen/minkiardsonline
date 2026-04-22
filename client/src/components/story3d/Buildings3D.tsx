@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { useTexture } from '@react-three/drei';
+import * as THREE from 'three';
 import type { BuildingType, StoryWorldBuildingDatum } from './types';
 
 const BODY_HEIGHT: Record<BuildingType, number> = {
@@ -6,67 +8,134 @@ const BODY_HEIGHT: Record<BuildingType, number> = {
   church: 7, arcade: 4, farm: 3, barn: 5,
 };
 const BODY_COLOR: Record<BuildingType, string> = {
-  house: '#c8a87a', shop: '#b8d4f0', inn: '#d4c88a', tower: '#9a9a9a',
-  ruin: '#7a7060', church: '#f0e8d0', arcade: '#2d1a4e', farm: '#d4b878', barn: '#c87840',
+  house: '#d4b88a', shop: '#c8e0f8', inn: '#e0d490', tower: '#b0b0b0',
+  ruin: '#8a8070', church: '#f5f0e0', arcade: '#3d2a6e', farm: '#ddc090', barn: '#d08050',
 };
 const ROOF_COLOR: Record<BuildingType, string> = {
-  house: '#8b5e3c', shop: '#4a80c0', inn: '#8b6020', tower: '#444444',
-  ruin: '#4a4030', church: '#c04040', arcade: '#7c3aed', farm: '#8b5a1a', barn: '#6b2a10',
+  house: '#8b5e3c', shop: '#4a80c0', inn: '#8b6020', tower: '#505050',
+  ruin: '#5a5040', church: '#c04040', arcade: '#7c3aed', farm: '#8b5a1a', barn: '#7b3a10',
 };
 
+const WIN_GLOW = '#ffeebb';
+
+/* ── Buildings container — loads shared wood texture ─────────── */
 export function Buildings3D({ buildings }: { buildings: StoryWorldBuildingDatum[] }) {
+  const woodMap = useTexture('/textures/wood.jpg');
+
+  useMemo(() => {
+    woodMap.wrapS = woodMap.wrapT = THREE.RepeatWrapping;
+    woodMap.repeat.set(2, 2.5);
+    woodMap.needsUpdate = true;
+  }, [woodMap]);
+
   return (
     <group>
       {buildings.map((b, i) => {
         const bh = BODY_HEIGHT[b.type];
         const bw = b.w;
         const bd = b.h;
-        const isRuin = b.type === 'ruin';
+        const isRuin   = b.type === 'ruin';
+        const isTower  = b.type === 'tower';
+        const isChurch = b.type === 'church';
+        const isArcade = b.type === 'arcade';
+        const winCountX = Math.max(1, Math.floor(bw / 2.2));
+        const winY      = bh * 0.55;
 
         return (
           <group key={i} position={[b.x, 0, b.z]}>
-            {/* Body */}
-            <mesh position={[0, bh / 2, 0]}>
+            {/* ── Body ─────────────────────────────────────────── */}
+            <mesh position={[0, bh / 2, 0]} castShadow receiveShadow>
               <boxGeometry args={[bw, bh, bd]} />
-              <meshLambertMaterial color={BODY_COLOR[b.type]} />
+              <meshStandardMaterial
+                map={woodMap}
+                color={BODY_COLOR[b.type]}
+                roughness={0.82}
+                metalness={0.02}
+              />
             </mesh>
 
-            {/* Roof pyramid */}
+            {/* ── Windows (front) ──────────────────────────────── */}
+            {!isRuin && !isTower && Array.from({ length: winCountX }).map((_, wi) => {
+              const spacing = bw / (winCountX + 1);
+              const wx = -bw / 2 + spacing * (wi + 1);
+              return (
+                <mesh key={wi} position={[wx, winY, bd / 2 + 0.04]}>
+                  <boxGeometry args={[0.50, 0.60, 0.06]} />
+                  <meshStandardMaterial
+                    color="#1a2840"
+                    emissive={WIN_GLOW}
+                    emissiveIntensity={0.5}
+                    roughness={0.1}
+                    metalness={0.3}
+                  />
+                </mesh>
+              );
+            })}
+
+            {/* ── Cornice ledge ────────────────────────────────── */}
             {!isRuin && (
-              <mesh position={[0, bh + 0.8, 0]}>
-                <coneGeometry args={[Math.max(bw, bd) * 0.72, 1.6, 4]} />
-                <meshLambertMaterial color={ROOF_COLOR[b.type]} />
+              <mesh position={[0, bh + 0.07, 0]}>
+                <boxGeometry args={[bw + 0.28, 0.16, bd + 0.28]} />
+                <meshStandardMaterial color="#888888" roughness={0.7} metalness={0.1} />
               </mesh>
             )}
 
-            {/* Church cross */}
-            {b.type === 'church' && (
+            {/* ── Roof pyramid ─────────────────────────────────── */}
+            {!isRuin && !isTower && (
+              <mesh position={[0, bh + 0.9, 0]}>
+                <coneGeometry args={[Math.max(bw, bd) * 0.75, 1.8, 4]} />
+                <meshStandardMaterial color={ROOF_COLOR[b.type]} roughness={0.75} metalness={0.0} />
+              </mesh>
+            )}
+
+            {/* ── Church cross ─────────────────────────────────── */}
+            {isChurch && (
               <>
-                <mesh position={[0, bh + 2.2, 0]}>
-                  <boxGeometry args={[0.15, 1.5, 0.15]} />
-                  <meshLambertMaterial color="#ffffff" />
+                <mesh position={[0, bh + 2.3, 0]}>
+                  <boxGeometry args={[0.14, 1.6, 0.14]} />
+                  <meshStandardMaterial color="#f0f0f0" roughness={0.6} metalness={0.1} />
                 </mesh>
-                <mesh position={[0, bh + 2.7, 0]}>
-                  <boxGeometry args={[0.6, 0.15, 0.15]} />
-                  <meshLambertMaterial color="#ffffff" />
+                <mesh position={[0, bh + 2.8, 0]}>
+                  <boxGeometry args={[0.62, 0.14, 0.14]} />
+                  <meshStandardMaterial color="#f0f0f0" roughness={0.6} metalness={0.1} />
                 </mesh>
               </>
             )}
 
-            {/* Tower battlements */}
-            {b.type === 'tower' && (
-              <mesh position={[0, bh + 0.3, 0]}>
-                <boxGeometry args={[bw + 0.2, 0.6, bd + 0.2]} />
-                <meshLambertMaterial color="#555555" />
-              </mesh>
+            {/* ── Tower battlements ────────────────────────────── */}
+            {isTower && (
+              <>
+                <mesh position={[0, bh + 0.35, 0]}>
+                  <boxGeometry args={[bw + 0.3, 0.7, bd + 0.3]} />
+                  <meshStandardMaterial color="#606060" roughness={0.8} metalness={0.05} />
+                </mesh>
+                {([-1, 1] as const).map(side => (
+                  <mesh key={side} position={[side * bw * 0.35, bh * 0.6, bd / 2 + 0.04]}>
+                    <boxGeometry args={[0.18, 0.9, 0.06]} />
+                    <meshStandardMaterial color="#222233" roughness={0.9} />
+                  </mesh>
+                ))}
+              </>
             )}
 
-            {/* Arcade glow sign */}
-            {b.type === 'arcade' && (
-              <mesh position={[0, bh + 0.1, bd / 2 + 0.05]}>
-                <planeGeometry args={[bw * 0.7, 0.5]} />
-                <meshBasicMaterial color="#a855f7" />
-              </mesh>
+            {/* ── Arcade neon sign ─────────────────────────────── */}
+            {isArcade && (
+              <>
+                <mesh position={[0, bh + 0.2, bd / 2 + 0.06]}>
+                  <planeGeometry args={[bw * 0.75, 0.65]} />
+                  <meshStandardMaterial
+                    color="#a855f7"
+                    emissive="#a855f7"
+                    emissiveIntensity={1.6}
+                    roughness={0.2}
+                    metalness={0.1}
+                  />
+                </mesh>
+                <mesh position={[0, bh + 0.2, bd / 2 + 0.03]}>
+                  <boxGeometry args={[bw * 0.78, 0.72, 0.04]} />
+                  <meshStandardMaterial color="#2d1a4e" roughness={0.6} metalness={0.4} />
+                </mesh>
+              </>
             )}
           </group>
         );

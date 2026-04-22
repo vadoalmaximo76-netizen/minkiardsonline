@@ -4,25 +4,20 @@
  * Architecture:
  *   StoryWorldMap (parent) ──► StoryWorld3D (Canvas)
  *                                 └── World3DScene (World3DScene.tsx)
- *                                       ├── DayNight3D   (lighting + sky)
- *                                       ├── Terrain3D    (heightmap + biome colours)
- *                                       ├── Roads3D      (asphalt strips)
- *                                       ├── Buildings3D  (instanced city blocks)
- *                                       ├── Trees3D      (instanced foliage)
- *                                       ├── Arenas3D     (gym leader portals)
- *                                       ├── Collectibles3D (coins & cards, proximity pickup)
- *                                       ├── OtherPlayers3D (online avatars)
- *                                       ├── PlayerMesh3D   (local character)
- *                                       ├── PlayerCamera3D (third-person follow)
+ *                                       ├── DayNight3D   (PBR lighting + sky + shadows)
+ *                                       ├── Terrain3D    (128×128 heightmap + biome tint + grass tex)
+ *                                       ├── Roads3D      (asphalt texture strips)
+ *                                       ├── Buildings3D  (wood texture + windows + cornices)
+ *                                       ├── Trees3D      (3-layer instanced foliage)
+ *                                       ├── WaterPlane3D (animated lake surface)
+ *                                       ├── Arenas3D     (columns + energy rings + gem)
+ *                                       ├── Collectibles3D (PBR coins & cards)
+ *                                       ├── OtherPlayers3D
+ *                                       ├── PlayerMesh3D   (PS2-style humanoid with arms)
+ *                                       ├── PlayerCamera3D
  *                                       ├── FootballField3D
  *                                       ├── ArcadeLights3D
- *                                       └── EffectComposer (Bloom + ToneMapping)
- *
- * Game-loop logic (WASD movement, collision, socket, proximity detection)
- * lives in StoryWorldMap.tsx via requestAnimationFrame.  StoryWorld3D reads
- * the shared playerRef every Three.js frame — no duplicate loop.
- * cameraYawRef is written by PlayerCamera3D so the RAF tick can apply
- * camera-relative movement direction.
+ *                                       └── EffectComposer (Bloom + Vignette + ChromaticAberration)
  */
 
 import React from 'react';
@@ -40,12 +35,13 @@ export type {
 
 import type { StoryWorld3DProps } from './types';
 
-/* ── Canvas entry point ───────────────────────────────────────────── */
+/* ── Canvas entry point ───────────────────────────────────────── */
 export function StoryWorld3D(props: StoryWorld3DProps) {
   return (
     <Canvas
       style={{ position: 'absolute', inset: 0 }}
       dpr={[1, 1.5]}
+      shadows
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       camera={{ position: [0, 18, 30], fov: 55, near: 0.5, far: 500 }}
     >

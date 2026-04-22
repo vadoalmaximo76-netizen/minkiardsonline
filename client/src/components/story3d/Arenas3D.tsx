@@ -10,7 +10,15 @@ const ARENA_COLORS = [
   '#795548','#4caf50',
 ];
 
-/* ── Single arena with a correct spotlight light-column ──────────── */
+/* Column positions around the arena centre */
+const COL_OFFSETS: [number, number][] = [
+  [ 2.1,  2.1],
+  [-2.1,  2.1],
+  [ 2.1, -2.1],
+  [-2.1, -2.1],
+];
+
+/* ── Single arena ─────────────────────────────────────────────── */
 function ArenaItem({
   leader, ax, az, color, status, index, onChallengeLeader,
 }: {
@@ -21,16 +29,23 @@ function ArenaItem({
   index: number;
   onChallengeLeader: (l: GymLeader) => void;
 }) {
-  const { scene }   = useThree();
-  const spotRef     = useRef<THREE.SpotLight>(null);
-  const gemRef      = useRef<THREE.Group>(null);
-  const time        = useRef(0);
+  const { scene }  = useThree();
+  const spotRef    = useRef<THREE.SpotLight>(null);
+  const gemRef     = useRef<THREE.Group>(null);
+  const ring1Ref   = useRef<THREE.Mesh>(null);
+  const ring2Ref   = useRef<THREE.Mesh>(null);
+  const ring3Ref   = useRef<THREE.Mesh>(null);
+  const col1Ref    = useRef<THREE.Mesh>(null);
+  const col2Ref    = useRef<THREE.Mesh>(null);
+  const col3Ref    = useRef<THREE.Mesh>(null);
+  const col4Ref    = useRef<THREE.Mesh>(null);
+  const timeRef    = useRef(0);
 
   const isLocked    = status === 'locked';
   const isCompleted = status === 'completed';
   const leaderName  = leader.name ?? `Leader ${index + 1}`;
+  const colRefs     = [col1Ref, col2Ref, col3Ref, col4Ref];
 
-  /* Attach spotlight target — imperative: create Object3D, add to scene */
   React.useEffect(() => {
     if (status !== 'available') return;
     const target = new THREE.Object3D();
@@ -42,12 +57,33 @@ function ArenaItem({
   }, [status]);
 
   useFrame((_, delta) => {
-    time.current += delta;
+    timeRef.current += delta;
+    const t = timeRef.current;
+
+    /* ── Gem float + rotate ── */
     if (gemRef.current && status === 'available') {
-      gemRef.current.rotation.y = time.current * 0.6;
-      gemRef.current.position.y = 4.9 + Math.sin(time.current * 1.5 + index) * 0.15;
+      gemRef.current.rotation.y = t * 0.7;
+      gemRef.current.position.y = 6.0 + Math.sin(t * 1.5 + index) * 0.22;
+    }
+
+    /* ── Energy rings ── */
+    if (ring1Ref.current) ring1Ref.current.rotation.y = t * 0.9;
+    if (ring2Ref.current) ring2Ref.current.rotation.z = t * 1.2;
+    if (ring3Ref.current) ring3Ref.current.rotation.x = t * 0.7;
+
+    /* ── Column pulse (available only) ── */
+    if (status === 'available') {
+      colRefs.forEach((r, ci) => {
+        if (!r.current) return;
+        const mat = r.current.material as THREE.MeshStandardMaterial;
+        mat.emissiveIntensity = 0.28 + Math.sin(t * 2.2 + ci * 0.6) * 0.18;
+      });
     }
   });
+
+  const arenaColor   = isLocked ? '#334455' : color;
+  const lockedGrey   = '#2a2a3a';
+  const platformCol  = isLocked ? lockedGrey : color;
 
   return (
     <group
@@ -57,65 +93,152 @@ function ArenaItem({
         if (!isLocked) onChallengeLeader(leader);
       }}
     >
-      {/* Platform */}
-      <mesh position={[0, 0.15, 0]}>
-        <cylinderGeometry args={[3.5, 4, 0.3, 16]} />
-        <meshLambertMaterial color={isLocked ? '#333344' : color} />
+      {/* ── Base platform (wide step) ───────────────────────────── */}
+      <mesh position={[0, 0.12, 0]} receiveShadow>
+        <cylinderGeometry args={[4.2, 4.6, 0.24, 20]} />
+        <meshStandardMaterial color={isLocked ? '#242435' : color} roughness={0.6} metalness={0.25} />
       </mesh>
 
-      {/* Steps */}
-      <mesh position={[0, 0.35, 0]}>
-        <cylinderGeometry args={[3, 3.5, 0.4, 16]} />
-        <meshLambertMaterial color={isLocked ? '#222233' : color} />
+      {/* ── Mid step ─────────────────────────────────────────────── */}
+      <mesh position={[0, 0.36, 0]}>
+        <cylinderGeometry args={[3.5, 4.2, 0.24, 20]} />
+        <meshStandardMaterial color={isLocked ? '#2a2a3c' : color} roughness={0.55} metalness={0.3} />
       </mesh>
 
-      {/* Crystal pillar */}
-      <mesh position={[0, 2.5, 0]}>
-        <cylinderGeometry args={[0.6, 0.8, 4.5, 8]} />
-        <meshLambertMaterial
-          color={isLocked ? '#224466' : color}
-          emissive={isCompleted ? '#ffffff' : isLocked ? '#000000' : color}
-          emissiveIntensity={isCompleted ? 0.3 : isLocked ? 0 : 0.4}
+      {/* ── Top platform ─────────────────────────────────────────── */}
+      <mesh position={[0, 0.60, 0]} receiveShadow castShadow>
+        <cylinderGeometry args={[3.0, 3.5, 0.24, 20]} />
+        <meshStandardMaterial color={isLocked ? '#303044' : color} roughness={0.5} metalness={0.35} />
+      </mesh>
+
+      {/* ── Central glowing floor disc ───────────────────────────── */}
+      <mesh position={[0, 0.74, 0]}>
+        <cylinderGeometry args={[2.0, 2.0, 0.04, 20]} />
+        <meshStandardMaterial
+          color={arenaColor}
+          emissive={arenaColor}
+          emissiveIntensity={isLocked ? 0 : 0.5}
+          roughness={0.2}
+          metalness={0.6}
         />
       </mesh>
 
-      {/* Gem (animated when available) */}
-      <group ref={gemRef} position={[0, 4.9, 0]}>
-        <mesh>
-          <octahedronGeometry args={[0.8]} />
-          <meshLambertMaterial
+      {/* ── 4 Angular columns ────────────────────────────────────── */}
+      {COL_OFFSETS.map(([cx, cz], ci) => {
+        const refs = [col1Ref, col2Ref, col3Ref, col4Ref];
+        return (
+          <mesh
+            key={ci}
+            ref={refs[ci]}
+            position={[cx, 2.8, cz]}
+            castShadow
+          >
+            <cylinderGeometry args={[0.28, 0.34, 5.2, 8]} />
+            <meshStandardMaterial
+              color={isLocked ? '#224455' : color}
+              emissive={isLocked ? '#000000' : color}
+              emissiveIntensity={isLocked ? 0 : 0.28}
+              roughness={0.35}
+              metalness={0.55}
+            />
+          </mesh>
+        );
+      })}
+
+      {/* ── Energy rings (3 tori around pillar) ──────────────────── */}
+      <mesh ref={ring1Ref} position={[0, 2.5, 0]}>
+        <torusGeometry args={[1.5, 0.08, 8, 32]} />
+        <meshStandardMaterial
+          color={arenaColor}
+          emissive={arenaColor}
+          emissiveIntensity={isLocked ? 0 : 1.4}
+          roughness={0.1}
+          metalness={0.7}
+        />
+      </mesh>
+      <mesh ref={ring2Ref} position={[0, 3.8, 0]}>
+        <torusGeometry args={[1.2, 0.07, 8, 28]} />
+        <meshStandardMaterial
+          color={arenaColor}
+          emissive={arenaColor}
+          emissiveIntensity={isLocked ? 0 : 1.2}
+          roughness={0.1}
+          metalness={0.7}
+        />
+      </mesh>
+      <mesh ref={ring3Ref} position={[0, 5.1, 0]}>
+        <torusGeometry args={[0.9, 0.06, 7, 24]} />
+        <meshStandardMaterial
+          color={arenaColor}
+          emissive={arenaColor}
+          emissiveIntensity={isLocked ? 0 : 1.0}
+          roughness={0.1}
+          metalness={0.7}
+        />
+      </mesh>
+
+      {/* ── Central crystal gem ──────────────────────────────────── */}
+      <group ref={gemRef} position={[0, 6.0, 0]}>
+        <mesh castShadow>
+          <octahedronGeometry args={[1.1]} />
+          <meshStandardMaterial
             color={isCompleted ? '#ffffff' : isLocked ? '#334455' : color}
             emissive={isCompleted ? '#aaffaa' : isLocked ? '#000000' : color}
-            emissiveIntensity={isCompleted ? 0.8 : isLocked ? 0 : 0.9}
+            emissiveIntensity={isCompleted ? 1.0 : isLocked ? 0 : 1.2}
+            roughness={0.05}
+            metalness={0.8}
+            transparent={!isLocked}
+            opacity={isLocked ? 1 : 0.88}
           />
         </mesh>
+        {/* Inner glow core */}
+        {!isLocked && (
+          <mesh scale={[0.55, 0.55, 0.55]}>
+            <octahedronGeometry args={[1.1]} />
+            <meshStandardMaterial
+              color={color}
+              emissive={color}
+              emissiveIntensity={2.0}
+              roughness={0.0}
+              metalness={1.0}
+              transparent
+              opacity={0.5}
+            />
+          </mesh>
+        )}
       </group>
 
-      {/* Completion ring */}
+      {/* ── Completion ring ──────────────────────────────────────── */}
       {isCompleted && (
-        <mesh position={[0, 0.25, 0]}>
-          <torusGeometry args={[3.8, 0.15, 8, 32]} />
-          <meshBasicMaterial color="#4ade80" />
+        <mesh position={[0, 0.28, 0]}>
+          <torusGeometry args={[4.0, 0.18, 8, 36]} />
+          <meshStandardMaterial
+            color="#4ade80"
+            emissive="#4ade80"
+            emissiveIntensity={0.9}
+            roughness={0.2}
+            metalness={0.5}
+          />
         </mesh>
       )}
 
-      {/* Leader name label */}
+      {/* ── Leader name label ─────────────────────────────────────── */}
       <Text
-        position={[0, 6.6, 0]}
-        fontSize={0.55}
+        position={[0, 8.2, 0]}
+        fontSize={0.58}
         color={isLocked ? '#8899aa' : '#ffffff'}
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.06}
+        outlineWidth={0.07}
         outlineColor="#000000"
       >
         {isLocked ? '🔒' : leaderName}
       </Text>
 
-      {/* Stage / status label */}
+      {/* ── Stage / status label ─────────────────────────────────── */}
       <Text
-        position={[0, 7.3, 0]}
-        fontSize={0.38}
+        position={[0, 9.0, 0]}
+        fontSize={0.40}
         color={isLocked ? '#556677' : color}
         anchorX="center"
         anchorY="middle"
@@ -125,21 +248,18 @@ function ArenaItem({
         {isCompleted ? '✅ Completato' : `Stage ${index + 1}`}
       </Text>
 
-      {/* Spotlight light-column for available arenas — correct R3F target pattern */}
+      {/* ── Spotlight column (available arenas) ──────────────────── */}
       {status === 'available' && (
         <>
-          {/* Bright point at gem level */}
-          <pointLight position={[0, 6, 0]} color={color} intensity={3} distance={16} />
-
-          {/* Spotlight aimed from above at the platform centre — target set imperatively via useEffect */}
+          <pointLight position={[0, 7, 0]} color={color} intensity={4} distance={18} />
           <spotLight
             ref={spotRef}
-            position={[0, 22, 0]}
+            position={[0, 26, 0]}
             color={color}
-            intensity={10}
-            distance={28}
-            angle={0.2}
-            penumbra={0.45}
+            intensity={14}
+            distance={32}
+            angle={0.22}
+            penumbra={0.5}
             castShadow={false}
           />
         </>
@@ -148,7 +268,7 @@ function ArenaItem({
   );
 }
 
-/* ── Arenas container ──────────────────────────────────────────────── */
+/* ── Arenas container ──────────────────────────────────────────── */
 export function Arenas3D({
   arenaPositions, leaders, getLeaderStatus, onChallengeLeader,
 }: {

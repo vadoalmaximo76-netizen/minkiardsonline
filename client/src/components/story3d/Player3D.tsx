@@ -2,27 +2,69 @@ import React, { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
-/* ── Walking legs ─────────────────────────────────────────────── */
-function WalkingLegs({ timeRef }: { timeRef: React.MutableRefObject<number> }) {
-  const leftRef  = useRef<THREE.Mesh>(null);
-  const rightRef = useRef<THREE.Mesh>(null);
+/* ── Walking parts: legs + arms animated in sync ──────────────── */
+function WalkingParts({ timeRef }: { timeRef: React.MutableRefObject<number> }) {
+  const leftLegRef  = useRef<THREE.Mesh>(null);
+  const rightLegRef = useRef<THREE.Mesh>(null);
+  const leftArmRef  = useRef<THREE.Group>(null);
+  const rightArmRef = useRef<THREE.Group>(null);
 
   useFrame(() => {
     const t = timeRef.current * 5;
-    if (leftRef.current)  leftRef.current.position.z  = Math.sin(t) * 0.12;
-    if (rightRef.current) rightRef.current.position.z = Math.sin(t + Math.PI) * 0.12;
+    if (leftLegRef.current)  leftLegRef.current.position.z  = Math.sin(t) * 0.14;
+    if (rightLegRef.current) rightLegRef.current.position.z = Math.sin(t + Math.PI) * 0.14;
+    if (leftArmRef.current)  leftArmRef.current.rotation.x  = Math.sin(t + Math.PI) * 0.38;
+    if (rightArmRef.current) rightArmRef.current.rotation.x = Math.sin(t) * 0.38;
   });
 
   return (
     <>
-      <mesh ref={leftRef}  position={[-0.15, 0.7, 0]}>
-        <boxGeometry args={[0.22, 0.65, 0.22]} />
-        <meshLambertMaterial color="#1a237e" />
+      {/* Left leg */}
+      <mesh ref={leftLegRef} position={[-0.18, 0.62, 0]} castShadow>
+        <boxGeometry args={[0.25, 0.7, 0.25]} />
+        <meshStandardMaterial color="#1a237e" roughness={0.8} metalness={0.0} />
       </mesh>
-      <mesh ref={rightRef} position={[ 0.15, 0.7, 0]}>
-        <boxGeometry args={[0.22, 0.65, 0.22]} />
-        <meshLambertMaterial color="#1a237e" />
+      {/* Right leg */}
+      <mesh ref={rightLegRef} position={[0.18, 0.62, 0]} castShadow>
+        <boxGeometry args={[0.25, 0.7, 0.25]} />
+        <meshStandardMaterial color="#1a237e" roughness={0.8} metalness={0.0} />
       </mesh>
+      {/* Left shoe */}
+      <mesh position={[-0.18, 0.24, 0.08]}>
+        <boxGeometry args={[0.27, 0.13, 0.36]} />
+        <meshStandardMaterial color="#111111" roughness={0.9} metalness={0.05} />
+      </mesh>
+      {/* Right shoe */}
+      <mesh position={[0.18, 0.24, 0.08]}>
+        <boxGeometry args={[0.27, 0.13, 0.36]} />
+        <meshStandardMaterial color="#111111" roughness={0.9} metalness={0.05} />
+      </mesh>
+
+      {/* Left arm group — pivot at shoulder */}
+      <group ref={leftArmRef} position={[-0.54, 1.88, 0]}>
+        <mesh position={[0, -0.28, 0]} castShadow>
+          <boxGeometry args={[0.23, 0.55, 0.23]} />
+          <meshStandardMaterial color="#e8b800" roughness={0.7} metalness={0.0} />
+        </mesh>
+        {/* Hand */}
+        <mesh position={[0, -0.62, 0]}>
+          <boxGeometry args={[0.21, 0.21, 0.21]} />
+          <meshStandardMaterial color="#fcd7b0" roughness={0.8} metalness={0.0} />
+        </mesh>
+      </group>
+
+      {/* Right arm group — pivot at shoulder */}
+      <group ref={rightArmRef} position={[0.54, 1.88, 0]}>
+        <mesh position={[0, -0.28, 0]} castShadow>
+          <boxGeometry args={[0.23, 0.55, 0.23]} />
+          <meshStandardMaterial color="#e8b800" roughness={0.7} metalness={0.0} />
+        </mesh>
+        {/* Hand */}
+        <mesh position={[0, -0.62, 0]}>
+          <boxGeometry args={[0.21, 0.21, 0.21]} />
+          <meshStandardMaterial color="#fcd7b0" roughness={0.8} metalness={0.0} />
+        </mesh>
+      </group>
     </>
   );
 }
@@ -45,7 +87,6 @@ export function PlayerMesh3D({
     const px = playerRef.current.x;
     const pz = playerRef.current.z;
 
-    /* Absolute world position — group has no transform-bearing parent */
     groupRef.current.position.set(px, 0, pz);
 
     const dx = px - prevPos.current.x;
@@ -59,26 +100,59 @@ export function PlayerMesh3D({
 
   return (
     <group ref={groupRef}>
-      <WalkingLegs timeRef={time} />
+      <WalkingParts timeRef={time} />
+
+      {/* Belt / waist */}
+      <mesh position={[0, 1.08, 0]}>
+        <boxGeometry args={[0.66, 0.18, 0.38]} />
+        <meshStandardMaterial color="#3a1a00" roughness={0.9} metalness={0.1} />
+      </mesh>
+
       {/* Torso */}
-      <mesh position={[0, 1.5, 0]}>
-        <boxGeometry args={[0.6, 0.9, 0.35]} />
-        <meshLambertMaterial color="#e8b800" />
+      <mesh position={[0, 1.55, 0]} castShadow>
+        <boxGeometry args={[0.68, 0.84, 0.38]} />
+        <meshStandardMaterial color="#e8b800" roughness={0.7} metalness={0.0} />
       </mesh>
+
+      {/* Collar */}
+      <mesh position={[0, 1.97, 0]}>
+        <boxGeometry args={[0.50, 0.22, 0.36]} />
+        <meshStandardMaterial color="#fcd7b0" roughness={0.8} metalness={0.0} />
+      </mesh>
+
+      {/* Neck */}
+      <mesh position={[0, 2.10, 0]}>
+        <cylinderGeometry args={[0.12, 0.14, 0.2, 8]} />
+        <meshStandardMaterial color="#fcd7b0" roughness={0.8} metalness={0.0} />
+      </mesh>
+
       {/* Head */}
-      <mesh position={[0, 2.25, 0]}>
-        <sphereGeometry args={[0.3, 10, 10]} />
-        <meshLambertMaterial color="#fcd7b0" />
+      <mesh position={[0, 2.32, 0]} castShadow>
+        <sphereGeometry args={[0.32, 14, 12]} />
+        <meshStandardMaterial color="#fcd7b0" roughness={0.75} metalness={0.0} />
       </mesh>
+
+      {/* Hair */}
+      <mesh position={[0, 2.56, -0.04]}>
+        <sphereGeometry args={[0.26, 10, 8]} />
+        <meshStandardMaterial color="#2c1a0e" roughness={0.95} metalness={0.0} />
+      </mesh>
+
       {/* Hat brim */}
-      <mesh position={[0, 2.58, 0]}>
-        <cylinderGeometry args={[0.22, 0.32, 0.28, 8]} />
-        <meshLambertMaterial color="#1a1a2e" />
+      <mesh position={[0, 2.68, 0]}>
+        <cylinderGeometry args={[0.18, 0.30, 0.30, 10]} />
+        <meshStandardMaterial color="#1a1a2e" roughness={0.85} metalness={0.05} />
       </mesh>
-      {/* Blob shadow */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
-        <circleGeometry args={[0.6, 12]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.25} />
+      {/* Hat flat top */}
+      <mesh position={[0, 2.90, 0]}>
+        <cylinderGeometry args={[0.17, 0.17, 0.08, 10]} />
+        <meshStandardMaterial color="#1a1a2e" roughness={0.85} metalness={0.05} />
+      </mesh>
+
+      {/* Blob shadow on ground */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+        <circleGeometry args={[0.62, 14]} />
+        <meshBasicMaterial color="#000000" transparent opacity={0.22} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -92,19 +166,17 @@ export function PlayerCamera3D({
 }: {
   playerRef: React.MutableRefObject<{ x: number; z: number }>;
   cameraYawRef?: React.MutableRefObject<number>;
-  /** When true, single-touch drag rotates camera (mobile cam-mode button) */
   mobileCamRotateRef?: React.MutableRefObject<boolean>;
 }) {
   const { camera } = useThree();
   const yawRef     = useRef(0);
   const pitchRef   = useRef(0.55);
-  const distRef    = useRef(18);          // zoom distance (8–45 units)
+  const distRef    = useRef(18);
   const isDragging = useRef(false);
   const lastMouse  = useRef({ x: 0, y: 0 });
-  const pinchDist  = useRef<number | null>(null); // two-finger pinch
+  const pinchDist  = useRef<number | null>(null);
 
   useEffect(() => {
-    /* ── Desktop: mouse drag (rotate) + wheel (zoom) ── */
     const onMouseDown = (e: MouseEvent) => {
       isDragging.current = true;
       lastMouse.current  = { x: e.clientX, y: e.clientY };
@@ -122,10 +194,8 @@ export function PlayerCamera3D({
       distRef.current = Math.max(6, Math.min(45, distRef.current + e.deltaY * 0.04));
     };
 
-    /* ── Mobile: single-touch drag (when cam-mode active) + pinch zoom ── */
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
-        /* Begin pinch — record initial finger distance */
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dz = e.touches[0].clientY - e.touches[1].clientY;
         pinchDist.current = Math.sqrt(dx * dx + dz * dz);
@@ -138,7 +208,6 @@ export function PlayerCamera3D({
     };
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 2 && pinchDist.current !== null) {
-        /* Pinch zoom */
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dz = e.touches[0].clientY - e.touches[1].clientY;
         const newDist = Math.sqrt(dx * dx + dz * dz);
@@ -146,7 +215,6 @@ export function PlayerCamera3D({
         distRef.current = Math.max(6, Math.min(45, distRef.current + delta * 0.06));
         pinchDist.current = newDist;
       } else if (e.touches.length === 1 && isDragging.current) {
-        /* Single-finger rotate (cam-mode active) */
         yawRef.current  -= (e.touches[0].clientX - lastMouse.current.x) * 0.005;
         pitchRef.current = Math.max(0.18, Math.min(1.15,
           pitchRef.current + (e.touches[0].clientY - lastMouse.current.y) * 0.005,
@@ -196,7 +264,6 @@ export function PlayerCamera3D({
     camera.position.copy(currentCam.current);
     camera.lookAt(px, 1.5, pz);
 
-    /* Expose camera yaw so the RAF tick can apply camera-relative movement */
     if (cameraYawRef) cameraYawRef.current = yawRef.current;
   });
 

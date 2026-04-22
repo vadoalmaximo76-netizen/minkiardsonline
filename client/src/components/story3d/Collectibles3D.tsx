@@ -4,7 +4,7 @@ import { Text }           from '@react-three/drei';
 import * as THREE         from 'three';
 import type { StoryWorldCollectible } from './types';
 
-const PICKUP_RADIUS = 2.8; // world units — trigger proximity pickup
+const PICKUP_RADIUS = 2.8;
 
 export function Collectibles3D({
   collectibles,
@@ -22,14 +22,12 @@ export function Collectibles3D({
   useFrame((_, delta) => {
     time.current += delta;
 
-    /* Animate all visible collectibles */
     groupRefs.current.forEach((g, i) => {
       if (!g) return;
-      g.position.y = 1.5 + Math.sin(time.current * 2 + i * 1.2) * 0.25;
-      g.rotation.y = time.current * 1.8;
+      g.position.y = 1.5 + Math.sin(time.current * 2 + i * 1.2) * 0.28;
+      g.rotation.y = time.current * 2.0;
     });
 
-    /* Proximity pickup: trigger callback when player walks within range */
     if (!playerRef) return;
     const px = playerRef.current.x;
     const pz = playerRef.current.z;
@@ -58,32 +56,56 @@ export function Collectibles3D({
             key={c.id}
             ref={el => { groupRefs.current[i] = el; }}
             position={[c.posX, 1.5, c.posZ]}
-            /* Click interaction still supported as fallback */
             onClick={(e) => { e.stopPropagation(); onClickCollectible(c); }}
           >
             {isCoin ? (
-              /* Gold coin: thin disk */
-              <mesh>
-                <cylinderGeometry args={[0.45, 0.45, 0.12, 16]} />
-                <meshLambertMaterial color={color} emissive={color} emissiveIntensity={0.8} />
-              </mesh>
+              /* Gold coin — PBR metallic */
+              <>
+                <mesh>
+                  <cylinderGeometry args={[0.48, 0.48, 0.13, 18]} />
+                  <meshStandardMaterial
+                    color={color}
+                    emissive={color}
+                    emissiveIntensity={0.9}
+                    roughness={0.15}
+                    metalness={0.85}
+                  />
+                </mesh>
+                {/* Coin rim */}
+                <mesh>
+                  <torusGeometry args={[0.44, 0.04, 6, 18]} />
+                  <meshStandardMaterial
+                    color="#ffdd44"
+                    emissive="#ffdd44"
+                    emissiveIntensity={0.6}
+                    roughness={0.1}
+                    metalness={0.9}
+                  />
+                </mesh>
+              </>
             ) : (
-              /* Card: thin rectangle with face colour */
+              /* Card — slightly shiny */
               <mesh>
-                <boxGeometry args={[0.5, 0.72, 0.04]} />
-                <meshLambertMaterial color={color} emissive={color} emissiveIntensity={0.7} />
+                <boxGeometry args={[0.52, 0.74, 0.05]} />
+                <meshStandardMaterial
+                  color={color}
+                  emissive={color}
+                  emissiveIntensity={0.8}
+                  roughness={0.3}
+                  metalness={0.4}
+                />
               </mesh>
             )}
 
-            <pointLight color={color} intensity={2} distance={8} />
+            <pointLight color={color} intensity={2.5} distance={9} />
 
             <Text
-              position={[0, 0.9, 0]}
-              fontSize={0.4}
+              position={[0, 0.95, 0]}
+              fontSize={0.42}
               color={color}
               anchorX="center"
               anchorY="middle"
-              outlineWidth={0.05}
+              outlineWidth={0.06}
               outlineColor="#000000"
             >
               {label}
