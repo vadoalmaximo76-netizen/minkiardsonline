@@ -42,7 +42,10 @@ export function PlayerMesh3D({
     const isMoving = Math.abs(dx) > 0.001 || Math.abs(dz) > 0.001;
     movingRef.current = isMoving;
     if (isMoving) {
-      facingAngle.current = Math.atan2(dx, dz);
+      /* atan2(-dx, -dz) is the correct Three.js formula for -Z-facing GLB models:
+         local -Z axis after rotation θ points toward (-sinθ, 0, -cosθ), so
+         sinθ = -dx and cosθ = -dz → θ = atan2(-dx, -dz).                       */
+      facingAngle.current = Math.atan2(-dx, -dz);
     }
     groupRef.current.rotation.y = facingAngle.current;
     prevPos.current = { x: px, z: pz };

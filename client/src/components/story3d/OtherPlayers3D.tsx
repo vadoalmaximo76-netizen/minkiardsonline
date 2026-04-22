@@ -28,7 +28,7 @@ function OtherPlayerMesh({ player }: { player: OtherPlayer }) {
     const dx = groupRef.current.position.x - prevPos.current.x;
     const dz = groupRef.current.position.z - prevPos.current.z;
     if (Math.abs(dx) > 0.001 || Math.abs(dz) > 0.001) {
-      groupRef.current.rotation.y = Math.atan2(dx, dz);
+      groupRef.current.rotation.y = Math.atan2(-dx, -dz);
     }
     prevPos.current.copy(groupRef.current.position);
   });
