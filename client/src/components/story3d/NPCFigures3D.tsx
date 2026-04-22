@@ -287,17 +287,19 @@ function WizardFigure3D({
 }
 
 /* ── Composite export ────────────────────────────────────────────── */
+export { GhostFigures3D, WizardFigure3D };
+
 export function NPCFigures3D({
   ghostFigsRef,
   wizardFigRef,
 }: {
-  ghostFigsRef: React.MutableRefObject<GhostFig[]>;
-  wizardFigRef: React.MutableRefObject<WizardFig | null>;
+  ghostFigsRef?: React.MutableRefObject<GhostFig[]>;
+  wizardFigRef?: React.MutableRefObject<WizardFig | null>;
 }) {
   return (
     <>
-      <GhostFigures3D ghostFigsRef={ghostFigsRef} />
-      <WizardFigure3D wizardFigRef={wizardFigRef} />
+      {ghostFigsRef && <GhostFigures3D ghostFigsRef={ghostFigsRef} />}
+      {wizardFigRef && <WizardFigure3D wizardFigRef={wizardFigRef} />}
     </>
   );
 }

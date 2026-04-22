@@ -184,8 +184,8 @@ export function World3DScene(props: StoryWorld3DProps) {
         selfUserId={props.selfUserId}
       />
 
-      {/* NPC figures — ghost ambush + wizard (only rendered when refs are supplied) */}
-      {props.ghostFigsRef && props.wizardFigRef && (
+      {/* NPC figures — ghost ambush + wizard (mounted whenever either ref is present) */}
+      {(props.ghostFigsRef || props.wizardFigRef) && (
         <NPCFigures3D
           ghostFigsRef={props.ghostFigsRef}
           wizardFigRef={props.wizardFigRef}
