@@ -20,12 +20,12 @@ function WalkingParts({ timeRef }: { timeRef: React.MutableRefObject<number> }) 
   return (
     <>
       {/* Left leg */}
-      <mesh ref={leftLegRef} position={[-0.18, 0.62, 0]} castShadow>
+      <mesh ref={leftLegRef} position={[-0.18, 0.62, 0]}>
         <boxGeometry args={[0.25, 0.7, 0.25]} />
         <meshStandardMaterial color="#1a237e" roughness={0.8} metalness={0.0} />
       </mesh>
       {/* Right leg */}
-      <mesh ref={rightLegRef} position={[0.18, 0.62, 0]} castShadow>
+      <mesh ref={rightLegRef} position={[0.18, 0.62, 0]}>
         <boxGeometry args={[0.25, 0.7, 0.25]} />
         <meshStandardMaterial color="#1a237e" roughness={0.8} metalness={0.0} />
       </mesh>
@@ -42,11 +42,10 @@ function WalkingParts({ timeRef }: { timeRef: React.MutableRefObject<number> }) 
 
       {/* Left arm group — pivot at shoulder */}
       <group ref={leftArmRef} position={[-0.54, 1.88, 0]}>
-        <mesh position={[0, -0.28, 0]} castShadow>
+        <mesh position={[0, -0.28, 0]}>
           <boxGeometry args={[0.23, 0.55, 0.23]} />
           <meshStandardMaterial color="#e8b800" roughness={0.7} metalness={0.0} />
         </mesh>
-        {/* Hand */}
         <mesh position={[0, -0.62, 0]}>
           <boxGeometry args={[0.21, 0.21, 0.21]} />
           <meshStandardMaterial color="#fcd7b0" roughness={0.8} metalness={0.0} />
@@ -55,11 +54,10 @@ function WalkingParts({ timeRef }: { timeRef: React.MutableRefObject<number> }) 
 
       {/* Right arm group — pivot at shoulder */}
       <group ref={rightArmRef} position={[0.54, 1.88, 0]}>
-        <mesh position={[0, -0.28, 0]} castShadow>
+        <mesh position={[0, -0.28, 0]}>
           <boxGeometry args={[0.23, 0.55, 0.23]} />
           <meshStandardMaterial color="#e8b800" roughness={0.7} metalness={0.0} />
         </mesh>
-        {/* Hand */}
         <mesh position={[0, -0.62, 0]}>
           <boxGeometry args={[0.21, 0.21, 0.21]} />
           <meshStandardMaterial color="#fcd7b0" roughness={0.8} metalness={0.0} />
@@ -108,7 +106,7 @@ export function PlayerMesh3D({
         <meshStandardMaterial color="#3a1a00" roughness={0.9} metalness={0.1} />
       </mesh>
 
-      {/* Torso */}
+      {/* Torso — SHADOW CASTER #1 (player) */}
       <mesh position={[0, 1.55, 0]} castShadow>
         <boxGeometry args={[0.68, 0.84, 0.38]} />
         <meshStandardMaterial color="#e8b800" roughness={0.7} metalness={0.0} />
@@ -127,7 +125,7 @@ export function PlayerMesh3D({
       </mesh>
 
       {/* Head */}
-      <mesh position={[0, 2.32, 0]} castShadow>
+      <mesh position={[0, 2.32, 0]}>
         <sphereGeometry args={[0.32, 14, 12]} />
         <meshStandardMaterial color="#fcd7b0" roughness={0.75} metalness={0.0} />
       </mesh>
@@ -143,7 +141,7 @@ export function PlayerMesh3D({
         <cylinderGeometry args={[0.18, 0.30, 0.30, 10]} />
         <meshStandardMaterial color="#1a1a2e" roughness={0.85} metalness={0.05} />
       </mesh>
-      {/* Hat flat top */}
+      {/* Hat top */}
       <mesh position={[0, 2.90, 0]}>
         <cylinderGeometry args={[0.17, 0.17, 0.08, 10]} />
         <meshStandardMaterial color="#1a1a2e" roughness={0.85} metalness={0.05} />

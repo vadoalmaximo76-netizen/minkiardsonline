@@ -82,12 +82,12 @@ function FootballField3D() {
         <meshBasicMaterial color="#ffffff" transparent opacity={0.55} />
       </mesh>
       {/* Goal posts left */}
-      <mesh position={[-9.2, 1.2, 0]} castShadow>
+      <mesh position={[-9.2, 1.2, 0]}>
         <boxGeometry args={[0.18, 2.4, 5.6]} />
         <meshStandardMaterial color="#dddddd" roughness={0.5} metalness={0.4} wireframe />
       </mesh>
       {/* Goal posts right */}
-      <mesh position={[9.2, 1.2, 0]} castShadow>
+      <mesh position={[9.2, 1.2, 0]}>
         <boxGeometry args={[0.18, 2.4, 5.6]} />
         <meshStandardMaterial color="#dddddd" roughness={0.5} metalness={0.4} wireframe />
       </mesh>
@@ -149,7 +149,7 @@ export function World3DScene(props: StoryWorld3DProps) {
       <Terrain3D />
       <Roads3D roads={roadData} />
       <WaterPlane3D />
-      <Buildings3D buildings={props.buildingData} />
+      <Buildings3D buildings={props.buildingData} dayTimeRef={dayTimeRef} />
       <Trees3D trees={props.treeData} />
       <FootballField3D />
       <ArcadeLights3D />

@@ -106,7 +106,7 @@ function ArenaItem({
       </mesh>
 
       {/* ── Top platform ─────────────────────────────────────────── */}
-      <mesh position={[0, 0.60, 0]} receiveShadow castShadow>
+      <mesh position={[0, 0.60, 0]} receiveShadow>
         <cylinderGeometry args={[3.0, 3.5, 0.24, 20]} />
         <meshStandardMaterial color={isLocked ? '#303044' : color} roughness={0.5} metalness={0.35} />
       </mesh>
@@ -131,7 +131,6 @@ function ArenaItem({
             key={ci}
             ref={refs[ci]}
             position={[cx, 2.8, cz]}
-            castShadow
           >
             <cylinderGeometry args={[0.28, 0.34, 5.2, 8]} />
             <meshStandardMaterial
@@ -179,7 +178,7 @@ function ArenaItem({
 
       {/* ── Central crystal gem ──────────────────────────────────── */}
       <group ref={gemRef} position={[0, 6.0, 0]}>
-        <mesh castShadow>
+        <mesh>
           <octahedronGeometry args={[1.1]} />
           <meshStandardMaterial
             color={isCompleted ? '#ffffff' : isLocked ? '#334455' : color}

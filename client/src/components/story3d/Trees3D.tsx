@@ -78,26 +78,26 @@ export function Trees3D({ trees }: { trees: StoryWorldTreeDatum[] }) {
 
   return (
     <group>
-      {/* Trunk */}
-      <instancedMesh ref={trunkRef} args={[undefined, undefined, trees.length]} castShadow>
+      {/* Trunk — no shadow cast (performance budget: only canopy1 casts) */}
+      <instancedMesh ref={trunkRef} args={[undefined, undefined, trees.length]}>
         <cylinderGeometry args={[1, 1.3, 1, 7]} />
         <meshStandardMaterial color="#7a5232" roughness={0.95} metalness={0.0} />
       </instancedMesh>
 
-      {/* Bottom canopy */}
+      {/* Bottom canopy — SHADOW CASTER #2 (instanced = 1 draw call) */}
       <instancedMesh ref={canopy1Ref} args={[undefined, undefined, trees.length]} castShadow receiveShadow>
         <sphereGeometry args={[1, 9, 7]} />
         <meshStandardMaterial roughness={0.88} metalness={0.0} vertexColors={false} />
       </instancedMesh>
 
-      {/* Mid canopy */}
-      <instancedMesh ref={canopy2Ref} args={[undefined, undefined, trees.length]} castShadow>
+      {/* Mid canopy — receiver only */}
+      <instancedMesh ref={canopy2Ref} args={[undefined, undefined, trees.length]} receiveShadow>
         <sphereGeometry args={[1, 8, 6]} />
         <meshStandardMaterial roughness={0.85} metalness={0.0} vertexColors={false} />
       </instancedMesh>
 
-      {/* Top canopy */}
-      <instancedMesh ref={canopy3Ref} args={[undefined, undefined, trees.length]} castShadow>
+      {/* Top canopy — receiver only */}
+      <instancedMesh ref={canopy3Ref} args={[undefined, undefined, trees.length]} receiveShadow>
         <sphereGeometry args={[1, 7, 6]} />
         <meshStandardMaterial roughness={0.82} metalness={0.0} vertexColors={false} />
       </instancedMesh>

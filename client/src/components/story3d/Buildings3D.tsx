@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import type { BuildingType, StoryWorldBuildingDatum } from './types';
@@ -16,10 +17,14 @@ const ROOF_COLOR: Record<BuildingType, string> = {
   ruin: '#5a5040', church: '#c04040', arcade: '#7c3aed', farm: '#8b5a1a', barn: '#7b3a10',
 };
 
-const WIN_GLOW = '#ffeebb';
-
-/* ── Buildings container — loads shared wood texture ─────────── */
-export function Buildings3D({ buildings }: { buildings: StoryWorldBuildingDatum[] }) {
+/* ── Buildings container ──────────────────────────────────────── */
+export function Buildings3D({
+  buildings,
+  dayTimeRef,
+}: {
+  buildings: StoryWorldBuildingDatum[];
+  dayTimeRef?: React.MutableRefObject<number>;
+}) {
   const woodMap = useTexture('/textures/wood.jpg');
 
   useMemo(() => {
@@ -27,6 +32,28 @@ export function Buildings3D({ buildings }: { buildings: StoryWorldBuildingDatum[
     woodMap.repeat.set(2, 2.5);
     woodMap.needsUpdate = true;
   }, [woodMap]);
+
+  /* Collect refs to all window meshes for day/night emissive update */
+  const winRefs = useRef<(THREE.Mesh | null)[]>([]);
+
+  useFrame(() => {
+    if (!dayTimeRef || winRefs.current.length === 0) return;
+    const t      = dayTimeRef.current;
+    const isDark = t > 0.75 || t < 0.2;
+    /* Smooth transition: 0→1 over ±0.05 of the threshold */
+    const nightAlpha = isDark
+      ? Math.min(1, (t < 0.2 ? (0.2 - t) / 0.05 : (t - 0.75) / 0.05))
+      : 0;
+    const intensity = 0.06 + nightAlpha * 0.88;
+
+    winRefs.current.forEach(m => {
+      if (!m) return;
+      (m.material as THREE.MeshStandardMaterial).emissiveIntensity = intensity;
+    });
+  });
+
+  /* Build flat index for window refs */
+  let winIndex = 0;
 
   return (
     <group>
@@ -41,10 +68,15 @@ export function Buildings3D({ buildings }: { buildings: StoryWorldBuildingDatum[
         const winCountX = Math.max(1, Math.floor(bw / 2.2));
         const winY      = bh * 0.55;
 
+        /* Capture window indices for this building (front face only) */
+        const myWinStartIdx = winIndex;
+        const myWinCount    = (!isRuin && !isTower) ? winCountX : 0;
+        winIndex += myWinCount;
+
         return (
           <group key={i} position={[b.x, 0, b.z]}>
-            {/* ── Body ─────────────────────────────────────────── */}
-            <mesh position={[0, bh / 2, 0]} castShadow receiveShadow>
+            {/* ── Body — receives shadows but does not cast (perf budget) */}
+            <mesh position={[0, bh / 2, 0]} receiveShadow>
               <boxGeometry args={[bw, bh, bd]} />
               <meshStandardMaterial
                 map={woodMap}
@@ -54,17 +86,22 @@ export function Buildings3D({ buildings }: { buildings: StoryWorldBuildingDatum[
               />
             </mesh>
 
-            {/* ── Windows (front) ──────────────────────────────── */}
-            {!isRuin && !isTower && Array.from({ length: winCountX }).map((_, wi) => {
+            {/* ── Windows (front face) — emissive at night ─────────── */}
+            {Array.from({ length: myWinCount }).map((_, wi) => {
               const spacing = bw / (winCountX + 1);
-              const wx = -bw / 2 + spacing * (wi + 1);
+              const wx      = -bw / 2 + spacing * (wi + 1);
+              const refIdx  = myWinStartIdx + wi;
               return (
-                <mesh key={wi} position={[wx, winY, bd / 2 + 0.04]}>
+                <mesh
+                  key={wi}
+                  ref={(el: THREE.Mesh | null) => { winRefs.current[refIdx] = el; }}
+                  position={[wx, winY, bd / 2 + 0.04]}
+                >
                   <boxGeometry args={[0.50, 0.60, 0.06]} />
                   <meshStandardMaterial
                     color="#1a2840"
-                    emissive={WIN_GLOW}
-                    emissiveIntensity={0.5}
+                    emissive="#ffeebb"
+                    emissiveIntensity={0.06}
                     roughness={0.1}
                     metalness={0.3}
                   />
@@ -72,7 +109,7 @@ export function Buildings3D({ buildings }: { buildings: StoryWorldBuildingDatum[
               );
             })}
 
-            {/* ── Cornice ledge ────────────────────────────────── */}
+            {/* ── Cornice ledge ─────────────────────────────────────── */}
             {!isRuin && (
               <mesh position={[0, bh + 0.07, 0]}>
                 <boxGeometry args={[bw + 0.28, 0.16, bd + 0.28]} />
@@ -80,7 +117,7 @@ export function Buildings3D({ buildings }: { buildings: StoryWorldBuildingDatum[
               </mesh>
             )}
 
-            {/* ── Roof pyramid ─────────────────────────────────── */}
+            {/* ── Roof pyramid ──────────────────────────────────────── */}
             {!isRuin && !isTower && (
               <mesh position={[0, bh + 0.9, 0]}>
                 <coneGeometry args={[Math.max(bw, bd) * 0.75, 1.8, 4]} />
@@ -88,7 +125,7 @@ export function Buildings3D({ buildings }: { buildings: StoryWorldBuildingDatum[
               </mesh>
             )}
 
-            {/* ── Church cross ─────────────────────────────────── */}
+            {/* ── Church cross ──────────────────────────────────────── */}
             {isChurch && (
               <>
                 <mesh position={[0, bh + 2.3, 0]}>
@@ -102,7 +139,7 @@ export function Buildings3D({ buildings }: { buildings: StoryWorldBuildingDatum[
               </>
             )}
 
-            {/* ── Tower battlements ────────────────────────────── */}
+            {/* ── Tower battlements ─────────────────────────────────── */}
             {isTower && (
               <>
                 <mesh position={[0, bh + 0.35, 0]}>
@@ -118,7 +155,7 @@ export function Buildings3D({ buildings }: { buildings: StoryWorldBuildingDatum[
               </>
             )}
 
-            {/* ── Arcade neon sign ─────────────────────────────── */}
+            {/* ── Arcade neon sign ──────────────────────────────────── */}
             {isArcade && (
               <>
                 <mesh position={[0, bh + 0.2, bd / 2 + 0.06]}>
