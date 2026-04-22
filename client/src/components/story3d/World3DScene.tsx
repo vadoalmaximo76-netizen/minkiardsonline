@@ -149,7 +149,7 @@ export function World3DScene(props: StoryWorld3DProps) {
       <Terrain3D />
       <Roads3D roads={roadData} />
       <WaterPlane3D />
-      <Buildings3D buildings={props.buildingData} dayTimeRef={dayTimeRef} />
+      <Buildings3D buildings={props.buildingData} playerRef={props.playerRef} dayTimeRef={dayTimeRef} />
       <Trees3D trees={props.treeData} />
       <FootballField3D />
       <ArcadeLights3D />
