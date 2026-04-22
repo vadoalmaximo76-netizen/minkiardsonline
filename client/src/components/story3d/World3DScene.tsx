@@ -17,6 +17,7 @@ import { Arenas3D }                        from './Arenas3D';
 import { Collectibles3D }                  from './Collectibles3D';
 import { OtherPlayers3D }                  from './OtherPlayers3D';
 import { PlayerMesh3D, PlayerCamera3D }    from './Player3D';
+import { NPCFigures3D }                    from './NPCFigures3D';
 import { DayNight3D, NightStars3D, RainEffect3D } from './DayNight3D';
 import { WorldAudio3D }                    from './WorldAudio3D';
 import type { StoryWorld3DProps }          from './types';
@@ -182,6 +183,14 @@ export function World3DScene(props: StoryWorld3DProps) {
         otherPlayersRef={props.otherPlayersRef}
         selfUserId={props.selfUserId}
       />
+
+      {/* NPC figures — ghost ambush + wizard (only rendered when refs are supplied) */}
+      {props.ghostFigsRef && props.wizardFigRef && (
+        <NPCFigures3D
+          ghostFigsRef={props.ghostFigsRef}
+          wizardFigRef={props.wizardFigRef}
+        />
+      )}
 
       {/* Local player */}
       <PlayerMesh3D playerRef={props.playerRef} userId={props.selfUserId} />

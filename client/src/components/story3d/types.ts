@@ -31,6 +31,22 @@ export interface StoryWorldCollectible {
   cardId?: string | null;
 }
 
+/* ── NPC figure types (ghost ambush + wizard reward) ───────────── */
+export interface GhostFig {
+  id: number;
+  x: number;
+  z: number;
+}
+
+export type WizardState = 'walking-to' | 'dialogue' | 'walking-away' | 'done';
+
+export interface WizardFig {
+  x: number;
+  z: number;
+  state: WizardState;
+  dialogueTimer: number;
+}
+
 export interface StoryWorld3DProps {
   playerRef: React.MutableRefObject<{ x: number; z: number }>;
   otherPlayersRef: React.MutableRefObject<Map<number, OtherPlayer>>;
@@ -41,6 +57,10 @@ export interface StoryWorld3DProps {
   cameraYawRef?: React.MutableRefObject<number>;
   /** When true, single-touch drag on the 3D canvas rotates the camera (mobile cam-mode) */
   mobileCamRotateRef?: React.MutableRefObject<boolean>;
+  /** Quadrato ghost-ambush figure positions (updated by game tick) */
+  ghostFigsRef?: React.MutableRefObject<GhostFig[]>;
+  /** Wizard reward NPC state (null when not active) */
+  wizardFigRef?: React.MutableRefObject<WizardFig | null>;
   leaders: GymLeader[];
   arenaPositions: [number, number][];
   getLeaderStatus: (leader: GymLeader) => 'completed' | 'available' | 'locked';

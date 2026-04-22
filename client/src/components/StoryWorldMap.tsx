@@ -2088,8 +2088,8 @@ export function StoryWorldMap({
         const yaw = cameraYawRef.current;
         const cosY = Math.cos(yaw);
         const sinY = Math.sin(yaw);
-        const rdx = dx * cosY - dz * sinY;
-        const rdz = dx * sinY + dz * cosY;
+        const rdx = dx * cosY + dz * sinY;
+        const rdz = dz * cosY - dx * sinY;
         dx = rdx; dz = rdz;
       }
 
@@ -4424,6 +4424,8 @@ export function StoryWorldMap({
         dayTimeRef={worldDayTimeRef}
         cameraYawRef={cameraYawRef}
         mobileCamRotateRef={mobileCamRotateRef}
+        ghostFigsRef={ghostFigsRef}
+        wizardFigRef={wizardRef}
         leaders={leaders}
         arenaPositions={arenaPositions}
         getLeaderStatus={getLeaderStatus}
