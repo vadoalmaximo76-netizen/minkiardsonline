@@ -150,14 +150,12 @@ export function World3DScene(props: StoryWorld3DProps) {
       <NightStars3D dayTimeRef={dayTimeRef} />
       <RainEffect3D intensityRef={weatherIntensityRef} />
 
-      {props.playerRef && (
-        <WorldAudio3D
-          dayTimeRef={dayTimeRef}
-          playerRef={props.playerRef}
-          arenaPositions={props.arenaPositions ?? []}
-          weatherIntensityRef={weatherIntensityRef}
-        />
-      )}
+      <WorldAudio3D
+        dayTimeRef={dayTimeRef}
+        playerRef={props.playerRef}
+        arenaPositions={props.arenaPositions ?? []}
+        weatherIntensityRef={weatherIntensityRef}
+      />
 
       <Terrain3D />
       <Roads3D roads={roadData} />

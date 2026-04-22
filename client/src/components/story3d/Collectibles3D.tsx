@@ -62,7 +62,15 @@ export function Collectibles3D({
             key={c.id}
             ref={el => { groupRefs.current[i] = el; }}
             position={[c.posX, 1.5, c.posZ]}
-            onClick={(e) => { e.stopPropagation(); onClickCollectible(c); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!collected.current.has(c.id)) {
+                collected.current.add(c.id);
+                const isCoin = c.type === 'coin' || ((c.creditValue ?? 0) > 0 && !c.cardId);
+                if (isCoin) playCoinCollect3D(); else playCardCollect3D();
+              }
+              onClickCollectible(c);
+            }}
           >
             {isCoin ? (
               /* Gold coin — PBR metallic */
