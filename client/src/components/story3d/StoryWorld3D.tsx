@@ -1,22 +1,21 @@
-import React, { useRef, useMemo, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useTexture, Stars } from '@react-three/drei';
+import { useTexture, Stars, Text } from '@react-three/drei';
+import { EffectComposer, Bloom, ToneMapping } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import type { GymLeader } from '../../types/gym';
 
-/* ── World data (mirrored from StoryWorldMap) ─────────────────── */
+/* ── Building config ─────────────────────────────────────────── */
 type BuildingType = 'house' | 'shop' | 'inn' | 'tower' | 'ruin' | 'church' | 'arcade' | 'farm' | 'barn';
 
 const BUILDING_BODY_HEIGHT: Record<BuildingType, number> = {
   house: 4, shop: 3, inn: 4.5, tower: 10, ruin: 2,
   church: 7, arcade: 4, farm: 3, barn: 5,
 };
-
 const BUILDING_BODY_COLOR: Record<BuildingType, string> = {
   house: '#c8a87a', shop: '#b8d4f0', inn: '#d4c88a', tower: '#9a9a9a',
   ruin: '#7a7060', church: '#f0e8d0', arcade: '#2d1a4e', farm: '#d4b878', barn: '#c87840',
 };
-
 const BUILDING_ROOF_COLOR: Record<BuildingType, string> = {
   house: '#8b5e3c', shop: '#4a80c0', inn: '#8b6020', tower: '#444444',
   ruin: '#4a4030', church: '#c04040', arcade: '#7c3aed', farm: '#8b5a1a', barn: '#6b2a10',
@@ -28,7 +27,7 @@ const ARENA_COLORS = [
   '#795548','#4caf50',
 ];
 
-/* ── Types ────────────────────────────────────────────────────── */
+/* ── Types ───────────────────────────────────────────────────── */
 interface OtherPlayer {
   userId: number;
   username: string;
@@ -40,15 +39,12 @@ interface OtherPlayer {
 export interface StoryWorldBuildingDatum {
   x: number; z: number; type: BuildingType; w: number; h: number;
 }
-
 export interface StoryWorldTreeDatum {
   x: number; z: number; h: number; r: number;
 }
-
 export interface StoryWorldRoadDatum {
   x1: number; z1: number; x2: number; z2: number; w: number;
 }
-
 export interface StoryWorldCollectible {
   id: number;
   type: string;
@@ -57,7 +53,6 @@ export interface StoryWorldCollectible {
   creditValue?: number;
   cardId?: string | null;
 }
-
 export interface StoryWorld3DProps {
   playerRef: React.MutableRefObject<{ x: number; z: number }>;
   otherPlayersRef: React.MutableRefObject<Map<number, OtherPlayer>>;
@@ -70,36 +65,129 @@ export interface StoryWorld3DProps {
   roadData?: StoryWorldRoadDatum[];
   onChallengeLeader: (leader: GymLeader) => void;
   onClickCollectible: (c: StoryWorldCollectible) => void;
-  dayTime?: number;
 }
 
-/* ── Terrain ──────────────────────────────────────────────────── */
-function Terrain() {
-  const grassTex = useTexture('/textures/grass.png');
-  const sandTex  = useTexture('/textures/sand.jpg');
-  useMemo(() => {
-    grassTex.wrapS = grassTex.wrapT = THREE.RepeatWrapping;
-    grassTex.repeat.set(40, 40);
-    sandTex.wrapS = sandTex.wrapT = THREE.RepeatWrapping;
-    sandTex.repeat.set(60, 60);
-  }, [grassTex, sandTex]);
+/* ── Day/Night animated controller ───────────────────────────── */
+function DayNightSystem({
+  dayTimeRef,
+}: {
+  dayTimeRef: React.MutableRefObject<number>;
+}) {
+  const { scene } = useThree();
+  const sunRef = useRef<THREE.DirectionalLight>(null);
+  const ambientRef = useRef<THREE.AmbientLight>(null);
+  const hemiRef = useRef<THREE.HemisphereLight>(null);
+  const starsVisible = useRef(false);
+
+  useEffect(() => {
+    scene.fog = new THREE.Fog('#b8d8f0', 60, 220);
+    scene.background = new THREE.Color('#87ceeb');
+    return () => { scene.fog = null; };
+  }, [scene]);
+
+  useFrame((_, delta) => {
+    /* advance 8-minute day cycle */
+    dayTimeRef.current = (dayTimeRef.current + delta / 480) % 1;
+    const t = dayTimeRef.current * Math.PI * 2;
+    const sinT = Math.sin(t);
+    const brightness = Math.max(0, sinT);
+    const isDark = dayTimeRef.current > 0.75 || dayTimeRef.current < 0.2;
+
+    if (sunRef.current) {
+      sunRef.current.position.set(
+        Math.sin(t) * 100,
+        Math.max(5, Math.cos(t) * 80 + 20),
+        Math.cos(t) * 60,
+      );
+      sunRef.current.intensity = isDark ? 0.08 : 0.4 + brightness * 1.2;
+      (sunRef.current.color as THREE.Color).set(isDark ? '#aabbff' : '#fff8e0');
+    }
+    if (ambientRef.current) {
+      ambientRef.current.intensity = isDark ? 0.12 : 0.35;
+      (ambientRef.current.color as THREE.Color).set(isDark ? '#2233aa' : '#ffffff');
+    }
+    if (hemiRef.current) {
+      hemiRef.current.intensity = isDark ? 0.15 : 0.4;
+    }
+    if (scene.fog instanceof THREE.Fog) {
+      (scene.fog.color as THREE.Color).set(isDark ? '#050a1a' : '#b8d8f0');
+    }
+    if (scene.background instanceof THREE.Color) {
+      (scene.background as THREE.Color).set(isDark ? '#050a1a' : '#87ceeb');
+    }
+  });
 
   return (
-    <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[500, 500]} />
-        <meshLambertMaterial map={grassTex} />
-      </mesh>
-      {/* Water canal accents (flat coloured strips) */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} receiveShadow>
-        <planeGeometry args={[500, 500]} />
-        <meshLambertMaterial color="#1a3a5c" transparent opacity={0} />
-      </mesh>
-    </group>
+    <>
+      <ambientLight ref={ambientRef} intensity={0.35} color="#ffffff" />
+      <directionalLight
+        ref={sunRef}
+        castShadow
+        shadow-mapSize={[1024, 1024]}
+        shadow-camera-far={300}
+        shadow-camera-left={-80}
+        shadow-camera-right={80}
+        shadow-camera-top={80}
+        shadow-camera-bottom={-80}
+        intensity={1.5}
+        color="#fff8e0"
+        position={[80, 80, 60]}
+      />
+      <hemisphereLight
+        ref={hemiRef}
+        color="#87ceeb"
+        groundColor="#2d5a1a"
+        intensity={0.4}
+      />
+    </>
   );
 }
 
-/* ── Roads ────────────────────────────────────────────────────── */
+/* ── Terrain (subtle height variation via vertex shader) ─────── */
+function Terrain() {
+  const grassTex = useTexture('/textures/grass.png');
+  const geo = useMemo(() => {
+    const g = new THREE.PlaneGeometry(500, 500, 64, 64);
+    g.rotateX(-Math.PI / 2);
+    const pos = g.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      /* gentle hills (max ±1.5 units) — game logic stays on y=0 */
+      const h =
+        Math.sin(x * 0.015) * Math.cos(z * 0.02) * 1.2 +
+        Math.sin(x * 0.04 + 1.3) * Math.sin(z * 0.035) * 0.5;
+      /* flatten area near origin (player spawn zone 0..±30) */
+      const flatBlend = Math.max(0, 1 - Math.sqrt(x * x + z * z) / 30);
+      pos.setY(i, h * (1 - flatBlend));
+    }
+    g.computeVertexNormals();
+    /* vertex colors for biome blending */
+    const colors: number[] = [];
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i);
+      const r = 0.18 + y * 0.03;
+      const gv = 0.45 + Math.max(0, y) * 0.05;
+      const b = 0.12;
+      colors.push(r, gv, b);
+    }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    return g;
+  }, []);
+
+  useMemo(() => {
+    grassTex.wrapS = grassTex.wrapT = THREE.RepeatWrapping;
+    grassTex.repeat.set(40, 40);
+  }, [grassTex]);
+
+  return (
+    <mesh geometry={geo} receiveShadow>
+      <meshLambertMaterial map={grassTex} vertexColors />
+    </mesh>
+  );
+}
+
+/* ── Roads ───────────────────────────────────────────────────── */
 function Roads({ roads }: { roads: StoryWorldRoadDatum[] }) {
   const asphaltTex = useTexture('/textures/asphalt.png');
   useMemo(() => {
@@ -117,7 +205,7 @@ function Roads({ roads }: { roads: StoryWorldRoadDatum[] }) {
         const len = Math.sqrt(dx * dx + dz * dz);
         const angle = Math.atan2(dx, dz);
         return (
-          <mesh key={i} rotation={[-Math.PI / 2, 0, angle]} position={[cx, 0.01, cz]}>
+          <mesh key={i} rotation={[-Math.PI / 2, 0, angle]} position={[cx, 0.05, cz]}>
             <planeGeometry args={[r.w, len]} />
             <meshLambertMaterial map={asphaltTex} color="#666688" />
           </mesh>
@@ -127,33 +215,30 @@ function Roads({ roads }: { roads: StoryWorldRoadDatum[] }) {
   );
 }
 
-/* ── Buildings ────────────────────────────────────────────────── */
+/* ── Buildings ───────────────────────────────────────────────── */
 function Buildings({ buildings }: { buildings: StoryWorldBuildingDatum[] }) {
   return (
     <group>
       {buildings.map((b, i) => {
         const bh = BUILDING_BODY_HEIGHT[b.type];
-        const bodyColor  = BUILDING_BODY_COLOR[b.type];
-        const roofColor  = BUILDING_ROOF_COLOR[b.type];
+        const bodyColor = BUILDING_BODY_COLOR[b.type];
+        const roofColor = BUILDING_ROOF_COLOR[b.type];
         const bw = b.w;
         const bd = b.h;
         const isRuin = b.type === 'ruin';
 
         return (
           <group key={i} position={[b.x, 0, b.z]}>
-            {/* Body */}
             <mesh position={[0, bh / 2, 0]} castShadow receiveShadow>
               <boxGeometry args={[bw, bh, bd]} />
               <meshLambertMaterial color={bodyColor} />
             </mesh>
-            {/* Roof pyramid */}
             {!isRuin && (
               <mesh position={[0, bh + 0.8, 0]} castShadow>
                 <coneGeometry args={[Math.max(bw, bd) * 0.72, 1.6, 4]} />
                 <meshLambertMaterial color={roofColor} />
               </mesh>
             )}
-            {/* Church cross */}
             {b.type === 'church' && (
               <>
                 <mesh position={[0, bh + 2.2, 0]}>
@@ -166,14 +251,12 @@ function Buildings({ buildings }: { buildings: StoryWorldBuildingDatum[] }) {
                 </mesh>
               </>
             )}
-            {/* Tower battlements */}
             {b.type === 'tower' && (
               <mesh position={[0, bh + 0.3, 0]}>
                 <boxGeometry args={[bw + 0.2, 0.6, bd + 0.2]} />
                 <meshLambertMaterial color="#555555" />
               </mesh>
             )}
-            {/* Arcade glow sign */}
             {b.type === 'arcade' && (
               <mesh position={[0, bh + 0.1, bd / 2 + 0.05]}>
                 <planeGeometry args={[bw * 0.7, 0.5]} />
@@ -187,7 +270,7 @@ function Buildings({ buildings }: { buildings: StoryWorldBuildingDatum[] }) {
   );
 }
 
-/* ── Trees (InstancedMesh) ────────────────────────────────────── */
+/* ── Trees (InstancedMesh) ───────────────────────────────────── */
 function Trees({ trees }: { trees: StoryWorldTreeDatum[] }) {
   const trunkRef  = useRef<THREE.InstancedMesh>(null);
   const canopyRef = useRef<THREE.InstancedMesh>(null);
@@ -215,7 +298,6 @@ function Trees({ trees }: { trees: StoryWorldTreeDatum[] }) {
   });
 
   if (trees.length === 0) return null;
-
   return (
     <group>
       <instancedMesh ref={trunkRef} args={[undefined, undefined, trees.length]} castShadow>
@@ -230,7 +312,7 @@ function Trees({ trees }: { trees: StoryWorldTreeDatum[] }) {
   );
 }
 
-/* ── Arenas ───────────────────────────────────────────────────── */
+/* ── Arenas ──────────────────────────────────────────────────── */
 function Arenas({ arenaPositions, leaders, getLeaderStatus, onChallengeLeader }: {
   arenaPositions: [number, number][];
   leaders: GymLeader[];
@@ -238,16 +320,18 @@ function Arenas({ arenaPositions, leaders, getLeaderStatus, onChallengeLeader }:
   onChallengeLeader: (l: GymLeader) => void;
 }) {
   const time = useRef(0);
-  const meshRefs = useRef<(THREE.Group | null)[]>([]);
+  const gemRefs = useRef<(THREE.Group | null)[]>([]);
 
   useFrame((_, delta) => {
     time.current += delta;
-    meshRefs.current.forEach((g, i) => {
+    gemRefs.current.forEach((g, i) => {
       if (!g) return;
-      const status = getLeaderStatus(leaders[i]);
+      const leader = leaders[i];
+      if (!leader) return;
+      const status = getLeaderStatus(leader);
       if (status === 'available') {
         g.rotation.y = time.current * 0.6;
-        g.position.y = Math.sin(time.current * 1.5 + i) * 0.15;
+        g.position.y = 4.9 + Math.sin(time.current * 1.5 + i) * 0.15;
       }
     });
   });
@@ -261,11 +345,11 @@ function Arenas({ arenaPositions, leaders, getLeaderStatus, onChallengeLeader }:
         const color = ARENA_COLORS[i % ARENA_COLORS.length];
         const isLocked = status === 'locked';
         const isCompleted = status === 'completed';
+        const leaderName = leader.name ?? `Leader ${i + 1}`;
 
         return (
           <group
             key={leader.id}
-            ref={el => { meshRefs.current[i] = el; }}
             position={[ax, 0, az]}
             onClick={(e) => {
               e.stopPropagation();
@@ -286,42 +370,56 @@ function Arenas({ arenaPositions, leaders, getLeaderStatus, onChallengeLeader }:
             <mesh position={[0, 2.5, 0]} castShadow>
               <cylinderGeometry args={[0.6, 0.8, 4.5, 8]} />
               <meshLambertMaterial
-                color={isLocked ? '#224' : color}
+                color={isLocked ? '#224466' : color}
                 emissive={isCompleted ? '#ffffff' : isLocked ? '#000000' : color}
                 emissiveIntensity={isCompleted ? 0.3 : isLocked ? 0 : 0.4}
               />
             </mesh>
-            {/* Top gem */}
-            <mesh position={[0, 4.9, 0]} castShadow>
-              <octahedronGeometry args={[0.8]} />
-              <meshLambertMaterial
-                color={isCompleted ? '#ffffff' : isLocked ? '#334' : color}
-                emissive={isCompleted ? '#aaffaa' : isLocked ? '#000' : color}
-                emissiveIntensity={isCompleted ? 0.8 : isLocked ? 0 : 0.9}
-              />
-            </mesh>
-            {/* Lock symbol for locked arenas */}
-            {isLocked && (
-              <mesh position={[0, 5.9, 0]}>
-                <boxGeometry args={[0.5, 0.5, 0.2]} />
-                <meshLambertMaterial color="#888899" />
+            {/* Top gem — animated when available */}
+            <group ref={el => { gemRefs.current[i] = el; }} position={[0, 4.9, 0]}>
+              <mesh castShadow>
+                <octahedronGeometry args={[0.8]} />
+                <meshLambertMaterial
+                  color={isCompleted ? '#ffffff' : isLocked ? '#334455' : color}
+                  emissive={isCompleted ? '#aaffaa' : isLocked ? '#000000' : color}
+                  emissiveIntensity={isCompleted ? 0.8 : isLocked ? 0 : 0.9}
+                />
               </mesh>
-            )}
+            </group>
             {/* Completion ring */}
             {isCompleted && (
-              <mesh position={[0, 0.25, 0]} rotation={[0, 0, 0]}>
+              <mesh position={[0, 0.25, 0]}>
                 <torusGeometry args={[3.8, 0.15, 8, 32]} />
                 <meshBasicMaterial color="#4ade80" />
               </mesh>
             )}
+            {/* Leader name billboard */}
+            <Text
+              position={[0, 6.6, 0]}
+              fontSize={0.55}
+              color={isLocked ? '#8899aa' : '#ffffff'}
+              anchorX="center"
+              anchorY="middle"
+              outlineWidth={0.06}
+              outlineColor="#000000"
+            >
+              {isLocked ? '🔒' : leaderName}
+            </Text>
+            {/* Stage number */}
+            <Text
+              position={[0, 7.3, 0]}
+              fontSize={0.38}
+              color={isLocked ? '#556677' : color}
+              anchorX="center"
+              anchorY="middle"
+              outlineWidth={0.04}
+              outlineColor="#000000"
+            >
+              {isCompleted ? '✅ Completato' : `Stage ${i + 1}`}
+            </Text>
             {/* Point light for available arenas */}
             {status === 'available' && (
-              <pointLight
-                position={[0, 6, 0]}
-                color={color}
-                intensity={2}
-                distance={12}
-              />
+              <pointLight position={[0, 6, 0]} color={color} intensity={2.5} distance={14} />
             )}
           </group>
         );
@@ -330,7 +428,7 @@ function Arenas({ arenaPositions, leaders, getLeaderStatus, onChallengeLeader }:
   );
 }
 
-/* ── Collectibles ─────────────────────────────────────────────── */
+/* ── Collectibles (coin & card geometries) ───────────────────── */
 function Collectibles({ collectibles, onClickCollectible }: {
   collectibles: StoryWorldCollectible[];
   onClickCollectible: (c: StoryWorldCollectible) => void;
@@ -343,15 +441,17 @@ function Collectibles({ collectibles, onClickCollectible }: {
     groupRefs.current.forEach((g, i) => {
       if (!g) return;
       g.position.y = 1.5 + Math.sin(time.current * 2 + i * 1.2) * 0.25;
-      g.rotation.y = time.current * 1.5;
+      g.rotation.y = time.current * 1.8;
     });
   });
 
   return (
     <group>
       {collectibles.map((c, i) => {
-        const isCoin = c.type === 'coin';
+        const isCoin = c.type === 'coin' || (c.creditValue && c.creditValue > 0);
         const color = isCoin ? '#fbbf24' : '#a855f7';
+        const label = isCoin ? `+${c.creditValue ?? '?'}` : '🃏';
+
         return (
           <group
             key={c.id}
@@ -359,15 +459,31 @@ function Collectibles({ collectibles, onClickCollectible }: {
             position={[c.posX, 1.5, c.posZ]}
             onClick={(e) => { e.stopPropagation(); onClickCollectible(c); }}
           >
-            <mesh castShadow>
-              <sphereGeometry args={[0.5, 8, 8]} />
-              <meshLambertMaterial
-                color={color}
-                emissive={color}
-                emissiveIntensity={0.6}
-              />
-            </mesh>
-            <pointLight color={color} intensity={1.5} distance={8} />
+            {isCoin ? (
+              /* Coin: thin glowing disk */
+              <mesh castShadow>
+                <cylinderGeometry args={[0.45, 0.45, 0.12, 16]} />
+                <meshLambertMaterial color={color} emissive={color} emissiveIntensity={0.8} />
+              </mesh>
+            ) : (
+              /* Card: thin rectangle */
+              <mesh castShadow>
+                <boxGeometry args={[0.5, 0.72, 0.04]} />
+                <meshLambertMaterial color={color} emissive={color} emissiveIntensity={0.7} />
+              </mesh>
+            )}
+            <pointLight color={color} intensity={2} distance={8} />
+            <Text
+              position={[0, 0.9, 0]}
+              fontSize={0.4}
+              color={color}
+              anchorX="center"
+              anchorY="middle"
+              outlineWidth={0.05}
+              outlineColor="#000000"
+            >
+              {label}
+            </Text>
           </group>
         );
       })}
@@ -375,7 +491,7 @@ function Collectibles({ collectibles, onClickCollectible }: {
   );
 }
 
-/* ── Other Players ────────────────────────────────────────────── */
+/* ── Other Players with name labels ──────────────────────────── */
 function OtherPlayerMesh({ player }: { player: OtherPlayer }) {
   const groupRef = useRef<THREE.Group>(null);
   useFrame(() => {
@@ -393,6 +509,17 @@ function OtherPlayerMesh({ player }: { player: OtherPlayer }) {
         <sphereGeometry args={[0.32, 8, 8]} />
         <meshLambertMaterial color="#fcd7b0" />
       </mesh>
+      <Text
+        position={[0, 3.1, 0]}
+        fontSize={0.45}
+        color="#ffffff"
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={0.05}
+        outlineColor="#000000"
+      >
+        {player.username}
+      </Text>
     </group>
   );
 }
@@ -406,7 +533,7 @@ function OtherPlayers({ otherPlayersRef, selfUserId }: {
 
   useFrame((_, delta) => {
     tickRef.current += delta;
-    if (tickRef.current < 0.5) return; // update every 500ms
+    if (tickRef.current < 0.5) return;
     tickRef.current = 0;
     const list = Array.from(otherPlayersRef.current.values()).filter(p => p.userId !== selfUserId);
     setPlayerList(list);
@@ -419,15 +546,92 @@ function OtherPlayers({ otherPlayersRef, selfUserId }: {
   );
 }
 
-/* ── Player + Camera follow ───────────────────────────────────── */
+/* ── Walking legs ────────────────────────────────────────────── */
+function WalkingLegs({ timeRef }: { timeRef: React.MutableRefObject<number> }) {
+  const leftRef  = useRef<THREE.Mesh>(null);
+  const rightRef = useRef<THREE.Mesh>(null);
+  useFrame(() => {
+    const t = timeRef.current * 5;
+    if (leftRef.current)  leftRef.current.position.z  = Math.sin(t) * 0.12;
+    if (rightRef.current) rightRef.current.position.z = Math.sin(t + Math.PI) * 0.12;
+  });
+  return (
+    <>
+      <mesh ref={leftRef}  position={[-0.15, 0.7, 0]} castShadow>
+        <boxGeometry args={[0.22, 0.65, 0.22]} />
+        <meshLambertMaterial color="#1a237e" />
+      </mesh>
+      <mesh ref={rightRef} position={[ 0.15, 0.7, 0]} castShadow>
+        <boxGeometry args={[0.22, 0.65, 0.22]} />
+        <meshLambertMaterial color="#1a237e" />
+      </mesh>
+    </>
+  );
+}
+
+/* ── Player mesh (absolute world position via useFrame) ──────── */
+function PlayerMesh({ playerRef }: { playerRef: React.MutableRefObject<{ x: number; z: number }> }) {
+  const groupRef   = useRef<THREE.Group>(null);
+  const time       = useRef(0);
+  const prevPos    = useRef({ x: playerRef.current.x, z: playerRef.current.z });
+  const facingAngle = useRef(0);
+
+  useFrame((_, delta) => {
+    if (!groupRef.current) return;
+    time.current += delta;
+
+    const px = playerRef.current.x;
+    const pz = playerRef.current.z;
+
+    /* Set ABSOLUTE world position — group has no parent transform */
+    groupRef.current.position.set(px, 0, pz);
+
+    const dx = px - prevPos.current.x;
+    const dz = pz - prevPos.current.z;
+    if (Math.abs(dx) > 0.001 || Math.abs(dz) > 0.001) {
+      facingAngle.current = Math.atan2(dx, dz);
+    }
+    groupRef.current.rotation.y = facingAngle.current;
+    prevPos.current = { x: px, z: pz };
+  });
+
+  return (
+    /* NO parent <group position=...> — position set each frame above */
+    <group ref={groupRef}>
+      <WalkingLegs timeRef={time} />
+      {/* Body */}
+      <mesh position={[0, 1.5, 0]} castShadow>
+        <boxGeometry args={[0.6, 0.9, 0.35]} />
+        <meshLambertMaterial color="#e8b800" />
+      </mesh>
+      {/* Head */}
+      <mesh position={[0, 2.25, 0]} castShadow>
+        <sphereGeometry args={[0.3, 10, 10]} />
+        <meshLambertMaterial color="#fcd7b0" />
+      </mesh>
+      {/* Hat */}
+      <mesh position={[0, 2.58, 0]}>
+        <cylinderGeometry args={[0.22, 0.32, 0.28, 8]} />
+        <meshLambertMaterial color="#1a1a2e" />
+      </mesh>
+      {/* Shadow circle */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
+        <circleGeometry args={[0.6, 12]} />
+        <meshBasicMaterial color="#000000" transparent opacity={0.25} />
+      </mesh>
+    </group>
+  );
+}
+
+/* ── Camera (no parent group wrapping player) ────────────────── */
 function PlayerCamera({ playerRef }: {
   playerRef: React.MutableRefObject<{ x: number; z: number }>;
 }) {
   const { camera } = useThree();
-  const yawRef = useRef(0);
-  const isDragging = useRef(false);
+  const yawRef   = useRef(0);
+  const pitchRef = useRef(0.55);
+  const isDragging   = useRef(false);
   const lastMouseRef = useRef({ x: 0, y: 0 });
-  const pitchRef = useRef(0.55); // slight top-down angle
 
   useEffect(() => {
     const onMouseDown = (e: MouseEvent) => {
@@ -476,7 +680,7 @@ function PlayerCamera({ playerRef }: {
     };
   }, []);
 
-  const targetCamPos = useRef(new THREE.Vector3());
+  const targetCamPos  = useRef(new THREE.Vector3());
   const currentCamPos = useRef(new THREE.Vector3());
 
   useFrame(() => {
@@ -490,175 +694,23 @@ function PlayerCamera({ playerRef }: {
       height + 2,
       pz + Math.cos(yawRef.current) * dist,
     );
-
     currentCamPos.current.lerp(targetCamPos.current, 0.1);
     camera.position.copy(currentCamPos.current);
     camera.lookAt(px, 1.5, pz);
   });
 
-  return (
-    <>
-      {/* Player body */}
-      <group position={[playerRef.current.x, 0, playerRef.current.z]}>
-        <PlayerMesh playerRef={playerRef} />
-      </group>
-    </>
-  );
-}
-
-/* ── Player Mesh (updates each frame) ────────────────────────── */
-function PlayerMesh({ playerRef }: { playerRef: React.MutableRefObject<{ x: number; z: number }> }) {
-  const groupRef = useRef<THREE.Group>(null);
-  const time = useRef(0);
-  const prevPos = useRef({ x: playerRef.current.x, z: playerRef.current.z });
-  const facingAngle = useRef(0);
-
-  useFrame((_, delta) => {
-    if (!groupRef.current) return;
-    time.current += delta;
-
-    const px = playerRef.current.x;
-    const pz = playerRef.current.z;
-    groupRef.current.position.set(px, 0, pz);
-
-    const dx = px - prevPos.current.x;
-    const dz = pz - prevPos.current.z;
-    const moving = Math.abs(dx) > 0.001 || Math.abs(dz) > 0.001;
-    if (moving) {
-      facingAngle.current = Math.atan2(dx, dz);
-    }
-    groupRef.current.rotation.y = facingAngle.current;
-
-    prevPos.current = { x: px, z: pz };
-  });
-
-  return (
-    <group ref={groupRef}>
-      {/* Legs (walking bob) */}
-      <WalkingLegs timeRef={time} />
-      {/* Body */}
-      <mesh position={[0, 1.5, 0]} castShadow>
-        <boxGeometry args={[0.6, 0.9, 0.35]} />
-        <meshLambertMaterial color="#e8b800" />
-      </mesh>
-      {/* Head */}
-      <mesh position={[0, 2.25, 0]} castShadow>
-        <sphereGeometry args={[0.3, 10, 10]} />
-        <meshLambertMaterial color="#fcd7b0" />
-      </mesh>
-      {/* Hat */}
-      <mesh position={[0, 2.58, 0]}>
-        <cylinderGeometry args={[0.22, 0.32, 0.28, 8]} />
-        <meshLambertMaterial color="#1a1a2e" />
-      </mesh>
-      {/* Shadow circle */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
-        <circleGeometry args={[0.6, 12]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.25} />
-      </mesh>
-    </group>
-  );
-}
-
-/* ── Walking legs ────────────────────────────────────────────── */
-function WalkingLegs({ timeRef }: { timeRef: React.MutableRefObject<number> }) {
-  const leftRef  = useRef<THREE.Mesh>(null);
-  const rightRef = useRef<THREE.Mesh>(null);
-  useFrame(() => {
-    const t = timeRef.current * 5;
-    if (leftRef.current)  leftRef.current.position.z  = Math.sin(t) * 0.12;
-    if (rightRef.current) rightRef.current.position.z = Math.sin(t + Math.PI) * 0.12;
-  });
-  return (
-    <>
-      <mesh ref={leftRef}  position={[-0.15, 0.7, 0]} castShadow>
-        <boxGeometry args={[0.22, 0.65, 0.22]} />
-        <meshLambertMaterial color="#1a237e" />
-      </mesh>
-      <mesh ref={rightRef} position={[ 0.15, 0.7, 0]} castShadow>
-        <boxGeometry args={[0.22, 0.65, 0.22]} />
-        <meshLambertMaterial color="#1a237e" />
-      </mesh>
-    </>
-  );
-}
-
-/* ── Lighting + Day/Night ────────────────────────────────────── */
-function Lighting({ dayTime }: { dayTime: number }) {
-  const sunRef = useRef<THREE.DirectionalLight>(null);
-
-  useFrame(() => {
-    if (!sunRef.current) return;
-    const t = dayTime * Math.PI * 2;
-    sunRef.current.position.set(
-      Math.sin(t) * 100,
-      Math.max(5, Math.cos(t) * 80 + 20),
-      Math.cos(t) * 60,
-    );
-    const brightness = Math.max(0, Math.sin(t));
-    sunRef.current.intensity = 0.4 + brightness * 1.2;
-  });
-
-  const isDark = dayTime > 0.75 || dayTime < 0.2;
-  const ambientIntensity = isDark ? 0.12 : 0.35;
-
-  return (
-    <>
-      <ambientLight intensity={ambientIntensity} color={isDark ? '#2233aa' : '#ffffff'} />
-      <directionalLight
-        ref={sunRef}
-        castShadow
-        shadow-mapSize={[1024, 1024]}
-        shadow-camera-far={300}
-        shadow-camera-left={-80}
-        shadow-camera-right={80}
-        shadow-camera-top={80}
-        shadow-camera-bottom={-80}
-        color={isDark ? '#aabbff' : '#fff8e0'}
-        intensity={isDark ? 0.1 : 1.5}
-      />
-      {/* Hemisphere sky light */}
-      <hemisphereLight
-        color={isDark ? '#1a2a6a' : '#87ceeb'}
-        groundColor="#2d5a1a"
-        intensity={isDark ? 0.15 : 0.4}
-      />
-    </>
-  );
-}
-
-/* ── Sky / atmosphere ─────────────────────────────────────────── */
-function Sky({ dayTime }: { dayTime: number }) {
-  const isDark = dayTime > 0.75 || dayTime < 0.2;
-  return isDark ? <Stars radius={200} depth={60} count={2000} factor={4} fade /> : null;
-}
-
-/* ── Fog controller ───────────────────────────────────────────── */
-function FogController({ dayTime }: { dayTime: number }) {
-  const { scene } = useThree();
-  const isDark = dayTime > 0.75 || dayTime < 0.2;
-  useEffect(() => {
-    scene.fog = new THREE.Fog(isDark ? '#050a1a' : '#b8d8f0', 60, 220);
-    scene.background = new THREE.Color(isDark ? '#050a1a' : '#87ceeb');
-    return () => { scene.fog = null; };
-  }, [scene, isDark]);
   return null;
 }
 
-/* ── Football field marker ────────────────────────────────────── */
+/* ── Football field ──────────────────────────────────────────── */
 function FootballField() {
   return (
-    <group position={[-45, 0.02, -145]}>
+    <group position={[-45, 0.05, -145]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[18, 12]} />
         <meshLambertMaterial color="#1e7a1e" />
       </mesh>
-      {/* Field lines */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
-        <planeGeometry args={[17.5, 11.5]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.08} />
-      </mesh>
-      <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[2.4, 2.6, 32]} />
         <meshBasicMaterial color="#ffffff" transparent opacity={0.5} />
       </mesh>
@@ -666,16 +718,17 @@ function FootballField() {
   );
 }
 
-/* ── Arcade building emissive sign ─────────────────────────────── */
+/* ── Arcade sign point lights ────────────────────────────────── */
+const ARCADE_LIGHTS = [
+  { x:  22, z: 160, color: '#a855f7' },
+  { x: -58, z:  85, color: '#818cf8' },
+  { x: 125, z: -12, color: '#f97316' },
+  { x:-125, z: -15, color: '#fbbf24' },
+  { x: -45, z:-100, color: '#06b6d4' },
+  { x:  55, z:-130, color: '#ec4899' },
+];
+
 function ArcadeSigns() {
-  const ARCADE_BUILDINGS = [
-    { x:  22, z: 160, color: '#a855f7', name: '🎡' },
-    { x: -58, z:  85, color: '#818cf8', name: '🃏' },
-    { x: 125, z: -12, color: '#f97316', name: '🎲' },
-    { x:-125, z: -15, color: '#fbbf24', name: '⚡' },
-    { x: -45, z:-100, color: '#06b6d4', name: '❓' },
-    { x:  55, z:-130, color: '#ec4899', name: '✂️' },
-  ];
   const time = useRef(0);
   const refs = useRef<(THREE.PointLight | null)[]>([]);
   useFrame((_, delta) => {
@@ -686,7 +739,7 @@ function ArcadeSigns() {
   });
   return (
     <group>
-      {ARCADE_BUILDINGS.map((a, i) => (
+      {ARCADE_LIGHTS.map((a, i) => (
         <pointLight
           key={i}
           ref={el => { refs.current[i] = el; }}
@@ -700,19 +753,42 @@ function ArcadeSigns() {
   );
 }
 
-/* ── Scene content ─────────────────────────────────────────────── */
+/* ── Stars that appear at night ──────────────────────────────── */
+function NightStars({ dayTimeRef }: { dayTimeRef: React.MutableRefObject<number> }) {
+  /* update opacity via the Three.js scene graph rather than React state */
+  const groupRef = useRef<THREE.Group>(null);
+  useFrame(() => {
+    if (!groupRef.current) return;
+    const isDark = dayTimeRef.current > 0.75 || dayTimeRef.current < 0.2;
+    groupRef.current.visible = isDark;
+  });
+  return (
+    <group ref={groupRef}>
+      <Stars radius={200} depth={60} count={2000} factor={4} fade />
+    </group>
+  );
+}
+
+/* ── Scene content ───────────────────────────────────────────── */
 function SceneContent({
   playerRef, otherPlayersRef, leaders, arenaPositions, getLeaderStatus,
-  visibleCollectibles, buildingData, treeData, roadData = [], onChallengeLeader,
-  onClickCollectible, dayTime = 0.45,
+  visibleCollectibles, buildingData, treeData, roadData = [],
+  onChallengeLeader, onClickCollectible,
 }: StoryWorld3DProps) {
+  /* shared animated day-time ref — starts at real clock, advances live */
+  const dayTimeRef = useRef<number>(
+    (() => {
+      const h = new Date().getHours() + new Date().getMinutes() / 60;
+      return h / 24;
+    })()
+  );
+
   return (
     <>
-      <FogController dayTime={dayTime} />
-      <Sky dayTime={dayTime} />
-      <Lighting dayTime={dayTime} />
+      <DayNightSystem dayTimeRef={dayTimeRef} />
+      <NightStars dayTimeRef={dayTimeRef} />
       <Terrain />
-      <Roads roads={roadData} />
+      {roadData.length > 0 && <Roads roads={roadData} />}
       <Buildings buildings={buildingData} />
       <Trees trees={treeData} />
       <FootballField />
@@ -727,19 +803,21 @@ function SceneContent({
         onClickCollectible={onClickCollectible}
       />
       <OtherPlayers otherPlayersRef={otherPlayersRef} />
+      {/* PlayerMesh at root level — no parent transform wrapper */}
+      <PlayerMesh playerRef={playerRef} />
       <PlayerCamera playerRef={playerRef} />
       <ArcadeSigns />
+      {/* Postprocessing */}
+      <EffectComposer>
+        <Bloom luminanceThreshold={0.6} luminanceSmoothing={0.9} intensity={0.4} />
+        <ToneMapping />
+      </EffectComposer>
     </>
   );
 }
 
-/* ── Main export ───────────────────────────────────────────────── */
+/* ── Main export ─────────────────────────────────────────────── */
 export function StoryWorld3D(props: StoryWorld3DProps) {
-  const [dayTime] = useState(() => {
-    const h = new Date().getHours() + new Date().getMinutes() / 60;
-    return h / 24;
-  });
-
   return (
     <Canvas
       style={{ position: 'absolute', inset: 0 }}
@@ -748,7 +826,7 @@ export function StoryWorld3D(props: StoryWorld3DProps) {
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       camera={{ position: [0, 18, 30], fov: 55, near: 0.5, far: 500 }}
     >
-      <SceneContent {...props} dayTime={dayTime} />
+      <SceneContent {...props} />
     </Canvas>
   );
 }
