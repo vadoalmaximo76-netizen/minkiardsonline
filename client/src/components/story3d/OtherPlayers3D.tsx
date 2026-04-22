@@ -3,28 +3,41 @@ import { useFrame }                from '@react-three/fiber';
 import { Text }                    from '@react-three/drei';
 import * as THREE                  from 'three';
 import type { OtherPlayer }        from './types';
-import { WalkingParts, CharacterBody, avatarColor } from './Player3D';
+import { AvatarGLB }               from './AvatarGLB';
 
-/* Smooth-lerping other-player mesh with full character model */
+/* Smooth-lerping other-player mesh using a GLB avatar */
 function OtherPlayerMesh({ player }: { player: OtherPlayer }) {
   const groupRef  = useRef<THREE.Group>(null);
   const targetPos = useRef(new THREE.Vector3(player.x, 0, player.z));
-  const time      = useRef(Math.random() * 10); // offset so players don't walk in sync
-  const jersey    = avatarColor(player.userId);
+  const prevPos   = useRef(new THREE.Vector3(player.x, 0, player.z));
+  const time      = useRef(Math.random() * 10);
+  const movingRef = useRef(false);
 
   useFrame((_, delta) => {
     time.current += delta;
     targetPos.current.set(player.x, 0, player.z);
     if (!groupRef.current) return;
+
+    const before = groupRef.current.position.clone();
     groupRef.current.position.lerp(targetPos.current, Math.min(1, delta * 8));
+
+    const moved = groupRef.current.position.distanceTo(before);
+    movingRef.current = moved > 0.001;
+
+    /* Turn to face direction of travel */
+    const dx = groupRef.current.position.x - prevPos.current.x;
+    const dz = groupRef.current.position.z - prevPos.current.z;
+    if (Math.abs(dx) > 0.001 || Math.abs(dz) > 0.001) {
+      groupRef.current.rotation.y = Math.atan2(dx, dz);
+    }
+    prevPos.current.copy(groupRef.current.position);
   });
 
   return (
     <group ref={groupRef} position={[player.x, 0, player.z]}>
-      <WalkingParts timeRef={time} jersey={jersey} />
-      <CharacterBody jersey={jersey} />
+      <AvatarGLB userId={player.userId} movingRef={movingRef} timeRef={time} />
       <Text
-        position={[0, 3.5, 0]}
+        position={[0, 4.0, 0]}
         fontSize={0.44}
         color="#ffffff"
         anchorX="center"

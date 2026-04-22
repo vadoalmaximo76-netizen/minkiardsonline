@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import { AvatarGLB } from './AvatarGLB';
 
 /* ── Per-user jersey colour palette ─────────────────────────────── */
 const JERSEY_PALETTE = [
@@ -288,7 +289,7 @@ export function PlayerMesh3D({
   const time        = useRef(0);
   const prevPos     = useRef({ x: playerRef.current.x, z: playerRef.current.z });
   const facingAngle = useRef(0);
-  const jersey      = avatarColor(userId);
+  const movingRef   = useRef(false);
 
   useFrame((_, delta) => {
     if (!groupRef.current) return;
@@ -300,7 +301,9 @@ export function PlayerMesh3D({
 
     const dx = px - prevPos.current.x;
     const dz = pz - prevPos.current.z;
-    if (Math.abs(dx) > 0.001 || Math.abs(dz) > 0.001) {
+    const isMoving = Math.abs(dx) > 0.001 || Math.abs(dz) > 0.001;
+    movingRef.current = isMoving;
+    if (isMoving) {
       facingAngle.current = Math.atan2(dx, dz);
     }
     groupRef.current.rotation.y = facingAngle.current;
@@ -309,8 +312,7 @@ export function PlayerMesh3D({
 
   return (
     <group ref={groupRef}>
-      <WalkingParts timeRef={time} jersey={jersey} />
-      <CharacterBody jersey={jersey} />
+      <AvatarGLB userId={userId} movingRef={movingRef} timeRef={time} />
     </group>
   );
 }
