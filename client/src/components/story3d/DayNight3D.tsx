@@ -262,7 +262,11 @@ interface WeatherState {
   changeTimer: number;   // seconds until next weather roll
 }
 
-export function RainEffect3D() {
+export function RainEffect3D({
+  intensityRef,
+}: {
+  intensityRef?: React.MutableRefObject<number>;
+}) {
   const { scene } = useThree();
 
   const weatherRef = useRef<WeatherState>({
@@ -304,6 +308,9 @@ export function RainEffect3D() {
     /* ── Smooth intensity ── */
     const target = w.raining ? 1 : 0;
     w.intensity += (target - w.intensity) * Math.min(delta * 0.4, 1);
+
+    /* Expose intensity to parent via optional ref */
+    if (intensityRef) intensityRef.current = w.intensity;
 
     const visible = w.intensity > 0.01;
     if (groupRef.current) groupRef.current.visible = visible;

@@ -18,6 +18,7 @@ import { Collectibles3D }                  from './Collectibles3D';
 import { OtherPlayers3D }                  from './OtherPlayers3D';
 import { PlayerMesh3D, PlayerCamera3D }    from './Player3D';
 import { DayNight3D, NightStars3D, RainEffect3D } from './DayNight3D';
+import { WorldAudio3D }                    from './WorldAudio3D';
 import type { StoryWorld3DProps }          from './types';
 
 /* ── Animated water plane for the lake zone ───────────────────── */
@@ -139,13 +140,24 @@ export function World3DScene(props: StoryWorld3DProps) {
     })()
   );
 
+  const weatherIntensityRef = useRef<number>(0);
+
   const { roadData = [] } = props;
 
   return (
     <>
       <DayNight3D dayTimeRef={dayTimeRef} />
       <NightStars3D dayTimeRef={dayTimeRef} />
-      <RainEffect3D />
+      <RainEffect3D intensityRef={weatherIntensityRef} />
+
+      {props.playerRef && (
+        <WorldAudio3D
+          dayTimeRef={dayTimeRef}
+          playerRef={props.playerRef}
+          arenaPositions={props.arenaPositions ?? []}
+          weatherIntensityRef={weatherIntensityRef}
+        />
+      )}
 
       <Terrain3D />
       <Roads3D roads={roadData} />

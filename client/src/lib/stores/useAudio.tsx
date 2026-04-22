@@ -109,6 +109,8 @@ interface AudioState {
     myTurn: boolean;
   };
   setSoundSettings: (settings: Partial<AudioState['soundSettings']>) => void;
+  playCoinCollect3D: () => void;
+  playCardCollect3D: () => void;
 }
 
 export const useAudio = create<AudioState>((set, get) => ({
@@ -2924,5 +2926,68 @@ export const useAudio = create<AudioState>((set, get) => ({
 
       set({ _lowHealthAlarmNodes: { ..._lowHealthAlarmNodes, active: false } });
     }
+  },
+
+  playCoinCollect3D: () => {
+    const { audioContext, isMuted } = get();
+    if (!audioContext || isMuted) return;
+    try {
+      const now = audioContext.currentTime;
+
+      const osc1 = audioContext.createOscillator();
+      const osc2 = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(880, now);
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(1760, now);
+
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.09, now + 0.010);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.30);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(audioContext.destination);
+
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + 0.32);
+      osc2.stop(now + 0.32);
+    } catch {}
+  },
+
+  playCardCollect3D: () => {
+    const { audioContext, isMuted } = get();
+    if (!audioContext || isMuted) return;
+    try {
+      const now = audioContext.currentTime;
+
+      const len = Math.ceil(audioContext.sampleRate * 0.22);
+      const buf = audioContext.createBuffer(1, len, audioContext.sampleRate);
+      const ch  = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
+
+      const src    = audioContext.createBufferSource();
+      src.buffer   = buf;
+
+      const filter = audioContext.createBiquadFilter();
+      filter.type  = 'bandpass';
+      filter.frequency.setValueAtTime(3500, now);
+      filter.Q.setValueAtTime(0.9, now);
+
+      const gain = audioContext.createGain();
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.08, now + 0.006);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+      src.connect(filter);
+      filter.connect(gain);
+      gain.connect(audioContext.destination);
+
+      src.start(now);
+      src.stop(now + 0.22);
+    } catch {}
   }
 }));

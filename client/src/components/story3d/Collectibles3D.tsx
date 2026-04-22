@@ -3,6 +3,7 @@ import { useFrame }       from '@react-three/fiber';
 import { Text }           from '@react-three/drei';
 import * as THREE         from 'three';
 import type { StoryWorldCollectible } from './types';
+import { useAudio }       from '../../lib/stores/useAudio';
 
 const PICKUP_RADIUS = 2.8;
 
@@ -15,9 +16,11 @@ export function Collectibles3D({
   playerRef?: React.MutableRefObject<{ x: number; z: number }>;
   onClickCollectible: (c: StoryWorldCollectible) => void;
 }) {
-  const time      = useRef(0);
-  const groupRefs = useRef<(THREE.Group | null)[]>([]);
-  const collected = useRef(new Set<string | number>());
+  const time              = useRef(0);
+  const groupRefs         = useRef<(THREE.Group | null)[]>([]);
+  const collected         = useRef(new Set<string | number>());
+  const playCoinCollect3D = useAudio(s => s.playCoinCollect3D);
+  const playCardCollect3D = useAudio(s => s.playCardCollect3D);
 
   useFrame((_, delta) => {
     time.current += delta;
@@ -39,6 +42,9 @@ export function Collectibles3D({
       const dist = Math.sqrt(dx * dx + dz * dz);
       if (dist <= PICKUP_RADIUS) {
         collected.current.add(c.id);
+        const isCoin = c.type === 'coin' || ((c.creditValue ?? 0) > 0 && !c.cardId);
+        if (isCoin) playCoinCollect3D();
+        else playCardCollect3D();
         onClickCollectible(c);
       }
     });
