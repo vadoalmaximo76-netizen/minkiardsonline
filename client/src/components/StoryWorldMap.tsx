@@ -7,6 +7,7 @@ import {
   ReazioneRapida, QuizMinkiard, SassoCartaForbice,
 } from './MiniGames';
 import { FootballMinigames } from './FootballMinigames';
+import { StoryWorld3D } from './story3d/StoryWorld3D';
 
 /* ── Interfaces (unchanged) ─────────────────────────────────── */
 export interface StoryLocality {
@@ -4319,14 +4320,28 @@ export function StoryWorldMap({
 
   return (
     <div ref={containerRef} style={{ position: 'relative', flex: 1, overflow: 'hidden', minHeight: 0 }}>
-      {/* Main canvas */}
+      {/* Hidden canvas – keeps the game loop (movement, proximity, socket) running */}
       <canvas
         ref={canvasRef}
-        onClick={handleCanvasClick}
-        onMouseMove={handleCanvasMouseMove}
-        onMouseLeave={() => setTooltip(null)}
-        style={{ position: 'absolute', inset: 0, display: 'block', width: '100%', height: '100%', imageRendering: 'pixelated' }}
-        tabIndex={0}
+        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: '100%', height: '100%' }}
+      />
+
+      {/* 3D open-world layer */}
+      <StoryWorld3D
+        playerRef={playerRef}
+        otherPlayersRef={otherPlayersRef}
+        leaders={leaders}
+        arenaPositions={arenaPositions}
+        getLeaderStatus={getLeaderStatus}
+        visibleCollectibles={visibleCollectibles}
+        buildingData={BUILDING_DATA}
+        treeData={TREE_DATA}
+        roadData={ROAD_DATA}
+        onChallengeLeader={(leader) => {
+          const status = getLeaderStatus(leader);
+          if (status !== 'locked') onChallengeLeader(leader);
+        }}
+        onClickCollectible={(c) => setNearCollectible(c as StoryCollectible)}
       />
 
       {/* GPS Minimap */}
