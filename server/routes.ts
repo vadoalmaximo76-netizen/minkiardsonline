@@ -9994,7 +9994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         io.to(gameId).emit('chat-message', {
                           id: `${Date.now()}-cpu-mosse-attack`,
                           playerName: nextPlayer,
-                          message: `🎯 Uso la carta MOSSE "${mosseName}" per attaccare ${targetName} di ${targetCard.owner}! Master, inserisci il danno.`,
+                          message: `🎯 Uso la carta MOSSE "${mosseName}" per attaccare ${targetName} di ${targetCard.owner}!`,
                           timestamp: Date.now()
                         });
                         
@@ -10753,7 +10753,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           io.to(gameId).emit('chat-message', {
                             id: `${Date.now()}-cpu-mosse-attack-fe`,
                             playerName: nextPlayer,
-                            message: `🎯 Uso la carta MOSSE "${mosseName}" per attaccare ${targetName} di ${targetCard.owner}! Master, inserisci il danno.`,
+                            message: `🎯 Uso la carta MOSSE "${mosseName}" per attaccare ${targetName} di ${targetCard.owner}!`,
                             timestamp: Date.now()
                           });
                           
