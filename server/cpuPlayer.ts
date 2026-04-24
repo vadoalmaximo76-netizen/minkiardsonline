@@ -3075,18 +3075,42 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           if (drawAction && drawAction.type === 'pick-card') {
             const deckType = drawAction.data.deckType;
             if (emptyDeckTypes.has(deckType)) {
-              // Already tried this deck and it was empty — don't retry
-              needsMoreDraws = false;
-              break;
-            }
-            const handBefore = (cpuPlayer.hand || []).length;
-            await this.gameManager.pickCard(this.gameId, deckType, this.playerName);
-            const stateAfter = this.gameManager.getSanitizedGameState(this.gameId);
-            const handAfter = (stateAfter.players[this.playerName]?.hand || []).length;
-            if (handAfter <= handBefore) {
-              // Deck was empty — pickCard didn't add a card, stop retrying this deck type
-              console.log(`🃏 CPU ${this.playerName}: deck '${deckType}' appears empty (hand did not grow) — skipping further draw attempts for this type`);
-              emptyDeckTypes.add(deckType);
+              // handleDrawPhase keeps recommending this exhausted deck (priority-first logic).
+              // Find another needed deck type that isn't exhausted and try that instead.
+              const hand2 = cpuPlayer.hand || [];
+              const myChar2 = currentState.field.find((c: any) => c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+              const personaggiInHand2 = hand2.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali').length;
+              const mosseInHand2 = hand2.filter((c: any) => c.type === 'mosse').length;
+              const bonusInHand2 = hand2.filter((c: any) => c.type === 'bonus').length;
+              let altType: string | null = null;
+              if (personaggiInHand2 === 0 && !myChar2 && !emptyDeckTypes.has('personaggi')) altType = 'personaggi';
+              else if (mosseInHand2 === 0 && !emptyDeckTypes.has('mosse')) altType = 'mosse';
+              else if (bonusInHand2 === 0 && !emptyDeckTypes.has('bonus')) altType = 'bonus';
+              if (altType) {
+                const handBefore2 = hand2.length;
+                await this.gameManager.pickCard(this.gameId, altType, this.playerName);
+                const stateAfter2 = this.gameManager.getSanitizedGameState(this.gameId);
+                const handAfter2 = (stateAfter2.players[this.playerName]?.hand || []).length;
+                if (handAfter2 <= handBefore2) {
+                  console.log(`🃏 CPU ${this.playerName}: alt deck '${altType}' also empty — marking exhausted`);
+                  emptyDeckTypes.add(altType);
+                }
+                // Loop will check next type on next iteration
+              } else {
+                // All needed deck types are exhausted or satisfied
+                needsMoreDraws = false;
+                break;
+              }
+            } else {
+              const handBefore = (cpuPlayer.hand || []).length;
+              await this.gameManager.pickCard(this.gameId, deckType, this.playerName);
+              const stateAfter = this.gameManager.getSanitizedGameState(this.gameId);
+              const handAfter = (stateAfter.players[this.playerName]?.hand || []).length;
+              if (handAfter <= handBefore) {
+                // Deck was empty — pickCard didn't add a card, skip this type next time
+                console.log(`🃏 CPU ${this.playerName}: deck '${deckType}' appears empty (hand did not grow) — marking exhausted`);
+                emptyDeckTypes.add(deckType);
+              }
             }
           } else {
             needsMoreDraws = false;
@@ -3234,8 +3258,22 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
             : this.pickEnemyTarget(cardToPlay);
           if (!_preTarget) {
             const reason = this.whyNoTarget(gameState);
-            console.log(`🎯 CPU ${this.playerName}: [PRE-PLAY GUARD] No valid target for MOSSE ${cardToPlay.id} — ${reason}. Skipping MOSSE, ending turn.`);
+            console.log(`🎯 CPU ${this.playerName}: [PRE-PLAY GUARD] No valid target for MOSSE ${cardToPlay.id} — ${reason}. Checking for BONUS fallback.`);
             this.sendChatMessage(reason);
+            // Fall through to BONUS card play instead of wasting the turn.
+            const hand = cpuPlayer.hand || [];
+            const bonusCandidates = hand.filter((c: any) => c.type === 'bonus');
+            if (bonusCandidates.length > 0) {
+              const bestBonus = bonusCandidates.reduce((best: any, c: any) => {
+                const bStars = parseInt((best.notes || best.text || '').match(/stelle[:\s]*(\d+)/i)?.[1] ?? '0');
+                const cStars = parseInt((c.notes || c.text || '').match(/stelle[:\s]*(\d+)/i)?.[1] ?? '0');
+                return cStars > bStars ? c : best;
+              }, bonusCandidates[0]);
+              console.log(`🎯 CPU ${this.playerName}: [PRE-PLAY GUARD] Playing BONUS fallback card ${bestBonus.id} instead of skipped MOSSE.`);
+              this.turnState.playedThisTurn = true;
+              return { type: 'play-card', data: { cardId: bestBonus.id, playerName: this.playerName } };
+            }
+            // No BONUS available either — end the turn cleanly.
             this.turnState.phase = 'turn_end';
             return { type: 'end-turn', data: { playerName: this.playerName } };
           }

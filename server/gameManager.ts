@@ -28899,15 +28899,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       console.log(`[CPU-STORY] ${cpuPlayerName} (${cpuLevel}/${attackMode}) — taking turn in gym game ${gameId}`);
     }
 
+    let action: any = null;
+    let thinkingEmitted = false;
     try {
       // Set socket emitter for chat functionality
       if (socketEmitter) {
         cpuPlayer.cpuInstance.setSocketEmitter(socketEmitter);
         // Notify clients that CPU is thinking so they can show an indicator
         socketEmitter.to(gameId).emit('cpu-thinking', { playerName: cpuPlayerName });
+        thinkingEmitted = true;
       }
       
-      const action = await cpuPlayer.cpuInstance.takeTurn(game);
+      action = await cpuPlayer.cpuInstance.takeTurn(game);
 
       if (isStoryMode) {
         if (action) {
@@ -28973,23 +28976,35 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           console.warn(`⚠️ [CPU-NULL-RECOVERY] ${cpuPlayerName} in ${gameId}: waiting for attack resolution — scheduling 12s backup forced end-turn`);
           scheduleForceEnd(12000, 'attack-backup');
         } else if (!isWaitingForResp && !isInDuel) {
-          console.warn(`⚠️ [CPU-NULL-RECOVERY] ${cpuPlayerName} in ${gameId}: unexpected null from takeTurn — clearing thinking indicator now, forcing end turn in 5s`);
-          socketEmitter.to(gameId).emit('cpu-done-thinking', { playerName: cpuPlayerName });
+          console.warn(`⚠️ [CPU-NULL-RECOVERY] ${cpuPlayerName} in ${gameId}: unexpected null from takeTurn — forcing end turn in 5s (finally block will clear spinner)`);
           scheduleForceEnd(5000, 'unexpected-null');
         }
       }
 
       return action;
     } catch (error) {
+      action = null; // ensure finally sees null and clears spinner
       console.error(`Error processing CPU turn for ${cpuPlayerName}:`, error);
       if (isStoryMode) {
         console.error(`[CPU-STORY] ${cpuPlayerName} — exception in takeTurn:`, error);
       }
-      // Fix #310: ensure the "thinking" spinner is cleared even when an exception occurs
-      if (socketEmitter) {
-        socketEmitter.to(gameId).emit('cpu-done-thinking', { playerName: cpuPlayerName });
-      }
       return null;
+    } finally {
+      // Guaranteed spinner clearance: if we showed the "thinking" indicator but the CPU
+      // returned no action (null) AND is not intentionally waiting (attack / duel / response),
+      // clear the spinner here. This handles both the exception path and any unexpected
+      // early-return path that does not itself emit cpu-done-thinking.
+      if (thinkingEmitted && !action && socketEmitter) {
+        const isWaitingForAttack = cpuPlayer?.cpuInstance?.isWaitingForAttack?.() ?? false;
+        const isWaitingForResp   = cpuPlayer?.cpuInstance?.isWaitingForResponse ?? false;
+        const freshGameF = this.games.get(gameId);
+        const activeDuelF = (freshGameF as any)?.activeDuel;
+        const isInDuelF = !!(activeDuelF?.active &&
+          (activeDuelF.player1 === cpuPlayerName || activeDuelF.player2 === cpuPlayerName));
+        if (!isWaitingForAttack && !isWaitingForResp && !isInDuelF) {
+          socketEmitter.to(gameId).emit('cpu-done-thinking', { playerName: cpuPlayerName });
+        }
+      }
     }
   }
 
