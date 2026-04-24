@@ -9998,8 +9998,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           timestamp: Date.now()
                         });
                         
-                        // Emit cpu-damage-request event to trigger the CPUDamageDialog
-                        setTimeout(() => {
+                        // Execute MOSSE attack directly server-side (no client dialog needed)
+                        setTimeout(async () => {
                           // Get the CPU's character on field for the attacker info
                           const cpuCharacter = currentGameState?.field?.find((c: any) => 
                             c.owner === nextPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
@@ -10050,46 +10050,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
                               }
                             }
                           }
-                          // Fix #310: final fallback so the dialog always gets a pre-filled value
-                          // and can auto-submit the attack after the 3s countdown.
+                          // Fix #310: final fallback so the damage is always non-null.
                           if (suggestedDamage === null) {
                             const fallback = Math.max(1, attackerStars) * 30;
                             console.warn(`⚠️ CPU ${nextPlayer}: mosseDamageValue missing — using fallback damage ${fallback} PTI`);
                             suggestedDamage = fallback;
                           }
                           
-                          io.to(gameId).emit('cpu-damage-request', {
-                            cpuName: nextPlayer,
-                            cpuCharacterName: cpuCharacter ? getMosseName(cpuCharacter.frontImage) : nextPlayer,
-                            mosseCardId: result.card!.id,
-                            mosseCardName: mosseName,
-                            mosseCardImage: result.card!.frontImage,
-                            targetCardId: targetCard.id,
-                            targetCardName: targetName,
-                            targetOwner: targetCard.owner,
-                            gameCreator: gameCreator || '',
-                            timestamp: Date.now(),
-                            // MOSSE damage auto-fill
-                            mosseDamageValue: (mosseCard as any).mosseDamageValue || null,
-                            mosseDamageEffect: (mosseCard as any).mosseDamageEffect || null,
-                            suggestedDamage: suggestedDamage,
-                            attackerStars: attackerStars,
-                            attackerCharacter: cpuCharacter ? {
-                              id: cpuCharacter.id,
-                              name: getMosseName(cpuCharacter.frontImage),
-                              image: cpuCharacter.frontImage,
-                              notes: cpuCharacter.text || ''
-                            } : null,
-                            defenderCharacter: {
-                              id: targetCard.id,
-                              name: targetName,
-                              image: targetCard.frontImage,
-                              notes: targetCard.text || ''
-                            },
-                            isHandTarget: false
-                          });
-                          
-                          console.log(`📢 CPU ${nextPlayer} cpu-damage-request emitted - damage pre-filled (fallback if needed) — auto-submit in 3s via CPUDamageDialog`);
+                          // Fix #310 (enhanced): Execute attack directly server-side instead of
+                          // relying on client dialog auto-submit (which fails on disconnect).
+                          console.log(`🎯 CPU ${nextPlayer}: Executing MOSSE attack directly server-side (damage=${suggestedDamage}, effect=${routesMosseEffect || 'none'})`);
+                          try {
+                            const directAttackResult = await gameManager.executeMossaAttack(
+                              gameId,
+                              nextPlayer,
+                              result.card!.id,
+                              targetCard.id,
+                              suggestedDamage!,
+                              0,              // starsToRemove (server-side default)
+                              routesMosseEffect || null
+                            );
+                            io.to(gameId).emit('card-attacked', {
+                              mosseCardId: result.card!.id,
+                              targetCardId: targetCard.id,
+                              attackerName: nextPlayer,
+                              targetOwner: targetCard.owner,
+                              damageValue: suggestedDamage,
+                              timestamp: Date.now()
+                            });
+                            const directState = gameManager.getSanitizedGameState(gameId);
+                            if (directState) io.to(gameId).emit('game-state-update', directState);
+                            if (!directAttackResult.success) {
+                              console.warn(`⚠️ CPU ${nextPlayer}: server-side MOSSE attack failed — ${directAttackResult.error}. Forcing end turn.`);
+                            }
+                            // Special results (pending defense, roulette, ostaggio) manage turn end themselves.
+                            if (!directAttackResult.result?.roulettePending && !directAttackResult.result?.pendingDefense && !directAttackResult.result?.isOstaggioAttack) {
+                              const nextAfterDirect = gameManager.endTurn(gameId, nextPlayer);
+                              if (nextAfterDirect) {
+                                io.to(gameId).emit('next-turn', { nextPlayer: nextAfterDirect });
+                                const fgDirect = gameManager.getGameState(gameId);
+                                if (fgDirect?.players[nextAfterDirect]?.isCPU) {
+                                  setTimeout(() => { gameManager.processCPUTurn(gameId, nextAfterDirect, io); }, 1500);
+                                }
+                              }
+                            }
+                          } catch (directErr) {
+                            console.error(`⚠️ CPU ${nextPlayer}: exception in server-side MOSSE attack:`, directErr);
+                            const nextAfterErr = gameManager.endTurn(gameId, nextPlayer);
+                            if (nextAfterErr) {
+                              io.to(gameId).emit('next-turn', { nextPlayer: nextAfterErr });
+                            }
+                          }
                         }, 500);
                         
                         // Don't end turn or return card - wait for the attack resolution flow
@@ -10759,7 +10770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                               .join(' ');
                           };
                           
-                          setTimeout(() => {
+                          setTimeout(async () => {
                             // Get the CPU's character on field for the attacker info
                             const cpuCharacter = currentGameState?.field?.find((c: any) => 
                               c.owner === nextPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
@@ -10800,46 +10811,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
                                 }
                               }
                             }
-                            // Fix #310: final fallback so the dialog always gets a pre-filled value
-                            // and can auto-submit the attack after the 3s countdown.
+                            // Fix #310: final fallback so damage is always non-null.
                             if (suggestedDamageFE === null) {
                               const fallbackFE = Math.max(1, attackerStarsFE) * 30;
                               console.warn(`⚠️ CPU ${nextPlayer}: mosseDamageValue missing (FE path) — using fallback damage ${fallbackFE} PTI`);
                               suggestedDamageFE = fallbackFE;
                             }
                             
-                            io.to(gameId).emit('cpu-damage-request', {
-                              cpuName: nextPlayer,
-                              cpuCharacterName: cpuCharacter ? getMosseNameFE(cpuCharacter.frontImage) : nextPlayer,
-                              mosseCardId: playResult.card!.id,
-                              mosseCardName: mosseName,
-                              mosseCardImage: playResult.card!.frontImage,
-                              targetCardId: targetCard.id,
-                              targetCardName: targetName,
-                              targetOwner: targetCard.owner,
-                              gameCreator: gameCreator || '',
-                              timestamp: Date.now(),
-                              // MOSSE damage auto-fill
-                              mosseDamageValue: (mosseCardFE as any).mosseDamageValue || null,
-                              mosseDamageEffect: routesMosseEffectFE,
-                              suggestedDamage: suggestedDamageFE,
-                              attackerStars: attackerStarsFE,
-                              attackerCharacter: cpuCharacter ? {
-                                id: cpuCharacter.id,
-                                name: getMosseNameFE(cpuCharacter.frontImage),
-                                image: cpuCharacter.frontImage,
-                                notes: cpuCharacter.text || ''
-                              } : null,
-                              defenderCharacter: {
-                                id: targetCard.id,
-                                name: targetName,
-                                image: targetCard.frontImage,
-                                notes: targetCard.text || ''
-                              },
-                              isHandTarget: false
-                            });
-                            
-                            console.log(`📢 CPU ${nextPlayer} cpu-damage-request emitted (force-end-turn) - damage pre-filled (fallback if needed) — auto-submit in 3s via CPUDamageDialog`);
+                            // Fix #310 (enhanced): Execute attack directly server-side (FE path).
+                            console.log(`🎯 CPU ${nextPlayer}: Executing MOSSE attack directly server-side / FE path (damage=${suggestedDamageFE}, effect=${routesMosseEffectFE || 'none'})`);
+                            try {
+                              const directAttackResultFE = await gameManager.executeMossaAttack(
+                                gameId,
+                                nextPlayer,
+                                playResult.card!.id,
+                                targetCard.id,
+                                suggestedDamageFE!,
+                                0,              // starsToRemove (server-side default)
+                                routesMosseEffectFE || null
+                              );
+                              io.to(gameId).emit('card-attacked', {
+                                mosseCardId: playResult.card!.id,
+                                targetCardId: targetCard.id,
+                                attackerName: nextPlayer,
+                                targetOwner: targetCard.owner,
+                                damageValue: suggestedDamageFE,
+                                timestamp: Date.now()
+                              });
+                              const directStateFE = gameManager.getSanitizedGameState(gameId);
+                              if (directStateFE) io.to(gameId).emit('game-state-update', directStateFE);
+                              if (!directAttackResultFE.success) {
+                                console.warn(`⚠️ CPU ${nextPlayer}: server-side MOSSE attack failed (FE path) — ${directAttackResultFE.error}. Forcing end turn.`);
+                              }
+                              // Special results manage turn end themselves.
+                              if (!directAttackResultFE.result?.roulettePending && !directAttackResultFE.result?.pendingDefense && !directAttackResultFE.result?.isOstaggioAttack) {
+                                const nextAfterFE = gameManager.endTurn(gameId, nextPlayer);
+                                if (nextAfterFE) {
+                                  io.to(gameId).emit('next-turn', { nextPlayer: nextAfterFE });
+                                  const fgFE = gameManager.getGameState(gameId);
+                                  if (fgFE?.players[nextAfterFE]?.isCPU) {
+                                    setTimeout(() => { gameManager.processCPUTurn(gameId, nextAfterFE, io); }, 1500);
+                                  }
+                                }
+                              }
+                            } catch (directErrFE) {
+                              console.error(`⚠️ CPU ${nextPlayer}: exception in server-side MOSSE attack (FE path):`, directErrFE);
+                              const nextAfterErrFE = gameManager.endTurn(gameId, nextPlayer);
+                              if (nextAfterErrFE) {
+                                io.to(gameId).emit('next-turn', { nextPlayer: nextAfterErrFE });
+                              }
+                            }
                           }, 500);
                           
                           // Don't end turn or return card - wait for attack resolution
