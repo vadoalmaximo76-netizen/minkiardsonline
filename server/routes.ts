@@ -10050,6 +10050,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                               }
                             }
                           }
+                          // Fix #310: final fallback so the dialog always gets a pre-filled value
+                          // and can auto-submit the attack after the 3s countdown.
+                          if (suggestedDamage === null) {
+                            const fallback = Math.max(1, attackerStars) * 30;
+                            console.warn(`⚠️ CPU ${nextPlayer}: mosseDamageValue missing — using fallback damage ${fallback} PTI`);
+                            suggestedDamage = fallback;
+                          }
                           
                           io.to(gameId).emit('cpu-damage-request', {
                             cpuName: nextPlayer,
@@ -10792,6 +10799,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                                   else if (/dimezza\s+(?:i\s+)?pti/i.test(cardTextFE)) { suggestedDamageFE = 0; routesMosseEffectFE = 'halve_pti'; }
                                 }
                               }
+                            }
+                            // Fix #310: final fallback so the dialog always gets a pre-filled value
+                            // and can auto-submit the attack after the 3s countdown.
+                            if (suggestedDamageFE === null) {
+                              const fallbackFE = Math.max(1, attackerStarsFE) * 30;
+                              console.warn(`⚠️ CPU ${nextPlayer}: mosseDamageValue missing (FE path) — using fallback damage ${fallbackFE} PTI`);
+                              suggestedDamageFE = fallbackFE;
                             }
                             
                             io.to(gameId).emit('cpu-damage-request', {

@@ -3062,16 +3062,32 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       // verbose: complete turn
       
       // Phase 1: Draw ALL missing card types (not just one)
+      // Fix #310: track empty deck types so we don't retry them and waste loop iterations.
       if (this.gameManager) {
         let needsMoreDraws = true;
         let drawAttempts = 0;
+        const emptyDeckTypes = new Set<string>();
         while (needsMoreDraws && drawAttempts < 3) {
           drawAttempts++;
           const currentState = this.gameManager.getSanitizedGameState(this.gameId);
           cpuPlayer = currentState.players[this.playerName];
           const drawAction = this.handleDrawPhase(cpuPlayer, currentState);
           if (drawAction && drawAction.type === 'pick-card') {
-            await this.gameManager.pickCard(this.gameId, drawAction.data.deckType, this.playerName);
+            const deckType = drawAction.data.deckType;
+            if (emptyDeckTypes.has(deckType)) {
+              // Already tried this deck and it was empty — don't retry
+              needsMoreDraws = false;
+              break;
+            }
+            const handBefore = (cpuPlayer.hand || []).length;
+            await this.gameManager.pickCard(this.gameId, deckType, this.playerName);
+            const stateAfter = this.gameManager.getSanitizedGameState(this.gameId);
+            const handAfter = (stateAfter.players[this.playerName]?.hand || []).length;
+            if (handAfter <= handBefore) {
+              // Deck was empty — pickCard didn't add a card, stop retrying this deck type
+              console.log(`🃏 CPU ${this.playerName}: deck '${deckType}' appears empty (hand did not grow) — skipping further draw attempts for this type`);
+              emptyDeckTypes.add(deckType);
+            }
           } else {
             needsMoreDraws = false;
           }
@@ -3189,7 +3205,42 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         }
 
         console.log(`🎯 CPU ${this.playerName}: Playing MOSSE card ${cardToPlay.id} - executing attack ATOMICALLY`);
-        
+
+        // PRE-PLAY TARGET GUARD (Fix #310): Before wasting the MOSSE card on the field,
+        // verify a valid attack target exists. ATTACCO DISONESTO targets hand cards (always skip
+        // this guard). Pure custom-effect cards (no damage) don't need a field target either.
+        const _preCardEffect = cardToPlay.effect || '';
+        const _preHasCustomEffect = !!_preCardEffect && (
+          /\[BERSAGLIO:/i.test(_preCardEffect) ||
+          /\[DADO[_:]?/i.test(_preCardEffect) ||
+          /\[DADO_AUTOMATICO:/i.test(_preCardEffect) ||
+          /scommessa/i.test(_preCardEffect) ||
+          /roulette/i.test(_preCardEffect) ||
+          /dopo\s+\d+\s+turni/i.test(_preCardEffect) ||
+          /tra\s+\d+\s+turni/i.test(_preCardEffect)
+        );
+        const _preHasEffectOnlyKw = /morte\s+del\s+personaggio|gamble.*morte|morte.*gamble|scommessa.*morte/i.test(_preCardEffect)
+          || /drain|assorbe.*pti|contrattaz/i.test(_preCardEffect);
+        const _preHasDamageValue = (cardToPlay.mosseDamageValue !== null && cardToPlay.mosseDamageValue !== undefined && cardToPlay.mosseDamageValue > 0)
+          || (cardToPlay.mosseDamageEffect !== null && cardToPlay.mosseDamageEffect !== undefined && cardToPlay.mosseDamageEffect !== '')
+          || _preHasEffectOnlyKw;
+        const _preIsAtcaccoDisonesto = cardToPlay.frontImage === 'https://i.ibb.co/PZR61NhJ/attacco-disonesto.png';
+        const _preIsAttaccoCombinatoCard = (cardToPlay.frontImage || '').toLowerCase().includes('attacco-combinato');
+
+        // Only run the guard for cards that need a field target AND are not custom-effect-only
+        if (!_preIsAtcaccoDisonesto && (!_preHasCustomEffect || _preHasDamageValue)) {
+          const _preTarget = _preIsAttaccoCombinatoCard
+            ? (this.pickHighestPTIEnemyTarget() || this.pickEnemyTarget(cardToPlay))
+            : this.pickEnemyTarget(cardToPlay);
+          if (!_preTarget) {
+            const reason = this.whyNoTarget(gameState);
+            console.log(`🎯 CPU ${this.playerName}: [PRE-PLAY GUARD] No valid target for MOSSE ${cardToPlay.id} — ${reason}. Skipping MOSSE, ending turn.`);
+            this.sendChatMessage(reason);
+            this.turnState.phase = 'turn_end';
+            return { type: 'end-turn', data: { playerName: this.playerName } };
+          }
+        }
+
         // CRITICAL: Mark that we've played a card this turn - ONE CARD PER TURN RULE
         this.turnState.playedThisTurn = true;
         console.log(`🎯 CPU ${this.playerName}: Setting playedThisTurn=true (ONE CARD PER TURN)`);
@@ -3605,6 +3656,14 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           }
         }
         
+        // FINAL FALLBACK (Fix #310): card has no preset damage value — compute a default so GymMode
+        // CPUs always auto-submit instead of waiting for a human to fill in the damage dialog.
+        if (suggestedDamage === null) {
+          const fallbackDamage = Math.max(1, attackerStars) * 30;
+          console.warn(`⚠️ CPU ${this.playerName}: mosseDamageValue missing on card ${cardId} — using fallback damage ${fallbackDamage} PTI (${attackerStars} stars × 30)`);
+          suggestedDamage = fallbackDamage;
+        }
+
         // AUTO-SUBMIT: If damage is pre-calculated, execute the attack directly
         if (suggestedDamage !== null && suggestedDamage !== undefined && this.gameManager) {
           console.log(`🎯 CPU ${this.playerName}: AUTO-SUBMITTING attack (legacy path) with damage ${suggestedDamage}`);
@@ -3782,6 +3841,14 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
     }
     
+    // FINAL FALLBACK (Fix #310): card has no preset damage value — compute a default so GymMode
+    // CPUs always auto-submit instead of waiting for a human to fill in the damage dialog.
+    if (suggestedDamage === null) {
+      const fallbackDamage = Math.max(1, attackerStars) * 30;
+      console.warn(`⚠️ CPU ${this.playerName}: mosseDamageValue missing on card ${mosseCard.id} — using fallback damage ${fallbackDamage} PTI (${attackerStars} stars × 30)`);
+      suggestedDamage = fallbackDamage;
+    }
+
     // AUTO-SUBMIT: If we have pre-calculated damage, execute the attack directly on the server
     // without requiring the game creator to manually confirm via the dialog
     if (suggestedDamage !== null && suggestedDamage !== undefined && this.gameManager) {

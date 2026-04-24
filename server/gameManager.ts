@@ -28985,6 +28985,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       if (isStoryMode) {
         console.error(`[CPU-STORY] ${cpuPlayerName} — exception in takeTurn:`, error);
       }
+      // Fix #310: ensure the "thinking" spinner is cleared even when an exception occurs
+      if (socketEmitter) {
+        socketEmitter.to(gameId).emit('cpu-done-thinking', { playerName: cpuPlayerName });
+      }
       return null;
     }
   }
