@@ -10089,7 +10089,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                             isHandTarget: false
                           });
                           
-                          console.log(`📢 CPU ${nextPlayer} cpu-damage-request emitted - waiting for master to input damage`);
+                          console.log(`📢 CPU ${nextPlayer} cpu-damage-request emitted - damage pre-filled (fallback if needed) — auto-submit in 3s via CPUDamageDialog`);
                         }, 500);
                         
                         // Don't end turn or return card - wait for the attack resolution flow
@@ -10839,7 +10839,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                               isHandTarget: false
                             });
                             
-                            console.log(`📢 CPU ${nextPlayer} cpu-damage-request emitted (force-end-turn) - waiting for master to input damage`);
+                            console.log(`📢 CPU ${nextPlayer} cpu-damage-request emitted (force-end-turn) - damage pre-filled (fallback if needed) — auto-submit in 3s via CPUDamageDialog`);
                           }, 500);
                           
                           // Don't end turn or return card - wait for attack resolution
