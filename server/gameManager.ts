@@ -31382,6 +31382,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // so the queue is already empty here. This cleanup handles other turn-transition paths
     // (duel abort, forced resets, direct endTurn calls) to prevent cross-turn leakage.
     if (gameState.pendingMosseMultiTargets?.length) {
+      // BUG FIX (Task #307): If called from inside processDefenseResponse (_defenseBeingResolved=true),
+      // an early-return path (interceptor, clash-abort, soft-control bypass) triggered endTurn before
+      // the finally block's processNextMosseMultiTarget could chain to the next target.
+      // Return null here so no turn advancement happens; the finally block handles the chain.
+      if ((gameState as any)._defenseBeingResolved) {
+        console.log(`🔥 MOSSE MULTI: endTurn called mid-defense with ${gameState.pendingMosseMultiTargets.length} target(s) queued — deferring turn advance to finally block`);
+        return null;
+      }
       console.log(`🔥 MOSSE MULTI: Clearing ${gameState.pendingMosseMultiTargets.length} stale queued target(s) on endTurn for ${playerName}`);
       gameState.pendingMosseMultiTargets = [];
     }
