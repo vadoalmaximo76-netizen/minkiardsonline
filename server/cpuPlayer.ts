@@ -632,6 +632,26 @@ export class CPUPlayer {
       this._clearAttackSafetyTimer();
       this.attackResolutionSafetyTimer = setTimeout(() => {
         if (this.waitingForAttackResolution) {
+          // CRITICAL FIX (Task #307): If a HUMAN player is still waiting to respond to the
+          // defense dialog (pendingDefense.defender is not a CPU), do NOT fire endTurn here.
+          // The 30-second defense timeout in emitDefenseRequest() will handle the resolution.
+          // Firing endTurn early would emit next-turn to all clients, causing the human's
+          // defense dialog to be dismissed before they can act — resulting in zero damage.
+          if (this.gameManager && this.gameId) {
+            try {
+              const fg = this.gameManager.getGameState(this.gameId);
+              if (fg && fg.pendingDefense) {
+                const defenderName = fg.pendingDefense.defender;
+                const defenderIsHuman = !fg.players[defenderName]?.isCPU;
+                if (defenderIsHuman) {
+                  console.warn(`⚠️ CPU ${this.playerName}: watchdog skipped — human player "${defenderName}" is still resolving defense (30s timer handles this)`);
+                  return;
+                }
+              }
+            } catch (e) {
+              console.error(`❌ CPU ${this.playerName}: watchdog human-defense check failed:`, e);
+            }
+          }
           console.warn(`⚠️ CPU ${this.playerName}: attack resolution watchdog fired — unblocking CPU after 8s and forcing end-turn`);
           this.waitingForAttackResolution = false;
           this.attackResolutionSafetyTimer = null;

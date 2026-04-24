@@ -28941,6 +28941,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             if (!stillCpuTurn) return;
             const stillWaiting = fg.players[cpuPlayerName]?.cpuInstance?.isWaitingForAttack?.() ?? false;
             if (label === 'attack-backup' && !stillWaiting) return;
+            // CRITICAL FIX (Task #307): Don't force end-turn if a HUMAN player is still
+            // resolving the defense dialog — the 30s defense timeout will handle it.
+            if (fg.pendingDefense) {
+              const defenderName = fg.pendingDefense.defender;
+              const defenderIsHuman = !fg.players[defenderName]?.isCPU;
+              if (defenderIsHuman) {
+                console.warn(`⚠️ [CPU-NULL-RECOVERY:${label}] ${cpuPlayerName}: skipping forced end-turn — human "${defenderName}" is still defending`);
+                return;
+              }
+            }
             console.warn(`⚠️ [CPU-NULL-RECOVERY:${label}] ${cpuPlayerName}: turn still stuck after ${delayMs}ms — forcing end turn`);
             ioRef.to(gameId).emit('cpu-done-thinking', { playerName: cpuPlayerName });
             const next = gmRef.endTurn(gameId, cpuPlayerName);
@@ -35440,6 +35450,33 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const cpuInstance = game.players[attacker].cpuInstance;
       cpuInstance.resolveAttack();
       console.log(`🤖 CPU ${attacker} attack resolved after defense resolution`);
+
+      // CRITICAL FIX (Task #307): In the defense-FAIL path, endTurn is never called
+      // (only defense-SUCCEED calls endTurn). After the attack lands, the CPU's turn
+      // must be advanced. resolveAttack() sets executedThisTurn=true, so the next
+      // processCPUTurn() call will return end-turn and advance the game.
+      // Guard: skip if a duel is active (duel handles its own turn-switching),
+      // or another defense/multi-target is already in flight.
+      if (!defends && !game.activeDuel?.active) {
+        const gmRef = this;
+        const ioRef = io;
+        const attackerName = attacker;
+        setTimeout(async () => {
+          try {
+            const freshGame = gmRef.games.get(gameId);
+            if (!freshGame) return;
+            const stillCpuTurn = freshGame.turnOrder[freshGame.currentTurnIndex] === attackerName;
+            if (!stillCpuTurn) return;
+            if (freshGame.pendingDefense) return;
+            if ((freshGame.pendingMosseMultiTargets?.length ?? 0) > 0) return;
+            console.log(`🤖 [DEFENSE-FAIL-ENDTURN] CPU ${attackerName}: scheduling processCPUTurn after attack landed`);
+            const action = await gmRef.processCPUTurn(gameId, attackerName, ioRef);
+            if (action) await gmRef.applyCPUAction(gameId, attackerName, action, ioRef);
+          } catch (e) {
+            console.error(`❌ [DEFENSE-FAIL-ENDTURN] CPU ${attackerName}: turn-end scheduling failed:`, e);
+          }
+        }, 500);
+      }
     }
 
     console.log(`[DEFENSE-RESOLVE] Defense resolution completed`, {
