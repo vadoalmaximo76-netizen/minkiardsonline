@@ -1,8 +1,7 @@
-const STATIC_CACHE_NAME = 'minkiards-static-v2';
+const STATIC_CACHE_NAME = 'minkiards-static-v3';
 const IMAGE_CACHE_NAME = 'minkiards-images-v1';
 
 const STATIC_ASSETS = [
-  '/',
   '/manifest.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
@@ -18,7 +17,7 @@ function isCardImageRequest(url) {
 }
 
 self.addEventListener('install', function(event) {
-  console.log('[SW] Installing service worker...');
+  console.log('[SW] Installing service worker v3...');
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME).then(function(cache) {
       return cache.addAll(STATIC_ASSETS).then(function() {
@@ -33,7 +32,7 @@ self.addEventListener('install', function(event) {
 });
 
 self.addEventListener('activate', function(event) {
-  console.log('[SW] Service worker activated');
+  console.log('[SW] Service worker v3 activated');
   event.waitUntil(
     caches.keys().then(function(cacheNames) {
       return Promise.all(
@@ -55,7 +54,7 @@ self.addEventListener('activate', function(event) {
 self.addEventListener('fetch', function(event) {
   const url = event.request.url;
 
-  // Cache card images from remote CDNs
+  // Card images from remote CDNs: cache-first (immutable content)
   if (isCardImageRequest(url)) {
     event.respondWith(
       caches.open(IMAGE_CACHE_NAME).then(function(cache) {
@@ -77,43 +76,64 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // Serve static assets: cache-first with runtime caching on cache miss
-  if (event.request.method === 'GET' && !url.includes('/api/') && !url.includes('/socket.io/')) {
+  // API calls and WebSocket: always go to network
+  if (url.includes('/api/') || url.includes('/socket.io/')) {
+    return;
+  }
+
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // HTML / navigation requests: network-first so new deployments are always picked up
+  if (event.request.mode === 'navigate' || url.includes('text/html')) {
     event.respondWith(
-      caches.open(STATIC_CACHE_NAME).then(function(cache) {
-        return cache.match(event.request).then(function(cached) {
-          if (cached) {
-            return cached;
-          }
-          return fetch(event.request).then(function(response) {
-            // Runtime cache successful responses for JS, CSS, and other static assets
-            if (response && response.status === 200) {
-              var ct = response.headers.get('content-type') || '';
-              if (
-                ct.includes('javascript') ||
-                ct.includes('css') ||
-                ct.includes('font') ||
-                ct.includes('image/png') ||
-                ct.includes('image/svg') ||
-                ct.includes('text/html')
-              ) {
-                cache.put(event.request, response.clone());
-              }
-            }
-            return response;
-          }).catch(function() {
-            if (event.request.mode === 'navigate') {
-              return caches.match('/');
-            }
-            return new Response('', { status: 503 });
+      fetch(event.request).then(function(response) {
+        if (response && response.status === 200) {
+          var clone = response.clone();
+          caches.open(STATIC_CACHE_NAME).then(function(cache) {
+            cache.put(event.request, clone);
           });
+        }
+        return response;
+      }).catch(function() {
+        return caches.match(event.request).then(function(cached) {
+          return cached || caches.match('/');
         });
       })
     );
     return;
   }
 
-  // API calls and WebSocket: always go to network, never intercept
+  // JS, CSS, fonts, images: cache-first (Vite content-hashes these, so safe to cache permanently)
+  event.respondWith(
+    caches.open(STATIC_CACHE_NAME).then(function(cache) {
+      return cache.match(event.request).then(function(cached) {
+        if (cached) {
+          return cached;
+        }
+        return fetch(event.request).then(function(response) {
+          if (response && response.status === 200) {
+            var ct = response.headers.get('content-type') || '';
+            if (
+              ct.includes('javascript') ||
+              ct.includes('css') ||
+              ct.includes('font') ||
+              ct.includes('image/png') ||
+              ct.includes('image/svg') ||
+              ct.includes('image/webp') ||
+              ct.includes('image/jpeg')
+            ) {
+              cache.put(event.request, response.clone());
+            }
+          }
+          return response;
+        }).catch(function() {
+          return new Response('', { status: 503 });
+        });
+      });
+    })
+  );
 });
 
 // Handle messages from main thread
