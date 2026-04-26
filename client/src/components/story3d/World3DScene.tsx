@@ -5,7 +5,7 @@
  * and composed independently from the Canvas/renderer setup.
  */
 
-import React, { useRef } from 'react';
+import React, { Suspense, useRef } from 'react';
 import { useFrame }       from '@react-three/fiber';
 import { EffectComposer, Bloom, ToneMapping, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
@@ -179,10 +179,12 @@ export function World3DScene(props: StoryWorld3DProps) {
         playerRef={props.playerRef}
         onClickCollectible={props.onClickCollectible}
       />
-      <OtherPlayers3D
-        otherPlayersRef={props.otherPlayersRef}
-        selfUserId={props.selfUserId}
-      />
+      <Suspense fallback={null}>
+        <OtherPlayers3D
+          otherPlayersRef={props.otherPlayersRef}
+          selfUserId={props.selfUserId}
+        />
+      </Suspense>
 
       {/* NPC figures — ghost ambush + wizard (mounted whenever either ref is present) */}
       {(props.ghostFigsRef || props.wizardFigRef) && (
@@ -193,7 +195,9 @@ export function World3DScene(props: StoryWorld3DProps) {
       )}
 
       {/* Local player */}
-      <PlayerMesh3D playerRef={props.playerRef} userId={props.selfUserId} />
+      <Suspense fallback={null}>
+        <PlayerMesh3D playerRef={props.playerRef} userId={props.selfUserId} />
+      </Suspense>
       <PlayerCamera3D
         playerRef={props.playerRef}
         cameraYawRef={props.cameraYawRef}

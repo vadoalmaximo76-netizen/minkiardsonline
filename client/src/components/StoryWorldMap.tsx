@@ -1271,7 +1271,11 @@ export function StoryWorldMap({
   const [nearestDist,     setNearestDist]     = useState(Infinity);
   const [showHint,        setShowHint]        = useState(true);
   const [isTouchDevice] = useState(
-    () => typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+    () => typeof window !== 'undefined' && (
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0 ||
+      (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches)
+    )
   );
   const [isLandscape, setIsLandscape] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(orientation: landscape)').matches
