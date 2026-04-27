@@ -3957,10 +3957,16 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
               }
             }
 
-            await this.gameManager.executeMossaAttack(
+            const multiResult = await this.gameManager.executeMossaAttack(
               this.gameId, this.playerName, mosseCard.id, firstTarget.cardId,
               suggestedDamage, false, undefined, isMutilazione ? 1 : 0, effectiveEffect || null
             );
+            // executeMossaAttack sets pendingDefense but does NOT emit defense:request when
+            // defenseRequestEmitter is undefined — we must do it here so the defender actually
+            // receives the defense dialog (or CPU auto-defends).
+            if (multiResult.success && multiResult.result?.requiresDefenseResponse) {
+              await this.gameManager.emitDefenseRequest(this.gameId, this.socketEmitter);
+            }
           }
 
           const updState = this.gameManager.getSanitizedGameState(this.gameId);
