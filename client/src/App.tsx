@@ -282,8 +282,28 @@ function App() {
             console.log('Session already restored, skipping active-game-found');
             return;
           }
-          
-          // Get current gameId from store to check if we're already in a game
+
+          // For special modes (gym, tournament, fanta) — always store as pending regardless of
+          // whether the user is currently in another game. This ensures an interrupted gym/tournament
+          // game is never silently discarded even when the reconnection flow lands on a different game.
+          const mode = data.gameMode || 'regular';
+          if (mode === 'gym') {
+            console.log(`[active-game-found] Pending gym game ${data.gameId} (${data.gymLeaderCpuName}, leaderId=${data.gymLeaderId})`);
+            setPendingGymGame({ gameId: data.gameId, gymLeaderCpuName: data.gymLeaderCpuName, gymLeaderId: data.gymLeaderId });
+            return;
+          }
+          if (mode === 'tournament') {
+            console.log(`[active-game-found] Pending tournament game ${data.gameId}`);
+            setPendingTournamentGame({ gameId: data.gameId });
+            return;
+          }
+          if (mode === 'fanta') {
+            console.log(`[active-game-found] Pending fanta game ${data.gameId} (fantaTournamentId=${data.fantaTournamentId})`);
+            setPendingFantaGame({ gameId: data.gameId, fantaTournamentId: data.fantaTournamentId });
+            return;
+          }
+
+          // Regular game: apply guards before rejoining
           const currentGameId = useGameState.getState().gameId;
           const currentPlayerName = useGameState.getState().playerName;
           
@@ -304,25 +324,6 @@ function App() {
           const appSection = (window as any).__minkAppSection;
           if (appSection === 'play' && currentGameId) {
             console.log('Already in play view — skipping active-game-found join-game, auto-rejoin handled by set-user-data');
-            return;
-          }
-
-          // For special modes (gym, tournament, fanta) — store as pending so the user
-          // can choose to resume via a contextual "Riprendi partita" button inside the section.
-          const mode = data.gameMode || 'regular';
-          if (mode === 'gym') {
-            console.log(`[active-game-found] Pending gym game ${data.gameId} (${data.gymLeaderCpuName}, leaderId=${data.gymLeaderId})`);
-            setPendingGymGame({ gameId: data.gameId, gymLeaderCpuName: data.gymLeaderCpuName, gymLeaderId: data.gymLeaderId });
-            return;
-          }
-          if (mode === 'tournament') {
-            console.log(`[active-game-found] Pending tournament game ${data.gameId}`);
-            setPendingTournamentGame({ gameId: data.gameId });
-            return;
-          }
-          if (mode === 'fanta') {
-            console.log(`[active-game-found] Pending fanta game ${data.gameId} (fantaTournamentId=${data.fantaTournamentId})`);
-            setPendingFantaGame({ gameId: data.gameId, fantaTournamentId: data.fantaTournamentId });
             return;
           }
           

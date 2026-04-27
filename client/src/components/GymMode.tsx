@@ -626,6 +626,19 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     fetchStage13Status();
   }, [fetchLeaders, fetchStoryDeck, fetchUserCredits, fetchCardEffects, fetchLocalities, fetchCollectibles, fetchStage13Status]);
 
+  // On mount: re-check the server for any active gym game that may have been missed
+  // during a reconnection that landed on a different game. This lets the user recover
+  // an interrupted Story Mode stage without having to reload the page.
+  useEffect(() => {
+    if (pendingGymGame) return; // Already have a pending game — no need to re-check
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) return;
+    socket.emit('check-active-game', {
+      authToken,
+      lastGameId: localStorage.getItem('mink_lastGameId') || undefined,
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     secretRoomEverRevealedRef.current = userId
       ? localStorage.getItem(`secretRoomRevealed_${userId}`) === 'true'
