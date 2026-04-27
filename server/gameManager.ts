@@ -17972,59 +17972,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const attackId = `acchiappt-${Date.now()}`;
         const diceResult = Math.floor(Math.random() * 6) + 1;
         const ioAC = (global as any).io;
+        // Compute which character IDs belong to human (non-CPU) players —
+        // used to trigger early resolution as soon as all humans have responded.
+        const requiredCharIds = fieldCharsAC
+          .filter((c: Card) => !game.players[c.owner]?.isCPU)
+          .map((c: Card) => c.id);
+
         (game as any).acchiapptPendingAttack = {
           attackId, diceResult, damageValue, attackerName, mosseCardId,
+          requiredCharIds,
           responses: {} as Record<string, number>,
           resolveTimeout: setTimeout(() => {
-            const pending = (game as any).acchiapptPendingAttack;
-            if (!pending || pending.attackId !== attackId) return;
-            const gameNow = this.games.get(gameId);
-            if (!gameNow) return;
-            const ioResolve = (global as any).io;
-            // Emit dice-rolled animation before revealing result
-            if (ioResolve) {
-              ioResolve.to(gameId).emit('dice-rolled', { result: diceResult, playerName: attackerName });
-            }
-            const fieldNow = gameNow.field.filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
-            const results: string[] = [];
-            for (const ch of fieldNow) {
-              // Responses are keyed by character ID (one response per character on field)
-              let playerChoice = pending.responses[ch.id];
-              if (playerChoice === undefined) {
-                playerChoice = Math.floor(Math.random() * 6) + 1;
-                results.push(`${ch.name || ch.owner}: (nessuna risposta → ${playerChoice} casuale)`);
-              }
-              const guessed = playerChoice === diceResult;
-              if (!guessed) {
-                const oldPTI = ch.pti ?? this.extractPTIFromNote(ch.text || '');
-                const newPti = Math.max(0, oldPTI - pending.damageValue);
-                ch.pti = newPti;
-                this.updateCardTextWithPTI(ch);
-                results.push(`${ch.name || ch.owner}: SBAGLIATO (${playerChoice}≠${diceResult}) -${oldPTI - newPti} PTI${newPti === 0 ? ' 💀' : ''}`);
-                if (newPti === 0) {
-                  this.killAndCheck(gameId, ch.id, ch.owner, attackerName);
-                }
-              } else {
-                results.push(`${ch.name || ch.owner}: IMMUNE 🛡️ (indovinato: ${diceResult})`);
-              }
-            }
-            if (ioResolve) {
-              ioResolve.to(gameId).emit('chat-message', {
-                id: `${Date.now()}-acchiappt-result`, playerName: 'Sistema',
-                message: `🎯 ACCHIAPPT CHESSA — Dado: ${diceResult}! ${results.join(' | ')}`,
-                timestamp: Date.now()
-              });
-            }
-            // MOSSE card lifecycle: return to deck (same as normal processMosseDamage path)
-            if (pending.mosseCardId) {
-              this.returnToDeck(gameId, pending.mosseCardId, pending.attackerName);
-              console.log(`🎯 ACCHIAPPT CHESSA: MOSSE card ${pending.mosseCardId} returned to deck after mini-game`);
-            }
-            delete (gameNow as any).acchiapptPendingAttack;
-            const updatedAC = this.getSanitizedGameState(gameId);
-            if (ioResolve) {
-              ioResolve.to(gameId).emit('game-state-update', updatedAC);
-            }
+            this.resolveAcchiapptChessa(gameId, (global as any).io);
           }, 12000)
         };
         if (ioAC) {
@@ -33846,6 +33805,68 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   }
 
   // Helper method to emit defense:request when Socket.IO is available
+  // ACCHIAPPT CHESSA: resolve the mini-game (called from timeout OR early when all humans responded)
+  public resolveAcchiapptChessa(gameId: string, io: any): void {
+    const game = this.games.get(gameId);
+    if (!game) return;
+    const pending = (game as any).acchiapptPendingAttack;
+    if (!pending) return;
+
+    // Cancel the timer (safe to call even if already elapsed)
+    clearTimeout(pending.resolveTimeout);
+
+    const { diceResult, damageValue, attackerName, mosseCardId } = pending;
+
+    // Emit dice-rolled animation before revealing result
+    if (io) {
+      io.to(gameId).emit('dice-rolled', { result: diceResult, playerName: attackerName });
+    }
+
+    const fieldNow = game.field.filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+    const results: string[] = [];
+    for (const ch of fieldNow) {
+      let playerChoice = pending.responses[ch.id];
+      if (playerChoice === undefined) {
+        playerChoice = Math.floor(Math.random() * 6) + 1;
+        results.push(`${ch.name || ch.owner}: (nessuna risposta → ${playerChoice} casuale)`);
+      }
+      const guessed = playerChoice === diceResult;
+      if (!guessed) {
+        const oldPTI = ch.pti ?? this.extractPTIFromNote(ch.text || '');
+        const newPti = Math.max(0, oldPTI - damageValue);
+        ch.pti = newPti;
+        this.updateCardTextWithPTI(ch);
+        results.push(`${ch.name || ch.owner}: SBAGLIATO (${playerChoice}≠${diceResult}) -${oldPTI - newPti} PTI${newPti === 0 ? ' 💀' : ''}`);
+        if (newPti === 0) {
+          this.killAndCheck(gameId, ch.id, ch.owner, attackerName);
+        }
+      } else {
+        results.push(`${ch.name || ch.owner}: IMMUNE 🛡️ (indovinato: ${diceResult})`);
+      }
+    }
+
+    if (io) {
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-acchiappt-result`, playerName: 'Sistema',
+        message: `🎯 ACCHIAPPT CHESSA — Dado: ${diceResult}! ${results.join(' | ')}`,
+        timestamp: Date.now()
+      });
+    }
+
+    // MOSSE card lifecycle: return to deck
+    if (mosseCardId) {
+      this.returnToDeck(gameId, mosseCardId, attackerName);
+      console.log(`🎯 ACCHIAPPT CHESSA: MOSSE card ${mosseCardId} returned to deck after mini-game`);
+    }
+
+    delete (game as any).acchiapptPendingAttack;
+
+    const updatedAC = this.getSanitizedGameState(gameId);
+    if (io) {
+      io.to(gameId).emit('game-state-update', updatedAC);
+    }
+  }
+
   async emitDefenseRequest(gameId: string, io: any): Promise<boolean> {
     const pendingDefense = this.getPendingDefense(gameId);
     if (!pendingDefense) {
@@ -33888,6 +33909,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // NEW: CPU COUNTER-ATTACK LOGIC - Check if attack can be countered with MOSSE
       if (pendingDefense.mosseCanBeCountered) {
         console.log(`🤖 CPU ${pendingDefense.defender}: Attack CAN be countered - evaluating counter options`);
+
+        // Fix 2: Skip MOSSE counter if attacker's character is immune to attacks
+        const attackerFieldCharCpu = game.field.find((c: any) =>
+          c.owner === pendingDefense.attacker && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (attackerFieldCharCpu && ((attackerFieldCharCpu as any).immuneToAttacks || (attackerFieldCharCpu as any).isProtected)) {
+          console.log(`🤖 CPU ${pendingDefense.defender}: Attacker's char is immune — skipping MOSSE counter, falling back to bonus defense`);
+        } else {
+        // Fix 3a: Skip MOSSE counter if defender's character cannot attack
+        const defenderFieldCharCpu = game.field.find((c: any) =>
+          c.owner === pendingDefense.defender && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        const dfCpu = defenderFieldCharCpu as any;
+        const defenderCannotAttackCpu = dfCpu && ((dfCpu.frozenTurns && dfCpu.frozenTurns > 0) || dfCpu.isStunned || dfCpu.hasFear || dfCpu.miniSemaforoBlocco);
+        if (defenderCannotAttackCpu) {
+          console.log(`🤖 CPU ${pendingDefense.defender}: Defender char cannot attack — skipping MOSSE counter, falling back to bonus defense`);
+        } else {
+        // End of Fix 2/3a guard — counter-MOSSE evaluation proceeds
         
         // Get CPU's target card (the one being attacked) to calculate stars
         const targetCard = game.field.find((c: any) => c.id === pendingDefense.targetCardId);
@@ -33948,6 +33987,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           return true;
         }
         console.log(`🤖 CPU ${pendingDefense.defender}: No eligible counter MOSSE found (damage too low)`);
+        } // end Fix 3a: defenderCannotAttackCpu else
+        } // end Fix 2: attackerFieldCharCpu immune else
       }
 
       let bonusInHand: any = defender.hand.find((c: any) => {
@@ -34409,15 +34450,27 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     });
     if (newPti <= 0) {
       console.log(`[COUNTER-DAMAGE] ${attacker}'s ${cardName} DIED from counter-attack!`);
-      attackerCharacter.eliminatedBy = defender;
-      game.graveyard.push(attackerCharacter);
-      game.field = game.field.filter((c: any) => c.id !== attackerCharacter.id);
-      io.to(gameId).emit('chat-message', {
-        id: `${Date.now()}-counter-kill`,
-        playerName: 'Sistema',
-        message: `💀 ${cardName} di ${attacker} è stato eliminato dalla respinta di ${defender}!`,
-        timestamp: Date.now()
-      });
+
+      // Award +100 PTI kill bonus to the defender who counter-attacked
+      const defenderKillChar = game.field.find((c: any) =>
+        c.owner === defender && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      if (defenderKillChar) {
+        const prevDefPti = defenderKillChar.pti || 0;
+        defenderKillChar.pti = Math.min(9999, prevDefPti + 100);
+        this.updateCardTextWithPTI(defenderKillChar);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-counter-kill-bonus`,
+          playerName: 'Sistema',
+          message: `🔥 ${defender} guadagna +100 PTI per aver eliminato ${cardName} con la respinta! (${prevDefPti} → ${defenderKillChar.pti} PTI)`,
+          timestamp: Date.now()
+        });
+      }
+
+      // Use killAndCheck for proper kill processing (scenario effects, HO STATO IO, EMIS KILLA, etc.)
+      this.killAndCheck(gameId, attackerCharacter.id, attacker, defender);
+      // Check if the attacker is now fully eliminated (all characters dead)
+      this.processEliminationAfterDeath(gameId, attacker, io, 'COUNTER_ATTACK');
     }
   }
 
@@ -34628,6 +34681,66 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // ── END ZODY helper ─────────────────────────────────────────────────────────
 
     if (defends) {
+      // ── PRE-COUNTER VALIDATION ─────────────────────────────────────────────────
+      // Validate that the MOSSE counter-attack is allowed before applying it.
+      // These checks mirror the same conditions enforced in executeMossaAttack.
+      if (counterAttackOptions?.counterAttack) {
+        const attackerFieldChar = game.field.find((c: any) =>
+          c.owner === attacker && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        const defenderFieldChar = game.field.find((c: any) =>
+          c.owner === defender && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+
+        // Fix 2: Attacker's character is immune to attacks → MOSSE counter not applicable
+        if (attackerFieldChar && ((attackerFieldChar as any).immuneToAttacks || (attackerFieldChar as any).isProtected)) {
+          console.log(`[COUNTER-VALIDATE] ${attacker}'s char is immune/protected — no MOSSE counter allowed`);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-counter-immune`,
+            playerName: 'Sistema',
+            message: `🛡️ Il personaggio di ${attacker} è immune agli attacchi — la respinta tramite MOSSE non è valida! L'attacco è bloccato senza contrattacco.`,
+            timestamp: Date.now()
+          });
+          counterAttackOptions = undefined;
+        }
+
+        // Fix 3a: Defender's character cannot attack (frozen/stunned/fear/semaforoBlocco) → MOSSE counter not allowed
+        if (counterAttackOptions && defenderFieldChar) {
+          const df = defenderFieldChar as any;
+          const cannotAttack = (df.frozenTurns && df.frozenTurns > 0) || df.isStunned || df.hasFear || df.miniSemaforoBlocco;
+          if (cannotAttack) {
+            console.log(`[COUNTER-VALIDATE] ${defender}'s char cannot attack — no MOSSE counter allowed`);
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-counter-cannot-attack`,
+              playerName: 'Sistema',
+              message: `🚫 ${defenderFieldChar.name || defender} non può attaccare — la respinta tramite MOSSE non è consentita! L'attacco è bloccato senza contrattacco.`,
+              timestamp: Date.now()
+            });
+            counterAttackOptions = undefined;
+          }
+        }
+
+        // Fix 3b: Bigfoot must roll dice for MOSSE counter — even = success, odd = counter fails (takes damage)
+        if (counterAttackOptions && defenderFieldChar && (defenderFieldChar.frontImage || '').toLowerCase().includes('bigfoot')) {
+          const bigfootRoll = Math.floor(Math.random() * 6) + 1;
+          const isEven = bigfootRoll % 2 === 0;
+          console.log(`[COUNTER-VALIDATE] Bigfoot counter dice: ${bigfootRoll} (${isEven ? 'even - counter OK' : 'odd - counter FAILS'})`);
+          io.to(gameId).emit('dice-rolled', { result: bigfootRoll, playerName: defender });
+          io.to(gameId).emit('dice-roll', { value: bigfootRoll, playerName: defender, gameId });
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-bigfoot-counter-dice`,
+            playerName: 'Sistema',
+            message: `🦶 BIGFOOT tira il dado per la respinta: ${bigfootRoll} — ${isEven ? '✅ pari! Respinta riuscita!' : '❌ dispari! Respinta fallita — subisce il danno!'}`,
+            timestamp: Date.now()
+          });
+          if (!isEven) {
+            // Bigfoot fails the counter — downgrade to simple defense (no counter damage, attack is blocked)
+            counterAttackOptions = undefined;
+          }
+        }
+      }
+      // ── END PRE-COUNTER VALIDATION ────────────────────────────────────────────
+
       // DEFENSE SUCCESSFUL: Block attack and return MOSSE card
       const isCounterAttack = counterAttackOptions?.counterAttack === true;
       console.log(`[DEFENSE-RESOLVE] Defense successful`, {

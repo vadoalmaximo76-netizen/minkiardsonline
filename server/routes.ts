@@ -6436,6 +6436,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: `🎯 ${socketPlayerName4} ha scelto il numero ${number}!`,
             timestamp: Date.now()
           });
+
+          // Early resolution: if all human-owned required characters have now responded, resolve immediately
+          const requiredIds: string[] = pending.requiredCharIds || [];
+          const allResponded = requiredIds.length > 0 && requiredIds.every((id: string) => pending.responses[id] !== undefined);
+          if (allResponded) {
+            console.log(`🎯 ACCHIAPPT CHESSA: all ${requiredIds.length} human character(s) responded — resolving early!`);
+            gameManager.resolveAcchiapptChessa(gameId, io);
+          }
         }
       }
     });
