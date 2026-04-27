@@ -8200,21 +8200,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             }
             
-            // No timed effect - proceed directly to attack execution without card-on-field checks
+            // No timed effect — process target, but respect any in-flight defense.
+            // If another defense is already pending (e.g. the first target of this multi-target
+            // chain is still waiting for a CPU/human response), push this target onto the
+            // server-side pendingMosseMultiTargets queue so processNextMosseMultiTarget handles
+            // it sequentially once the current defense resolves.
+            const existingPendingDefense = gameManager.getPendingDefense(gameId);
+            if (existingPendingDefense) {
+              const liveGameForQueue = gameManager.getGameState(gameId);
+              if (liveGameForQueue) {
+                if (!liveGameForQueue.pendingMosseMultiTargets) {
+                  liveGameForQueue.pendingMosseMultiTargets = [];
+                }
+                // Compute attacker stars at queue time so processNextMosseMultiTarget uses them
+                const attackerCharForStars = liveGameForQueue.field?.find((c: any) =>
+                  c.owner === attackerName &&
+                  (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+                  !c.isHostage
+                );
+                const attackerStarsQueued: number = attackerCharForStars?.stars ?? 1;
+                liveGameForQueue.pendingMosseMultiTargets.push({
+                  attackerName,
+                  mosseCardId,
+                  targetCardId,
+                  damageValue,
+                  starsToRemove: starsToRemove || 0,
+                  mosseEffect: mosseEffect || null,
+                  mosseCanBeCountered: (graveyardCard as any).mosseCanBeCountered === true,
+                  mosseDamageValue: (graveyardCard as any).mosseDamageValue ?? null,
+                  attackerStars: attackerStarsQueued
+                });
+                console.log(`🔥 MOSSE MULTI (human graveyard): Defense already pending — queued target ${targetCardId} (queue length: ${liveGameForQueue.pendingMosseMultiTargets.length})`);
+              }
+              return;
+            }
+
+            // No in-flight defense — execute the attack now and emit the defense request
             const attackResult = await gameManager.executeMossaAttack(
               gameId, attackerName, mosseCardId, targetCardId,
               damageValue, isHandTarget || false, undefined,
               starsToRemove || 0, mosseEffect || null, isFurtoAttack || false
             );
-            if (attackResult.success) {
-              io.to(gameId).emit('card-attacked', {
-                mosseCardId, targetCardId, attackerName, targetOwner,
-                damageValue, timestamp: Date.now()
-              });
+            if (!attackResult.success) {
+              console.log(`Multi-target attack failed: ${attackResult.error}`);
+              return;
+            }
+
+            io.to(gameId).emit('card-attacked', {
+              mosseCardId, targetCardId, attackerName, targetOwner,
+              damageValue, timestamp: Date.now()
+            });
+
+            if (attackResult.result?.requiresDefenseResponse) {
+              // Mirror the main-path logic: store damage on the pending defense then emit the request.
+              const pendingDefForGraveyard = gameManager.getPendingDefense(gameId);
+              if (pendingDefForGraveyard) {
+                pendingDefForGraveyard.damage = damageValue;
+                (pendingDefForGraveyard as any).isFurtoAttack = isFurtoAttack || false;
+                (pendingDefForGraveyard as any).starsToRemove = starsToRemove || 0;
+              }
+              const emitted = await gameManager.emitDefenseRequest(gameId, io);
+              if (!emitted) {
+                // Defender unavailable — apply damage directly
+                await gameManager.processMosseDamage(
+                  gameId, attackerName, targetCardId, damageValue, mosseCardId, io,
+                  false, isHandTarget || false, isFurtoAttack || false, false,
+                  starsToRemove || 0, mosseEffect || null
+                );
+              }
+            } else {
+              // No defense required — apply damage immediately
+              await gameManager.processMosseDamage(
+                gameId, attackerName, targetCardId, damageValue, mosseCardId, io,
+                false, isHandTarget || false, isFurtoAttack || false, false,
+                starsToRemove || 0, mosseEffect || null
+              );
               const updatedState = gameManager.getSanitizedGameState(gameId);
               io.to(gameId).emit('game-state-update', updatedState);
-            } else {
-              console.log(`Multi-target attack failed: ${attackResult.error}`);
             }
             return;
           }
