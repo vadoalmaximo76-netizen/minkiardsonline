@@ -1173,7 +1173,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
         Promise.all(idsToMark.map(id =>
           fetch(`/api/gym-leaders/${id}/complete`, {
             method: 'POST',
-            headers: { Authorization: `Bearer ${authToken}` },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+            body: JSON.stringify({ rewardCardId: cardId }),
           })
         )).then(() => {
           setCompletedIds(prev => {

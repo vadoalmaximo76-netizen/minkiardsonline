@@ -14464,22 +14464,29 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
   });
 
   // POST /api/gym-leaders/:id/complete - mark gym as beaten
+  // Accepts optional body { rewardCardId } to track which card was chosen as reward.
   app.post('/api/gym-leaders/:id/complete', authMiddleware, async (req, res) => {
     try {
       if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
       const user = (req as any).user;
       if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
       const gymLeaderId = parseInt(req.params.id);
+      const rewardCardId: string | null = (typeof req.body?.rewardCardId === 'string' && req.body.rewardCardId) ? req.body.rewardCardId : null;
       const existing = await db.select().from(userGymProgress)
         .where(and(eq(userGymProgress.userId, user.userId), eq(userGymProgress.gymLeaderId, gymLeaderId)));
       if (existing.length === 0) {
-        await db.insert(userGymProgress).values({ userId: user.userId, gymLeaderId });
+        await db.insert(userGymProgress).values({ userId: user.userId, gymLeaderId, rewardCardId });
         // Grant reward credits
         const [gym] = await db.select().from(gymLeaders).where(eq(gymLeaders.id, gymLeaderId));
         if (gym && gym.rewardCredits > 0) {
           await db.update(users).set({ puntiRankiard: sql`${users.puntiRankiard} + ${gym.rewardCredits}` })
             .where(eq(users.id, user.userId));
         }
+      } else if (rewardCardId && !existing[0].rewardCardId) {
+        /* Back-fill if the record exists but has no rewardCardId yet */
+        await db.update(userGymProgress)
+          .set({ rewardCardId })
+          .where(and(eq(userGymProgress.userId, user.userId), eq(userGymProgress.gymLeaderId, gymLeaderId)));
       }
       res.json({ success: true });
     } catch (e) {
@@ -15521,12 +15528,31 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         return res.json({ success: true, alreadyStolen: false, stolenCardId: null, stolenCardName: null, noDeckCards: true });
       }
 
-      // Scegli una carta casuale
-      const randomIdx = Math.floor(Math.random() * cardIds.length);
-      const stolenCardId = cardIds[randomIdx];
+      // Cerca la carta-premio di "Vedi Napoli e poi muori"
+      let stolenCardId: string;
+      const [napoliLeader] = await db.select({ id: gymLeaders.id }).from(gymLeaders)
+        .where(eq(gymLeaders.gymName, 'Vedi Napoli e poi muori')).limit(1);
+      let targetCardId: string | null = null;
+      if (napoliLeader) {
+        const [napoliProgress] = await db.select({ rewardCardId: userGymProgress.rewardCardId })
+          .from(userGymProgress)
+          .where(and(eq(userGymProgress.userId, userId), eq(userGymProgress.gymLeaderId, napoliLeader.id)))
+          .limit(1);
+        if (napoliProgress?.rewardCardId) targetCardId = napoliProgress.rewardCardId;
+      }
+
+      if (targetCardId && cardIds.includes(targetCardId)) {
+        // Ruba esattamente la carta ricompensa di Napoli
+        stolenCardId = targetCardId;
+      } else {
+        // Fallback: carta casuale (carta già rimossa dal mazzo o non tracciata)
+        const randomIdx = Math.floor(Math.random() * cardIds.length);
+        stolenCardId = cardIds[randomIdx];
+      }
 
       // Rimuovi la carta dal mazzo
-      const newCardIds = cardIds.filter((_, i) => i !== randomIdx);
+      const firstOccurrence = cardIds.indexOf(stolenCardId);
+      const newCardIds = cardIds.filter((_, i) => i !== firstOccurrence);
       await db.update(userStoryDeck).set({ cardIds: newCardIds, updatedAt: new Date() }).where(eq(userStoryDeck.userId, userId));
 
       // Registra il furto (upsert: aggiorna se esiste già un record triggered, altrimenti inserisci)

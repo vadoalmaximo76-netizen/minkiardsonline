@@ -842,6 +842,8 @@ export const userGymProgress = pgTable("user_gym_progress", {
   userId: integer("user_id").notNull(),
   gymLeaderId: integer("gym_leader_id").notNull(),
   completedAt: timestamp("completed_at").notNull().defaultNow(),
+  /** Card chosen as reward when this leader was first beaten (null = not tracked / already picked before this feature) */
+  rewardCardId: varchar("reward_card_id", { length: 60 }),
 });
 
 export const userStoryDeck = pgTable("user_story_deck", {
