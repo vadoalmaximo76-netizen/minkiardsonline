@@ -186,11 +186,12 @@ export function World3DScene(props: StoryWorld3DProps) {
         />
       </Suspense>
 
-      {/* NPC figures — ghost ambush + wizard (mounted whenever either ref is present) */}
-      {(props.ghostFigsRef || props.wizardFigRef) && (
+      {/* NPC figures — ghost ambush + wizard + avenger dark figure */}
+      {(props.ghostFigsRef || props.wizardFigRef || props.darkFigRef) && (
         <NPCFigures3D
           ghostFigsRef={props.ghostFigsRef}
           wizardFigRef={props.wizardFigRef}
+          darkFigRef={props.darkFigRef}
         />
       )}
 

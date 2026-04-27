@@ -933,6 +933,18 @@ export const stage13CardSteals = pgTable("stage13_card_steals", {
   stolenAt: timestamp("stolen_at").notNull().defaultNow(),
 });
 
+// ── Avenger Borbonico – furto carta (evento una tantum per utente) ────────────
+export const avengerCardSteals = pgTable("avenger_card_steals", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  cardId: varchar("card_id", { length: 60 }).notNull(),
+  stolenAt: timestamp("stolen_at").notNull().defaultNow(),
+}, (table) => ({
+  uniqueUser: uniqueIndex("avenger_card_steals_user_idx").on(table.userId),
+}));
+
+export type AvengerCardSteal = typeof avengerCardSteals.$inferSelect;
+
 export type UserStage13 = typeof userStage13.$inferSelect;
 export type Stage13Challenge = typeof stage13Challenges.$inferSelect;
 export type Stage13Visibility = typeof stage13Visibility.$inferSelect;

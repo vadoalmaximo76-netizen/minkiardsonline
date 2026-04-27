@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { useFrame }      from '@react-three/fiber';
 import * as THREE        from 'three';
-import type { GhostFig, WizardFig } from './types';
+import type { GhostFig, WizardFig, DarkFig } from './types';
 
 /* ── Ghost ambush figures ────────────────────────────────────────── */
 const GHOST_COUNT = 4;
@@ -286,20 +286,168 @@ function WizardFigure3D({
   );
 }
 
+/* ── Avenger Borbonico – Dark Figure ─────────────────────────────── */
+function DarkFigure3D({
+  darkFigRef,
+}: {
+  darkFigRef: React.MutableRefObject<DarkFig | null>;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const timeRef  = useRef(0);
+
+  useFrame((_, delta) => {
+    timeRef.current += delta;
+    if (!groupRef.current) return;
+    const fig = darkFigRef.current;
+    if (!fig) {
+      groupRef.current.visible = false;
+      return;
+    }
+    groupRef.current.visible = true;
+    /* Slow, ominous vertical bob — amplitude larger than ghost, slower than wizard */
+    groupRef.current.position.set(fig.x, Math.sin(timeRef.current * 1.1) * 0.18, fig.z);
+    /* Slowly rotate, always facing menacingly */
+    groupRef.current.rotation.y = timeRef.current * 0.35;
+  });
+
+  return (
+    <group ref={groupRef} visible={false}>
+      {/* Tall dark cloak body */}
+      <mesh position={[0, 1.35, 0]}>
+        <capsuleGeometry args={[0.38, 1.60, 4, 10]} />
+        <meshStandardMaterial
+          color="#050003"
+          roughness={0.98}
+          transparent
+          opacity={0.96}
+          emissive="#1a003a"
+          emissiveIntensity={0.6}
+        />
+      </mesh>
+
+      {/* Shoulder cowl — wider, more imposing */}
+      <mesh position={[0, 2.18, 0]}>
+        <capsuleGeometry args={[0.52, 0.18, 4, 10]} />
+        <meshStandardMaterial
+          color="#060004"
+          roughness={0.97}
+          transparent
+          opacity={0.94}
+          emissive="#1a003a"
+          emissiveIntensity={0.5}
+        />
+      </mesh>
+
+      {/* Head / hood */}
+      <mesh position={[0, 2.62, 0]}>
+        <sphereGeometry args={[0.32, 12, 10]} />
+        <meshStandardMaterial
+          color="#070005"
+          roughness={0.96}
+          emissive="#200040"
+          emissiveIntensity={0.7}
+        />
+      </mesh>
+
+      {/* Left glowing purple eye */}
+      <mesh position={[-0.11, 2.68, -0.26]}>
+        <sphereGeometry args={[0.060, 7, 6]} />
+        <meshStandardMaterial
+          color="#cc00ff"
+          emissive="#9900cc"
+          emissiveIntensity={8.0}
+          roughness={0.02}
+        />
+      </mesh>
+
+      {/* Right glowing purple eye */}
+      <mesh position={[0.11, 2.68, -0.26]}>
+        <sphereGeometry args={[0.060, 7, 6]} />
+        <meshStandardMaterial
+          color="#cc00ff"
+          emissive="#9900cc"
+          emissiveIntensity={8.0}
+          roughness={0.02}
+        />
+      </mesh>
+
+      {/* Left arm — longer, reaching */}
+      <mesh position={[-0.58, 1.65, 0.10]} rotation={[0, 0, 0.55]}>
+        <capsuleGeometry args={[0.085, 0.78, 4, 6]} />
+        <meshStandardMaterial
+          color="#080005"
+          roughness={0.98}
+          transparent
+          opacity={0.90}
+        />
+      </mesh>
+
+      {/* Right arm */}
+      <mesh position={[0.58, 1.65, 0.10]} rotation={[0, 0, -0.55]}>
+        <capsuleGeometry args={[0.085, 0.78, 4, 6]} />
+        <meshStandardMaterial
+          color="#080005"
+          roughness={0.98}
+          transparent
+          opacity={0.90}
+        />
+      </mesh>
+
+      {/* Cloak hem — base */}
+      <mesh position={[0, 0.30, 0]}>
+        <cylinderGeometry args={[0.46, 0.60, 0.65, 12]} />
+        <meshStandardMaterial
+          color="#040002"
+          roughness={0.99}
+          transparent
+          opacity={0.92}
+          emissive="#100025"
+          emissiveIntensity={0.4}
+        />
+      </mesh>
+
+      {/* Dark aura ring — inner */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
+        <ringGeometry args={[0.38, 0.72, 20]} />
+        <meshBasicMaterial
+          color="#6600aa"
+          transparent
+          opacity={0.62}
+          depthWrite={false}
+        />
+      </mesh>
+
+      {/* Dark aura ring — outer */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
+        <ringGeometry args={[0.72, 1.20, 20]} />
+        <meshBasicMaterial
+          color="#330055"
+          transparent
+          opacity={0.35}
+          depthWrite={false}
+        />
+      </mesh>
+    </group>
+  );
+}
+
 /* ── Composite export ────────────────────────────────────────────── */
-export { GhostFigures3D, WizardFigure3D };
+export { GhostFigures3D, WizardFigure3D, DarkFigure3D };
 
 export function NPCFigures3D({
   ghostFigsRef,
   wizardFigRef,
+  darkFigRef,
 }: {
   ghostFigsRef?: React.MutableRefObject<GhostFig[]>;
   wizardFigRef?: React.MutableRefObject<WizardFig | null>;
+  darkFigRef?: React.MutableRefObject<DarkFig | null>;
 }) {
   return (
     <>
       {ghostFigsRef && <GhostFigures3D ghostFigsRef={ghostFigsRef} />}
       {wizardFigRef && <WizardFigure3D wizardFigRef={wizardFigRef} />}
+      {darkFigRef && <DarkFigure3D darkFigRef={darkFigRef} />}
     </>
   );
 }

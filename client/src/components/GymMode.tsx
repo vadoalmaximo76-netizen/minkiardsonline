@@ -476,6 +476,11 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [stage13StealLoading, setStage13StealLoading] = useState(false);
   const [stage13StealError, setStage13StealError] = useState<string | null>(null);
   const [stage13StealSuccess, setStage13StealSuccess] = useState(false);
+  /* ── Avenger Borbonico ──────────────────────────────────── */
+  const [avengerBorbonico, setAvengerBorbonico] = useState(false);
+  const [avengerStolenCard, setAvengerStolenCard] = useState<{ cardId: string; cardName: string | null } | null>(null);
+  const [avengerStealLoading, setAvengerStealLoading] = useState(false);
+  const avengerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -682,6 +687,59 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
       setPhase('intro');
     }, 800);
   }, [phase, storyViewMode, loading, leaders, completedIds, chosenFaction]);
+
+  /* ── Avenger Borbonico: leader ref e trigger timer ──────── */
+  const avengerBornicoLeader = leaders.find(l => l.isHidden && l.gymName === 'Avenger Borbonico') ?? null;
+  const avengerAlreadyDone = avengerBornicoLeader ? completedIds.includes(avengerBornicoLeader.id) : false;
+
+  useEffect(() => {
+    if (!avengerBornicoLeader) return;
+    if (avengerAlreadyDone) return;
+    if (avengerBorbonico) return;
+    if (phase !== 'map') return;
+    if (storyViewMode !== '3d') return;
+    const lsKey = `avenger_borbonico_triggered_${userId}`;
+    if (localStorage.getItem(lsKey)) return;
+    const vendiLeader = leaders.find(l => l.gymName === 'Vedi Napoli e poi muori');
+    if (!vendiLeader) return;
+    if (!completedIds.includes(vendiLeader.id)) return;
+    /* All conditions met — start 10s timer */
+    if (avengerTimerRef.current) return; /* already running */
+    avengerTimerRef.current = setTimeout(() => {
+      localStorage.setItem(lsKey, '1');
+      setAvengerBorbonico(true);
+    }, 10000);
+    return () => {
+      if (avengerTimerRef.current) { clearTimeout(avengerTimerRef.current); avengerTimerRef.current = null; }
+    };
+  }, [avengerBornicoLeader, avengerAlreadyDone, avengerBorbonico, phase, storyViewMode, leaders, completedIds, userId]);
+
+  /* ── Avenger Borbonico defeat → steal card ─────────────── */
+  useEffect(() => {
+    if (phase !== 'defeat') return;
+    if (!selectedLeader) return;
+    if (selectedLeader.gymName !== 'Avenger Borbonico') return;
+    if (avengerStolenCard) return; /* already stolen */
+    if (avengerStealLoading) return;
+    const token = localStorage.getItem('authToken');
+    setAvengerStealLoading(true);
+    fetch('/api/story-mode/avenger-borbonico/steal-card', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          setAvengerStolenCard({ cardId: data.cardId, cardName: data.cardName ?? null });
+          fetchStoryDeck(); /* refresh deck */
+        }
+      })
+      .catch(err => console.error('[Avenger] steal-card error:', err))
+      .finally(() => setAvengerStealLoading(false));
+  }, [phase, selectedLeader]);
 
   useEffect(() => {
     selectedLeaderRef.current = selectedLeader;
@@ -1599,6 +1657,77 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
 
   // ── DEFEAT ────────────────────────────────────────────────────────────────
   if (phase === 'defeat' && selectedLeader) {
+    /* ── AVENGER BORBONICO special defeat ── */
+    if (selectedLeader.gymName === 'Avenger Borbonico') {
+      return (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6"
+          style={{ background: 'linear-gradient(135deg, #0a0010 0%, #1a0030 60%, #000000 100%)' }}
+        >
+          <div ref={transitionRef} className="fixed inset-0 z-[300] bg-black pointer-events-none" style={{ opacity: 0 }} />
+          <div className="text-8xl mb-4" style={{ filter: 'drop-shadow(0 0 24px #7c3aed)' }}>💜</div>
+          <h2
+            className="font-black text-5xl tracking-widest mb-3 text-center"
+            style={{ color: '#b57bee', textShadow: '0 0 32px #7c3aed, 0 0 8px #000' }}
+          >
+            HAI PERSO
+          </h2>
+          <p
+            className="font-semibold text-lg text-center mb-2 max-w-xs"
+            style={{ color: '#d8b4fe', textShadow: '0 0 8px #7c3aed' }}
+          >
+            L'Avenger Borbonico si è preso la sua vendetta.
+          </p>
+
+          {/* Stolen card notification */}
+          <div
+            className="mt-6 mb-6 rounded-2xl px-6 py-4 flex flex-col items-center gap-2 text-center max-w-sm w-full"
+            style={{ background: 'rgba(80,0,120,0.55)', border: '2px solid #7c3aed', boxShadow: '0 0 32px rgba(124,58,237,0.4)' }}
+          >
+            <div className="text-3xl mb-1">🃏</div>
+            {avengerStealLoading ? (
+              <p className="text-purple-200 text-sm animate-pulse">Furto in corso...</p>
+            ) : avengerStolenCard ? (
+              <>
+                <p className="text-purple-100 font-bold text-base">Una carta ti è stata rubata!</p>
+                {avengerStolenCard.cardName && (
+                  <p className="text-amber-300 font-black text-lg">« {avengerStolenCard.cardName} »</p>
+                )}
+                <p className="text-purple-300 text-xs mt-1">Questa carta è stata rimossa definitivamente dal tuo mazzo Storia.</p>
+              </>
+            ) : (
+              <p className="text-purple-300 text-sm">Nessuna carta nel mazzo da rubare.</p>
+            )}
+          </div>
+
+          <p
+            className="text-purple-400/60 text-xs text-center mb-6 max-w-xs italic"
+          >
+            "Chi vede Napoli... paga il prezzo eterno."
+          </p>
+
+          <button
+            onClick={() => {
+              if (gameId) socket.emit('leave-game', { gameId });
+              setGameIdLocal(null);
+              gameIdRef.current = null;
+              if (selectedLeader) setLostLeaderIds(prev => prev.includes(selectedLeader.id) ? prev : [...prev, selectedLeader.id]);
+              onClearPendingGymGame?.();
+              battleStartingRef.current = false;
+              setAvengerStolenCard(null);
+              setPhase('map');
+              setSelectedLeader(null);
+              fetchLeaders();
+            }}
+            className="px-8 py-3.5 font-black text-lg rounded-2xl transition-all active:scale-95 shadow-xl"
+            style={{ background: 'linear-gradient(135deg, #4c1d95, #6d28d9)', color: '#fff', boxShadow: '0 0 16px rgba(124,58,237,0.5)' }}
+          >
+            Torna alla Mappa
+          </button>
+        </div>
+      );
+    }
+
     const gameLoseMsgs = selectedLeader.leaderMessages?.gameLose;
     const defeatMsg = Array.isArray(gameLoseMsgs) && gameLoseMsgs.length > 0
       ? gameLoseMsgs[Math.floor(Math.random() * gameLoseMsgs.length)]
@@ -2447,6 +2576,14 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           onCardCollected={fetchStoryDeck}
           quadratoLeader={quadratoLeader}
           quadratoCompleted={quadratoCompleted}
+          avengerBorbonico={avengerBorbonico}
+          onTriggerAvengerBorbonico={() => {
+            if (!avengerBornicoLeader) return;
+            setAvengerBorbonico(false);
+            setSelectedLeader(avengerBornicoLeader);
+            selectedLeaderRef.current = avengerBornicoLeader;
+            setPhase('intro');
+          }}
           chosenFaction={chosenFaction}
           wizardCardReceived={wizardCardReceived}
           onWizardCard={handleWizardCard}

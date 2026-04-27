@@ -15,7 +15,7 @@ function handle402(err: unknown): boolean {
   }
   return false;
 }
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, storyCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates, dailyChallengeScores, pageTooltips, storyLocalities, storyCollectiblePickups, userStage13, stage13Challenges, stage13Visibility, stage13CardSteals } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, storyCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi, gameStates, dailyChallengeScores, pageTooltips, storyLocalities, storyCollectiblePickups, userStage13, stage13Challenges, stage13Visibility, stage13CardSteals, avengerCardSteals } from "../shared/schema";
 import { jsonStorage, homePanelsStorage, newsTickerStorage, homeConfigStorage, rankiardTiersStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray, gt, isNull, lt } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from "../client/src/lib/cardData";
@@ -1419,6 +1419,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } catch (quadErr: any) {
         console.warn('⚠️ [startup] Quadrato boss insert fallito:', quadErr?.message?.slice(0, 200));
+      }
+      // Ensure "Avenger Borbonico" hidden boss exists
+      try {
+        const avengerRows = await db.select({ id: gymLeaders.id }).from(gymLeaders).where(eq(gymLeaders.gymName, 'Avenger Borbonico'));
+        if (avengerRows.length === 0) {
+          await db.insert(gymLeaders).values({
+            orderIndex: 99,
+            name: 'Avenger Borbonico',
+            gymName: 'Avenger Borbonico',
+            description: 'Una figura oscura emerge dall\'ombra. Vuole vendetta.',
+            specialty: 'Vendetta',
+            leaderImageUrl: null,
+            badgeImageUrl: null,
+            backgroundImageUrl: null,
+            cpuLevel: 'hard',
+            deckBias: { personaggi: 2, mosse: 5, bonus: 3 } as any,
+            customDeck: [] as any,
+            livesCount: 1,
+            playerStartingDeck: [] as any,
+            starterDeckOptions: [] as any,
+            rewardCredits: 0,
+            rewardDescription: '',
+            youtubeMusicUrl: null,
+            leaderMessages: {
+              gameStart: ['Dovevi fermarti a Napoli.', 'Il Borbone non dimentica.', 'Pagherai per quello che hai fatto.'],
+              gameWin: ['Addio.', 'La vendetta è servita.'],
+              gameLose: ['...stavolta.', 'Non è finita.'],
+            } as any,
+            cpuCount: 1,
+            cpuConfigs: [] as any,
+            attackMode: 'hunt_human',
+            useFixedDeckOrder: false,
+            isActive: true,
+            isHidden: true,
+          });
+          console.log('✅ [startup] Boss segreto "Avenger Borbonico" inserito automaticamente');
+        }
+      } catch (avengerErr: any) {
+        console.warn('⚠️ [startup] Avenger Borbonico boss insert fallito:', avengerErr?.message?.slice(0, 200));
       }
     } catch (diagErr) {
       console.error('⚠️ [startup] Error checking gym leaders:', diagErr);
@@ -15412,6 +15451,69 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       });
     } catch (e) {
       console.error('Error fetching loser deck:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // ── Avenger Borbonico – furto carta ───────────────────────────────────────
+  // POST /api/story-mode/avenger-borbonico/steal-card
+  // Rimuove una carta casuale dal mazzo Story Mode del giocatore (una sola volta per utente).
+  app.post('/api/story-mode/avenger-borbonico/steal-card', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const userId = user.userId;
+
+      // Idempotente: se il furto è già avvenuto, restituisce i dati salvati
+      const [existing] = await db.select().from(avengerCardSteals).where(eq(avengerCardSteals.userId, userId));
+      if (existing) {
+        return res.json({ success: true, alreadyStolen: true, stolenCardId: existing.cardId, stolenCardName: null });
+      }
+
+      // Leggi il mazzo attuale del giocatore
+      const [deckRow] = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, userId));
+      if (!deckRow) return res.status(404).json({ success: false, error: 'Mazzo non trovato' });
+
+      const cardIds = (deckRow.cardIds as string[]).filter(Boolean);
+      if (cardIds.length === 0) {
+        return res.json({ success: true, alreadyStolen: false, stolenCardId: null, stolenCardName: null, noDeckCards: true });
+      }
+
+      // Scegli una carta casuale
+      const randomIdx = Math.floor(Math.random() * cardIds.length);
+      const stolenCardId = cardIds[randomIdx];
+
+      // Rimuovi la carta dal mazzo
+      const newCardIds = cardIds.filter((_, i) => i !== randomIdx);
+      await db.update(userStoryDeck).set({ cardIds: newCardIds, updatedAt: new Date() }).where(eq(userStoryDeck.userId, userId));
+
+      // Registra il furto
+      await db.insert(avengerCardSteals).values({ userId, cardId: stolenCardId });
+
+      // Risolvi il nome della carta per il frontend
+      let stolenCardName: string | null = null;
+      try {
+        const parts = stolenCardId.split('-');
+        const idx = parseInt(parts[parts.length - 1]);
+        const deckType = parts.slice(0, -1).join('-');
+        const urls = (CARD_DATA as any)[deckType] as string[] | undefined;
+        if (urls && !isNaN(idx) && urls[idx]) {
+          const urlParts = urls[idx].split('/');
+          const fname = urlParts[urlParts.length - 1];
+          stolenCardName = fname.replace(/\.(png|jpg|jpeg|gif|webp)$/i, '').replace(/[-_]/g, ' ');
+        }
+        if (!stolenCardName && stolenCardId.startsWith('custom-')) {
+          const cardNum = stolenCardId.replace('custom-', '');
+          const [cc] = await (db.select({ name: customCards.name } as any).from(customCards).where(eq((customCards as any).id, parseInt(cardNum))));
+          if (cc?.name) stolenCardName = cc.name;
+        }
+      } catch {}
+
+      console.log(`[avenger-borbonico] Carta "${stolenCardId}" rubata dall'utente ${userId}`);
+      res.json({ success: true, alreadyStolen: false, stolenCardId, stolenCardName });
+    } catch (e) {
+      console.error('Error in avenger-borbonico/steal-card:', e);
       res.status(500).json({ success: false, error: 'Errore server' });
     }
   });

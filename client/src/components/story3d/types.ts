@@ -31,7 +31,7 @@ export interface StoryWorldCollectible {
   cardId?: string | null;
 }
 
-/* ── NPC figure types (ghost ambush + wizard reward) ───────────── */
+/* ── NPC figure types (ghost ambush + wizard reward + avenger) ─── */
 export interface GhostFig {
   id: number;
   x: number;
@@ -45,6 +45,12 @@ export interface WizardFig {
   z: number;
   state: WizardState;
   dialogueTimer: number;
+}
+
+/** Avenger Borbonico dark figure — moves toward the player once spawned */
+export interface DarkFig {
+  x: number;
+  z: number;
 }
 
 export interface StoryWorld3DProps {
@@ -61,6 +67,8 @@ export interface StoryWorld3DProps {
   ghostFigsRef?: React.MutableRefObject<GhostFig[]>;
   /** Wizard reward NPC state (null when not active) */
   wizardFigRef?: React.MutableRefObject<WizardFig | null>;
+  /** Avenger Borbonico dark figure (null when not active) */
+  darkFigRef?: React.MutableRefObject<DarkFig | null>;
   leaders: GymLeader[];
   arenaPositions: [number, number][];
   getLeaderStatus: (leader: GymLeader) => 'completed' | 'available' | 'locked';

@@ -56,6 +56,9 @@ export interface StoryWorldMapProps {
   quadratoLeader?: GymLeader | null;
   quadratoCompleted?: boolean;
   onTriggerQuadrato?: () => void;
+  /* Avenger Borbonico dark figure */
+  avengerBorbonico?: boolean;
+  onTriggerAvengerBorbonico?: () => void;
   /* Wizard reward */
   chosenFaction?: string | null;
   wizardCardReceived?: boolean;
@@ -1157,6 +1160,8 @@ export function StoryWorldMap({
   quadratoLeader = null,
   quadratoCompleted = false,
   onTriggerQuadrato,
+  avengerBorbonico = false,
+  onTriggerAvengerBorbonico,
   chosenFaction = null,
   wizardCardReceived = false,
   onWizardCard,
@@ -1225,6 +1230,18 @@ export function StoryWorldMap({
     if (quadratoCompleted) { ambushActiveRef.current = false; ghostFigsRef.current = []; }
   }, [quadratoCompleted]);
   useEffect(() => { onTriggerQuadratoRef.current = onTriggerQuadrato; }, [onTriggerQuadrato]);
+
+  /* ── Avenger Borbonico dark figure refs ───────────────────── */
+  interface DarkFig { x: number; z: number; }
+  const darkFigRef              = useRef<DarkFig | null>(null);
+  const avengerBorbonicoPropRef = useRef(avengerBorbonico);
+  const avengerTriggeredRef     = useRef(false);
+  const onTriggerAvengerRef     = useRef(onTriggerAvengerBorbonico);
+  useEffect(() => {
+    avengerBorbonicoPropRef.current = avengerBorbonico;
+    if (!avengerBorbonico) { darkFigRef.current = null; }
+  }, [avengerBorbonico]);
+  useEffect(() => { onTriggerAvengerRef.current = onTriggerAvengerBorbonico; }, [onTriggerAvengerBorbonico]);
 
   /* ── Wizard reward figure ────────────────────────────────── */
   type WizardState = 'walking-to' | 'dialogue' | 'walking-away' | 'done';
@@ -2376,6 +2393,27 @@ export function StoryWorldMap({
               onTriggerQuadratoRef.current?.();
             }
           }
+        }
+      }
+
+      /* ── Avenger Borbonico dark figure movement ──────────── */
+      if (avengerBorbonicoPropRef.current && !avengerTriggeredRef.current) {
+        const px3a = playerRef.current.x, pz3a = playerRef.current.z;
+        if (!darkFigRef.current) {
+          /* Spawn behind the player (offset +12 north so they can see it approach) */
+          darkFigRef.current = { x: px3a, z: pz3a + 14 };
+        }
+        const fig = darkFigRef.current;
+        const dx3a = px3a - fig.x, dz3a = pz3a - fig.z;
+        const d3a = Math.sqrt(dx3a * dx3a + dz3a * dz3a);
+        if (d3a < 1.8) {
+          avengerTriggeredRef.current = true;
+          darkFigRef.current = null;
+          onTriggerAvengerRef.current?.();
+        } else if (d3a > 0.01) {
+          const DARK_SPEED = 7;
+          fig.x += (dx3a / d3a) * DARK_SPEED * dt;
+          fig.z += (dz3a / d3a) * DARK_SPEED * dt;
         }
       }
 
@@ -4484,6 +4522,7 @@ export function StoryWorldMap({
         mobileCamRotateRef={mobileCamRotateRef}
         ghostFigsRef={ghostFigsRef}
         wizardFigRef={wizardRef}
+        darkFigRef={darkFigRef}
         leaders={leaders}
         arenaPositions={arenaPositions}
         getLeaderStatus={getLeaderStatus}
