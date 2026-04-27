@@ -3449,19 +3449,21 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         break;
         
       case 'bonus':
-        await this.executeBonusCardAndDrawReplacement(playedCardId, gameState, deckType);
+        // Replacement is drawn by the routes.ts play-card handler — do not double-draw here
+        this.sendChatMessage(`Carta BONUS attivata!`);
+        this.turnState.phase = 'turn_end';
         break;
         
       case 'personaggi':
       case 'personaggi_speciali':
-        // Character cards are automatically analyzed when played
+        // Replacement is drawn by the routes.ts play-card handler — do not double-draw here
         this.sendChatMessage(`Personaggio attivato e analizzato!`);
-        await this.drawReplacementAndEndTurn(deckType);
+        this.turnState.phase = 'turn_end';
         break;
         
       default:
         this.sendChatMessage(`Carta ${playedCardType} attivata!`);
-        await this.drawReplacementAndEndTurn(deckType);
+        this.turnState.phase = 'turn_end';
     }
     
     // After handling all cases, ensure we end the turn (for non-attacking cards)
