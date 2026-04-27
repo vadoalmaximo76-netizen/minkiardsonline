@@ -1423,6 +1423,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Ensure "Avenger Borbonico" hidden boss exists
       try {
         const avengerRows = await db.select({ id: gymLeaders.id }).from(gymLeaders).where(eq(gymLeaders.gymName, 'Avenger Borbonico'));
+        const avengerDeck = ["personaggi-30","personaggi-49","personaggi-68","personaggi-117","personaggi-168","mosse-15","mosse-31","mosse-45","mosse-63","bonus-31","bonus-34","bonus-104","bonus-130","bonus-154","mosse-62"];
+        const avengerDeckBias = { bonus: 1, mosse: 1, personaggi: 1 };
         if (avengerRows.length === 0) {
           await db.insert(gymLeaders).values({
             orderIndex: 99,
@@ -1434,8 +1436,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             badgeImageUrl: null,
             backgroundImageUrl: null,
             cpuLevel: 'hard',
-            deckBias: { personaggi: 2, mosse: 5, bonus: 3 } as any,
-            customDeck: [] as any,
+            deckBias: avengerDeckBias as any,
+            customDeck: avengerDeck as any,
             livesCount: 1,
             playerStartingDeck: [] as any,
             starterDeckOptions: [] as any,
@@ -1455,6 +1457,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isHidden: true,
           });
           console.log('✅ [startup] Boss segreto "Avenger Borbonico" inserito automaticamente');
+        } else {
+          await db.update(gymLeaders)
+            .set({ customDeck: avengerDeck as any, deckBias: avengerDeckBias as any })
+            .where(eq(gymLeaders.gymName, 'Avenger Borbonico'));
+          console.log('✅ [startup] Boss "Avenger Borbonico" deck aggiornato (15 carte Pulcinella 50%)');
         }
       } catch (avengerErr: any) {
         console.warn('⚠️ [startup] Avenger Borbonico boss insert fallito:', avengerErr?.message?.slice(0, 200));
