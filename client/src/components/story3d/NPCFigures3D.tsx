@@ -12,26 +12,65 @@ function GhostFigures3D({
 }: {
   ghostFigsRef: React.MutableRefObject<GhostFig[]>;
 }) {
-  const groupRefs = useRef<(THREE.Group | null)[]>(Array(GHOST_COUNT).fill(null));
-  const timeRef   = useRef(0);
+  const groupRefs    = useRef<(THREE.Group | null)[]>(Array(GHOST_COUNT).fill(null));
+  const headRefs     = useRef<(THREE.Mesh | null)[]>(Array(GHOST_COUNT).fill(null));
+  const bodyRefs     = useRef<(THREE.Mesh | null)[]>(Array(GHOST_COUNT).fill(null));
+  const leftArmRefs  = useRef<(THREE.Mesh | null)[]>(Array(GHOST_COUNT).fill(null));
+  const rightArmRefs = useRef<(THREE.Mesh | null)[]>(Array(GHOST_COUNT).fill(null));
+  const timeRef      = useRef(0);
 
   useFrame((_, delta) => {
     timeRef.current += delta;
+    const t      = timeRef.current;
     const ghosts = ghostFigsRef.current;
 
     for (let i = 0; i < GHOST_COUNT; i++) {
       const grp = groupRefs.current[i];
       if (!grp) continue;
       const ghost = ghosts.find(g => g.id === i);
-      if (!ghost) {
-        grp.visible = false;
-        continue;
-      }
+      if (!ghost) { grp.visible = false; continue; }
       grp.visible = true;
-      /* Hover-bob animation (each ghost offset so they don't sync) */
-      grp.position.set(ghost.x, getGroundY(ghost.x, ghost.z) + Math.sin(timeRef.current * 2.8 + i * 1.6) * 0.22, ghost.z);
-      /* Slow rotate */
-      grp.rotation.y = timeRef.current * 0.5 + i * Math.PI * 0.5;
+
+      /* Each ghost has its own time offset so they never look identical */
+      const off = i * 1.6;
+
+      /* Whole-group: multi-frequency hover bob */
+      const hoverY = Math.sin(t * 2.8 + off) * 0.22
+                   + Math.sin(t * 1.3 + off * 0.7) * 0.06;
+      grp.position.set(ghost.x, getGroundY(ghost.x, ghost.z) + hoverY, ghost.z);
+
+      /* Slow body rotation + slight wobble */
+      grp.rotation.y = t * 0.5 + off;
+      grp.rotation.z = Math.sin(t * 1.1 + off) * 0.04;
+
+      /* Head: independent multi-phase float + yaw */
+      const head = headRefs.current[i];
+      if (head) {
+        head.position.y  = 2.22 + Math.sin(t * 1.7 + off + 0.8) * 0.07;
+        head.rotation.y  = Math.sin(t * 0.9 + off) * 0.35;
+        head.rotation.x  = Math.sin(t * 1.2 + off * 0.5) * 0.08;
+      }
+
+      /* Body: subtle scale "pulse" for ethereal breathing effect */
+      const body = bodyRefs.current[i];
+      if (body) {
+        const breathe = 1 + Math.sin(t * 2.0 + off) * 0.03;
+        body.scale.set(breathe, breathe, breathe);
+      }
+
+      /* Arms: each arm waves with a different phase */
+      const lArm = leftArmRefs.current[i];
+      if (lArm) {
+        lArm.rotation.z = 0.45 + Math.sin(t * 1.5 + off)        * 0.30;
+        lArm.rotation.x = Math.sin(t * 1.1 + off + 1.2)          * 0.22;
+        lArm.rotation.y = Math.sin(t * 0.8 + off)                 * 0.15;
+      }
+      const rArm = rightArmRefs.current[i];
+      if (rArm) {
+        rArm.rotation.z = -0.45 - Math.sin(t * 1.5 + off + 1.0)  * 0.30;
+        rArm.rotation.x = Math.sin(t * 1.1 + off)                 * 0.22;
+        rArm.rotation.y = -Math.sin(t * 0.8 + off + 0.6)          * 0.15;
+      }
     }
   });
 
@@ -44,7 +83,10 @@ function GhostFigures3D({
           visible={false}
         >
           {/* Shadowy body */}
-          <mesh position={[0, 1.15, 0]}>
+          <mesh
+            ref={(el: THREE.Mesh | null) => { bodyRefs.current[i] = el; }}
+            position={[0, 1.15, 0]}
+          >
             <capsuleGeometry args={[0.30, 1.05, 4, 8]} />
             <meshStandardMaterial
               color="#0d000e"
@@ -55,7 +97,10 @@ function GhostFigures3D({
           </mesh>
 
           {/* Head */}
-          <mesh position={[0, 2.22, 0]}>
+          <mesh
+            ref={(el: THREE.Mesh | null) => { headRefs.current[i] = el; }}
+            position={[0, 2.22, 0]}
+          >
             <sphereGeometry args={[0.26, 10, 8]} />
             <meshStandardMaterial
               color="#150011"
@@ -88,7 +133,11 @@ function GhostFigures3D({
           </mesh>
 
           {/* Left floaty arm */}
-          <mesh position={[-0.44, 1.52, 0]} rotation={[0, 0, 0.45]}>
+          <mesh
+            ref={(el: THREE.Mesh | null) => { leftArmRefs.current[i] = el; }}
+            position={[-0.44, 1.52, 0]}
+            rotation={[0, 0, 0.45]}
+          >
             <capsuleGeometry args={[0.075, 0.52, 4, 6]} />
             <meshStandardMaterial
               color="#1a0020"
@@ -99,7 +148,11 @@ function GhostFigures3D({
           </mesh>
 
           {/* Right floaty arm */}
-          <mesh position={[0.44, 1.52, 0]} rotation={[0, 0, -0.45]}>
+          <mesh
+            ref={(el: THREE.Mesh | null) => { rightArmRefs.current[i] = el; }}
+            position={[0.44, 1.52, 0]}
+            rotation={[0, 0, -0.45]}
+          >
             <capsuleGeometry args={[0.075, 0.52, 4, 6]} />
             <meshStandardMaterial
               color="#1a0020"
@@ -142,28 +195,62 @@ function WizardFigure3D({
 }: {
   wizardFigRef: React.MutableRefObject<WizardFig | null>;
 }) {
-  const groupRef = useRef<THREE.Group>(null);
-  const timeRef  = useRef(0);
+  const groupRef   = useRef<THREE.Group>(null);
+  const headRef    = useRef<THREE.Mesh>(null);
+  const bodyRef    = useRef<THREE.Mesh>(null);
+  const staffArmRef = useRef<THREE.Mesh>(null);
+  const freeArmRef = useRef<THREE.Mesh>(null);
+  const auraRef    = useRef<THREE.Mesh>(null);
+  const timeRef    = useRef(0);
 
   useFrame((_, delta) => {
     timeRef.current += delta;
+    const t = timeRef.current;
     if (!groupRef.current) return;
     const wiz = wizardFigRef.current;
-    if (!wiz) {
-      groupRef.current.visible = false;
-      return;
-    }
+    if (!wiz) { groupRef.current.visible = false; return; }
     groupRef.current.visible = true;
-    /* Gentle vertical bob + face player direction */
-    groupRef.current.position.set(wiz.x, getGroundY(wiz.x, wiz.z) + Math.sin(timeRef.current * 1.5) * 0.06, wiz.z);
-    /* Slowly rotate toward the interaction area */
-    groupRef.current.rotation.y = timeRef.current * 0.25;
+
+    /* Gentle vertical float: two-frequency blend */
+    const floatY = Math.sin(t * 1.5) * 0.06 + Math.sin(t * 0.7) * 0.025;
+    groupRef.current.position.set(wiz.x, getGroundY(wiz.x, wiz.z) + floatY, wiz.z);
+
+    /* Slow mystical turn */
+    groupRef.current.rotation.y = t * 0.25;
+
+    /* Body: subtle forward lean oscillation */
+    if (bodyRef.current) {
+      bodyRef.current.rotation.x = Math.sin(t * 0.9) * 0.035;
+    }
+
+    /* Head: wise slow side-to-side turn + slight nod */
+    if (headRef.current) {
+      headRef.current.rotation.y = Math.sin(t * 0.8)  * 0.18;
+      headRef.current.rotation.x = Math.sin(t * 1.1)  * 0.06;
+    }
+
+    /* Staff arm: rhythmic raise/lower as if channelling energy */
+    if (staffArmRef.current) {
+      staffArmRef.current.rotation.z = -0.12 + Math.sin(t * 1.1) * 0.20;
+      staffArmRef.current.rotation.x = Math.sin(t * 0.9 + 0.5)    * 0.12;
+    }
+
+    /* Free arm: gentler counter-swing */
+    if (freeArmRef.current) {
+      freeArmRef.current.rotation.z = 0.25 - Math.sin(t * 1.0) * 0.12;
+      freeArmRef.current.rotation.x = Math.sin(t * 0.7)          * 0.08;
+    }
+
+    /* Aura ring: counter-rotate for sparkle effect */
+    if (auraRef.current) {
+      auraRef.current.rotation.z = -t * 0.8;
+    }
   });
 
   return (
     <group ref={groupRef} visible={false}>
       {/* Long robe — purple capsule */}
-      <mesh position={[0, 1.10, 0]}>
+      <mesh ref={bodyRef} position={[0, 1.10, 0]}>
         <capsuleGeometry args={[0.30, 1.38, 4, 10]} />
         <meshStandardMaterial color="#5a1e8c" roughness={0.78} />
       </mesh>
@@ -189,7 +276,7 @@ function WizardFigure3D({
       </mesh>
 
       {/* Head */}
-      <mesh position={[0, 2.34, 0]}>
+      <mesh ref={headRef} position={[0, 2.34, 0]}>
         <sphereGeometry args={[0.26, 12, 10]} />
         <meshStandardMaterial color="#f5c99a" roughness={0.72} />
       </mesh>
@@ -243,10 +330,16 @@ function WizardFigure3D({
         />
       </mesh>
 
-      {/* Staff rod */}
-      <mesh position={[0.55, 0.95, 0]} rotation={[0, 0, -0.12]}>
+      {/* Staff arm (right side — holds the staff) */}
+      <mesh ref={staffArmRef} position={[0.55, 0.95, 0]} rotation={[0, 0, -0.12]}>
         <cylinderGeometry args={[0.032, 0.042, 2.85, 6]} />
         <meshStandardMaterial color="#6b3a1f" roughness={0.88} metalness={0.05} />
+      </mesh>
+
+      {/* Free arm (left side) */}
+      <mesh ref={freeArmRef} position={[-0.48, 1.55, 0]} rotation={[0, 0, 0.25]}>
+        <capsuleGeometry args={[0.070, 0.55, 4, 6]} />
+        <meshStandardMaterial color="#5a1e8c" roughness={0.80} />
       </mesh>
 
       {/* Staff crystal orb */}
@@ -262,8 +355,8 @@ function WizardFigure3D({
         />
       </mesh>
 
-      {/* Aura ring at feet */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
+      {/* Aura ring at feet (counter-rotates independently) */}
+      <mesh ref={auraRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
         <ringGeometry args={[0.30, 0.62, 16]} />
         <meshBasicMaterial
           color="#9b59ff"
@@ -293,28 +386,67 @@ function DarkFigure3D({
 }: {
   darkFigRef: React.MutableRefObject<DarkFig | null>;
 }) {
-  const groupRef = useRef<THREE.Group>(null);
-  const timeRef  = useRef(0);
+  const groupRef    = useRef<THREE.Group>(null);
+  const headRef     = useRef<THREE.Mesh>(null);
+  const bodyRef     = useRef<THREE.Mesh>(null);
+  const leftArmRef  = useRef<THREE.Mesh>(null);
+  const rightArmRef = useRef<THREE.Mesh>(null);
+  const innerAuraRef = useRef<THREE.Mesh>(null);
+  const timeRef     = useRef(0);
 
   useFrame((_, delta) => {
     timeRef.current += delta;
+    const t = timeRef.current;
     if (!groupRef.current) return;
     const fig = darkFigRef.current;
-    if (!fig) {
-      groupRef.current.visible = false;
-      return;
-    }
+    if (!fig) { groupRef.current.visible = false; return; }
     groupRef.current.visible = true;
-    /* Slow, ominous vertical bob — amplitude larger than ghost, slower than wizard */
-    groupRef.current.position.set(fig.x, getGroundY(fig.x, fig.z) + Math.sin(timeRef.current * 1.1) * 0.18, fig.z);
-    /* Slowly rotate, always facing menacingly */
-    groupRef.current.rotation.y = timeRef.current * 0.35;
+
+    /* Ominous heavy bob: slow frequency, large amplitude, asymmetric */
+    const heavyBob = Math.sin(t * 1.1) * 0.18 + Math.abs(Math.sin(t * 0.55)) * 0.04;
+    groupRef.current.position.set(fig.x, getGroundY(fig.x, fig.z) + heavyBob, fig.z);
+
+    /* Slow menacing rotation with a subtle high-frequency wobble layered on top */
+    groupRef.current.rotation.y = t * 0.35 + Math.sin(t * 2.2) * 0.04;
+
+    /* Body: threatening forward lean, slow inhale */
+    if (bodyRef.current) {
+      bodyRef.current.rotation.x = 0.06 + Math.sin(t * 0.75) * 0.05;
+      const breathe = 1 + Math.sin(t * 1.5) * 0.015;
+      bodyRef.current.scale.set(breathe, breathe, breathe);
+    }
+
+    /* Head: slow predatory swivel */
+    if (headRef.current) {
+      headRef.current.rotation.y = Math.sin(t * 0.6)  * 0.22;
+      headRef.current.rotation.x = Math.sin(t * 0.85) * 0.06;
+    }
+
+    /* Arms: heavy reaching motion, phased like a slow march */
+    const gaitT = t * 1.8;
+    if (leftArmRef.current) {
+      leftArmRef.current.rotation.z = 0.55 + Math.sin(gaitT)         * 0.28;
+      leftArmRef.current.rotation.x = Math.sin(gaitT + 0.5)           * 0.18;
+      leftArmRef.current.rotation.y = Math.sin(gaitT * 0.6)           * 0.10;
+    }
+    if (rightArmRef.current) {
+      rightArmRef.current.rotation.z = -0.55 - Math.sin(gaitT)        * 0.28;
+      rightArmRef.current.rotation.x = Math.sin(gaitT + Math.PI + 0.5) * 0.18;
+      rightArmRef.current.rotation.y = -Math.sin(gaitT * 0.6)          * 0.10;
+    }
+
+    /* Inner aura ring: slow spin + scale pulse */
+    if (innerAuraRef.current) {
+      innerAuraRef.current.rotation.z = t * 0.6;
+      const auraPulse = 1 + Math.sin(t * 2.5) * 0.08;
+      innerAuraRef.current.scale.set(auraPulse, auraPulse, auraPulse);
+    }
   });
 
   return (
     <group ref={groupRef} visible={false}>
       {/* Tall dark cloak body */}
-      <mesh position={[0, 1.35, 0]}>
+      <mesh ref={bodyRef} position={[0, 1.35, 0]}>
         <capsuleGeometry args={[0.38, 1.60, 4, 10]} />
         <meshStandardMaterial
           color="#050003"
@@ -340,7 +472,7 @@ function DarkFigure3D({
       </mesh>
 
       {/* Head / hood */}
-      <mesh position={[0, 2.62, 0]}>
+      <mesh ref={headRef} position={[0, 2.62, 0]}>
         <sphereGeometry args={[0.32, 12, 10]} />
         <meshStandardMaterial
           color="#070005"
@@ -373,7 +505,7 @@ function DarkFigure3D({
       </mesh>
 
       {/* Left arm — longer, reaching */}
-      <mesh position={[-0.58, 1.65, 0.10]} rotation={[0, 0, 0.55]}>
+      <mesh ref={leftArmRef} position={[-0.58, 1.65, 0.10]} rotation={[0, 0, 0.55]}>
         <capsuleGeometry args={[0.085, 0.78, 4, 6]} />
         <meshStandardMaterial
           color="#080005"
@@ -384,7 +516,7 @@ function DarkFigure3D({
       </mesh>
 
       {/* Right arm */}
-      <mesh position={[0.58, 1.65, 0.10]} rotation={[0, 0, -0.55]}>
+      <mesh ref={rightArmRef} position={[0.58, 1.65, 0.10]} rotation={[0, 0, -0.55]}>
         <capsuleGeometry args={[0.085, 0.78, 4, 6]} />
         <meshStandardMaterial
           color="#080005"
@@ -407,8 +539,8 @@ function DarkFigure3D({
         />
       </mesh>
 
-      {/* Dark aura ring — inner */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
+      {/* Dark aura ring — inner (counter-rotates + pulses) */}
+      <mesh ref={innerAuraRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
         <ringGeometry args={[0.38, 0.72, 20]} />
         <meshBasicMaterial
           color="#6600aa"
