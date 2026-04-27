@@ -937,8 +937,10 @@ export const stage13CardSteals = pgTable("stage13_card_steals", {
 export const avengerCardSteals = pgTable("avenger_card_steals", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
-  cardId: varchar("card_id", { length: 60 }).notNull(),
-  stolenAt: timestamp("stolen_at").notNull().defaultNow(),
+  /** null = event triggered (figure appeared) but no card stolen yet */
+  cardId: varchar("card_id", { length: 60 }),
+  stolenAt: timestamp("stolen_at"),
+  triggeredAt: timestamp("triggered_at").notNull().defaultNow(),
 }, (table) => ({
   uniqueUser: uniqueIndex("avenger_card_steals_user_idx").on(table.userId),
 }));

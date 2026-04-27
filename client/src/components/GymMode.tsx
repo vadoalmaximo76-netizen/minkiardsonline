@@ -692,6 +692,27 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const avengerBornicoLeader = leaders.find(l => l.isHidden && l.gymName === 'Avenger Borbonico') ?? null;
   const avengerAlreadyDone = avengerBornicoLeader ? completedIds.includes(avengerBornicoLeader.id) : false;
 
+  /* Server-side one-time guarantee: mark as triggered when status says so */
+  useEffect(() => {
+    if (!avengerBornicoLeader) return;
+    if (avengerAlreadyDone) return;
+    if (avengerBorbonico) return;
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+    fetch('/api/story-mode/avenger-borbonico/status', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.triggered) {
+          /* Event already fired server-side — suppress it client-side too */
+          const lsKey = `avenger_borbonico_triggered_${userId}`;
+          localStorage.setItem(lsKey, '1');
+        }
+      })
+      .catch(() => {});
+  }, [avengerBornicoLeader?.id, avengerAlreadyDone]);
+
   useEffect(() => {
     if (!avengerBornicoLeader) return;
     if (avengerAlreadyDone) return;
@@ -733,7 +754,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          setAvengerStolenCard({ cardId: data.cardId, cardName: data.cardName ?? null });
+          setAvengerStolenCard({ cardId: data.stolenCardId, cardName: data.stolenCardName ?? null });
           fetchStoryDeck(); /* refresh deck */
         }
       })
@@ -1689,10 +1710,11 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
               <p className="text-purple-200 text-sm animate-pulse">Furto in corso...</p>
             ) : avengerStolenCard ? (
               <>
-                <p className="text-purple-100 font-bold text-base">Una carta ti è stata rubata!</p>
-                {avengerStolenCard.cardName && (
-                  <p className="text-amber-300 font-black text-lg">« {avengerStolenCard.cardName} »</p>
-                )}
+                <p className="text-purple-100 font-bold text-base">
+                  {avengerStolenCard.cardName
+                    ? `L'Avenger Borbonico ti ha rubato una carta: ${avengerStolenCard.cardName}`
+                    : "L'Avenger Borbonico ti ha rubato una carta."}
+                </p>
                 <p className="text-purple-300 text-xs mt-1">Questa carta è stata rimossa definitivamente dal tuo mazzo Storia.</p>
               </>
             ) : (
@@ -2579,6 +2601,12 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
           avengerBorbonico={avengerBorbonico}
           onTriggerAvengerBorbonico={() => {
             if (!avengerBornicoLeader) return;
+            /* Mark on server — fire-and-forget, idempotente */
+            const tok = localStorage.getItem('authToken');
+            fetch('/api/story-mode/avenger-borbonico/mark-triggered', {
+              method: 'POST',
+              headers: tok ? { Authorization: `Bearer ${tok}` } : {},
+            }).catch(() => {});
             setAvengerBorbonico(false);
             setSelectedLeader(avengerBornicoLeader);
             selectedLeaderRef.current = avengerBornicoLeader;

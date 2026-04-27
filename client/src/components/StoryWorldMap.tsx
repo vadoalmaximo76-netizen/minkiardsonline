@@ -2400,8 +2400,8 @@ export function StoryWorldMap({
       if (avengerBorbonicoPropRef.current && !avengerTriggeredRef.current) {
         const px3a = playerRef.current.x, pz3a = playerRef.current.z;
         if (!darkFigRef.current) {
-          /* Spawn behind the player (offset +12 north so they can see it approach) */
-          darkFigRef.current = { x: px3a, z: pz3a + 14 };
+          /* Spawn behind the player (+12 north so they can see it approach) */
+          darkFigRef.current = { x: px3a, z: pz3a + 12 };
         }
         const fig = darkFigRef.current;
         const dx3a = px3a - fig.x, dz3a = pz3a - fig.z;

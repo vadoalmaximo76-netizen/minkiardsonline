@@ -15456,6 +15456,47 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
   });
 
   // ── Avenger Borbonico – furto carta ───────────────────────────────────────
+  // GET /api/story-mode/avenger-borbonico/status
+  // Restituisce se l'evento è già stato triggerato per questo utente (server-side one-time check).
+  app.get('/api/story-mode/avenger-borbonico/status', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const userId = user.userId;
+      const [existing] = await db.select().from(avengerCardSteals).where(eq(avengerCardSteals.userId, userId));
+      res.json({
+        success: true,
+        triggered: !!existing,
+        stolen: !!(existing?.cardId),
+        stolenCardId: existing?.cardId ?? null,
+      });
+    } catch (e) {
+      console.error('Error in avenger-borbonico/status:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/story-mode/avenger-borbonico/mark-triggered
+  // Registra lato server che la figura è apparsa (one-time, idempotente). cardId rimane null finché non avviene il furto.
+  app.post('/api/story-mode/avenger-borbonico/mark-triggered', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const userId = user.userId;
+      const [existing] = await db.select().from(avengerCardSteals).where(eq(avengerCardSteals.userId, userId));
+      if (!existing) {
+        await db.insert(avengerCardSteals).values({ userId, cardId: null, stolenAt: null });
+        console.log(`[avenger-borbonico] Evento triggerato per utente ${userId}`);
+      }
+      res.json({ success: true });
+    } catch (e) {
+      console.error('Error in avenger-borbonico/mark-triggered:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
   // POST /api/story-mode/avenger-borbonico/steal-card
   // Rimuove una carta casuale dal mazzo Story Mode del giocatore (una sola volta per utente).
   app.post('/api/story-mode/avenger-borbonico/steal-card', authMiddleware, async (req, res) => {
@@ -15465,9 +15506,9 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
       const userId = user.userId;
 
-      // Idempotente: se il furto è già avvenuto, restituisce i dati salvati
+      // Idempotente: se il furto è già avvenuto (cardId non null), restituisce i dati salvati
       const [existing] = await db.select().from(avengerCardSteals).where(eq(avengerCardSteals.userId, userId));
-      if (existing) {
+      if (existing?.cardId) {
         return res.json({ success: true, alreadyStolen: true, stolenCardId: existing.cardId, stolenCardName: null });
       }
 
@@ -15488,8 +15529,14 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const newCardIds = cardIds.filter((_, i) => i !== randomIdx);
       await db.update(userStoryDeck).set({ cardIds: newCardIds, updatedAt: new Date() }).where(eq(userStoryDeck.userId, userId));
 
-      // Registra il furto
-      await db.insert(avengerCardSteals).values({ userId, cardId: stolenCardId });
+      // Registra il furto (upsert: aggiorna se esiste già un record triggered, altrimenti inserisci)
+      if (existing) {
+        await db.update(avengerCardSteals)
+          .set({ cardId: stolenCardId, stolenAt: new Date() })
+          .where(eq(avengerCardSteals.userId, userId));
+      } else {
+        await db.insert(avengerCardSteals).values({ userId, cardId: stolenCardId, stolenAt: new Date() });
+      }
 
       // Risolvi il nome della carta per il frontend
       let stolenCardName: string | null = null;
