@@ -478,7 +478,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   const [stage13StealSuccess, setStage13StealSuccess] = useState(false);
   /* ── Avenger Borbonico ──────────────────────────────────── */
   const [avengerBorbonico, setAvengerBorbonico] = useState(false);
-  const [avengerStolenCard, setAvengerStolenCard] = useState<{ cardId: string; cardName: string | null } | null>(null);
+  const [avengerStolenCard, setAvengerStolenCard] = useState<{ cardId: string | null; cardName: string | null; noDeck?: boolean } | null>(null);
   const [avengerStealLoading, setAvengerStealLoading] = useState(false);
   const avengerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -728,6 +728,12 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
     if (avengerTimerRef.current) return; /* already running */
     avengerTimerRef.current = setTimeout(() => {
       localStorage.setItem(lsKey, '1');
+      /* Mark server-side immediately when the figure spawns (not on contact) */
+      const tok2 = localStorage.getItem('authToken');
+      fetch('/api/story-mode/avenger-borbonico/mark-triggered', {
+        method: 'POST',
+        headers: tok2 ? { Authorization: `Bearer ${tok2}` } : {},
+      }).catch(() => {});
       setAvengerBorbonico(true);
     }, 10000);
     return () => {
@@ -754,8 +760,12 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          setAvengerStolenCard({ cardId: data.stolenCardId, cardName: data.stolenCardName ?? null });
-          fetchStoryDeck(); /* refresh deck */
+          if (data.noDeckCards) {
+            setAvengerStolenCard({ cardId: null, cardName: null, noDeck: true });
+          } else {
+            setAvengerStolenCard({ cardId: data.stolenCardId, cardName: data.stolenCardName ?? null });
+            fetchStoryDeck(); /* refresh deck */
+          }
         }
       })
       .catch(err => console.error('[Avenger] steal-card error:', err))
@@ -1708,6 +1718,8 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             <div className="text-3xl mb-1">🃏</div>
             {avengerStealLoading ? (
               <p className="text-purple-200 text-sm animate-pulse">Furto in corso...</p>
+            ) : avengerStolenCard?.noDeck ? (
+              <p className="text-purple-300 text-sm">Il tuo mazzo era vuoto — nessuna carta da rubare.</p>
             ) : avengerStolenCard ? (
               <>
                 <p className="text-purple-100 font-bold text-base">
@@ -1717,9 +1729,7 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
                 </p>
                 <p className="text-purple-300 text-xs mt-1">Questa carta è stata rimossa definitivamente dal tuo mazzo Storia.</p>
               </>
-            ) : (
-              <p className="text-purple-300 text-sm">Nessuna carta nel mazzo da rubare.</p>
-            )}
+            ) : null}
           </div>
 
           <p
