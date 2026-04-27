@@ -253,8 +253,9 @@ function App() {
     const initializeApp = async () => {
       // Safety net: if initialization is still pending after 12 seconds, unblock the UI
       const safetyTimer = setTimeout(() => {
-        console.warn('[init] Safety timeout reached — forcing isInitializing=false');
+        console.warn('[init] Safety timeout reached — forcing isInitializing=false and serverReady=true');
         setIsInitializing(false);
+        setServerReady(true);
       }, 12000);
 
       try {
