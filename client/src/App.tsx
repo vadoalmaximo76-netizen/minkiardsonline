@@ -760,7 +760,9 @@ function App() {
 
   const handleBottomNavNavigate = (section: AppSection) => {
     if (section === 'play') {
-      if (!gameId) setShowRoomDialog(true);
+      // Show the room dialog when there is no active game OR the stored gameId belongs
+      // to a gym/story-mode game (gym games are managed by GymMode, not the play section).
+      if (!gameId || gameId.startsWith('gym-')) setShowRoomDialog(true);
       navigateTo('play');
     } else {
       navigateTo(section);
@@ -1127,7 +1129,13 @@ function App() {
           playerName={authenticatedUser?.username || playerName}
           userId={authenticatedUser?.id}
           avatarId={authenticatedUser?.avatar}
-          onBack={handleGoHome}
+          onBack={() => {
+            // Clear the gym game ID from the global store so the bottom-nav "Play"
+            // button shows the room-creation dialog instead of jumping straight into
+            // the gym game board the next time the user navigates to the play section.
+            if (gameId?.startsWith('gym-')) setGameId('');
+            handleGoHome();
+          }}
           pendingGymGame={pendingGymGame ?? undefined}
           onResumeGymGame={(gameId) => handleResumeGame(gameId, authenticatedUser?.username || playerName)}
           onClearPendingGymGame={() => setPendingGymGame(null)}
