@@ -4,18 +4,19 @@ import { Text }                    from '@react-three/drei';
 import * as THREE                  from 'three';
 import type { OtherPlayer }        from './types';
 import { AvatarGLB }               from './AvatarGLB';
+import { getGroundY }              from './terrainHeight';
 
 /* Smooth-lerping other-player mesh using a GLB avatar */
 function OtherPlayerMesh({ player }: { player: OtherPlayer }) {
   const groupRef  = useRef<THREE.Group>(null);
-  const targetPos = useRef(new THREE.Vector3(player.x, 0, player.z));
-  const prevPos   = useRef(new THREE.Vector3(player.x, 0, player.z));
+  const targetPos = useRef(new THREE.Vector3(player.x, getGroundY(player.x, player.z), player.z));
+  const prevPos   = useRef(new THREE.Vector3(player.x, getGroundY(player.x, player.z), player.z));
   const time      = useRef(Math.random() * 10);
   const movingRef = useRef(false);
 
   useFrame((_, delta) => {
     time.current += delta;
-    targetPos.current.set(player.x, 0, player.z);
+    targetPos.current.set(player.x, getGroundY(player.x, player.z), player.z);
     if (!groupRef.current) return;
 
     const before = groupRef.current.position.clone();
@@ -34,7 +35,7 @@ function OtherPlayerMesh({ player }: { player: OtherPlayer }) {
   });
 
   return (
-    <group ref={groupRef} position={[player.x, 0, player.z]}>
+    <group ref={groupRef} position={[player.x, getGroundY(player.x, player.z), player.z]}>
       <AvatarGLB userId={player.userId} movingRef={movingRef} timeRef={time} />
       <Text
         position={[0, 4.0, 0]}

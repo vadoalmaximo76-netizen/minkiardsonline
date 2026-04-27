@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { AvatarGLB } from './AvatarGLB';
+import { getGroundY } from './terrainHeight';
 
 /* ── Per-user jersey colour palette ─────────────────────────────── */
 const JERSEY_PALETTE = [
@@ -35,7 +36,7 @@ export function PlayerMesh3D({
 
     const px = playerRef.current.x;
     const pz = playerRef.current.z;
-    groupRef.current.position.set(px, 0, pz);
+    groupRef.current.position.set(px, getGroundY(px, pz), pz);
 
     const dx = px - prevPos.current.x;
     const dz = pz - prevPos.current.z;

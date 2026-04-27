@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { useFrame }      from '@react-three/fiber';
 import * as THREE        from 'three';
 import type { GhostFig, WizardFig, DarkFig } from './types';
+import { getGroundY } from './terrainHeight';
 
 /* ── Ghost ambush figures ────────────────────────────────────────── */
 const GHOST_COUNT = 4;
@@ -28,7 +29,7 @@ function GhostFigures3D({
       }
       grp.visible = true;
       /* Hover-bob animation (each ghost offset so they don't sync) */
-      grp.position.set(ghost.x, Math.sin(timeRef.current * 2.8 + i * 1.6) * 0.22, ghost.z);
+      grp.position.set(ghost.x, getGroundY(ghost.x, ghost.z) + Math.sin(timeRef.current * 2.8 + i * 1.6) * 0.22, ghost.z);
       /* Slow rotate */
       grp.rotation.y = timeRef.current * 0.5 + i * Math.PI * 0.5;
     }
@@ -154,7 +155,7 @@ function WizardFigure3D({
     }
     groupRef.current.visible = true;
     /* Gentle vertical bob + face player direction */
-    groupRef.current.position.set(wiz.x, Math.sin(timeRef.current * 1.5) * 0.06, wiz.z);
+    groupRef.current.position.set(wiz.x, getGroundY(wiz.x, wiz.z) + Math.sin(timeRef.current * 1.5) * 0.06, wiz.z);
     /* Slowly rotate toward the interaction area */
     groupRef.current.rotation.y = timeRef.current * 0.25;
   });
@@ -305,7 +306,7 @@ function DarkFigure3D({
     }
     groupRef.current.visible = true;
     /* Slow, ominous vertical bob — amplitude larger than ghost, slower than wizard */
-    groupRef.current.position.set(fig.x, Math.sin(timeRef.current * 1.1) * 0.18, fig.z);
+    groupRef.current.position.set(fig.x, getGroundY(fig.x, fig.z) + Math.sin(timeRef.current * 1.1) * 0.18, fig.z);
     /* Slowly rotate, always facing menacingly */
     groupRef.current.rotation.y = timeRef.current * 0.35;
   });
