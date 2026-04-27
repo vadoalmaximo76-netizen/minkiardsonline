@@ -2928,8 +2928,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     });
                     
                     setTimeout(async () => {
-                      const nextAction = await gameManager.processCPUTurn(gameId, cpuName, io);
-                      await continueCPUTurn(nextAction);
+                      const latestGame = gameManager.getGameState(gameId);
+                      const cpuInstance = latestGame?.players[cpuName]?.cpuInstance;
+                      if (!cpuInstance) return;
+                      const updatedState = gameManager.getSanitizedGameState(gameId);
+                      const nextAction = await cpuInstance.takeTurn(updatedState);
+                      if (nextAction) {
+                        console.log(`🎯 CPU ${cpuName}: Post-mosse action: ${nextAction.type}`);
+                        await gameManager.applyCPUAction(gameId, cpuName, nextAction, io);
+                      }
                     }, 1000);
                   }, 3000); // 3 seconds for manual return
                   break;
