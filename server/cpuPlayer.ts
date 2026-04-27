@@ -4030,8 +4030,13 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           }
 
           // End turn: one attack on BARRIERA per turn
+          // CRITICAL FIX: resetTurnState() clears waitingForAttackResolution, which would cause
+          // takeTurn() to return 'end-turn' immediately. We must re-set it to true so takeTurn()
+          // returns null and the 800ms timeout below is the only code that calls endTurn().
           this.resetTurnState();
+          this.waitingForAttackResolution = true;
           setTimeout(() => {
+            this.waitingForAttackResolution = false;
             this.gameManager.processDelayedDamages(this.gameId, this.playerName, this.socketEmitter);
             const nextPlayer = this.gameManager.endTurn(this.gameId, this.playerName);
             if (nextPlayer) {
@@ -4054,8 +4059,13 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           this.gameManager.returnToDeck(this.gameId, mosseCard.id, this.playerName);
           const sagState = this.gameManager.getSanitizedGameState(this.gameId);
           if (sagState) this.socketEmitter.to(this.gameId).emit('game-state-update', sagState);
+          // CRITICAL FIX: resetTurnState() clears waitingForAttackResolution, which would cause
+          // takeTurn() to return 'end-turn' immediately. We must re-set it to true so takeTurn()
+          // returns null and the 800ms timeout below is the only code that calls endTurn().
           this.resetTurnState();
+          this.waitingForAttackResolution = true;
           setTimeout(() => {
+            this.waitingForAttackResolution = false;
             this.gameManager.processDelayedDamages(this.gameId, this.playerName, this.socketEmitter);
             const nextSagPlayer = this.gameManager.endTurn(this.gameId, this.playerName);
             if (nextSagPlayer) {
