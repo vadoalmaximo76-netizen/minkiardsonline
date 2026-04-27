@@ -892,6 +892,32 @@ export class GameManager {
     }
   }
 
+  // PIERO ANGELA: returns Onda Energetica mosseDamageValue from game decks/field/graveyard or card modifications (synchronous)
+  private getOndaEnergeticaDamageValue(game: any): number | null {
+    const isOnda = (c: any) => {
+      const name = this.getCardNameFromUrl(c.frontImage || '').toUpperCase().replace(/[_-]/g, ' ').trim();
+      return name.includes('ONDA ENERGETICA');
+    };
+    const allMosse: any[] = [
+      ...(game.decks?.mosse || []),
+      ...(game.field || []).filter((c: any) => c.type === 'mosse'),
+      ...(game.graveyard || []).filter((c: any) => c.type === 'mosse'),
+    ];
+    const ondaCard = allMosse.find(isOnda);
+    if (ondaCard?.mosseDamageValue && ondaCard.mosseDamageValue > 0) return ondaCard.mosseDamageValue;
+    // Fallback: check card modifications directly (synchronous)
+    try {
+      const mods = jsonStorage.cardModifications.getAll().filter((m: any) => !m.isDeleted);
+      for (const mod of mods) {
+        const modName = (mod.name || '').toUpperCase().replace(/[_-]/g, ' ').trim();
+        if (modName.includes('ONDA ENERGETICA') && mod.mosseDamageValue != null && mod.mosseDamageValue > 0) {
+          return mod.mosseDamageValue;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   async loadCardModifications(): Promise<Map<string, any>> {
     try {
       const modifications = jsonStorage.cardModifications.getAll().filter(m => !m.isDeleted);
@@ -18760,6 +18786,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
+    // PIERO ANGELA: always uses Onda Energetica damage value regardless of which MOSSE was played
+    if ((attackerCharacter.frontImage || '').toLowerCase().includes('piero-angela')) {
+      const ondaDmg = this.getOndaEnergeticaDamageValue(game);
+      if (ondaDmg != null && ondaDmg > 0) {
+        damageValue = ondaDmg * attackerStars;
+        console.log(`⚡ PIERO ANGELA: usa Onda Energetica → base=${ondaDmg} × ${attackerStars} stelle = ${damageValue} PTI`);
+        const ioPiero = (global as any).io;
+        if (ioPiero) {
+          ioPiero.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-piero-angela-onda`,
+            playerName: 'Sistema',
+            message: `⚡ PIERO ANGELA usa Onda Energetica! Danno: ${damageValue} PTI`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    }
+
     // PRE-CALCULATE SPECIAL MOVE DAMAGE: So defense reflections use the correct enhanced damage
     let finalDamageForDefense = damageValue;
     if (attackerCharacter.type === 'personaggi_speciali') {
@@ -19113,6 +19157,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           if (matchesTarget && entry.usedOn?.damageValue != null) {
             computedDamage = entry.usedOn.damageValue * attackerStarsTA;
             break;
+          }
+        }
+      }
+
+      // PIERO ANGELA: always uses Onda Energetica damage value regardless of which MOSSE was picked
+      if (attackerCardForTA && (attackerCardForTA.frontImage || '').toLowerCase().includes('piero-angela')) {
+        const ondaDmgTA = this.getOndaEnergeticaDamageValue(game);
+        if (ondaDmgTA != null && ondaDmgTA > 0) {
+          computedDamage = ondaDmgTA * attackerStarsTA;
+          console.log(`⚡ PIERO ANGELA [TA]: usa Onda Energetica → base=${ondaDmgTA} × ${attackerStarsTA} stelle = ${computedDamage} PTI`);
+          const ioPieroTA = (global as any).io;
+          if (ioPieroTA) {
+            ioPieroTA.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-piero-angela-onda-ta`,
+              playerName: 'Sistema',
+              message: `⚡ PIERO ANGELA usa Onda Energetica! Danno: ${computedDamage} PTI`,
+              timestamp: Date.now()
+            });
           }
         }
       }
