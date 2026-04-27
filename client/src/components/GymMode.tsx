@@ -1516,6 +1516,10 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
   if (phase === 'victory' && selectedLeader) {
     const pickedImgUrl = pickedCardId ? getCardImageFromId(pickedCardId) : null;
     const pickedLabel = pickedCardId ? getCardDeckLabel(pickedCardId) : null;
+    const victoryBossLoseMsgs = selectedLeader.leaderMessages?.gameLose;
+    const victoryBossMsg = Array.isArray(victoryBossLoseMsgs) && victoryBossLoseMsgs.length > 0
+      ? victoryBossLoseMsgs[Math.floor(Math.random() * victoryBossLoseMsgs.length)]
+      : null;
     return (
       <div
         className="fixed inset-0 z-50 overflow-y-auto"
@@ -1683,6 +1687,74 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
             </button>
           </div>
         </div>
+
+        {/* Boss gameLose message bubble — slides up when victoryStep >= 2 */}
+        {victoryBossMsg && (
+          <div
+            className="fixed bottom-8 left-3 z-50 flex items-end gap-0 max-w-[88vw] transition-all duration-500 pointer-events-none"
+            style={{
+              transform: victoryStep >= 2 ? 'translateY(0)' : 'translateY(32px)',
+              opacity: victoryStep >= 2 ? 1 : 0,
+              filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.7))',
+            }}
+          >
+            {/* Boss photo */}
+            <div className="flex-shrink-0 relative z-10" style={{ marginBottom: -4, marginRight: -6 }}>
+              <div
+                className="rounded-full border-2 border-white/30 overflow-hidden"
+                style={{
+                  width: 72, height: 72,
+                  boxShadow: '0 0 14px rgba(255,255,255,0.15)',
+                  background: 'linear-gradient(135deg,#0a0a0a,#1a1a1a)',
+                  filter: 'grayscale(40%)',
+                }}
+              >
+                {selectedLeader.leaderImageUrl ? (
+                  <img
+                    src={selectedLeader.leaderImageUrl}
+                    alt={selectedLeader.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Shield size={28} className="text-white/40" />
+                  </div>
+                )}
+              </div>
+              <div
+                className="absolute inset-0 rounded-full pointer-events-none"
+                style={{ border: '1.5px solid rgba(255,255,255,0.2)' }}
+              />
+            </div>
+            {/* Speech bubble */}
+            <div
+              className="relative rounded-2xl rounded-bl-sm"
+              style={{
+                background: 'linear-gradient(135deg,rgba(0,0,0,0.92),rgba(5,5,15,0.95))',
+                border: '1.5px solid rgba(255,255,255,0.2)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)',
+                backdropFilter: 'blur(16px)',
+                padding: '10px 14px',
+                maxWidth: 220,
+              }}
+            >
+              {/* Tail */}
+              <div style={{
+                position: 'absolute', bottom: 8, left: -7,
+                width: 0, height: 0,
+                borderTop: '7px solid transparent',
+                borderBottom: '7px solid transparent',
+                borderRight: '8px solid rgba(255,255,255,0.2)',
+              }} />
+              <div className="font-black text-xs mb-1" style={{ color: 'rgba(200,200,220,0.8)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                😤 {selectedLeader.name}
+              </div>
+              <div className="text-sm font-semibold leading-snug" style={{ color: 'rgba(220,220,240,0.85)' }}>
+                {victoryBossMsg}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1761,9 +1833,9 @@ export function GymMode({ playerName, userId, avatarId, onBack, pendingGymGame, 
       );
     }
 
-    const gameLoseMsgs = selectedLeader.leaderMessages?.gameLose;
-    const defeatMsg = Array.isArray(gameLoseMsgs) && gameLoseMsgs.length > 0
-      ? gameLoseMsgs[Math.floor(Math.random() * gameLoseMsgs.length)]
+    const gameWinMsgs = selectedLeader.leaderMessages?.gameWin;
+    const defeatMsg = Array.isArray(gameWinMsgs) && gameWinMsgs.length > 0
+      ? gameWinMsgs[Math.floor(Math.random() * gameWinMsgs.length)]
       : null;
 
     return (
