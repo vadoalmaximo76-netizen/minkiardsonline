@@ -8405,14 +8405,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
     
     if (includeHand) {
-      const playerHand = game.hands?.[playerName];
-      if (playerHand) {
-        const allHandCards = [
-          ...(playerHand.personaggi || []),
-          ...(playerHand.personaggi_speciali || [])
-        ];
-        
-        console.log(`🌈 Multi-${type}: Processing ${allHandCards.length} hand characters for ${playerName}`);
+      // BUGFIX: game.hands?.[playerName] is never populated during normal gameplay.
+      // The real hand is stored in game.players[playerName].hand as a flat Card[] array.
+      const allHandCards = (game.players[playerName]?.hand || []).filter(
+        (c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali'
+      );
+      console.log(`🌈 Multi-${type}: Processing ${allHandCards.length} hand characters for ${playerName}`);
         
         for (const handCard of allHandCards) {
           let targetCardId: string | undefined;
@@ -8573,7 +8571,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             }
           }
         }
-      }
     }
     
     if (io) {
@@ -22224,6 +22221,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       card.owner = '';
       card.text = '';
       card.eliminatedBy = '';
+      // Clear bonus-effect flag so the card's effect fires again if redrawn and replayed
+      delete (card as any).effectAlreadyApplied;
       // Clear OSTAGGIO-specific state so re-drawn cards don't carry stale hostage metadata
       delete card.isOstaggioCard;
       delete card.ostaggioHoldingCardId;
