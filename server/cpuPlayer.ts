@@ -631,8 +631,11 @@ export class CPUPlayer {
   // so the CPU does not rely solely on the stale-state check in the next takeTurn call.
   notifyAttackResolved() {
     if (this.waitingForAttackResolution) {
-      console.log(`✅ CPU ${this.playerName}: notifyAttackResolved() — clearing waitingForAttackResolution`);
+      console.log(`✅ CPU ${this.playerName}: notifyAttackResolved() — clearing waitingForAttackResolution, marking executedThisTurn`);
       this._setWaitingForAttackResolution(false);
+      // Mark the turn as executed so the stale-state check in takeTurn does NOT reset
+      // the state and allows the one-card-per-turn rule to fire correctly.
+      this.turnState.executedThisTurn = true;
     }
   }
 
@@ -2769,9 +2772,12 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       // Profile-based contextual chat (optional, safe no-op if profile is thin)
       this.maybeEmitProfileChat();
 
-      // Reset turn state if stale (from previous turn)
-      if (this.turnState.phase !== 'draw_needed' || this.turnState.playedThisTurn) {
-        console.log(`🔧 CPU ${this.playerName}: New turn detected - resetting stale state (phase=${this.turnState.phase}, played=${this.turnState.playedThisTurn})`);
+      // Reset turn state if stale (from a previous turn), but NOT when executedThisTurn=true.
+      // executedThisTurn=true means resolveAttack() (or notifyAttackResolved) already signalled
+      // "this turn's action is done — just end the turn". Resetting here would clear that flag
+      // and let the CPU play a second card before endTurn is called.
+      if ((this.turnState.phase !== 'draw_needed' || this.turnState.playedThisTurn) && !this.turnState.executedThisTurn) {
+        console.log(`🔧 CPU ${this.playerName}: New turn detected - resetting stale state (phase=${this.turnState.phase}, played=${this.turnState.playedThisTurn}, executed=${this.turnState.executedThisTurn})`);
         this.resetTurnState();
       }
       
