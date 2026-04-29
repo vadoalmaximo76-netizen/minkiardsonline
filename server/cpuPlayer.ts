@@ -75,6 +75,7 @@ export class CPUPlayer {
   private waitingForResponse: boolean = false;
   private waitingForAttackResolution: boolean = false; // NEW: Wait for MOSSE attack to complete before ending turn
   private attackResolutionSafetyTimer: ReturnType<typeof setTimeout> | null = null; // Safety timer to prevent deadlock
+  private _takeTurnInProgress: boolean = false; // Re-entrancy mutex: prevents concurrent takeTurn executions
   private currentQuestion: string = '';
   private conversationHistory: Array<{type: 'question' | 'answer', content: string, timestamp: number}> = [];
   private socketEmitter: any;
@@ -622,6 +623,16 @@ export class CPUPlayer {
     if (this.attackResolutionSafetyTimer !== null) {
       clearTimeout(this.attackResolutionSafetyTimer);
       this.attackResolutionSafetyTimer = null;
+    }
+  }
+
+  // Called by gameManager.processMosseDamage when the attack fully resolves.
+  // Explicitly clears waitingForAttackResolution and cancels the 8-second watchdog,
+  // so the CPU does not rely solely on the stale-state check in the next takeTurn call.
+  notifyAttackResolved() {
+    if (this.waitingForAttackResolution) {
+      console.log(`✅ CPU ${this.playerName}: notifyAttackResolved() — clearing waitingForAttackResolution`);
+      this._setWaitingForAttackResolution(false);
     }
   }
 
@@ -2741,19 +2752,17 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
 
   // NEW CPU TURN LOGIC: State machine for pesca → gioca → esegui azione → fine turno
   async takeTurn(gameState: any) {
+    // MUTEX: Prevent re-entrant calls while a turn is already being processed.
+    // If a stale timer or event fires processCPUTurn while an attack is in progress,
+    // the re-entrant takeTurn would incorrectly clear waitingForAttackResolution and
+    // cause the CPU to play a second card in the same logical turn.
+    if (this._takeTurnInProgress) {
+      console.log(`🔒 CPU ${this.playerName}: takeTurn() re-entrant call blocked (already in progress)`);
+      return null;
+    }
+    this._takeTurnInProgress = true;
     try {
       console.log(`🎯 CPU ${this.playerName}: takeTurn() START - hand=${gameState.players[this.playerName]?.hand?.length || 0}, openingPhase=${this.openingSequenceState.phase}`);
-      
-      // CRITICAL FIX: Always reset stale attack/response flags at the start of a new turn
-      // These flags should NEVER persist across turns - they only apply within a single turn's action
-      if (this.waitingForAttackResolution) {
-        console.log(`🔧 CPU ${this.playerName}: Clearing stale waitingForAttackResolution flag at turn start`);
-        this.waitingForAttackResolution = false;
-      }
-      if (this.waitingForResponse) {
-        console.log(`🔧 CPU ${this.playerName}: Clearing stale waitingForResponse flag at turn start`);
-        this.waitingForResponse = false;
-      }
       
       // Update mood every N turns (based on difficulty)
       this.updateMood();
@@ -3175,6 +3184,9 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       this.sendChatMessage(this.getRandomChatResponse('no_actions'));
       this.resetTurnState();
       return null;
+    } finally {
+      // Always release the re-entrancy mutex so future turns can proceed
+      this._takeTurnInProgress = false;
     }
   }
 

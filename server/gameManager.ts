@@ -19047,6 +19047,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const game = this.games.get(gameId);
     if (!game) return;
     delete (game as any).taSequencePending;
+
+    // Notify the attacker CPU that its attack has fully resolved, clearing
+    // waitingForAttackResolution and cancelling the 8-second watchdog.
+    // This must happen before endTurn so the flag is cleared on the correct turn.
+    const attackerCpuPlayer = game.players[cpuPlayerName];
+    if (attackerCpuPlayer?.isCPU && attackerCpuPlayer.cpuInstance?.notifyAttackResolved) {
+      attackerCpuPlayer.cpuInstance.notifyAttackResolved();
+    }
+
     io.to(gameId).emit('cpu-done-thinking', { playerName: cpuPlayerName });
     const gs = this.getSanitizedGameState(gameId);
     if (gs) io.to(gameId).emit('game-state-update', gs);
@@ -28910,6 +28919,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     const cpuPlayer = game.players[cpuPlayerName];
     if (!cpuPlayer?.isCPU || !cpuPlayer.cpuInstance) return null;
+
+    // TURN-OWNERSHIP GUARD: Only proceed if it is actually this CPU's turn.
+    // Stale timer callbacks (8-second watchdog, 12-second attack-backup, card-effect
+    // timeouts) can fire processCPUTurn after the game has already advanced to another
+    // player. Without this check, those callbacks would call takeTurn, which (before
+    // the mutex was added) would clear waitingForAttackResolution and trigger a second
+    // card play. We allow the DUELLO continuation path to bypass this via the normal
+    // endTurn → currentTurnIndex advance that happens before the setTimeout fires.
+    const currentTurnPlayer = game.turnOrder[game.currentTurnIndex];
+    if (currentTurnPlayer !== cpuPlayerName) {
+      console.log(`[processCPUTurn] ${cpuPlayerName}: NOT their turn (current: ${currentTurnPlayer}) — skipping`);
+      return null;
+    }
 
     const isStoryMode = !!(game as any).gymLeaderCpuName;
     const cpuLevel = cpuPlayer.cpuInstance.getLevel?.() || cpuPlayer.cpuLevel || 'medium';
