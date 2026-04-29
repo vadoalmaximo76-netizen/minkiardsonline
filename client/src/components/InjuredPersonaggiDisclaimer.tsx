@@ -83,12 +83,17 @@ export function InjuredPersonaggiDisclaimer({
       if (data.success) {
         let list: InjuredCard[] = data.injured || [];
         if (relevantCardIds && relevantCardIds.length > 0) {
-          // relevantCardIds may contain draft IDs (e.g. "personaggi-5-abc123")
-          // injuries are stored with base IDs (e.g. "personaggi-5")
-          // so we match exactly OR by prefix (extractBaseId)
+          // Bidirectional matching: both deck IDs and injury IDs may be base or draft format.
+          // e.g. deck has "personaggi-5", injury stored as "personaggi-5-abc123" (old bug), or vice-versa.
           const relevantExact = new Set(relevantCardIds);
           const relevantBases = new Set(relevantCardIds.map(extractBaseId));
-          list = list.filter(c => relevantExact.has(c.cardId) || relevantBases.has(c.cardId));
+          list = list.filter(c => {
+            // Direct / base-of-deck match (existing logic)
+            if (relevantExact.has(c.cardId) || relevantBases.has(c.cardId)) return true;
+            // Also check the base of the injury ID against the deck (handles old draft-ID injury records)
+            const injuryBase = extractBaseId(c.cardId);
+            return relevantExact.has(injuryBase) || relevantBases.has(injuryBase);
+          });
         }
         setInjured(list);
       } else {
@@ -159,14 +164,16 @@ export function InjuredPersonaggiDisclaimer({
   const handleConfirm = () => {
     if (confirmedRef.current) return;
     confirmedRef.current = true;
-    // injured.cardId are base IDs (e.g. "personaggi-5")
-    // relevantCardIds may be draft IDs (e.g. "personaggi-5-abc123")
-    // Exclude a card if its base ID (or exact ID) is in the injured set
-    const injuredBaseIds = new Set(injured.map(c => c.cardId));
+    // Build a set of both the exact injury card IDs and their extracted base IDs.
+    // This handles old records stored with draft IDs (e.g. "personaggi-5-abc123")
+    // as well as correctly stored base IDs (e.g. "personaggi-5").
+    const injuredExactIds = new Set(injured.map(c => c.cardId));
+    const injuredBaseIds = new Set(injured.map(c => extractBaseId(c.cardId)));
     const available = relevantCardIds
       ? relevantCardIds.filter(id => {
           const base = extractBaseId(id);
-          return !injuredBaseIds.has(id) && !injuredBaseIds.has(base);
+          return !injuredExactIds.has(id) && !injuredExactIds.has(base)
+              && !injuredBaseIds.has(id) && !injuredBaseIds.has(base);
         })
       : [];
     onConfirm(available);

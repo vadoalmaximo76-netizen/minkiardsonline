@@ -22627,8 +22627,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         console.log(`🩹 [InjuryRecord] isGymMode=${game.isGymMode} cardOwner="${cardOwner}" playerUserIds keys=[${[...game.playerUserIds.keys()].join(', ')}]`);
         const ownerUserId = game.playerUserIds.get(cardOwner);
         if (ownerUserId) {
-          // Base card ID = draftBaseId (if set) or the card's own id (e.g. "personaggi-5")
-          const baseCardId = (card as any).draftBaseId || card.id;
+          // Base card ID = draftBaseId (if set) or strip the random draft suffix from card.id
+          // e.g. "personaggi-108-y0o1dd" → "personaggi-108"
+          const rawInjuryId = (card as any).draftBaseId || card.id;
+          const baseCardId = rawInjuryId.match(/^(.+?-\d+)-[a-z0-9]{4,}$/i)?.[1] ?? rawInjuryId;
           this.recordPersonaggioInjury(ownerUserId, baseCardId).catch(() => {});
           console.log(`🩹 [InjuryRecord] Injury recorded: userId=${ownerUserId} cardId=${baseCardId} cardOwner="${cardOwner}"`);
         } else {
