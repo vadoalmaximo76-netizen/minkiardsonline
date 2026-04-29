@@ -38817,6 +38817,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         this.resumeTurnTimer(gameId, attackerName);
       }
     }
+
+    // Notify the attacker CPU (if any) that this MOSSE attack has resolved, clearing
+    // waitingForAttackResolution and cancelling the 8-second watchdog.
+    // Skipped for: Voodoo reflections (isVoodooReflection), periodic damage ticks
+    // (isPersistentTick), and the secondary hit of dual-attack cards (isSecondHit) —
+    // those are not standalone attack resolutions. Also skipped when the flag is
+    // already false (e.g. in the direct-damage path where _setWaitingForAttackResolution
+    // has not yet been called by emitMossaAttackRequest — notifyAttackResolved is a no-op).
+    if (!isVoodooReflection && !isPersistentTick && !isSecondHit) {
+      const attackerCpuEntry = this.games.get(gameId)?.players[attackerName];
+      if (attackerCpuEntry?.isCPU && attackerCpuEntry.cpuInstance?.notifyAttackResolved) {
+        attackerCpuEntry.cpuInstance.notifyAttackResolved();
+      }
+    }
   }
 
   checkForGameVictory(gameId: string): string | null {
