@@ -4082,6 +4082,51 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           return;
         }
 
+        // OSTAGGIO HANDLING: CPU played OSTAGGIO card - apply hostage effect directly and end turn.
+        // executeMossaAttack returns early with isOstaggioAttack=true without calling applyOstaggio
+        // (which is normally handled by routes.ts for human players). For CPU we must call it here.
+        if (attackResult.result?.isOstaggioAttack) {
+          console.log(`⛓️ CPU ${this.playerName}: OSTAGGIO attack detected - applying hostage effect directly`);
+
+          const ostaggioResult = this.gameManager.applyOstaggio(
+            this.gameId,
+            mosseCard.id,
+            target.cardId,
+            this.playerName,
+            suggestedDamage,
+            this.socketEmitter
+          );
+
+          console.log(`⛓️ CPU ${this.playerName}: OSTAGGIO applied: success=${ostaggioResult.success} died=${ostaggioResult.died}`);
+
+          const ostaggioState = this.gameManager.getSanitizedGameState(this.gameId);
+          if (ostaggioState) {
+            this.socketEmitter.to(this.gameId).emit('game-state-update', ostaggioState);
+          }
+
+          // End turn: one OSTAGGIO per turn (same pattern as BARRIERA/SAGOMA)
+          // CRITICAL FIX: resetTurnState() clears waitingForAttackResolution, re-set it to true
+          // so takeTurn() returns null and the timeout below is the only code that calls endTurn().
+          this.resetTurnState();
+          this.waitingForAttackResolution = true;
+          setTimeout(() => {
+            this.waitingForAttackResolution = false;
+            this.gameManager.processDelayedDamages(this.gameId, this.playerName, this.socketEmitter);
+            const nextOstPlayer = this.gameManager.endTurn(this.gameId, this.playerName);
+            if (nextOstPlayer) {
+              console.log(`⛓️ CPU ${this.playerName}: Turn ended after OSTAGGIO, next: ${nextOstPlayer}`);
+              this.socketEmitter.to(this.gameId).emit('next-turn', { nextPlayer: nextOstPlayer });
+              const freshGameOst = this.gameManager.getGameState(this.gameId);
+              if (freshGameOst && freshGameOst.players[nextOstPlayer]?.isCPU) {
+                setTimeout(() => {
+                  this.gameManager.processCPUTurn(this.gameId, nextOstPlayer, this.socketEmitter);
+                }, 1500);
+              }
+            }
+          }, 800);
+          return;
+        }
+
         if (attackResult.result?.requiresDefenseResponse) {
           console.log(`🛡️ CPU ${this.playerName}: Attack requires defense response from ${target.owner}`);
           const pendingDefense = this.gameManager.getPendingDefense(this.gameId);
