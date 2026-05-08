@@ -22933,10 +22933,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // GymMode boss deck exhaustion: if this personaggi death left the boss with
       // no remaining cards anywhere, auto-eliminate even if characterLimit not reached.
+      // Called directly (no setTimeout) so elimination fires in the same event-loop tick
+      // as the death, before any draw attempt on the next turn.
       if (!eliminationCheck && game.isGymMode && game.players[cardOwner]?.isCPU &&
           (card.type === 'personaggi' || card.type === 'personaggi_speciali')) {
-        const ioGBDE = (global as any).io;
-        setTimeout(() => { this.checkGymBossDeckExhausted(gameId, cardOwner, ioGBDE); }, 300);
+        this.checkGymBossDeckExhausted(gameId, cardOwner, (global as any).io);
       }
 
       return { success: true, graveyardCount, cardImage: card.frontImage, cardType: card.type, eliminationCheck, cardOwner, sorosActivated: false, detachedParasites };

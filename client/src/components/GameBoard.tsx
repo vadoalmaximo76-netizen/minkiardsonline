@@ -2780,7 +2780,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       if (teamCoverTimerRef.current) clearInterval(teamCoverTimerRef.current);
       socket.off('fusion-error', handleFusionError);
       socket.off('voodoo:error', handleVoodooError);
-      socket.off('gym-boss-deck-exhausted');
+      socket.off('gym-boss-deck-exhausted', handleGymBossDeckExhausted);
       if (gymBossExhaustedTimerRef.current) clearTimeout(gymBossExhaustedTimerRef.current);
       socket.off('room-deleted');
       socket.off('staku:opportunity', handleStakuOpportunity);
