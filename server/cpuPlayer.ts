@@ -2961,9 +2961,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
       
       // GymMode: if boss has no personaggi left in deck, hand or field, auto-eliminate immediately.
-      if (this.gameManager && (this.gameManager as any).checkGymBossDeckExhausted) {
-        const ioGBDE = (global as any).io;
-        if ((this.gameManager as any).checkGymBossDeckExhausted(this.gameId, this.playerName, ioGBDE)) {
+      if (this.gameManager) {
+        if (this.gameManager.checkGymBossDeckExhausted(this.gameId, this.playerName, null)) {
           console.log(`☠️ [GymMode] Boss ${this.playerName}: deck exhausted at turn start — auto-eliminated`);
           return null;
         }
