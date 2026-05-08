@@ -2960,6 +2960,15 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         }
       }
       
+      // GymMode: if boss has no personaggi left in deck, hand or field, auto-eliminate immediately.
+      if (this.gameManager && (this.gameManager as any).checkGymBossDeckExhausted) {
+        const ioGBDE = (global as any).io;
+        if ((this.gameManager as any).checkGymBossDeckExhausted(this.gameId, this.playerName, ioGBDE)) {
+          console.log(`☠️ [GymMode] Boss ${this.playerName}: deck exhausted at turn start — auto-eliminated`);
+          return null;
+        }
+      }
+
       // NEW: Process pending orders from human players first
       if (this.pendingOrder) {
         // processing pending order

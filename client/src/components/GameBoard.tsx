@@ -233,6 +233,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     teamPlayerStats: Record<string, any> | null;
   } | null>(null);
   const [showInterstitialAd, setShowInterstitialAd] = useState(false);
+  const [gymBossExhaustedBanner, setGymBossExhaustedBanner] = useState<{ bossName: string; message: string } | null>(null);
+  const gymBossExhaustedTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const [gameEndRewards, setGameEndRewards] = useState<{
     visible: boolean;
     pointsEarned: number;
@@ -2533,6 +2535,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('game-victory', handleGameVictory);
     socket.on('game-end-rewards', handleGameEndRewards);
 
+    const handleGymBossDeckExhausted = (data: { bossName: string; message: string }) => {
+      if (gymBossExhaustedTimerRef.current) clearTimeout(gymBossExhaustedTimerRef.current);
+      setGymBossExhaustedBanner(data);
+      gymBossExhaustedTimerRef.current = setTimeout(() => setGymBossExhaustedBanner(null), 7000);
+    };
+    socket.on('gym-boss-deck-exhausted', handleGymBossDeckExhausted);
+
     // TEAM MODE: Team cover opportunity notification
     const handleTeamCoverOpportunity = (data: {
       attackId: string; attackedPlayer: string; attacker: string; damage: number;
@@ -2771,6 +2780,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       if (teamCoverTimerRef.current) clearInterval(teamCoverTimerRef.current);
       socket.off('fusion-error', handleFusionError);
       socket.off('voodoo:error', handleVoodooError);
+      socket.off('gym-boss-deck-exhausted');
+      if (gymBossExhaustedTimerRef.current) clearTimeout(gymBossExhaustedTimerRef.current);
       socket.off('room-deleted');
       socket.off('staku:opportunity', handleStakuOpportunity);
       socket.off('staku:expired', handleStakuExpired);
@@ -3073,6 +3084,36 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               Giocato da <strong style={{ color: 'rgba(255,200,100,0.9)' }}>{scenarioCinematic.playedBy}</strong>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Gym Boss Deck Exhausted Banner */}
+      {gymBossExhaustedBanner && (
+        <div style={{
+          position: 'fixed', top: '56px', left: 0, right: 0, zIndex: 9500,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px',
+          padding: '10px 18px',
+          background: 'linear-gradient(90deg, rgba(10,0,20,0.98), rgba(60,0,10,0.98), rgba(10,0,20,0.98))',
+          borderBottom: '3px solid rgba(220,30,30,0.85)',
+          borderTop: '3px solid rgba(220,30,30,0.85)',
+          boxShadow: '0 0 32px rgba(220,30,30,0.5), inset 0 0 20px rgba(200,0,0,0.15)',
+          animation: 'scenario-banner-in 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+        }}>
+          <span style={{ fontSize: '1.6rem' }}>☠️</span>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ color: '#ff4444', fontWeight: 800, fontSize: '0.95rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              Boss Sconfitto
+            </div>
+            <div style={{ color: '#ffcccc', fontSize: '0.82rem', marginTop: '1px' }}>
+              {gymBossExhaustedBanner.bossName} ha esaurito tutti i suoi personaggi ed è stato eliminato automaticamente
+            </div>
+          </div>
+          <span style={{ fontSize: '1.6rem' }}>☠️</span>
+          <button
+            onClick={() => setGymBossExhaustedBanner(null)}
+            style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#ff8888', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}
+            aria-label="Chiudi"
+          >✕</button>
         </div>
       )}
 

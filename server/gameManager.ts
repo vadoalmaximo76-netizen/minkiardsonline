@@ -22931,6 +22931,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
       }
 
+      // GymMode boss deck exhaustion: if this personaggi death left the boss with
+      // no remaining cards anywhere, auto-eliminate even if characterLimit not reached.
+      if (!eliminationCheck && game.isGymMode && game.players[cardOwner]?.isCPU &&
+          (card.type === 'personaggi' || card.type === 'personaggi_speciali')) {
+        const ioGBDE = (global as any).io;
+        setTimeout(() => { this.checkGymBossDeckExhausted(gameId, cardOwner, ioGBDE); }, 300);
+      }
+
       return { success: true, graveyardCount, cardImage: card.frontImage, cardType: card.type, eliminationCheck, cardOwner, sorosActivated: false, detachedParasites };
     }
     
@@ -33569,6 +33577,74 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }, playerName);
 
     return { message: `🎁 ${playerName} ha trasferito ${transferredCount} carte specifiche da ${fromPlayer} a ${toPlayer}` };
+  }
+
+  /**
+   * GymMode only: auto-eliminate a CPU boss whose personal personaggi deck is
+   * completely exhausted (deck empty + no personaggi in hand + none on field)
+   * but who hasn't yet reached the characterLimit death count.
+   * Returns true if the elimination was triggered.
+   */
+  checkGymBossDeckExhausted(gameId: string, playerName: string, io: any): boolean {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+    if (!game.isGymMode) return false;
+    if (!game.players[playerName]?.isCPU) return false;
+    if (game.eliminatedPlayers.has(playerName)) return false;
+
+    const personalDeck = game.playerDraftDecks?.[playerName];
+    const deckEmpty = !personalDeck || (personalDeck.personaggi || []).length === 0;
+    if (!deckEmpty) return false;
+
+    const hasPersonaggiInHand = (game.players[playerName].hand || []).some(
+      (c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali'
+    );
+    if (hasPersonaggiInHand) return false;
+
+    const hasPersonaggiOnField = game.field.some(
+      (c: Card) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+    );
+    if (hasPersonaggiOnField) return false;
+
+    console.log(`☠️ [GymMode] Boss ${playerName}: personaggi deck + hand + field all empty — auto-eliminating`);
+
+    const ioToUse = io || (global as any).io;
+    if (ioToUse) {
+      ioToUse.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-gym-boss-exhausted`,
+        playerName: 'Sistema',
+        message: `☠️ [BOSS SCONFITTO] ${playerName} ha esaurito tutti i suoi personaggi! Non ha più carte da poter giocare e viene eliminato automaticamente.`,
+        timestamp: Date.now()
+      });
+      ioToUse.to(gameId).emit('gym-boss-deck-exhausted', {
+        bossName: playerName,
+        message: `${playerName} ha terminato tutti i propri personaggi!`
+      });
+    }
+
+    const eliminationSuccess = this.markPlayerEliminated(gameId, playerName);
+    if (eliminationSuccess && ioToUse) {
+      ioToUse.to(gameId).emit('player-eliminated', { playerName });
+      const winner = this.checkForGameVictory(gameId);
+      if (winner) {
+        const gameForStats = this.games.get(gameId);
+        const duration = gameForStats ? Math.floor((Date.now() - gameForStats.startTime.getTime()) / 1000) : 0;
+        const statsMap: Record<string, any> = {};
+        if (gameForStats) {
+          for (const [pName, pStats] of gameForStats.playerStats.entries()) {
+            statsMap[pName] = pStats;
+          }
+        }
+        ioToUse.to(gameId).emit('game-victory', {
+          winner,
+          lastAction: gameForStats?.lastAction || null,
+          matchDuration: duration,
+          playerStats: statsMap
+        });
+        this.completeMatch(gameId, winner);
+      }
+    }
+    return true;
   }
 
   // Add methods for elimination system
