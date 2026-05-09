@@ -215,7 +215,7 @@ export function World3DScene(props: StoryWorld3DProps) {
           intensity={1.1}
         />
         <ChromaticAberration
-          offset={new THREE.Vector2(0.0008, 0.0008) as unknown as [number, number]}
+          offset={new THREE.Vector2(0.0008, 0.0008)}
         />
         <Vignette
           offset={0.28}

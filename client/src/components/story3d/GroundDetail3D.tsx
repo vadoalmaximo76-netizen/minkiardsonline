@@ -14,7 +14,7 @@ import * as THREE from 'three';
 /* ── Tuft configuration ────────────────────────────────────────── */
 const TUFT_COUNT    = 280; /* small cone tufts  */
 const FLOWER_COUNT  = 140; /* tiny sphere blooms */
-const SPREAD_RADIUS = 115; /* world units from origin */
+const SPREAD_RADIUS = 80; /* world units from origin */
 
 /* Flower colours — cycling deterministically */
 const FLOWER_COLORS = [

@@ -72,10 +72,12 @@ export function ProceduralHumanoid3D({
   const rShRef    = useRef<THREE.Group>(null); /* right shoulder */
   const lElRef    = useRef<THREE.Group>(null); /* left elbow */
   const rElRef    = useRef<THREE.Group>(null); /* right elbow */
-  const lHipJRef  = useRef<THREE.Group>(null); /* left hip joint */
+  const lHipJRef  = useRef<THREE.Group>(null); /* left hip joint  */
   const rHipJRef  = useRef<THREE.Group>(null); /* right hip joint */
   const lKneeRef  = useRef<THREE.Group>(null);
   const rKneeRef  = useRef<THREE.Group>(null);
+  const lAnkleRef = useRef<THREE.Group>(null); /* left ankle  — heel-raise */
+  const rAnkleRef = useRef<THREE.Group>(null); /* right ankle — heel-raise */
 
   const alphaRef  = useRef(0); /* 0 = idle, 1 = walk */
 
@@ -101,6 +103,8 @@ export function ProceduralHumanoid3D({
     const rH    = rHipJRef.current;
     const lK    = lKneeRef.current;
     const rK    = rKneeRef.current;
+    const lAnk  = lAnkleRef.current;
+    const rAnk  = rAnkleRef.current;
 
     if (!hip) return;
 
@@ -135,13 +139,18 @@ export function ProceduralHumanoid3D({
     if (rSh) rSh.rotation.x = Math.sin(wt)            * 0.40 * a;
     if (rEl) rEl.rotation.x = Math.max(0, Math.sin(wt + Math.PI * 1.55)) * 0.30 * a;
 
-    /* ── LEGS: alternating swing + knee follow-through ── */
+    /* ── LEGS: alternating swing + knee follow-through + heel-raise ── */
     /* Left leg: phase = 0 (forward when t=0) */
-    if (lH) lH.rotation.x  = Math.sin(wt)             * 0.54 * a;
-    if (lK) lK.rotation.x  = Math.max(0, -Math.sin(wt - 0.35)) * 0.48 * a;
+    if (lH) lH.rotation.x  = Math.sin(wt)                        * 0.54 * a;
+    if (lK) lK.rotation.x  = Math.max(0, -Math.sin(wt - 0.35))   * 0.48 * a;
+    /* Left heel-raise (plantar-flexion) during push-off / back-swing:
+       lifts as the leg trails behind, peaks just before toe-off.       */
+    if (lAnk) lAnk.rotation.x = Math.max(0, -Math.sin(wt + 0.40)) * 0.42 * a;
+
     /* Right leg: phase = π */
-    if (rH) rH.rotation.x  = Math.sin(wt + Math.PI)   * 0.54 * a;
+    if (rH) rH.rotation.x  = Math.sin(wt + Math.PI)              * 0.54 * a;
     if (rK) rK.rotation.x  = Math.max(0, -Math.sin(wt + Math.PI - 0.35)) * 0.48 * a;
+    if (rAnk) rAnk.rotation.x = Math.max(0, -Math.sin(wt + Math.PI + 0.40)) * 0.42 * a;
   });
 
   /* ── Colours ─────────────────────────────────────────────────────── */
@@ -228,10 +237,12 @@ export function ProceduralHumanoid3D({
           <mesh geometry={GEO_LOWER_LEG} position={[0, -0.105, 0]} castShadow>
             <meshStandardMaterial color={skin} roughness={0.76} metalness={0} />
           </mesh>
-          {/* Left foot */}
-          <mesh geometry={GEO_FOOT} position={[0.015, -0.222, 0.022]}>
-            <meshStandardMaterial color={shoe} roughness={0.88} metalness={0.08} />
-          </mesh>
+          {/* Ankle pivot — heel-raise driven by lAnkleRef in useFrame */}
+          <group ref={lAnkleRef} position={[0, -0.210, 0]}>
+            <mesh geometry={GEO_FOOT} position={[0.015, -0.0275, 0.022]}>
+              <meshStandardMaterial color={shoe} roughness={0.88} metalness={0.08} />
+            </mesh>
+          </group>
         </group>
       </group>
 
@@ -244,10 +255,12 @@ export function ProceduralHumanoid3D({
           <mesh geometry={GEO_LOWER_LEG} position={[0, -0.105, 0]} castShadow>
             <meshStandardMaterial color={skin} roughness={0.76} metalness={0} />
           </mesh>
-          {/* Right foot */}
-          <mesh geometry={GEO_FOOT} position={[-0.015, -0.222, 0.022]}>
-            <meshStandardMaterial color={shoe} roughness={0.88} metalness={0.08} />
-          </mesh>
+          {/* Ankle pivot — heel-raise driven by rAnkleRef in useFrame */}
+          <group ref={rAnkleRef} position={[0, -0.210, 0]}>
+            <mesh geometry={GEO_FOOT} position={[-0.015, -0.0275, 0.022]}>
+              <meshStandardMaterial color={shoe} roughness={0.88} metalness={0.08} />
+            </mesh>
+          </group>
         </group>
       </group>
     </group>
