@@ -216,6 +216,8 @@ export function World3DScene(props: StoryWorld3DProps) {
         />
         <ChromaticAberration
           offset={new THREE.Vector2(0.0008, 0.0008)}
+          radialModulation={false}
+          modulationOffset={0}
         />
         <Vignette
           offset={0.28}
