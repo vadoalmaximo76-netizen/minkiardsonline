@@ -1,4 +1,4 @@
-const STATIC_CACHE_NAME = 'minkiards-static-v3';
+const STATIC_CACHE_NAME = 'minkiards-static-v4';
 const IMAGE_CACHE_NAME = 'minkiards-images-v1';
 
 const STATIC_ASSETS = [
@@ -17,7 +17,7 @@ function isCardImageRequest(url) {
 }
 
 self.addEventListener('install', function(event) {
-  console.log('[SW] Installing service worker v3...');
+  console.log('[SW] Installing service worker v4...');
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME).then(function(cache) {
       return cache.addAll(STATIC_ASSETS).then(function() {
@@ -32,7 +32,7 @@ self.addEventListener('install', function(event) {
 });
 
 self.addEventListener('activate', function(event) {
-  console.log('[SW] Service worker v3 activated');
+  console.log('[SW] Service worker v4 activated');
   event.waitUntil(
     caches.keys().then(function(cacheNames) {
       return Promise.all(
