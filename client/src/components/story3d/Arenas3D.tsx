@@ -29,17 +29,19 @@ function ArenaItem({
   index: number;
   onChallengeLeader: (l: GymLeader) => void;
 }) {
-  const { scene }  = useThree();
-  const spotRef    = useRef<THREE.SpotLight>(null);
-  const gemRef     = useRef<THREE.Group>(null);
-  const ring1Ref   = useRef<THREE.Mesh>(null);
-  const ring2Ref   = useRef<THREE.Mesh>(null);
-  const ring3Ref   = useRef<THREE.Mesh>(null);
-  const col1Ref    = useRef<THREE.Mesh>(null);
-  const col2Ref    = useRef<THREE.Mesh>(null);
-  const col3Ref    = useRef<THREE.Mesh>(null);
-  const col4Ref    = useRef<THREE.Mesh>(null);
-  const timeRef    = useRef(0);
+  const { scene }   = useThree();
+  const spotRef     = useRef<THREE.SpotLight>(null);
+  const gemRef      = useRef<THREE.Group>(null);
+  const gemLightRef = useRef<THREE.PointLight>(null);
+  const ring1Ref    = useRef<THREE.Mesh>(null);
+  const ring2Ref    = useRef<THREE.Mesh>(null);
+  const ring3Ref    = useRef<THREE.Mesh>(null);
+  const ring4Ref    = useRef<THREE.Mesh>(null); /* secondary perpendicular ring */
+  const col1Ref     = useRef<THREE.Mesh>(null);
+  const col2Ref     = useRef<THREE.Mesh>(null);
+  const col3Ref     = useRef<THREE.Mesh>(null);
+  const col4Ref     = useRef<THREE.Mesh>(null);
+  const timeRef     = useRef(0);
 
   const isLocked    = status === 'locked';
   const isCompleted = status === 'completed';
@@ -60,16 +62,26 @@ function ArenaItem({
     timeRef.current += delta;
     const t = timeRef.current;
 
-    /* ── Gem float + rotate ── */
+    /* ── Gem float + rotate (faster, multi-axis for available arenas) ── */
     if (gemRef.current && status === 'available') {
-      gemRef.current.rotation.y = t * 0.7;
+      gemRef.current.rotation.y = t * 1.8;
+      gemRef.current.rotation.x = t * 0.55;
       gemRef.current.position.y = 6.0 + Math.sin(t * 1.5 + index) * 0.22;
     }
 
-    /* ── Energy rings ── */
-    if (ring1Ref.current) ring1Ref.current.rotation.y = t * 0.9;
-    if (ring2Ref.current) ring2Ref.current.rotation.z = t * 1.2;
-    if (ring3Ref.current) ring3Ref.current.rotation.x = t * 0.7;
+    /* ── Gem interior point light pulse ── */
+    if (gemLightRef.current && status === 'available') {
+      gemLightRef.current.intensity = 2.8 + Math.sin(t * 2.8 + index * 0.7) * 1.4;
+    }
+
+    /* ── Energy rings (increased speeds + ring4 diagonal spin) ── */
+    if (ring1Ref.current) ring1Ref.current.rotation.y = t * 1.4;
+    if (ring2Ref.current) ring2Ref.current.rotation.z = t * 1.8;
+    if (ring3Ref.current) ring3Ref.current.rotation.x = t * 1.1;
+    if (ring4Ref.current) {
+      ring4Ref.current.rotation.x = t * 0.9;
+      ring4Ref.current.rotation.z = t * 0.6;
+    }
 
     /* ── Column pulse (available only) ── */
     if (status === 'available') {
@@ -144,13 +156,13 @@ function ArenaItem({
         );
       })}
 
-      {/* ── Energy rings (3 tori around pillar) ──────────────────── */}
+      {/* ── Energy rings (4 tori — ring4 is perpendicular diagonal) ── */}
       <mesh ref={ring1Ref} position={[0, 2.5, 0]}>
         <torusGeometry args={[1.5, 0.08, 8, 32]} />
         <meshStandardMaterial
           color={arenaColor}
           emissive={arenaColor}
-          emissiveIntensity={isLocked ? 0 : 1.4}
+          emissiveIntensity={isLocked ? 0 : 1.6}
           roughness={0.1}
           metalness={0.7}
         />
@@ -160,7 +172,7 @@ function ArenaItem({
         <meshStandardMaterial
           color={arenaColor}
           emissive={arenaColor}
-          emissiveIntensity={isLocked ? 0 : 1.2}
+          emissiveIntensity={isLocked ? 0 : 1.4}
           roughness={0.1}
           metalness={0.7}
         />
@@ -170,7 +182,18 @@ function ArenaItem({
         <meshStandardMaterial
           color={arenaColor}
           emissive={arenaColor}
-          emissiveIntensity={isLocked ? 0 : 1.0}
+          emissiveIntensity={isLocked ? 0 : 1.2}
+          roughness={0.1}
+          metalness={0.7}
+        />
+      </mesh>
+      {/* Secondary perpendicular ring — diagonal starting rotation */}
+      <mesh ref={ring4Ref} position={[0, 3.2, 0]} rotation={[Math.PI / 3, 0, Math.PI / 4]}>
+        <torusGeometry args={[1.35, 0.055, 7, 26]} />
+        <meshStandardMaterial
+          color={arenaColor}
+          emissive={arenaColor}
+          emissiveIntensity={isLocked ? 0 : 1.3}
           roughness={0.1}
           metalness={0.7}
         />
@@ -183,7 +206,7 @@ function ArenaItem({
           <meshStandardMaterial
             color={isCompleted ? '#ffffff' : isLocked ? '#334455' : color}
             emissive={isCompleted ? '#aaffaa' : isLocked ? '#000000' : color}
-            emissiveIntensity={isCompleted ? 1.0 : isLocked ? 0 : 1.2}
+            emissiveIntensity={isCompleted ? 1.0 : isLocked ? 0 : 1.5}
             roughness={0.05}
             metalness={0.8}
             transparent={!isLocked}
@@ -197,13 +220,23 @@ function ArenaItem({
             <meshStandardMaterial
               color={color}
               emissive={color}
-              emissiveIntensity={2.0}
+              emissiveIntensity={2.4}
               roughness={0.0}
               metalness={1.0}
               transparent
               opacity={0.5}
             />
           </mesh>
+        )}
+        {/* Pulsing interior point light — driven by gemLightRef in useFrame */}
+        {status === 'available' && (
+          <pointLight
+            ref={gemLightRef}
+            color={color}
+            intensity={2.8}
+            distance={14}
+            decay={2}
+          />
         )}
       </group>
 
@@ -250,7 +283,7 @@ function ArenaItem({
       {/* ── Spotlight column (available arenas) ──────────────────── */}
       {status === 'available' && (
         <>
-          <pointLight position={[0, 7, 0]} color={color} intensity={4} distance={18} />
+          <pointLight position={[0, 7, 0]} color={color} intensity={6} distance={20} />
           <spotLight
             ref={spotRef}
             position={[0, 26, 0]}

@@ -7,12 +7,13 @@
 
 import React, { Suspense, useRef } from 'react';
 import { useFrame }       from '@react-three/fiber';
-import { EffectComposer, Bloom, ToneMapping, Vignette } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, ToneMapping, Vignette, ChromaticAberration } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
 import { Terrain3D, Roads3D }              from './Terrain3D';
 import { Buildings3D }                     from './Buildings3D';
 import { Trees3D }                         from './Trees3D';
+import { GroundDetail3D }                  from './GroundDetail3D';
 import { Arenas3D }                        from './Arenas3D';
 import { Collectibles3D }                  from './Collectibles3D';
 import { OtherPlayers3D }                  from './OtherPlayers3D';
@@ -165,6 +166,7 @@ export function World3DScene(props: StoryWorld3DProps) {
       <WaterPlane3D />
       <Buildings3D buildings={props.buildingData} playerRef={props.playerRef} dayTimeRef={dayTimeRef} />
       <Trees3D trees={props.treeData} />
+      <GroundDetail3D />
       <FootballField3D />
       <ArcadeLights3D />
 
@@ -205,12 +207,15 @@ export function World3DScene(props: StoryWorld3DProps) {
         mobileCamRotateRef={props.mobileCamRotateRef}
       />
 
-      {/* Post-processing — PS2-style cinematic */}
+      {/* Post-processing — cinematic atmosphere */}
       <EffectComposer>
         <Bloom
-          luminanceThreshold={0.55}
+          luminanceThreshold={0.45}
           luminanceSmoothing={0.85}
-          intensity={0.75}
+          intensity={1.1}
+        />
+        <ChromaticAberration
+          offset={new THREE.Vector2(0.0008, 0.0008) as unknown as [number, number]}
         />
         <Vignette
           offset={0.28}

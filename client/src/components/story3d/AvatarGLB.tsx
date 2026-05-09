@@ -1,7 +1,8 @@
-import React, { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF, useAnimations } from '@react-three/drei';
 import * as THREE from 'three';
+import { ProceduralHumanoid3D } from './ProceduralHumanoid3D';
 
 /* ── Avatar index palette (8 distinct models) ────────────────────── */
 const NUM_AVATARS = 8;
@@ -97,6 +98,15 @@ export function AvatarGLB({
   /* Alpha: 0 = idle, 1 = walking — lerps in ~0.25 s */
   const animAlphaRef = useRef(0);
 
+  /**
+   * pathMode:
+   *   'pending' — useEffect not yet run → show ProceduralHumanoid as safe default
+   *   'a'       — baked animation clips active (GLB rendered)
+   *   'b'       — procedural bone animation active (GLB rendered)
+   *   'c'       — ProceduralHumanoid3D (no clips, no skeleton detected)
+   */
+  const [pathMode, setPathMode] = useState<'pending' | 'a' | 'b' | 'c'>('pending');
+
   /* One-time setup after the cloned scene and actions are ready */
   useEffect(() => {
     /* ── PATH A: map clips to idle / walk states ── */
@@ -124,6 +134,7 @@ export function AvatarGLB({
         startAction.reset().play();
         currentActionRef.current = startAction;
         console.log('[AvatarGLB] Path A active — idle:', idleName, 'walk:', walkName);
+        setPathMode('a');
         return; /* skip Path B/C setup */
       }
     }
@@ -133,12 +144,14 @@ export function AvatarGLB({
     bonesRef.current  = bones;
     hasBones.current  = Object.keys(bones).length > 0;
     if (!hasBones.current) {
-      console.log('[AvatarGLB] Path C active — enhanced procedural fallback');
+      console.log('[AvatarGLB] Path C active — ProceduralHumanoid3D');
+      setPathMode('c');
     } else {
       console.log('[AvatarGLB] Path B active — procedural bone animation');
       for (const bone of Object.values(bonesRef.current)) {
         if (bone) origRots.current.set(bone, bone.rotation.clone());
       }
+      setPathMode('b');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clonedScene]);
@@ -224,41 +237,36 @@ export function AvatarGLB({
       return;
     }
 
-    /* ── PATH C: enhanced procedural fallback (no skeleton, no clips) ── */
-    /* Idle: subtle vertical breath + scale-Y pulse */
-    const idleY      = Math.sin(t * 1.8)     * 0.012 * idle;
-    const idleScaleY = 1 + Math.sin(t * 1.8) * 0.008 * idle;
-
-    /* Walk: pronounced bob + lateral sway + slight forward lean */
-    const walkBob  = Math.abs(Math.sin(wt)) * 0.09 * alpha;
-    const walkSway = Math.sin(wt)            * 0.05 * alpha;
-    const walkLean = Math.sin(wt * 0.5)      * 0.015 * alpha;
-
-    bodyGroupRef.current.position.y = idleY + walkBob;
-    bodyGroupRef.current.rotation.z = walkSway;
-    bodyGroupRef.current.rotation.x = walkLean;
-    bodyGroupRef.current.scale.set(MODEL_SCALE, MODEL_SCALE * idleScaleY, MODEL_SCALE);
-
-    /* Inner model group: simulate head nod by tilting model upper region */
-    const headNodIdle = Math.sin(t * 1.4)              * 0.008 * idle;
-    const headNodWalk = Math.sin(wt + Math.PI * 0.5)   * 0.04  * alpha;
-    modelGroupRef.current.rotation.x = headNodIdle + headNodWalk;
   });
+
+  /* True when we should render the GLB scene graph */
+  const useGLB = pathMode === 'a' || pathMode === 'b';
 
   return (
     <>
-      {/* Shadow blob at world scale (outside the 2.5× model group) */}
+      {/* Shadow blob at world scale (outside the model group) */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
         <circleGeometry args={[0.65, 16]} />
         <meshBasicMaterial color="#000000" transparent opacity={0.18} depthWrite={false} />
       </mesh>
 
-      {/* GLB model group — scaled up as required by gamestack guidelines */}
-      <group ref={bodyGroupRef} scale={[MODEL_SCALE, MODEL_SCALE, MODEL_SCALE]}>
-        <group ref={modelGroupRef}>
-          <primitive object={clonedScene} />
+      {useGLB ? (
+        /* Path A / B — GLB model driven by mixer or procedural bones */
+        <group ref={bodyGroupRef} scale={[MODEL_SCALE, MODEL_SCALE, MODEL_SCALE]}>
+          <group ref={modelGroupRef}>
+            <primitive object={clonedScene} />
+          </group>
         </group>
-      </group>
+      ) : (
+        /* Path C / pending — fully-articulated procedural humanoid */
+        <group scale={[MODEL_SCALE, MODEL_SCALE, MODEL_SCALE]}>
+          <ProceduralHumanoid3D
+            userId={userId}
+            movingRef={movingRef}
+            timeRef={timeRef}
+          />
+        </group>
+      )}
     </>
   );
 }
