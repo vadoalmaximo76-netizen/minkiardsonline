@@ -10,6 +10,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { initSentry } from "./sentry";
 import { isRedisConfigured, setPlayerOnline, getOnlinePlayerCount } from "./redis";
 import { probeAndSwitchIfNeeded } from "./db";
+import pg from 'pg';
 import { isCloudinaryConfigured } from "./cloudinary";
 import { isFreesoundConfigured } from "./freesound";
 import { logResendConfigStatus } from "./resendClient";
@@ -89,6 +90,32 @@ app.use((req, res, next) => {
 
     // Log Resend email configuration status so admins can spot missing config at a glance
     await logResendConfigStatus();
+
+    // Run idempotent schema migrations on startup (safe to run every boot)
+    try {
+      const { Pool } = pg;
+      const migPool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1, connectionTimeoutMillis: 5000 });
+      const schemaMigrations = [
+        `ALTER TABLE tournament_participants ADD COLUMN IF NOT EXISTS disqualified_at TIMESTAMP`,
+        `ALTER TABLE tournament_participants ADD COLUMN IF NOT EXISTS disqualification_reason TEXT`,
+        `ALTER TABLE tournament_matches ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP`,
+        `ALTER TABLE tournament_matches ADD COLUMN IF NOT EXISTS note TEXT`,
+        `ALTER TABLE tournament_matches ADD COLUMN IF NOT EXISTS notified_24h BOOLEAN NOT NULL DEFAULT FALSE`,
+        `ALTER TABLE tournament_matches ADD COLUMN IF NOT EXISTS notified_1h BOOLEAN NOT NULL DEFAULT FALSE`,
+        `ALTER TABLE tournament_matches ADD COLUMN IF NOT EXISTS notified_30m BOOLEAN NOT NULL DEFAULT FALSE`,
+        `ALTER TABLE tournament_matches ADD COLUMN IF NOT EXISTS player_ids JSONB DEFAULT '[]'`,
+        `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS is_official BOOLEAN NOT NULL DEFAULT FALSE`,
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_until TIMESTAMP`,
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT`,
+      ];
+      for (const migSql of schemaMigrations) {
+        try { await migPool.query(migSql); } catch (_e) { /* already exists — ignore */ }
+      }
+      await migPool.end();
+      console.log('✅ Startup schema migrations applied');
+    } catch (migErr) {
+      console.warn('⚠️ Startup schema migrations skipped:', (migErr as Error).message);
+    }
 
     // Probe the primary DB at startup; switch to fallback before any request if quota exceeded
     await probeAndSwitchIfNeeded();
