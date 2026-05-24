@@ -14,6 +14,8 @@ import pg from 'pg';
 import { isCloudinaryConfigured } from "./cloudinary";
 import { isFreesoundConfigured } from "./freesound";
 import { logResendConfigStatus } from "./resendClient";
+console.log("DEBUG: DATABASE_URL is", process.env.DATABASE_URL ? "SET" : "NOT SET");
+console.log("DEBUG: EXTERNAL_DATABASE_URL is", process.env.EXTERNAL_DATABASE_URL ? "SET" : "NOT SET");
 
 // Auto-detect production mode: if dist/public exists and NODE_ENV is not explicitly set,
 // we are running from a compiled bundle in production.
