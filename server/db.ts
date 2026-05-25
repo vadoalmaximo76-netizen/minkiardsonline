@@ -3,7 +3,7 @@ const { Pool } = pg;
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from '../shared/schema';
 
-// Connessione diretta e semplice senza Proxy o logiche complesse
+// Connessione diretta
 const pool = new Pool({
   connectionString: process.env.EXTERNAL_DATABASE_URL,
   ssl: { rejectUnauthorized: false },
@@ -11,13 +11,14 @@ const pool = new Pool({
 
 export const db = drizzle(pool, { schema });
 
-export function isDatabaseAvailable(): boolean {
-  return !!db;
-}
-
-export function getActiveDbSource(): string {
-  return 'EXTERNAL_DATABASE_URL/Supabase (direct)';
-}
+// Esportazioni necessarie per far contenti auth.ts e routes.ts
+export const legacyDb = db; 
+export const isDatabaseAvailable = () => !!db;
+export const isLegacyDbAvailable = () => true;
+export const isUsingFallback = () => false;
+export const is402QuotaError = (err: unknown) => false;
+export const switchToFallback = () => false;
+export const getActiveDbSource = () => 'EXTERNAL_DATABASE_URL/Supabase (direct)';
 
 export async function probeAndSwitchIfNeeded(): Promise<void> {
   try {
@@ -27,7 +28,3 @@ export async function probeAndSwitchIfNeeded(): Promise<void> {
     console.error('❌ Database connection failed', e);
   }
 }
-
-export function isUsingFallback(): boolean { return false; }
-export function is402QuotaError(err: unknown): boolean { return false; }
-export function switchToFallback(): boolean { return false; }
