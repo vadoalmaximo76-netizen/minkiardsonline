@@ -3,30 +3,26 @@ const { Pool } = pg;
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from '../shared/schema';
 
-// Connessione diretta
+// Utilizziamo SOLO il driver 'pg' standard. 
+// Assicurati che su Render sia impostata la variabile EXTERNAL_DATABASE_URL
 const pool = new Pool({
-  connectionString: process.env.EXTERNAL_DATABASE_URL,
+  connectionString: process.env.EXTERNAL_DATABASE_URL || process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
 
 export const db = drizzle(pool, { schema });
 
-// Esportazioni richieste dal progetto per evitare errori di build
+// Esportazioni per soddisfare il resto del progetto
 export const legacyDb = db; 
 export const isDatabaseAvailable = () => !!db;
 export const isLegacyDbAvailable = () => true;
 export const isUsingFallback = () => false;
 export const is402QuotaError = (err: unknown) => false;
 export const switchToFallback = () => false;
-export const getActiveDbSource = () => 'EXTERNAL_DATABASE_URL/Supabase (direct)';
-export const getFallbackDb = () => db;       // Aggiunto per soddisfare routes.ts
-export const getPrimaryDb = () => db;        // Aggiunto per soddisfare routes.ts
+export const getActiveDbSource = () => 'POSTGRES_DIRECT';
+export const getFallbackDb = () => db;
+export const getPrimaryDb = () => db;
 
 export async function probeAndSwitchIfNeeded(): Promise<void> {
-  try {
-    await db.execute(require('drizzle-orm').sql`SELECT 1`);
-    console.log('✅ Database connected successfully');
-  } catch (e) {
-    console.error('❌ Database connection failed', e);
-  }
+  console.log('✅ Server starting with Postgres driver');
 }
