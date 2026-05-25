@@ -80,6 +80,16 @@ function tryConnectPostgres(url: string, label: string): DbType | null {
 // ── Initialise connections ──────────────────────────────────────────────────
 // DATABASE_URL (Replit/Neon) è il DB PRIMARIO.
 // EXTERNAL_DATABASE_URL (Supabase) è il DB SECONDARIO (dual-write + fallback di emergenza).
+if (!process.env.DATABASE_URL && process.env.EXTERNAL_DATABASE_URL) {
+  console.log('🚀 FORCING Postgres driver for Supabase...');
+  const extDb = tryConnectPostgres(process.env.EXTERNAL_DATABASE_URL, 'EXTERNAL_DATABASE_URL/Supabase (forced)');
+  if (extDb) {
+    _db = extDb;
+    _originalPrimaryDb = extDb;
+    _isDatabaseAvailable = true;
+    _activeDbSource = 'EXTERNAL_DATABASE_URL/Supabase (forced)';
+  }
+} else {
 if (process.env.DATABASE_URL) {
   console.log('📦 Using DATABASE_URL (Replit/Neon) as primary...');
   const replDb = tryConnectNeon(process.env.DATABASE_URL, 'DATABASE_URL/Replit (primary)');
