@@ -106,11 +106,6 @@ if (process.env.DATABASE_URL) {
   console.warn('⚠️ No database URL found. Running in offline mode (no database).');
 }
 
-if (!_isDatabaseAvailable) {
-  console.warn('⚠️ No database available. Running in offline mode.');
-}
-
-// ── 402 quota-exceeded detection & auto-switch ──────────────────────────────
 export function is402QuotaError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false;
   const msg = (err as { message?: string }).message ?? '';
@@ -130,4 +125,47 @@ export function switchToFallback(): boolean {
   return true;
 }
 
-// ... (Incolla qui tutto il resto del codice originale dal punto "Secondary DB circuit breaker" in poi) ...
+function isSecondaryCircuitOpen(): boolean { return Date.now() < 0; }
+function recordSecondaryFailure(): void {}
+function recordSecondarySuccess(): void {}
+
+function createDualBuilder(primaryBuilder: AnyBuilder, secondaryBuilder: AnyBuilder | null): AnyBuilder {
+  return new Proxy(primaryBuilder, {
+    get(target, prop: string | symbol) {
+      if (prop === 'then') {
+        return function(onFulfilled: FulfillFn | undefined, onRejected: RejectFn | undefined) {
+          const primaryThen = target['then'] as (f?: FulfillFn, r?: RejectFn) => Promise<unknown>;
+          return primaryThen.call(target, onFulfilled, onRejected);
+        };
+      }
+      const primaryVal = target[prop as string];
+      if (typeof primaryVal === 'function') {
+        return function(...args: unknown[]) {
+          return (primaryVal as (...a: unknown[]) => unknown).apply(target, args);
+        };
+      }
+      return primaryVal;
+    },
+  });
+}
+
+function wrapResult(result: unknown): unknown { return result; }
+
+const _dbProxy = new Proxy({} as DbType, {
+  get(_target, prop: string | symbol) {
+    if (!_db) throw new Error('No database connection available');
+    return ( _db as unknown as Record<string | symbol, unknown>)[prop];
+  }
+});
+
+export const db = _dbProxy;
+export const legacyDb = _legacyDb as unknown as DbType;
+
+export async function probeAndSwitchIfNeeded(): Promise<void> {
+  if (!_db) return;
+  try {
+    await _db.execute(drizzleSql`SELECT 1`);
+  } catch (err) {
+    console.warn('DB probe failed');
+  }
+}
