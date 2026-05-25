@@ -11,7 +11,7 @@ const pool = new Pool({
 
 export const db = drizzle(pool, { schema });
 
-// Esportazioni necessarie per far contenti auth.ts e routes.ts
+// Esportazioni richieste dal progetto per evitare errori di build
 export const legacyDb = db; 
 export const isDatabaseAvailable = () => !!db;
 export const isLegacyDbAvailable = () => true;
@@ -19,6 +19,8 @@ export const isUsingFallback = () => false;
 export const is402QuotaError = (err: unknown) => false;
 export const switchToFallback = () => false;
 export const getActiveDbSource = () => 'EXTERNAL_DATABASE_URL/Supabase (direct)';
+export const getFallbackDb = () => db;       // Aggiunto per soddisfare routes.ts
+export const getPrimaryDb = () => db;        // Aggiunto per soddisfare routes.ts
 
 export async function probeAndSwitchIfNeeded(): Promise<void> {
   try {
