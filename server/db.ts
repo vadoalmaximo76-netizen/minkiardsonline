@@ -3,18 +3,15 @@ const { Pool } = pg;
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from '../shared/schema';
 
-// Usiamo una variabile d'ambiente pulita. 
-// Assicurati che su Render sia impostata solo EXTERNAL_DATABASE_URL
-const connString = process.env.EXTERNAL_DATABASE_URL || "";
-
+// Usa solo pg, escludendo totalmente qualsiasi cosa legata a Neon
 const pool = new Pool({
-  connectionString: connString,
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
 
 export const db = drizzle(pool, { schema });
 
-// Esportazioni "dummy" per far compilare il resto
+// Esportazioni standard
 export const legacyDb = db;
 export const isDatabaseAvailable = () => true;
 export const isLegacyDbAvailable = () => true;
